@@ -1,0 +1,24 @@
+# Xcode
+DerivedData/
+build/
+*.xcresult
+*.xcuserstate
+xcuserdata/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+
+# Проєкт генерується XcodeGen з project.yml — у Git не тримаємо
+WaterTracker.xcodeproj/
+
+# SwiftPM
+.build/
+.swiftpm/
+Package.resolved
+
+# macOS
+.DS_Store
+
+# Генерується XcodeGen разом з проєктом
+App/Info.plist
