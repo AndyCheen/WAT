@@ -102,25 +102,24 @@ final class IntegrationTests: XCTestCase {
         XCTAssertEqual(model.history.count, 1, "порція повернулась в історію")
     }
 
-    /// Норма й новий рівень часто закриваються тією самою порцією — святкування
-    /// не має губитися за тостом про рівень.
-    func testGoalReachedCelebratesEvenWhenLevelUpHappensTogether() {
+    /// Закриття норми має відгукнутися окремим пульсом, а не звичайним «додано».
+    /// Норма й новий рівень часто закриваються тією самою порцією — тоді виграє рівень,
+    /// бо це рідша подія, і до неї додається тост.
+    func testClosingGoalRaisesItsOwnPulse() {
         let model = HomeViewModel(services: services)
         for _ in 0..<3 { model.add(500) }
         XCTAssertEqual(model.pulse?.kind, .added(500), "норма ще не закрита")
-        XCTAssertFalse(model.isCelebrating)
+        XCTAssertNil(model.toast)
 
         model.add(500)
-        XCTAssertTrue(model.isCelebrating, "четверта порція закрила норму")
         if case .levelUp = model.pulse?.kind {
             XCTAssertNotNil(model.toast, "разом з нормою піднявся рівень — має бути тост")
         } else {
-            XCTAssertEqual(model.pulse?.kind, .goalReached)
+            XCTAssertEqual(model.pulse?.kind, .goalReached, "четверта порція закрила норму")
         }
 
-        model.finishCelebration()
         model.add(500)
-        XCTAssertFalse(model.isCelebrating, "повторно норму не «закривають»")
+        XCTAssertNotEqual(model.pulse?.kind, .goalReached, "повторно норму не «закривають»")
     }
 
     func testCappedNoteAppearsOnlyAboveCeiling() {

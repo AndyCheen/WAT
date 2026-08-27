@@ -176,8 +176,6 @@ public enum WTAnimation {
     public static let press = Animation.spring(response: 0.22, dampingFraction: 0.7)
     /// поява й зникнення тоста
     public static let toast = Animation.spring(response: 0.38, dampingFraction: 0.82)
-    /// святкування виконаної норми
-    public static let celebration = Animation.easeOut(duration: 1.1)
 }
 
 private struct WTThemeKey: EnvironmentKey {

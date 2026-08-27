@@ -21,7 +21,7 @@ public enum HomeSheet: Identifiable {
     }
 }
 
-/// Подія, на яку екран відповідає вібрацією та анімацією.
+/// Подія, на яку екран відповідає вібрацією.
 ///
 /// Одне поле замість розсипу лічильників: `id` робить кожен пульс унікальним,
 /// тож два однакові додавання поспіль дають два окремі відгуки.
@@ -62,10 +62,9 @@ public final class HomeViewModel {
     public private(set) var quickAmounts: [Int] = []
     public private(set) var hasNewAchievements = false
 
-    /// Остання подія для гаптики й анімації. Читається екраном, не скидається вручну.
+    /// Остання подія для гаптики. Читається екраном, не скидається вручну.
     public private(set) var pulse: HomePulse?
     public private(set) var toast: HomeToast?
-    public private(set) var isCelebrating = false
 
     public var sheet: HomeSheet?
     public var openHistoryId: UUID?
@@ -100,18 +99,10 @@ public final class HomeViewModel {
         withAnimation(WTAnimation.fade) { reload() }
 
         guard let result else { return }
-        let leveledUp = level.level > levelBefore
-
-        // Закриття норми дає більшість денного XP, тому рівень часто піднімається
-        // тією ж порцією. Це різні канали: святкування показує виконану норму,
-        // тост — новий рівень, і одне не має глушити інше.
-        if result.goalJustReached { celebrate() }
-        if leveledUp {
-            showToast(HomeToast(message: "Рівень \(level.level)!", actionTitle: nil, restoreIntakeId: nil))
-        }
 
         // Вібрація одна на дію — беремо найпомітнішу з подій.
-        if leveledUp {
+        if level.level > levelBefore {
+            showToast(HomeToast(message: "Рівень \(level.level)!", actionTitle: nil, restoreIntakeId: nil))
             pulse = HomePulse(kind: .levelUp(level.level))
         } else if result.goalJustReached {
             pulse = HomePulse(kind: .goalReached)
@@ -185,15 +176,7 @@ public final class HomeViewModel {
         withAnimation(WTAnimation.sheet) { sheet = nil }
     }
 
-    // MARK: - Святкування й тости
-
-    private func celebrate() {
-        withAnimation(WTAnimation.fade) { isCelebrating = true }
-    }
-
-    public func finishCelebration() {
-        withAnimation(WTAnimation.fade) { isCelebrating = false }
-    }
+    // MARK: - Тости
 
     private func showToast(_ toast: HomeToast) {
         withAnimation(WTAnimation.toast) { self.toast = toast }

@@ -45,17 +45,12 @@ public struct HomeScreen: View {
                 .padding(.bottom, WTSpacing.screenBottom)
             }
 
-            if model.isCelebrating {
-                WTGoalCelebration { model.finishCelebration() }
-                    .zIndex(5)
-            }
-
             toast
 
             sheets
         }
         .onAppear { model.reload() }
-        // Одне джерело правди для вібрації: той самий пульс, що керує анімаціями.
+        // Одне джерело правди для вібрації на всі дії екрана.
         .wtFeedback(trigger: model.pulse) { pulse in
             switch pulse?.kind {
             case .added: return .add

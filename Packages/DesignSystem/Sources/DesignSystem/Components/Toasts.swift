@@ -72,36 +72,3 @@ public struct WTToast: View {
         }
     }
 }
-
-/// Святкування виконаної норми: кільце, що розходиться від центру прогресу й тане.
-///
-/// Свідомо без сторонніх бібліотек — сам шейп дизайн-системи. Не перехоплює дотики,
-/// щоб не блокувати додавання наступної порції посеред анімації.
-public struct WTGoalCelebration: View {
-    @Environment(\.wtTheme) private var theme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isAnimating = false
-
-    private let onFinish: () -> Void
-
-    public init(onFinish: @escaping () -> Void) {
-        self.onFinish = onFinish
-    }
-
-    public var body: some View {
-        Circle()
-            .stroke(theme.accent, lineWidth: 3)
-            .frame(width: 242, height: 242)
-            .scaleEffect(reduceMotion ? 1 : (isAnimating ? 1.35 : 0.96))
-            .opacity(isAnimating ? 0 : 0.55)
-            .allowsHitTesting(false)
-            .onAppear {
-                withAnimation(WTAnimation.celebration) { isAnimating = true }
-            }
-            .task {
-                try? await Task.sleep(nanoseconds: 1_300_000_000)
-                guard !Task.isCancelled else { return }
-                onFinish()
-            }
-    }
-}
