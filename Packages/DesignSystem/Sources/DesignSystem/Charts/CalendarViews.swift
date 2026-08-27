@@ -97,7 +97,7 @@ public struct WTCalendarHeatmap: View {
                 .frame(width: proxy.size.width, height: proxy.size.height)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(WTPressStyle(scale: 0.9))
         .disabled(cell.isFuture)
     }
 

@@ -1,4 +1,6 @@
 import Foundation
+import DesignSystem
+import SwiftUI
 import Observation
 import Core
 import Persistence
@@ -29,6 +31,18 @@ public final class StatsViewModel {
         climate = services.profile.climate
     }
 
+
+    // MARK: - Анімовані переходи
+
+    /// Прапорці шторок присвоювались напряму, тому переходи `WTSheet`/`WTModal`
+    /// ніколи не програвались. Тепер будь-яка зміна йде через пружину дизайн-системи.
+    public func present(_ flag: ReferenceWritableKeyPath<StatsViewModel, Bool>) {
+        withAnimation(WTAnimation.sheet) { self[keyPath: flag] = true }
+    }
+
+    public func dismiss(_ flag: ReferenceWritableKeyPath<StatsViewModel, Bool>) {
+        withAnimation(WTAnimation.sheet) { self[keyPath: flag] = false }
+    }
     // MARK: - Звіти
 
     public var evenness: EvennessReport { services.insights.evenness() }

@@ -210,7 +210,7 @@ public struct StatsScreen: View {
                 .frame(width: 26, height: 26)
                 .background(enabled ? theme.chip : Color.clear, in: Circle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(WTPressStyle())
         .disabled(!enabled)
     }
 
@@ -289,14 +289,14 @@ public struct StatsScreen: View {
                     Text("Типова доба — медіана і розкид")
                         .font(WTFont.display(16, .semibold))
                         .foregroundStyle(theme.textPrimary)
-                    Button { model.showTypicalInfo = true } label: {
+                    Button { model.present(\.showTypicalInfo) } label: {
                         Text("i")
                             .font(WTFont.display(12, .bold))
                             .foregroundStyle(theme.accent)
                             .frame(width: 18, height: 18)
                             .background(theme.chip, in: Circle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(WTPressStyle())
                 }
                 .padding(.bottom, 16)
 
@@ -355,21 +355,21 @@ public struct StatsScreen: View {
     }
 
     private var typicalInfoModal: some View {
-        WTModal(maxWidth: 320, onDismiss: { model.showTypicalInfo = false }) {
+        WTModal(maxWidth: 320, onDismiss: { model.dismiss(\.showTypicalInfo) }) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
                     Text("Про графік")
                         .font(WTFont.display(17, .semibold))
                         .foregroundStyle(theme.textPrimary)
                     Spacer()
-                    Button { model.showTypicalInfo = false } label: {
+                    Button { model.dismiss(\.showTypicalInfo) } label: {
                         Text("×")
                             .font(.system(size: 14, weight: .heavy))
                             .foregroundStyle(WTColor.textTertiary)
                             .frame(width: 28, height: 28)
                             .background(WTColor.neutralTrack, in: Circle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(WTPressStyle())
                 }
 
                 Text("Графік показує, як зазвичай розподіляється вода протягом дня за обраний період.")

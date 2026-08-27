@@ -13,6 +13,7 @@ public struct MetricKey: RawRepresentable, Hashable, Codable, Sendable, Expressi
     public static let intakeAdded: MetricKey = "intake.added"
     public static let intakeCount: MetricKey = "intake.count"
     public static let intakeRemoved: MetricKey = "intake.removed"
+    public static let intakeRestored: MetricKey = "intake.restored"
     public static let dayTotal: MetricKey = "day.total"
     public static let dayGoalMet: MetricKey = "day.goalMet"
     public static let dayCompletionPct: MetricKey = "day.completionPct"

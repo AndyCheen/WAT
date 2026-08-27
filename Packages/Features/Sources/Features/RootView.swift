@@ -13,19 +13,22 @@ public struct RootView: View {
     @State private var services: AppServices
     @State private var path: [AppRoute] = []
     @State private var themeMode: ThemeMode
+    @State private var hapticsEnabled: Bool
 
     public init(services: AppServices, initialRoute: AppRoute? = nil) {
         _services = State(initialValue: services)
         _themeMode = State(initialValue: services.profile.themeMode)
+        _hapticsEnabled = State(initialValue: services.profile.hapticsEnabled)
         _path = State(initialValue: initialRoute.map { [$0] } ?? [])
     }
 
     public var body: some View {
-        WTThemedContainer(mode: themeMode) {
+        WTThemedContainer(mode: themeMode, hapticsEnabled: hapticsEnabled) {
             NavigationStack(path: $path) {
                 HomeScreen(
                     services: services,
                     themeMode: $themeMode,
+                    hapticsEnabled: $hapticsEnabled,
                     onOpenProgress: { path.append(.progress) },
                     onOpenStats: { path.append(.stats) }
                 )

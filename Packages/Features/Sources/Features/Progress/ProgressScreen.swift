@@ -50,7 +50,7 @@ public struct ProgressScreen: View {
     // MARK: - Рівень
 
     private var levelBlock: some View {
-        Button { model.showLevelRewards = true } label: {
+        Button { model.present(\.showLevelRewards) } label: {
             VStack(spacing: 10) {
                 WTLevelDonut(level: model.level.level, fraction: model.level.fraction)
                 Text(model.xpLabel)
@@ -59,7 +59,7 @@ public struct ProgressScreen: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(WTPressStyle(scale: 0.97))
         .padding(.bottom, 22)
         .accessibilityIdentifier("progress.level")
     }
@@ -163,7 +163,7 @@ public struct ProgressScreen: View {
                         .font(WTFont.text(14, .heavy))
                         .foregroundStyle(theme.accent)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(WTPressStyle(scale: 0.97))
                 .accessibilityIdentifier("progress.allAchievements")
             }
             .padding(.bottom, 14)
@@ -179,7 +179,7 @@ public struct ProgressScreen: View {
     // MARK: - Шторки
 
     private var allAchievementsSheet: some View {
-        WTSheet(maxHeightFraction: 0.78, onDismiss: { model.showAllAchievements = false }) {
+        WTSheet(maxHeightFraction: 0.78, onDismiss: { model.dismiss(\.showAllAchievements) }) {
             VStack(spacing: 0) {
                 WTSheetTitle("Досягнення", subtitle: "\(model.unlockedCount) з \(model.totalCount) відкрито")
                     .padding(.bottom, 22)
@@ -197,7 +197,7 @@ public struct ProgressScreen: View {
     }
 
     private var levelRewardsSheet: some View {
-        WTSheet(maxHeightFraction: 0.78, onDismiss: { model.showLevelRewards = false }) {
+        WTSheet(maxHeightFraction: 0.78, onDismiss: { model.dismiss(\.showLevelRewards) }) {
             VStack(alignment: .leading, spacing: 0) {
                 WTSheetTitle(
                     "Нагороди за рівні",

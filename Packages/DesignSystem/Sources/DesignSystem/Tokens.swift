@@ -172,6 +172,10 @@ public enum WTAnimation {
     public static let ring = Animation.spring(response: 0.75, dampingFraction: 0.9)
     public static let toggle = Animation.easeInOut(duration: 0.2)
     public static let fade = Animation.easeInOut(duration: 0.2)
+    /// просідання кнопки під пальцем — коротке й пружне, інакше відчувається як лаг
+    public static let press = Animation.spring(response: 0.22, dampingFraction: 0.7)
+    /// поява й зникнення тоста
+    public static let toast = Animation.spring(response: 0.38, dampingFraction: 0.82)
 }
 
 private struct WTThemeKey: EnvironmentKey {
