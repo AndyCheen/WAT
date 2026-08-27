@@ -61,6 +61,14 @@ final class SmokeUITests: XCTestCase {
 
         let undo = app.buttons["toast.action"]
         XCTAssertTrue(undo.waitForExistence(timeout: 5), "після видалення пропонується скасування")
+        // `waitForExistence` каже лише, що елемент є в ієрархії. Тост показується поверх
+        // екрана з переходом знизу — якщо він застрягне за межею екрана, наявність
+        // лишиться true, а користувач нічого не побачить. Ловимо саме це.
+        XCTAssertTrue(undo.isHittable, "тост має бути доступний для дотику, а не просто існувати")
+        XCTAssertTrue(
+            app.windows.firstMatch.frame.contains(undo.frame),
+            "тост має бути в межах екрана"
+        )
         undo.tap()
 
         XCTAssertEqual(percent.label, "25%", "порція повернулась разом з прогресом")
