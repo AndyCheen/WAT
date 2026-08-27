@@ -73,9 +73,9 @@ public struct WTToast: View {
     }
 }
 
-/// Святкування виконаної норми: пульс кільця + краплі, що піднімаються.
+/// Святкування виконаної норми: кільце, що розходиться від центру прогресу й тане.
 ///
-/// Свідомо без сторонніх бібліотек — самі шейпи дизайн-системи. Не перехоплює дотики,
+/// Свідомо без сторонніх бібліотек — сам шейп дизайн-системи. Не перехоплює дотики,
 /// щоб не блокувати додавання наступної порції посеред анімації.
 public struct WTGoalCelebration: View {
     @Environment(\.wtTheme) private var theme
@@ -84,58 +84,24 @@ public struct WTGoalCelebration: View {
 
     private let onFinish: () -> Void
 
-    /// Зсуви крапель по горизонталі та їхні розміри — фіксовані, а не випадкові:
-    /// анімація має виглядати однаково при кожному досягненні норми.
-    ///
-    /// Усі зсуви виходять за радіус кільця (121 pt): краплі піднімаються **обабіч**
-    /// показника, а не крізь нього — інакше вони читаються як артефакти на цифрах.
-    private static let drops: [(x: CGFloat, size: CGFloat, delay: Double)] = [
-        (-152, 16, 0.00), (-131, 22, 0.10), (-110, 14, 0.20),
-        (110, 20, 0.06), (131, 15, 0.16), (152, 21, 0.24)
-    ]
-
     public init(onFinish: @escaping () -> Void) {
         self.onFinish = onFinish
     }
 
     public var body: some View {
-        ZStack {
-            pulse
-            if !reduceMotion { droplets }
-        }
-        .allowsHitTesting(false)
-        .onAppear {
-            withAnimation(WTAnimation.celebration) { isAnimating = true }
-        }
-        .task {
-            try? await Task.sleep(nanoseconds: 1_300_000_000)
-            guard !Task.isCancelled else { return }
-            onFinish()
-        }
-    }
-
-    /// Кільце, що розходиться від центру прогресу й тане.
-    private var pulse: some View {
         Circle()
             .stroke(theme.accent, lineWidth: 3)
             .frame(width: 242, height: 242)
             .scaleEffect(reduceMotion ? 1 : (isAnimating ? 1.35 : 0.96))
             .opacity(isAnimating ? 0 : 0.55)
-    }
-
-    private var droplets: some View {
-        ZStack {
-            ForEach(Array(Self.drops.enumerated()), id: \.offset) { _, drop in
-                WTDropShape()
-                    .fill(theme.accent.opacity(0.75))
-                    .frame(width: drop.size, height: drop.size)
-                    .offset(x: drop.x, y: isAnimating ? -150 : 40)
-                    .opacity(isAnimating ? 0 : 1)
-                    .animation(
-                        WTAnimation.celebration.delay(drop.delay),
-                        value: isAnimating
-                    )
+            .allowsHitTesting(false)
+            .onAppear {
+                withAnimation(WTAnimation.celebration) { isAnimating = true }
             }
-        }
+            .task {
+                try? await Task.sleep(nanoseconds: 1_300_000_000)
+                guard !Task.isCancelled else { return }
+                onFinish()
+            }
     }
 }
