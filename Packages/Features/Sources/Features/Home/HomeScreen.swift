@@ -8,6 +8,7 @@ public struct HomeScreen: View {
     @Environment(\.wtTheme) private var theme
     @State private var model: HomeViewModel
     @Binding private var themeMode: ThemeMode
+    @Binding private var hapticsEnabled: Bool
     private let services: AppServices
     private let onOpenProgress: () -> Void
     private let onOpenStats: () -> Void
@@ -15,12 +16,14 @@ public struct HomeScreen: View {
     public init(
         services: AppServices,
         themeMode: Binding<ThemeMode>,
+        hapticsEnabled: Binding<Bool>,
         onOpenProgress: @escaping () -> Void,
         onOpenStats: @escaping () -> Void
     ) {
         self.services = services
         _model = State(initialValue: HomeViewModel(services: services))
         _themeMode = themeMode
+        _hapticsEnabled = hapticsEnabled
         self.onOpenProgress = onOpenProgress
         self.onOpenStats = onOpenStats
     }
@@ -42,16 +45,34 @@ public struct HomeScreen: View {
                 .padding(.bottom, WTSpacing.screenBottom)
             }
 
+            if model.isCelebrating {
+                WTGoalCelebration { model.finishCelebration() }
+                    .zIndex(5)
+            }
+
+            toast
+
             sheets
         }
         .onAppear { model.reload() }
+        // Одне джерело правди для вібрації: той самий пульс, що керує анімаціями.
+        .wtFeedback(trigger: model.pulse) { pulse in
+            switch pulse?.kind {
+            case .added: return .add
+            case .goalReached: return .goalReached
+            case .levelUp: return .levelUp
+            case .removed: return .remove
+            case .capped: return .tap
+            case nil: return nil
+            }
+        }
     }
 
     // MARK: - Шапка
 
     private var header: some View {
         HStack {
-            WTCircleButton(size: 42, action: { model.sheet = .settings }) {
+            WTCircleButton(size: 42, action: { model.present(.settings) }) {
                 WTIcons.gear(color: theme.accent)
             }
             .accessibilityIdentifier("home.settings")
@@ -59,7 +80,7 @@ public struct HomeScreen: View {
             Spacer()
 
             HStack(spacing: 12) {
-                Button { model.sheet = .calendar } label: {
+                Button { model.present(.calendar) } label: {
                     HStack(spacing: 4) {
                         ForEach(Array(model.weekDots.enumerated()), id: \.offset) { _, done in
                             Circle()
@@ -67,8 +88,12 @@ public struct HomeScreen: View {
                                 .frame(width: 10, height: 10)
                         }
                     }
+                    // Крапки — 10 pt: без прозорого поля в них важко влучити.
+                    .frame(height: 44)
+                    .contentShape(Rectangle())
+                    .animation(WTAnimation.fade, value: model.weekDots)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(WTPressStyle(scale: 0.94))
                 .accessibilityIdentifier("home.weekDots")
 
                 Button(action: onOpenProgress) {
@@ -79,7 +104,7 @@ public struct HomeScreen: View {
                         badgeBorder: theme.screen
                     )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(WTPressStyle())
                 .accessibilityIdentifier("home.level")
             }
         }
@@ -89,22 +114,39 @@ public struct HomeScreen: View {
     // MARK: - Кільце
 
     private var ring: some View {
-        Button(action: onOpenStats) {
-            ZStack {
-                WTProgressRing(progress: model.day.progressFraction)
-                VStack(spacing: 6) {
-                    Text(model.pctLabel)
-                        .font(WTFont.number(64, .semibold))
-                        .foregroundStyle(theme.textPrimary)
-                        .accessibilityIdentifier("home.percent")
-                    Text(model.volumeLabel)
-                        .font(WTFont.text(17, .bold))
-                        .foregroundStyle(theme.textMuted)
-                        .accessibilityIdentifier("home.volume")
+        VStack(spacing: 10) {
+            Button(action: onOpenStats) {
+                ZStack {
+                    WTProgressRing(progress: model.day.progressFraction)
+                    VStack(spacing: 6) {
+                        Text(model.pctLabel)
+                            .font(WTFont.number(64, .semibold))
+                            .foregroundStyle(theme.textPrimary)
+                            // Значення змінюється миттєво, морфляться лише гліфи —
+                            // без «підрахунку вгору», інакше e2e читали б проміжні числа.
+                            .contentTransition(.numericText(value: Double(model.day.completionPct)))
+                            .animation(WTAnimation.fade, value: model.day.completionPct)
+                            .accessibilityIdentifier("home.percent")
+                        Text(model.volumeLabel)
+                            .font(WTFont.text(17, .bold))
+                            .foregroundStyle(theme.textMuted)
+                            .accessibilityIdentifier("home.volume")
+                    }
                 }
             }
+            .buttonStyle(WTPressStyle(scale: 0.98, opacity: 0.85))
+
+            // Стеля 120 % працює з першого дня, але користувач ніколи не бачив,
+            // чому відсоток перестав рости.
+            if let note = model.cappedNote {
+                Text(note)
+                    .font(WTFont.text(13, .bold))
+                    .foregroundStyle(theme.textMuted)
+                    .multilineTextAlignment(.center)
+                    .transition(.opacity)
+                    .accessibilityIdentifier("home.cappedNote")
+            }
         }
-        .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
         .padding(.top, 14)
         .padding(.bottom, 24)
@@ -118,7 +160,7 @@ public struct HomeScreen: View {
                 WTQuickButton(Self.amountTitle(amount)) { model.add(amount) }
                     .accessibilityIdentifier("home.add.\(amount)")
             }
-            WTQuickButton("Інше", isAccent: true) { model.sheet = .custom }
+            WTQuickButton("Інше", isAccent: true) { model.present(.custom) }
                 .accessibilityIdentifier("home.add.custom")
         }
         .padding(.bottom, 28)
@@ -171,6 +213,29 @@ public struct HomeScreen: View {
         .accessibilityIdentifier("home.history")
     }
 
+    // MARK: - Тост
+
+    @ViewBuilder
+    private var toast: some View {
+        if let toast = model.toast {
+            VStack {
+                Spacer()
+                WTToast(
+                    toast.message,
+                    actionTitle: toast.actionTitle,
+                    onAction: toast.actionTitle == nil ? nil : { model.undoToast() },
+                    onDismiss: { model.dismissToast() }
+                )
+                // Два видалення поспіль дають однаковий текст — без `id` таймер
+                // автозникнення успадкувався б від попереднього тоста.
+                .id(toast.id)
+                .padding(.bottom, 28)
+            }
+            .zIndex(8)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+
     // MARK: - Шторки
 
     @ViewBuilder
@@ -183,7 +248,10 @@ public struct HomeScreen: View {
                 case .calendar:
                     StreakCalendarSheet(model: model)
                 case .settings:
-                    SettingsSheet(model: model, themeMode: $themeMode, services: services)
+                    SettingsSheet(
+                        model: model, themeMode: $themeMode,
+                        hapticsEnabled: $hapticsEnabled, services: services
+                    )
                 case .stats:
                     WeekStatsSheet(model: model)
                 case .achievements:

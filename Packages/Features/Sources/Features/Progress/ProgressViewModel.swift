@@ -1,4 +1,6 @@
 import Foundation
+import DesignSystem
+import SwiftUI
 import Observation
 import Core
 import Gamification
@@ -34,6 +36,18 @@ public final class ProgressViewModel {
         nextReward = services.gamification.nextLevelRewards()
     }
 
+
+    // MARK: - Анімовані переходи
+
+    /// Прапорці шторок присвоювались напряму, тому переходи `WTSheet`/`WTModal`
+    /// ніколи не програвались. Тепер будь-яка зміна йде через пружину дизайн-системи.
+    public func present(_ flag: ReferenceWritableKeyPath<ProgressViewModel, Bool>) {
+        withAnimation(WTAnimation.sheet) { self[keyPath: flag] = true }
+    }
+
+    public func dismiss(_ flag: ReferenceWritableKeyPath<ProgressViewModel, Bool>) {
+        withAnimation(WTAnimation.sheet) { self[keyPath: flag] = false }
+    }
     public var unlockedAchievements: [AchievementSnapshot] { achievements.filter(\.isUnlocked) }
     public var unlockedCount: Int { unlockedAchievements.count }
     public var totalCount: Int { achievements.count }

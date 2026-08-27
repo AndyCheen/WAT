@@ -49,6 +49,24 @@ final class SmokeUITests: XCTestCase {
         XCTAssertEqual(percent.label, "0%", "видалення повертає прогрес")
     }
 
+    func testToastUndoBringsThePortionBack() {
+        let app = launch(["--uitest-empty"])
+        let percent = app.staticTexts["home.percent"]
+        XCTAssertTrue(percent.waitForExistence(timeout: 15))
+
+        app.buttons["home.add.500"].tap()
+        app.staticTexts["500 мл"].tap()
+        app.buttons["history.delete"].firstMatch.tap()
+        XCTAssertEqual(percent.label, "0%")
+
+        let undo = app.buttons["toast.action"]
+        XCTAssertTrue(undo.waitForExistence(timeout: 5), "після видалення пропонується скасування")
+        undo.tap()
+
+        XCTAssertEqual(percent.label, "25%", "порція повернулась разом з прогресом")
+        XCTAssertTrue(app.staticTexts["500 мл"].exists, "і повернулась в історію")
+    }
+
     func testCustomAmountSheetAddsPortion() {
         let app = launch(["--uitest-empty"])
         XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))

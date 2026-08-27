@@ -10,7 +10,7 @@ struct CustomAmountSheet: View {
     @Bindable var model: HomeViewModel
 
     var body: some View {
-        WTSheet(onDismiss: { model.sheet = nil }) {
+        WTSheet(onDismiss: { model.dismissSheet() }) {
             VStack(spacing: 0) {
                 Text("Скільки ви випили?")
                     .font(WTFont.display(22, .semibold))
@@ -55,7 +55,7 @@ struct StreakCalendarSheet: View {
     @Bindable var model: HomeViewModel
 
     var body: some View {
-        WTSheet(onDismiss: { model.sheet = nil }) {
+        WTSheet(onDismiss: { model.dismissSheet() }) {
             let report = model.monthReport
             VStack(spacing: 0) {
                 HStack(spacing: 8) {
@@ -84,6 +84,7 @@ struct SettingsSheet: View {
     @Environment(\.wtTheme) private var theme
     @Bindable var model: HomeViewModel
     @Binding var themeMode: ThemeMode
+    @Binding var hapticsEnabled: Bool
     let services: AppServices
 
     private var isDark: Binding<Bool> {
@@ -104,8 +105,20 @@ struct SettingsSheet: View {
         )
     }
 
+    /// Прапорець уже був у моделі профілю, але ним ніхто не керував.
+    private var haptics: Binding<Bool> {
+        Binding(
+            get: { hapticsEnabled },
+            set: { newValue in
+                hapticsEnabled = newValue
+                services.profile.hapticsEnabled = newValue
+                services.profiles.save()
+            }
+        )
+    }
+
     var body: some View {
-        WTSheet(onDismiss: { model.sheet = nil }) {
+        WTSheet(onDismiss: { model.dismissSheet() }) {
             VStack(spacing: 0) {
                 Text("Налаштування")
                     .font(WTFont.display(22, .semibold))
@@ -138,13 +151,20 @@ struct SettingsSheet: View {
 
                 divider
 
+                settingRow("Вібрація") {
+                    WTToggle(isOn: haptics)
+                        .accessibilityIdentifier("settings.haptics")
+                }
+
+                divider
+
                 settingRow("Темна тема") {
                     WTToggle(isOn: isDark)
                         .accessibilityIdentifier("settings.theme")
                 }
                     .padding(.bottom, 22)
 
-                WTPrimaryButton("Готово") { model.sheet = nil }
+                WTPrimaryButton("Готово") { model.dismissSheet() }
             }
         }
     }
@@ -171,7 +191,7 @@ struct WeekStatsSheet: View {
     @Bindable var model: HomeViewModel
 
     var body: some View {
-        WTSheet(onDismiss: { model.sheet = nil }) {
+        WTSheet(onDismiss: { model.dismissSheet() }) {
             let summary = model.weekSummary
             VStack(spacing: 0) {
                 WTSheetTitle("Статистика", subtitle: "Останні 7 днів")
@@ -224,7 +244,7 @@ struct AchievementsSheetContent: View {
     @Bindable var model: HomeViewModel
 
     var body: some View {
-        WTSheet(maxHeightFraction: 0.78, onDismiss: { model.sheet = nil }) {
+        WTSheet(maxHeightFraction: 0.78, onDismiss: { model.dismissSheet() }) {
             let items = model.achievements
             VStack(spacing: 0) {
                 WTSheetTitle("Досягнення", subtitle: "\(model.unlockedCount) з \(items.count) відкрито")

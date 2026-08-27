@@ -113,6 +113,36 @@ public final class HydrationService {
         return Self.snapshot(from: log)
     }
 
+    /// Повертає раніше зняту порцію разом з усіма похідними нарахуваннями.
+    ///
+    /// Дзеркало `removeIntake`. Події публікуються **тим самим кодом**, що й при
+    /// додаванні, тому XP, квести й досягнення відновлюються без окремої гілки
+    /// в гейміфікації. Ідемпотентність `MetricsService` цьому не заважає: перевірка
+    /// дублікатів дивиться лише на невідкочені події, а всі вони позначені `revertedAt`.
+    @discardableResult
+    public func restoreIntake(id: UUID, at date: Date? = nil) -> DaySnapshot? {
+        let now = date ?? calendar.now
+        guard let intake = dayLogs.intake(id: id), intake.isDeleted, let log = intake.dayLog else { return nil }
+
+        let wasGoalMet = log.goalMet
+        intake.deletedAt = nil
+        recompute(log)
+        dayLogs.save()
+
+        // Час — оригінальний, а не поточний: інакше порція переїхала б в іншу частину
+        // доби, а після опівночі — ще й в інший день.
+        publishIntakeMetrics(intake: intake, at: intake.createdAt)
+        if !wasGoalMet, log.goalMet {
+            publishGoalMet(day: DayKey(rawValue: log.dayKey), at: intake.createdAt, pct: log.completionPct)
+        }
+        metrics.record(
+            MetricEvent(name: .intakeRestored, value: Double(intake.amountMl), occurredAt: now)
+        )
+        metrics.commit()
+
+        return Self.snapshot(from: log)
+    }
+
     // MARK: - Норма
 
     public func currentGoal(on day: DayKey? = nil) -> Int {

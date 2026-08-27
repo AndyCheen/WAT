@@ -3,6 +3,7 @@ import SwiftUI
 /// Кільце прогресу головного екрана: 242 pt, товщина 17, градієнт, старт з −90°.
 public struct WTProgressRing: View {
     @Environment(\.wtTheme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let progress: Double
     private let diameter: CGFloat
     private let lineWidth: CGFloat
@@ -28,7 +29,8 @@ public struct WTProgressRing: View {
                     style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
-                .animation(WTAnimation.ring, value: progress)
+                // Пружина трохи перелітає ціль — при Reduce Motion це зайвий рух.
+                .animation(reduceMotion ? WTAnimation.fade : WTAnimation.ring, value: progress)
         }
         .padding(lineWidth / 2)
         .frame(width: diameter, height: diameter)
@@ -50,6 +52,8 @@ public struct WTLevelDonut: View {
 
     public var body: some View {
         ZStack {
+            // Заливка донату — стопи `AngularGradient` не інтерполюються, тому вона
+            // лишається статичною основою…
             Circle()
                 .fill(
                     AngularGradient(
@@ -64,6 +68,14 @@ public struct WTLevelDonut: View {
                         endAngle: .degrees(270)
                     )
                 )
+            // …а рух дає обвід, який уміє анімувати `trim`. Без нього приріст XP
+            // стрибав без переходу.
+            Circle()
+                .trim(from: 0, to: max(0.001, min(1, fraction)))
+                .stroke(theme.accent, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .padding(4)
+                .animation(WTAnimation.ring, value: fraction)
             Circle()
                 .fill(theme.screen)
                 .padding(8)
@@ -131,6 +143,7 @@ public struct WTProgressBar: View {
                 Capsule()
                     .fill(fill ?? theme.accent)
                     .frame(width: proxy.size.width * max(0, min(1, fraction)))
+                    .animation(WTAnimation.ring, value: fraction)
             }
         }
         .frame(height: height)

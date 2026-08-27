@@ -74,7 +74,7 @@ struct GoalCalculatorSheet: View {
                         .padding(.vertical, 14)
                         .background(theme.accent, in: RoundedRectangle(cornerRadius: WTRadius.control, style: .continuous))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(WTPressStyle())
                 .accessibilityIdentifier("calculator.apply")
             }
         }

@@ -66,7 +66,7 @@ public struct WTCircleButton: View {
                 .frame(width: size, height: size)
                 .background(background ?? theme.chip, in: Circle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(WTPressStyle())
     }
 }
 
@@ -92,7 +92,7 @@ public struct WTPrimaryButton: View {
                 .padding(.vertical, 17)
                 .background(background ?? theme.accent, in: RoundedRectangle(cornerRadius: WTRadius.primaryButton, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(WTPressStyle())
     }
 }
 
@@ -121,7 +121,7 @@ public struct WTQuickButton: View {
                     in: RoundedRectangle(cornerRadius: WTRadius.button, style: .continuous)
                 )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(WTPressStyle())
     }
 }
 
@@ -146,8 +146,12 @@ public struct WTChip: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 .background(isSelected ? theme.accent : theme.chip, in: Capsule())
+                // Видима капсула лишається 32 pt, як у макеті, але зона дотику
+                // добирається до рекомендованих 44 pt прозорим полем.
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(WTPressStyle())
     }
 }
 
@@ -172,7 +176,7 @@ public struct WTStepperButton: View {
                 .frame(width: size, height: size)
                 .background(theme.button, in: Circle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(WTPressStyle())
     }
 }
 
@@ -200,7 +204,9 @@ public struct WTToggle: View {
                     .padding(.horizontal, 3)
             }
         }
-        .buttonStyle(.plain)
+        // Перемикач і так рухається сам — масштабування додаємо ледь помітне.
+        .buttonStyle(WTPressStyle(scale: 0.98, opacity: 0.95))
+        .wtFeedback(.toggle, trigger: isOn)
     }
 }
 
@@ -233,7 +239,7 @@ public struct WTSegmentedTabs: View {
                             in: RoundedRectangle(cornerRadius: filled ? WTRadius.control : 11, style: .continuous)
                         )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(WTPressStyle())
             }
         }
         .padding(filled ? 0 : 4)
@@ -241,6 +247,8 @@ public struct WTSegmentedTabs: View {
             filled ? Color.clear : theme.chip,
             in: RoundedRectangle(cornerRadius: WTRadius.control, style: .continuous)
         )
+        .animation(WTAnimation.fade, value: selection)
+        .wtFeedback(.toggle, trigger: selection)
     }
 }
 

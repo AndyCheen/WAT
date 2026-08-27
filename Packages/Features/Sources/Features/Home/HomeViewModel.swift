@@ -1,10 +1,12 @@
 import Foundation
 import Observation
+import SwiftUI
 import Core
 import Persistence
 import Hydration
 import Gamification
 import Insights
+import DesignSystem
 
 public enum HomeSheet: Identifiable {
     case custom, calendar, settings, stats, achievements
@@ -17,6 +19,33 @@ public enum HomeSheet: Identifiable {
         case .achievements: return 4
         }
     }
+}
+
+/// Подія, на яку екран відповідає вібрацією та анімацією.
+///
+/// Одне поле замість розсипу лічильників: `id` робить кожен пульс унікальним,
+/// тож два однакові додавання поспіль дають два окремі відгуки.
+public struct HomePulse: Equatable, Identifiable {
+    public enum Kind: Equatable {
+        case added(Int)
+        case goalReached
+        case levelUp(Int)
+        case removed
+        /// Порція вийшла за стелю 120 % — зараховано менше, ніж випито.
+        case capped
+    }
+
+    public let id = UUID()
+    public let kind: Kind
+}
+
+/// Тост із можливістю скасувати останню дію.
+public struct HomeToast: Equatable, Identifiable {
+    public let id = UUID()
+    public let message: String
+    public let actionTitle: String?
+    /// Порція, яку поверне «Скасувати».
+    public let restoreIntakeId: UUID?
 }
 
 @MainActor
@@ -32,6 +61,11 @@ public final class HomeViewModel {
     public private(set) var streak: StreakSummary = .empty
     public private(set) var quickAmounts: [Int] = []
     public private(set) var hasNewAchievements = false
+
+    /// Остання подія для гаптики й анімації. Читається екраном, не скидається вручну.
+    public private(set) var pulse: HomePulse?
+    public private(set) var toast: HomeToast?
+    public private(set) var isCelebrating = false
 
     public var sheet: HomeSheet?
     public var openHistoryId: UUID?
@@ -60,14 +94,37 @@ public final class HomeViewModel {
     // MARK: - Дії
 
     public func add(_ ml: Int) {
-        services.hydration.addIntake(amountMl: ml)
+        let levelBefore = level.level
+        let result = services.hydration.addIntake(amountMl: ml)
         services.touch()
-        reload()
+        withAnimation(WTAnimation.fade) { reload() }
+
+        guard let result else { return }
+        let leveledUp = level.level > levelBefore
+
+        // Закриття норми дає більшість денного XP, тому рівень часто піднімається
+        // тією ж порцією. Це різні канали: святкування показує виконану норму,
+        // тост — новий рівень, і одне не має глушити інше.
+        if result.goalJustReached { celebrate() }
+        if leveledUp {
+            showToast(HomeToast(message: "Рівень \(level.level)!", actionTitle: nil, restoreIntakeId: nil))
+        }
+
+        // Вібрація одна на дію — беремо найпомітнішу з подій.
+        if leveledUp {
+            pulse = HomePulse(kind: .levelUp(level.level))
+        } else if result.goalJustReached {
+            pulse = HomePulse(kind: .goalReached)
+        } else if result.cappedAmountMl > 0 {
+            pulse = HomePulse(kind: .capped)
+        } else {
+            pulse = HomePulse(kind: .added(ml))
+        }
     }
 
     public func confirmCustom() {
         add(Intake.clamp(customAmount))
-        sheet = nil
+        dismissSheet()
     }
 
     public func stepCustom(_ delta: Int) {
@@ -75,10 +132,30 @@ public final class HomeViewModel {
     }
 
     public func remove(id: UUID) {
-        services.hydration.removeIntake(id: id)
+        guard services.hydration.removeIntake(id: id) != nil else { return }
         openHistoryId = nil
         services.touch()
-        reload()
+        withAnimation(WTAnimation.fade) { reload() }
+
+        pulse = HomePulse(kind: .removed)
+        // Видалення мʼяке (`Intake.deletedAt`), тому шлях назад є — просто його досі не пропонували.
+        showToast(HomeToast(message: "Порцію видалено", actionTitle: "Скасувати", restoreIntakeId: id))
+    }
+
+    public func restore(id: UUID) {
+        guard services.hydration.restoreIntake(id: id) != nil else { return }
+        services.touch()
+        withAnimation(WTAnimation.fade) { reload() }
+        pulse = HomePulse(kind: .added(0))
+    }
+
+    public func undoToast() {
+        guard let id = toast?.restoreIntakeId else { return }
+        restore(id: id)
+    }
+
+    public func dismissToast() {
+        withAnimation(WTAnimation.toast) { toast = nil }
     }
 
     public func toggleHistory(id: UUID) {
@@ -88,12 +165,38 @@ public final class HomeViewModel {
     public func changeGoal(by delta: Int) {
         services.hydration.setGoal(day.goalMl + delta)
         services.touch()
-        reload()
+        withAnimation(WTAnimation.fade) { reload() }
     }
 
     public func markAchievementsSeen() {
         services.gamification.markAchievementsSeen()
         hasNewAchievements = false
+    }
+
+    // MARK: - Шторки
+
+    /// Присвоєння `sheet` напряму не анімувалося — `WTSheet` має перехід,
+    /// але без `withAnimation` він ніколи не програвався.
+    public func present(_ sheet: HomeSheet) {
+        withAnimation(WTAnimation.sheet) { self.sheet = sheet }
+    }
+
+    public func dismissSheet() {
+        withAnimation(WTAnimation.sheet) { sheet = nil }
+    }
+
+    // MARK: - Святкування й тости
+
+    private func celebrate() {
+        withAnimation(WTAnimation.fade) { isCelebrating = true }
+    }
+
+    public func finishCelebration() {
+        withAnimation(WTAnimation.fade) { isCelebrating = false }
+    }
+
+    private func showToast(_ toast: HomeToast) {
+        withAnimation(WTAnimation.toast) { self.toast = toast }
     }
 
     // MARK: - Дані для шторок
@@ -108,4 +211,10 @@ public final class HomeViewModel {
         "\(Volume.litersLabel(day.countedMl)) / \(Volume.litersLabel(day.goalMl, fractionDigits: 1)) л"
     }
     public var goalLabel: String { "\(Volume.litersLabel(day.goalMl, fractionDigits: 1)) л" }
+
+    /// Пояснення до стелі 120 %: без нього незрозуміло, чому відсоток перестав рости.
+    public var cappedNote: String? {
+        guard day.isCapped else { return nil }
+        return "Випито \(Volume.litersLabel(day.totalMl, fractionDigits: 1)) л — зараховано 120 % норми"
+    }
 }

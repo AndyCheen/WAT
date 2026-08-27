@@ -97,7 +97,7 @@ public struct WTHistoryRow: View {
                             .padding(.vertical, 6)
                             .background(theme.deleteBg, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(WTPressStyle(scale: 0.94))
                         .accessibilityIdentifier("history.delete")
                     } else {
                         Text(timeLabel)
@@ -108,7 +108,7 @@ public struct WTHistoryRow: View {
                 .padding(.bottom, 18)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(WTPressStyle(scale: 0.99, opacity: 0.75))
         }
     }
 }
@@ -201,7 +201,7 @@ public struct WTPrizeCard: View {
                         in: RoundedRectangle(cornerRadius: WTRadius.chip, style: .continuous)
                     )
             }
-            .buttonStyle(.plain)
+            .buttonStyle(WTPressStyle(scale: 0.94))
             .disabled(isActivated)
         }
         .padding(.horizontal, 14)
@@ -267,7 +267,7 @@ public struct WTAchievementTile: View {
             .padding(.horizontal, 8)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(WTPressStyle(scale: 0.95))
     }
 }
 

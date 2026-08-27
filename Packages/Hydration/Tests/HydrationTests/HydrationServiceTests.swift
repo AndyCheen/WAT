@@ -49,6 +49,60 @@ final class HydrationServiceTests: XCTestCase {
         XCTAssertEqual(env.hydration.intakes(for: env.calendar.today).count, 1)
     }
 
+    func testRestoreIntakeReturnsDayToStateBeforeRemoval() {
+        let env = TestEnv()
+        let first = env.hydration.addIntake(amountMl: 500)!
+        env.hydration.addIntake(amountMl: 200)
+        let before = env.hydration.todaySnapshot()
+
+        env.hydration.removeIntake(id: first.intakeId)
+        let restored = env.hydration.restoreIntake(id: first.intakeId)
+
+        XCTAssertEqual(restored?.totalMl, before.totalMl)
+        XCTAssertEqual(restored?.completionPct, before.completionPct)
+        XCTAssertEqual(restored?.entriesCount, before.entriesCount)
+        XCTAssertEqual(restored?.partTotals, before.partTotals, "порція лишилась у своїй частині доби")
+        XCTAssertEqual(env.metrics.sumToday(.intakeAdded), 700, "лічильник відновлено, а не подвоєно")
+        XCTAssertEqual(env.metrics.sumToday(.intakeCount), 2)
+        XCTAssertEqual(env.hydration.intakes(for: env.calendar.today).count, 2)
+    }
+
+    func testRestoreBringsBackGoalMetEvent() {
+        let env = TestEnv(goalMl: 1000)
+        let closing = env.hydration.addIntake(amountMl: 1000)!
+        XCTAssertTrue(closing.goalJustReached)
+        XCTAssertEqual(env.metrics.sumToday(.dayGoalMet), 1)
+
+        env.hydration.removeIntake(id: closing.intakeId)
+        XCTAssertEqual(env.metrics.sumToday(.dayGoalMet), 0, "норма більше не виконана")
+
+        let restored = env.hydration.restoreIntake(id: closing.intakeId)
+        XCTAssertTrue(restored?.goalMet == true)
+        XCTAssertEqual(env.metrics.sumToday(.dayGoalMet), 1, "подія «норму виконано» повернулась одна")
+    }
+
+    func testRestoreKeepsOriginalTimeEvenAfterMidnight() {
+        let env = TestEnv(day: 18, hour: 22)
+        let evening = env.hydration.addIntake(amountMl: 400)!
+        env.hydration.removeIntake(id: evening.intakeId)
+
+        // Користувач натиснув «Скасувати» вже наступної доби.
+        env.clock.set(env.at(day: 19, hour: 1))
+        env.hydration.restoreIntake(id: evening.intakeId)
+
+        XCTAssertEqual(env.hydration.snapshot(for: DayKey(rawValue: "2026-07-18")).totalMl, 400,
+                       "порція лишилась у своєму дні")
+        XCTAssertEqual(env.hydration.todaySnapshot().totalMl, 0, "і не переїхала в новий")
+    }
+
+    func testRestoringLiveIntakeIsNoop() {
+        let env = TestEnv()
+        let result = env.hydration.addIntake(amountMl: 250)!
+
+        XCTAssertNil(env.hydration.restoreIntake(id: result.intakeId), "невидалену порцію відновлювати нема з чого")
+        XCTAssertEqual(env.metrics.sumToday(.intakeAdded), 250, "лічильник не подвоївся")
+    }
+
     func testRemovingSameIntakeTwiceIsNoop() {
         let env = TestEnv()
         let result = env.hydration.addIntake(amountMl: 250)!

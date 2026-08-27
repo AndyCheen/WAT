@@ -65,6 +65,74 @@ final class IntegrationTests: XCTestCase {
         XCTAssertEqual(services.gamification.dailyQuests().first { $0.key == "daily.goal" }?.progress, 0)
     }
 
+    /// Тост «Скасувати» веде сюди: відкат відкату має повернути стан усіх модулів,
+    /// а не лише число на кільці.
+    func testRestoreRollsForwardEveryModule() {
+        let result = services.hydration.addIntake(amountMl: 500)!
+        let xpAfterAdd = services.gamification.levelProgress().totalXp
+        let questAfterAdd = services.gamification.dailyQuests().first { $0.key == "daily.goal" }?.progress
+
+        services.hydration.removeIntake(id: result.intakeId)
+        services.hydration.restoreIntake(id: result.intakeId)
+
+        XCTAssertEqual(services.hydration.todaySnapshot().totalMl, 500)
+        XCTAssertEqual(services.gamification.levelProgress().totalXp, xpAfterAdd, "XP повернувся рівно один раз")
+        XCTAssertTrue(
+            services.gamification.achievementSnapshots().first { $0.key == "first.drop" }!.isUnlocked,
+            "досягнення розблокувалось повторно"
+        )
+        XCTAssertEqual(services.gamification.dailyQuests().first { $0.key == "daily.goal" }?.progress, questAfterAdd)
+        XCTAssertEqual(services.insights.evenness().totalMl, 500)
+    }
+
+    /// Повний цикл через модель екрана — саме так це робить кнопка «Скасувати».
+    func testHomeViewModelUndoRestoresHistoryAndProgress() {
+        let model = HomeViewModel(services: services)
+        model.add(500)
+        let pctAfterAdd = model.day.completionPct
+
+        let intakeId = model.history[0].id
+        model.remove(id: intakeId)
+        XCTAssertEqual(model.day.completionPct, 0)
+        XCTAssertEqual(model.toast?.restoreIntakeId, intakeId, "тост пропонує скасування")
+
+        model.undoToast()
+
+        XCTAssertEqual(model.day.completionPct, pctAfterAdd)
+        XCTAssertEqual(model.history.count, 1, "порція повернулась в історію")
+    }
+
+    /// Норма й новий рівень часто закриваються тією самою порцією — святкування
+    /// не має губитися за тостом про рівень.
+    func testGoalReachedCelebratesEvenWhenLevelUpHappensTogether() {
+        let model = HomeViewModel(services: services)
+        for _ in 0..<3 { model.add(500) }
+        XCTAssertEqual(model.pulse?.kind, .added(500), "норма ще не закрита")
+        XCTAssertFalse(model.isCelebrating)
+
+        model.add(500)
+        XCTAssertTrue(model.isCelebrating, "четверта порція закрила норму")
+        if case .levelUp = model.pulse?.kind {
+            XCTAssertNotNil(model.toast, "разом з нормою піднявся рівень — має бути тост")
+        } else {
+            XCTAssertEqual(model.pulse?.kind, .goalReached)
+        }
+
+        model.finishCelebration()
+        model.add(500)
+        XCTAssertFalse(model.isCelebrating, "повторно норму не «закривають»")
+    }
+
+    func testCappedNoteAppearsOnlyAboveCeiling() {
+        let model = HomeViewModel(services: services)
+        for _ in 0..<4 { model.add(500) }
+        XCTAssertNil(model.cappedNote, "рівно 100 % — стелі ще немає")
+
+        for _ in 0..<2 { model.add(500) }
+        XCTAssertEqual(model.day.completionPct, 120)
+        XCTAssertNotNil(model.cappedNote, "понад 120 % — пояснюємо, чому відсоток стоїть")
+    }
+
     func testClosingDailyGoalBuildsStreakAndInsights() {
         for _ in 0..<4 { services.hydration.addIntake(amountMl: 500) }
 

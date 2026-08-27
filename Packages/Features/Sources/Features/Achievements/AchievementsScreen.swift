@@ -23,6 +23,11 @@ public final class AchievementsViewModel {
         services.gamification.markAchievementsSeen()
     }
 
+    /// Модалка деталей зʼявлялася без переходу — присвоєння йшло повз `withAnimation`.
+    public func select(_ item: AchievementSnapshot?) {
+        withAnimation(WTAnimation.fade) { selected = item }
+    }
+
     public var categories: [AchievementCategory] { AchievementCatalog.categories }
 
     public var filtered: [AchievementSnapshot] {
@@ -109,14 +114,14 @@ public struct AchievementsScreen: View {
                     isUnlocked: item.isUnlocked,
                     fraction: item.fraction,
                     progressLabel: item.progressLabel,
-                    onTap: { model.selected = item }
+                    onTap: { model.select(item) }
                 )
             }
         }
     }
 
     private func detailModal(_ item: AchievementSnapshot) -> some View {
-        WTModal(onDismiss: { model.selected = nil }) {
+        WTModal(onDismiss: { model.select(nil) }) {
             VStack(spacing: 10) {
                 Text(item.emoji)
                     .font(.system(size: 30))
@@ -139,7 +144,7 @@ public struct AchievementsScreen: View {
                     .foregroundStyle(item.isUnlocked ? WTColor.successText : theme.textMuted)
                     .padding(.top, 4)
 
-                Button { model.selected = nil } label: {
+                Button { model.select(nil) } label: {
                     Text("Закрити")
                         .font(WTFont.display(14, .semibold))
                         .foregroundStyle(.white)
@@ -147,7 +152,7 @@ public struct AchievementsScreen: View {
                         .padding(.vertical, 10)
                         .background(theme.accent, in: RoundedRectangle(cornerRadius: WTRadius.control, style: .continuous))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(WTPressStyle())
                 .padding(.top, 10)
             }
         }
