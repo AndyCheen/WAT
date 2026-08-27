@@ -60,7 +60,7 @@ final class SmokeUITests: XCTestCase {
         XCTAssertEqual(percent.label, "0%")
 
         let undo = app.buttons["toast.action"]
-        XCTAssertTrue(undo.waitForExistence(timeout: 5), "після видалення пропонується скасування")
+        XCTAssertTrue(undo.waitForExistence(timeout: 3), "після видалення пропонується скасування")
         // `waitForExistence` каже лише, що елемент є в ієрархії. Тост показується поверх
         // екрана з переходом знизу — якщо він застрягне за межею екрана, наявність
         // лишиться true, а користувач нічого не побачить. Ловимо саме це.

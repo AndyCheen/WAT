@@ -15,8 +15,7 @@ public struct WTToast: View {
     public init(
         _ message: String,
         actionTitle: String? = nil,
-        // Тост зі скасуванням треба встигнути прочитати й натиснути.
-        duration: Double = 5,
+        duration: Double = 3,
         onAction: (() -> Void)? = nil,
         onDismiss: @escaping () -> Void
     ) {
