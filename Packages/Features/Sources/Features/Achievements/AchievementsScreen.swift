@@ -69,6 +69,8 @@ public struct AchievementsScreen: View {
                 .padding(.horizontal, WTSpacing.screenSide)
                 .padding(.bottom, WTSpacing.screenBottom)
             }
+            // Bounce лише коли контент реально не влазить.
+            .scrollBounceBehavior(.basedOnSize)
 
             if let selected = model.selected {
                 detailModal(selected).zIndex(10)

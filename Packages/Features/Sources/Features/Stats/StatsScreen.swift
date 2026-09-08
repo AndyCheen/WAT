@@ -35,6 +35,8 @@ public struct StatsScreen: View {
                 .padding(.horizontal, WTSpacing.screenSide)
                 .padding(.bottom, WTSpacing.screenBottom)
             }
+            // Bounce лише коли контент реально не влазить.
+            .scrollBounceBehavior(.basedOnSize)
 
             if model.showTypicalInfo { typicalInfoModal.zIndex(11) }
         }

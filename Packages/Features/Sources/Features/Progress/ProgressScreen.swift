@@ -40,6 +40,8 @@ public struct ProgressScreen: View {
                 .padding(.horizontal, WTSpacing.screenSide)
                 .padding(.bottom, WTSpacing.screenBottom)
             }
+            // Bounce лише коли контент реально не влазить.
+            .scrollBounceBehavior(.basedOnSize)
 
             if model.showAllAchievements { allAchievementsSheet }
             if model.showLevelRewards { levelRewardsSheet }
