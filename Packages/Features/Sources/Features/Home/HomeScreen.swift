@@ -40,14 +40,10 @@ public struct HomeScreen: View {
                     tasks
                     history
                 }
-                .padding(.top, WTSpacing.screenTop)
+                .wtScreenTopPadding()
                 .padding(.horizontal, WTSpacing.screenSideHome)
                 .padding(.bottom, WTSpacing.screenBottom)
             }
-            // Токен screenTop — відступ від верхнього краю кадру в макеті (1a), де
-            // системного статус-бару немає. Без ignoresSafeArea тут він додається
-            // ще й ПОВЕРХ safe area, і відступ виходить майже вдвічі більшим за задум.
-            .ignoresSafeArea(.container, edges: .top)
 
             toast
 
