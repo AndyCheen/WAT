@@ -62,6 +62,10 @@ public final class HomeViewModel {
     public private(set) var quickAmounts: [Int] = []
     public private(set) var hasNewAchievements = false
 
+    /// Виконані завдання сховані, доки користувач не попросить показати.
+    /// Стан екранний: новий день і новий запуск починаються з активного списку.
+    public private(set) var showCompletedQuests = false
+
     /// Остання подія для гаптики. Читається екраном, не скидається вручну.
     public private(set) var pulse: HomePulse?
     public private(set) var toast: HomeToast?
@@ -149,6 +153,11 @@ public final class HomeViewModel {
         withAnimation(WTAnimation.toast) { toast = nil }
     }
 
+    /// Перемикання лише через `withAnimation` — інакше рядки зникають ривком.
+    public func toggleCompletedQuests() {
+        withAnimation(WTAnimation.fade) { showCompletedQuests.toggle() }
+    }
+
     public func toggleHistory(id: UUID) {
         openHistoryId = openHistoryId == id ? nil : id
     }
@@ -175,6 +184,12 @@ public final class HomeViewModel {
     public func dismissSheet() {
         withAnimation(WTAnimation.sheet) { sheet = nil }
     }
+
+    // MARK: - Завдання
+
+    public var visibleQuests: [QuestSnapshot] { showCompletedQuests ? quests : quests.active }
+    public var completedQuestCount: Int { quests.completed.count }
+    public var allQuestsDone: Bool { !quests.isEmpty && quests.active.isEmpty }
 
     // MARK: - Тости
 

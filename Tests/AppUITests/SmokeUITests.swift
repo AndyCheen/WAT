@@ -35,6 +35,32 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["500 мл"].exists, "порція зʼявилась в історії")
     }
 
+    func testCompletedQuestsHideBehindToggle() {
+        let app = launch(["--uitest-empty"])
+        XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
+
+        // Денні слоти детерміновані: «Випити денну норму» + «Додати 4 записи».
+        let questRow = app.staticTexts["Додати 4 записи"]
+        let toggle = app.buttons["home.tasks.toggleCompleted"]
+        XCTAssertTrue(questRow.exists, "невиконане завдання видно одразу")
+        XCTAssertFalse(toggle.exists, "ховати нема чого, доки нічого не виконано")
+
+        // 4 × 500 мл закривають обидва завдання: і норму, і кількість записів.
+        for _ in 0..<4 { app.buttons["home.add.500"].tap() }
+
+        XCTAssertFalse(questRow.exists, "виконане завдання зникає зі списку")
+        XCTAssertTrue(app.staticTexts["Усі завдання виконані 🎉"].exists)
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+
+        toggle.tap()
+        XCTAssertTrue(questRow.waitForExistence(timeout: 5), "кнопка повертає виконані завдання")
+        // Сам факт існування елемента нічого не доводить — рядок може бути за межею екрана.
+        XCTAssertTrue(questRow.isHittable, "рядок справді видно")
+
+        toggle.tap()
+        XCTAssertFalse(questRow.exists, "повторне натискання ховає їх знову")
+    }
+
     func testUndoRemovesIntakeAndRollsBackProgress() {
         let app = launch(["--uitest-empty"])
         let percent = app.staticTexts["home.percent"]

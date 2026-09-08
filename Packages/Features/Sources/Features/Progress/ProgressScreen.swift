@@ -1,6 +1,7 @@
 import SwiftUI
 import Core
 import DesignSystem
+import Gamification
 
 /// Макет 3f — рівень, нагороди, завдання, призи, досягнення.
 public struct ProgressScreen: View {
@@ -97,23 +98,45 @@ public struct ProgressScreen: View {
 
     private var tasksBlock: some View {
         VStack(alignment: .leading, spacing: 0) {
-            WTSectionLabel("ЗАВДАННЯ")
-                .padding(.bottom, 12)
+            HStack {
+                WTSectionLabel("ЗАВДАННЯ")
+                Spacer(minLength: 8)
+                // Ховати нема чого, доки жодне завдання не виконане.
+                if model.completedQuestCount > 0 {
+                    WTSectionAction(
+                        model.showCompletedQuests ? "Сховати" : "Виконані · \(model.completedQuestCount)",
+                        action: { model.toggleCompletedQuests() }
+                    )
+                    .accessibilityIdentifier("progress.tasks.toggleCompleted")
+                }
+            }
+            .padding(.bottom, 12)
 
             WTSectionLabel("СЬОГОДНІ", size: 12, color: theme.accent)
                 .padding(.bottom, 8)
-            ForEach(model.dailyQuests) { quest in
-                WTTaskRow(title: quest.title, progress: quest.progressLabel, isDone: quest.isDone)
-            }
+            questRows(model.visibleDailyQuests)
 
             WTSectionLabel("ЦЬОГО ТИЖНЯ", size: 12, color: theme.accent)
                 .padding(.top, 16)
                 .padding(.bottom, 8)
-            ForEach(model.weeklyQuests) { quest in
+            questRows(model.visibleWeeklyQuests)
+        }
+        .padding(.bottom, 22)
+    }
+
+    /// Порожній підсписок означає «все виконано» — інших причин не показати квест немає.
+    @ViewBuilder
+    private func questRows(_ quests: [QuestSnapshot]) -> some View {
+        if quests.isEmpty {
+            Text("Усі завдання виконані 🎉")
+                .font(WTFont.text(14, .bold))
+                .foregroundStyle(theme.textMuted)
+                .padding(.vertical, 8)
+        } else {
+            ForEach(quests) { quest in
                 WTTaskRow(title: quest.title, progress: quest.progressLabel, isDone: quest.isDone)
             }
         }
-        .padding(.bottom, 22)
     }
 
     // MARK: - Призи
@@ -161,13 +184,8 @@ public struct ProgressScreen: View {
                         .foregroundStyle(theme.accent)
                 }
                 Spacer()
-                Button(action: onOpenAllAchievements) {
-                    Text("Всі")
-                        .font(WTFont.text(14, .heavy))
-                        .foregroundStyle(theme.accent)
-                }
-                .buttonStyle(WTPressStyle(scale: 0.97))
-                .accessibilityIdentifier("progress.allAchievements")
+                WTSectionAction("Всі", action: onOpenAllAchievements)
+                    .accessibilityIdentifier("progress.allAchievements")
             }
             .padding(.bottom, 14)
 

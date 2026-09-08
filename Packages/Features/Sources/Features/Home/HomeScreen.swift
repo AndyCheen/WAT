@@ -175,10 +175,29 @@ public struct HomeScreen: View {
 
     private var tasks: some View {
         VStack(alignment: .leading, spacing: 0) {
-            WTSectionLabel("ЗАВДАННЯ НА СЬОГОДНІ", size: 15)
-                .padding(.bottom, 14)
-            ForEach(model.quests) { quest in
+            HStack {
+                WTSectionLabel("ЗАВДАННЯ НА СЬОГОДНІ", size: 15)
+                Spacer(minLength: 8)
+                // Ховати нема чого, доки жодне завдання не виконане.
+                if model.completedQuestCount > 0 {
+                    WTSectionAction(
+                        model.showCompletedQuests ? "Сховати" : "Виконані · \(model.completedQuestCount)",
+                        action: { model.toggleCompletedQuests() }
+                    )
+                    .accessibilityIdentifier("home.tasks.toggleCompleted")
+                }
+            }
+            .padding(.bottom, 14)
+
+            ForEach(model.visibleQuests) { quest in
                 WTTaskRow(title: quest.title, progress: quest.progressLabel, isDone: quest.isDone)
+            }
+
+            if model.allQuestsDone && !model.showCompletedQuests {
+                Text("Усі завдання виконані 🎉")
+                    .font(WTFont.text(14, .bold))
+                    .foregroundStyle(theme.textMuted)
+                    .padding(.vertical, 8)
             }
         }
         .padding(.bottom, 22)

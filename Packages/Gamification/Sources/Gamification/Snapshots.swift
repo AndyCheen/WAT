@@ -56,6 +56,16 @@ public struct QuestSnapshot: Equatable, Identifiable, Sendable {
     public var fraction: Double { target > 0 ? min(1, progress / target) : 0 }
 }
 
+/// Розріз списку квестів на активні й виконані.
+///
+/// Живе тут, а не в екранах: приховування виконаних завдань потрібне і головному
+/// екрану, і «Прогресу», а два однакові `filter` розʼїжджаються при першій же зміні правила.
+extension Collection where Element == QuestSnapshot {
+    /// Ще не виконані — те, що показуємо за замовчуванням.
+    public var active: [QuestSnapshot] { filter { !$0.isDone } }
+    public var completed: [QuestSnapshot] { filter(\.isDone) }
+}
+
 public struct AchievementSnapshot: Equatable, Identifiable, Sendable {
     public let key: String
     public let title: String

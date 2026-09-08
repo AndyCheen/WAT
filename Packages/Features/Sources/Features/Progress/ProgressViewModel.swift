@@ -17,6 +17,10 @@ public final class ProgressViewModel {
     public private(set) var achievements: [AchievementSnapshot] = []
     public private(set) var nextReward: (level: Int, rewards: [LevelRewardSnapshot])
 
+    /// Один прапорець на весь блок «ЗАВДАННЯ» — денні й тижневі ховаються разом,
+    /// два окремі перемикачі в одній секції читались би як помилка.
+    public private(set) var showCompletedQuests = false
+
     public var showAllAchievements = false
     public var showLevelRewards = false
 
@@ -36,6 +40,23 @@ public final class ProgressViewModel {
         nextReward = services.gamification.nextLevelRewards()
     }
 
+
+    // MARK: - Завдання
+
+    /// Перемикання лише через `withAnimation` — інакше рядки зникають ривком.
+    public func toggleCompletedQuests() {
+        withAnimation(WTAnimation.fade) { showCompletedQuests.toggle() }
+    }
+
+    public var visibleDailyQuests: [QuestSnapshot] {
+        showCompletedQuests ? dailyQuests : dailyQuests.active
+    }
+
+    public var visibleWeeklyQuests: [QuestSnapshot] {
+        showCompletedQuests ? weeklyQuests : weeklyQuests.active
+    }
+
+    public var completedQuestCount: Int { dailyQuests.completed.count + weeklyQuests.completed.count }
 
     // MARK: - Анімовані переходи
 
