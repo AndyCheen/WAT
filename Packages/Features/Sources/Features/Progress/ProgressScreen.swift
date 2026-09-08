@@ -40,6 +40,10 @@ public struct ProgressScreen: View {
                 .padding(.horizontal, WTSpacing.screenSide)
                 .padding(.bottom, WTSpacing.screenBottom)
             }
+            // Див. WAT-9/WAT-31: без ignoresSafeArea тут screenTop додається
+            // поверх системної safe area — сумарний відступ виходить майже
+            // вдвічі більшим за задум макета.
+            .ignoresSafeArea(.container, edges: .top)
 
             if model.showAllAchievements { allAchievementsSheet }
             if model.showLevelRewards { levelRewardsSheet }
