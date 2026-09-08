@@ -34,6 +34,7 @@ public struct StatsScreen: View {
                 .wtScreenTopPadding()
                 .padding(.horizontal, WTSpacing.screenSide)
                 .padding(.bottom, WTSpacing.screenBottom)
+                .wtNoTopOverscroll()
             }
             // Bounce лише коли контент реально не влазить.
             .scrollBounceBehavior(.basedOnSize)

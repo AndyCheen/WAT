@@ -43,6 +43,7 @@ public struct HomeScreen: View {
                 .wtScreenTopPadding()
                 .padding(.horizontal, WTSpacing.screenSideHome)
                 .padding(.bottom, WTSpacing.screenBottom)
+                .wtNoTopOverscroll()
             }
             // Bounce лише коли контент реально не влазить — інакше короткий екран
             // (як цей, коли історія порожня) можна відтягнути й відпустити на порожньому місці.
