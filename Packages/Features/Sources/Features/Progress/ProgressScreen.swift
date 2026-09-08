@@ -36,10 +36,13 @@ public struct ProgressScreen: View {
                     prizesBlock
                     achievementsBlock
                 }
-                .padding(.top, WTSpacing.screenTop)
+                .wtScreenTopPadding()
                 .padding(.horizontal, WTSpacing.screenSide)
                 .padding(.bottom, WTSpacing.screenBottom)
+                .wtNoTopOverscroll()
             }
+            // Bounce лише коли контент реально не влазить.
+            .scrollBounceBehavior(.basedOnSize)
 
             if model.showAllAchievements { allAchievementsSheet }
             if model.showLevelRewards { levelRewardsSheet }

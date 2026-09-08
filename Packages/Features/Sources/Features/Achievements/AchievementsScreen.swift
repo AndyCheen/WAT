@@ -65,10 +65,13 @@ public struct AchievementsScreen: View {
                     tabs
                     grid
                 }
-                .padding(.top, WTSpacing.screenTop)
+                .wtScreenTopPadding()
                 .padding(.horizontal, WTSpacing.screenSide)
                 .padding(.bottom, WTSpacing.screenBottom)
+                .wtNoTopOverscroll()
             }
+            // Bounce лише коли контент реально не влазить.
+            .scrollBounceBehavior(.basedOnSize)
 
             if let selected = model.selected {
                 detailModal(selected).zIndex(10)

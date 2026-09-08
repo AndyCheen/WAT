@@ -40,14 +40,14 @@ public struct HomeScreen: View {
                     tasks
                     history
                 }
-                .padding(.top, WTSpacing.screenTop)
+                .wtScreenTopPadding()
                 .padding(.horizontal, WTSpacing.screenSideHome)
                 .padding(.bottom, WTSpacing.screenBottom)
+                .wtNoTopOverscroll()
             }
-            // Токен screenTop — відступ від верхнього краю кадру в макеті (1a), де
-            // системного статус-бару немає. Без ignoresSafeArea тут він додається
-            // ще й ПОВЕРХ safe area, і відступ виходить майже вдвічі більшим за задум.
-            .ignoresSafeArea(.container, edges: .top)
+            // Bounce лише коли контент реально не влазить — інакше короткий екран
+            // (як цей, коли історія порожня) можна відтягнути й відпустити на порожньому місці.
+            .scrollBounceBehavior(.basedOnSize)
 
             toast
 
