@@ -40,6 +40,30 @@ public struct WTSectionLabel: View {
     }
 }
 
+/// Текстова дія праворуч у заголовку секції: «Всі», «Виконані · 2», «Сховати».
+///
+/// Окремий компонент, бо той самий вигляд потрібен уже в трьох секціях, а у
+/// Feature-шарі шрифтам і масштабу натискання не місце.
+public struct WTSectionAction: View {
+    @Environment(\.wtTheme) private var theme
+    private let title: String
+    private let action: () -> Void
+
+    public init(_ title: String, action: @escaping () -> Void) {
+        self.title = title
+        self.action = action
+    }
+
+    public var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(WTFont.text(14, .heavy))
+                .foregroundStyle(theme.accent)
+        }
+        .buttonStyle(WTPressStyle(scale: 0.97))
+    }
+}
+
 /// Кругла кнопка-іконка (38 / 42 / 26 pt у макетах).
 public struct WTCircleButton: View {
     @Environment(\.wtTheme) private var theme

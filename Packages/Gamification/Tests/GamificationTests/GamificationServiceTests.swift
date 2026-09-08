@@ -126,6 +126,27 @@ final class GamificationServiceTests: XCTestCase {
         XCTAssertTrue(env.game.dailyQuests().first { $0.key == "daily.entries4" }!.isDone)
     }
 
+    func testCompletedQuestsSplitOutOfActive() {
+        let env = GameEnv()
+        XCTAssertEqual(env.game.dailyQuests().active.count, QuestCatalog.dailySlots, "спершу активні всі")
+        XCTAssertTrue(env.game.dailyQuests().completed.isEmpty)
+
+        // Норма 2000 мл двома порціями: денна ціль закрита, «4 записи» — ще ні.
+        _ = env.addIntakeEvent(1000, hour: 8)
+        _ = env.addIntakeEvent(1000, hour: 9)
+
+        let mixed = env.game.dailyQuests()
+        XCTAssertEqual(mixed.completed.map(\.key), ["daily.goal"])
+        XCTAssertEqual(mixed.active.map(\.key), ["daily.entries4"])
+
+        _ = env.addIntakeEvent(100, hour: 10)
+        _ = env.addIntakeEvent(100, hour: 11)
+
+        let done = env.game.dailyQuests()
+        XCTAssertTrue(done.active.isEmpty, "виконане завдання зникає з активних")
+        XCTAssertEqual(done.completed.count, QuestCatalog.dailySlots)
+    }
+
     func testOnlyTwoDailyQuestsAreIssued() {
         let env = GameEnv()
         XCTAssertEqual(env.game.dailyQuests().count, QuestCatalog.dailySlots)
