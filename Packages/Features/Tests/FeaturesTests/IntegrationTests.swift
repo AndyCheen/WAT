@@ -141,23 +141,6 @@ final class IntegrationTests: XCTestCase {
         XCTAssertGreaterThan(services.insights.evenness().score, 0)
     }
 
-    /// WAT-11: крапки в шапці — фіксований тиждень Пн…Нд, а не останні 7 діб.
-    /// Позиція крапки задана днем тижня, тому тиждень заповнюється зліва направо,
-    /// а сьогоднішня крапка стоїть крайньою правою лише в неділю.
-    func testWeekDotsFollowCalendarWeek() {
-        let model = HomeViewModel(services: services)
-        XCTAssertEqual(model.weekDots, Array(repeating: false, count: 7), "порожній тиждень")
-
-        for _ in 0..<4 { model.add(500) }
-        // 18 липня 2026 — субота: 6-та позиція, а праворуч лишається порожня неділя.
-        XCTAssertEqual(model.weekDots, [false, false, false, false, false, true, false])
-
-        for _ in 0..<4 { services.hydration.addIntake(amountMl: 500, at: Self.date(day: 15, hour: 12)) }
-        model.reload()
-        // Середа 15 липня стає 3-ю позицією — ліворуч від суботи, а не поруч із нею.
-        XCTAssertEqual(model.weekDots, [false, false, true, false, false, true, false])
-    }
-
     func testFixtureSeederProducesUsableHistory() {
         FixtureSeeder.seed(into: services, days: 20)
 

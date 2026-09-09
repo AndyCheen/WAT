@@ -52,17 +52,21 @@ public struct CalendarService: Sendable {
         return (0..<count).reversed().map { dayKey(offsetDays: -$0, from: last) }
     }
 
-    /// Дні тижня, що містить `containing` (за замовчуванням — сьогодні), від Пн до Нд.
+    /// Вікно з `count` діб, що закінчується сьогоднішнім днем, але не починається раніше
+    /// за `anchor` — перший день, за який у застосунку взагалі є дані.
     ///
-    /// Саме фіксований тиждень, а не `recentDays(7)`: у ковзному вікні сьогодні завжди
-    /// крайнє праворуч, тому зафарбована зона наростає справа наліво (WAT-11). Тут
-    /// понеділок закріплений ліворуч, і тиждень заповнюється зліва направо.
-    /// Дні, що ще не настали, лишаються в масиві — викликач вирішує, як їх показати.
-    public func weekDays(containing key: DayKey? = nil) -> [DayKey] {
-        let base = key ?? today
-        let weekday = calendar.component(.weekday, from: date(from: base)) // нд = 1
-        let offset = (weekday - calendar.firstWeekday + 7) % 7
-        return (0..<7).map { dayKey(offsetDays: $0 - offset, from: base) }
+    /// Поки від `anchor` минуло менше ніж `count` діб, вікно стоїть на місці: дні, яких ще
+    /// не було, лишаються в кінці масиву, і рядок заповнюється зліва направо. Далі вікно
+    /// починає ковзати разом із сьогоднішнім днем, показуючи останні `count` діб (WAT-11).
+    ///
+    /// Перемикання між двома фазами навмисне не має окремого стану — воно випливає з `max`.
+    /// `anchor` ставиться один раз на першому дні з даними; на новій серії його не переносять,
+    /// інакше після зриву рядок стрибав би на початок.
+    public func slidingWindow(_ count: Int, anchor: DayKey?, endingAt end: DayKey? = nil) -> [DayKey] {
+        let last = end ?? today
+        let rollingStart = dayKey(offsetDays: -(count - 1), from: last)
+        let start = anchor.map { max($0, rollingStart) } ?? rollingStart
+        return (0..<count).map { dayKey(offsetDays: $0, from: start) }
     }
 
     public func monthKey(offsetMonths: Int, from key: MonthKey) -> MonthKey {

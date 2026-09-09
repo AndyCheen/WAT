@@ -28,21 +28,50 @@ final class CalendarServiceTests: XCTestCase {
         XCTAssertEqual(days.count, 7)
     }
 
-    /// WAT-11: тиждень фіксований (Пн ліворуч), а не ковзне вікно з «сьогодні» праворуч.
-    func testWeekDaysStartOnMondayAndEndOnSunday() {
-        // 18 липня 2026 — субота, тож тиждень це 13.07 (Пн) … 19.07 (Нд).
-        let days = makeService().weekDays().map(\.rawValue)
-        XCTAssertEqual(days.count, 7)
-        XCTAssertEqual(days.first, "2026-07-13")
-        XCTAssertEqual(days.last, "2026-07-19")
-        XCTAssertEqual(days[5], "2026-07-18", "сьогодні — 6-та позиція, а не крайня права")
+    // MARK: - Вікно крапок (WAT-11)
+    //
+    // Референсна точка — 18 липня 2026. Якір ставиться на першому дні з даними.
+
+    /// Поки даних менше семи днів, вікно стоїть на якорі: дні, яких ще не було,
+    /// висять у хвості, і рядок заповнюється зліва направо.
+    func testSlidingWindowStaysAnchoredWhileHistoryIsShort() {
+        let s = makeService()
+        let anchor = DayKey(rawValue: "2026-07-16") // позавчора — три дні історії
+        let days = s.slidingWindow(7, anchor: anchor).map(\.rawValue)
+
+        XCTAssertEqual(days.first, "2026-07-16", "вікно стоїть на першому дні з даними")
+        XCTAssertEqual(days[2], "2026-07-18", "сьогодні — третя позиція, решта попереду")
+        XCTAssertEqual(days.last, "2026-07-22", "хвіст — дні, яких ще не було")
     }
 
-    func testWeekDaysCrossYearBoundary() {
-        // 1 січня 2026 — четвер, тиждень починається торік.
-        let days = makeService().weekDays(containing: DayKey(rawValue: "2026-01-01")).map(\.rawValue)
-        XCTAssertEqual(days.first, "2025-12-29")
-        XCTAssertEqual(days.last, "2026-01-04")
+    /// Перший день користування: сьогодні ліворуч, шість порожніх позицій попереду.
+    func testSlidingWindowOnFirstDay() {
+        let s = makeService()
+        let days = s.slidingWindow(7, anchor: s.today).map(\.rawValue)
+        XCTAssertEqual(days.first, "2026-07-18")
+        XCTAssertEqual(days.last, "2026-07-24")
+    }
+
+    /// Щойно історії стало сім днів, вікно починає ковзати: сьогодні крайнє праворуч.
+    func testSlidingWindowStartsRollingOnceHistoryIsLongEnough() {
+        let s = makeService()
+        let days = s.slidingWindow(7, anchor: DayKey(rawValue: "2026-07-01")).map(\.rawValue)
+        XCTAssertEqual(days.first, "2026-07-12")
+        XCTAssertEqual(days.last, "2026-07-18", "сьогодні — крайнє праворуч")
+    }
+
+    /// Рівно сім днів історії — межа переходу: якір ще збігається з початком вікна.
+    func testSlidingWindowBoundaryDay() {
+        let s = makeService()
+        let days = s.slidingWindow(7, anchor: DayKey(rawValue: "2026-07-12")).map(\.rawValue)
+        XCTAssertEqual(days.first, "2026-07-12")
+        XCTAssertEqual(days.last, "2026-07-18")
+    }
+
+    /// Без даних якоря немає — поводимось як звичайне ковзне вікно.
+    func testSlidingWindowWithoutAnchorIsRolling() {
+        let s = makeService()
+        XCTAssertEqual(s.slidingWindow(7, anchor: nil).map(\.rawValue), s.recentDays(7).map(\.rawValue))
     }
 
     func testMonthGridStartsOnMonday() {

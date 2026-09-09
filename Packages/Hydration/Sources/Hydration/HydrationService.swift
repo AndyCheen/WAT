@@ -37,6 +37,10 @@ public final class HydrationService {
 
     public func todaySnapshot() -> DaySnapshot { snapshot(for: calendar.today) }
 
+    /// Перший день, за який узагалі є дані. `nil`, поки користувач нічого не додав.
+    /// Якір для рядка крапок на головному: до нього історії не існує (WAT-11).
+    public func firstTrackedDay() -> DayKey? { dayLogs.earliestDayKey() }
+
     public func intakes(for day: DayKey) -> [IntakeSnapshot] {
         dayLogs.activeIntakes(for: day).map { intake in
             IntakeSnapshot(

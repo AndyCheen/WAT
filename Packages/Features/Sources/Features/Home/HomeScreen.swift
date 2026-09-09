@@ -80,16 +80,25 @@ public struct HomeScreen: View {
 
             HStack(spacing: 12) {
                 Button { model.present(.calendar) } label: {
-                    HStack(spacing: 4) {
-                        ForEach(Array(model.weekDots.enumerated()), id: \.offset) { _, done in
-                            Circle()
-                                .fill(done ? theme.accent : theme.dotOff)
-                                .frame(width: 10, height: 10)
+                    Group {
+                        if model.showsStreakCount {
+                            Text(model.streakLabel)
+                                .font(WTFont.number(20, .bold))
+                                .foregroundStyle(theme.accent)
+                        } else {
+                            HStack(spacing: 4) {
+                                ForEach(Array(model.weekDots.enumerated()), id: \.offset) { _, done in
+                                    Circle()
+                                        .fill(done ? theme.accent : theme.dotOff)
+                                        .frame(width: 10, height: 10)
+                                }
+                            }
                         }
                     }
                     // Крапки — 10 pt: без прозорого поля в них важко влучити.
                     .frame(height: 44)
                     .contentShape(Rectangle())
+                    // `showsStreakCount` — похідне від `weekDots`, окремий тригер не потрібен.
                     .animation(WTAnimation.fade, value: model.weekDots)
                 }
                 .buttonStyle(WTPressStyle(scale: 0.94))
