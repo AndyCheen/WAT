@@ -52,6 +52,19 @@ public struct CalendarService: Sendable {
         return (0..<count).reversed().map { dayKey(offsetDays: -$0, from: last) }
     }
 
+    /// Дні тижня, що містить `containing` (за замовчуванням — сьогодні), від Пн до Нд.
+    ///
+    /// Саме фіксований тиждень, а не `recentDays(7)`: у ковзному вікні сьогодні завжди
+    /// крайнє праворуч, тому зафарбована зона наростає справа наліво (WAT-11). Тут
+    /// понеділок закріплений ліворуч, і тиждень заповнюється зліва направо.
+    /// Дні, що ще не настали, лишаються в масиві — викликач вирішує, як їх показати.
+    public func weekDays(containing key: DayKey? = nil) -> [DayKey] {
+        let base = key ?? today
+        let weekday = calendar.component(.weekday, from: date(from: base)) // нд = 1
+        let offset = (weekday - calendar.firstWeekday + 7) % 7
+        return (0..<7).map { dayKey(offsetDays: $0 - offset, from: base) }
+    }
+
     public func monthKey(offsetMonths: Int, from key: MonthKey) -> MonthKey {
         let base = date(from: key)
         let shifted = calendar.date(byAdding: .month, value: offsetMonths, to: base) ?? base

@@ -28,6 +28,23 @@ final class CalendarServiceTests: XCTestCase {
         XCTAssertEqual(days.count, 7)
     }
 
+    /// WAT-11: тиждень фіксований (Пн ліворуч), а не ковзне вікно з «сьогодні» праворуч.
+    func testWeekDaysStartOnMondayAndEndOnSunday() {
+        // 18 липня 2026 — субота, тож тиждень це 13.07 (Пн) … 19.07 (Нд).
+        let days = makeService().weekDays().map(\.rawValue)
+        XCTAssertEqual(days.count, 7)
+        XCTAssertEqual(days.first, "2026-07-13")
+        XCTAssertEqual(days.last, "2026-07-19")
+        XCTAssertEqual(days[5], "2026-07-18", "сьогодні — 6-та позиція, а не крайня права")
+    }
+
+    func testWeekDaysCrossYearBoundary() {
+        // 1 січня 2026 — четвер, тиждень починається торік.
+        let days = makeService().weekDays(containing: DayKey(rawValue: "2026-01-01")).map(\.rawValue)
+        XCTAssertEqual(days.first, "2025-12-29")
+        XCTAssertEqual(days.last, "2026-01-04")
+    }
+
     func testMonthGridStartsOnMonday() {
         let s = makeService()
         // 1 липня 2026 — середа, отже дві порожні комірки (Пн, Вт).

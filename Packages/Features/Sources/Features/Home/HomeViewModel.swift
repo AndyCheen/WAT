@@ -89,7 +89,7 @@ public final class HomeViewModel {
         streak = services.gamification.streakSummary()
         quickAmounts = services.hydration.quickAddAmounts()
         hasNewAchievements = services.gamification.hasUnseenAchievements
-        weekDots = services.calendar.recentDays(7).map { key in
+        weekDots = services.calendar.weekDays().map { key in
             services.hydration.snapshot(for: key).goalMet
         }
     }
