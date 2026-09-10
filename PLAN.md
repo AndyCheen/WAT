@@ -234,7 +234,7 @@ metrics.record(.init(name: .intakeAdded, value: 300, at: now, payload: ["source"
 | Блок | Компонент | Дані | Дія |
 |---|---|---|---|
 | Хедер: шестерня | `WTCircleButton` 42 | — | шторка «Налаштування» |
-| Хедер: 7 крапок | `WeekDotsRow` | `DayLog` за поточний тиждень | (тап → шторка стріку/календаря) |
+| Хедер: 7 крапок | розмітка в `HomeScreen` | `DayLog` за вікно `slidingWindow(7)` | (тап → шторка стріку/календаря); від 7 залитих — число серії |
 | Хедер: крапля з рівнем | `LevelDropIcon` + бейдж | `LevelState`, `hasNewAch` | перехід на **3f** |
 | Кільце 242 pt | `ProgressRing` | `DayLog.countedMl / goal` | — |
 | 4 кнопки | `QuickAddGrid` | `QuickAddPreset` | +200 / +500 / +1000 / шторка «Інше» |
