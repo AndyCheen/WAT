@@ -39,6 +39,12 @@ public struct HomePulse: Equatable, Identifiable {
     public let kind: Kind
 }
 
+/// Що показує індикатор серії в шапці: рядок крапок за останні дні чи число довгої серії.
+public enum StreakIndicator: Equatable {
+    case dots([Bool])
+    case streak(Int)
+}
+
 /// Тост із можливістю скасувати останню дію.
 public struct HomeToast: Equatable, Identifiable {
     public let id = UUID()
@@ -51,6 +57,10 @@ public struct HomeToast: Equatable, Identifiable {
 @MainActor
 @Observable
 public final class HomeViewModel {
+    /// Довжина серії, з якої крапки поступаються місцем краплі з числом (WAT-10).
+    /// Збігається з довжиною вікна крапок: сім залитих крапок уже не несуть інформації.
+    static let streakDropThreshold = 7
+
     private let services: AppServices
 
     public private(set) var day: DaySnapshot
@@ -205,14 +215,26 @@ public final class HomeViewModel {
     public var weekSummary: WeekSummary { services.insights.weekSummary() }
     public var monthReport: CalendarMonthReport { services.insights.calendar(month: services.calendar.currentMonth) }
 
-    /// Коли всі сім крапок залиті, вони вже нічого не додають — замінюємо їх числом серії.
+    /// Від семи днів поспіль рядок крапок уже нічого не додає — замінюємо його числом
+    /// серії з краплею (WAT-10).
     ///
-    /// Умова навмисне на самих крапках, а не на `streak.current >= 7`: серія лишається
-    /// живою до кінця доби, тож одразу після зриву сьомого дня лічильник ще показував би 7,
-    /// і замість «шість закрито, сьогодні відкрито» користувач бачив би число.
-    /// Іконку замість тимчасового числа зробить окрема задача.
-    public var showsStreakCount: Bool { weekDots.allSatisfy { $0 } }
-    public var streakLabel: String { "\(streak.current)" }
+    /// Крапля тримається, доки серія жива, — зокрема весь наступний день, поки норму
+    /// ще не закрито. Умова на самих крапках («усі сім залиті») тут не годиться: вікно
+    /// крапок ковзає разом із сьогоднішнім днем, тож іконка зникала б щоранку й
+    /// поверталась аж по закритті норми.
+    public var streakIndicator: StreakIndicator {
+        isStreakAlive && streak.current >= Self.streakDropThreshold
+            ? .streak(streak.current)
+            : .dots(weekDots)
+    }
+
+    /// Серія переобчислюється лише під час дій користувача (`scenePhase` ще не обробляється),
+    /// тому `streak.current` сам по собі може бути вчорашнім. Живою вважаємо серію, чий
+    /// останній зарахований день — сьогодні або вчора.
+    private var isStreakAlive: Bool {
+        guard let last = streak.lastCountedDay else { return false }
+        return (0...1).contains(services.calendar.daysBetween(last, services.calendar.today))
+    }
 
     public var pctLabel: String { "\(day.completionPct)%" }
     public var volumeLabel: String {
