@@ -27,12 +27,14 @@ public enum FixtureSeeder {
         for offset in stride(from: days, through: 1, by: -1) {
             let dayKey = calendar.dayKey(offsetDays: -offset, from: today)
             let date = calendar.date(from: dayKey)
-            let seed = abs(dayKey.rawValue.hashValue)
+            let seed = stableHash(dayKey.rawValue)
 
             // Кожен 9-й день пропускаємо — щоб серії й календар мали розриви.
             if seed % 9 == 0 { continue }
 
-            let pattern = patterns[seed % patterns.count]
+            // Пропуск і патерн беремо з різних половин хешу: спільне джерело остач
+            // корелює (9 і 6 мають дільник 3) і перекошує частку днів із закритою нормою.
+            let pattern = patterns[Int((seed >> 32) % UInt64(patterns.count))]
             for entry in pattern {
                 var components = DateComponents()
                 components.year = dayKey.year
@@ -57,6 +59,23 @@ public enum FixtureSeeder {
         // Два призи в інвентарі — як на макеті 3f.
         services.gamification.refresh(at: calendar.now)
         services.touch()
+    }
+
+    /// FNV-1a — хеш, стабільний між запусками процесу.
+    ///
+    /// Тут був `String.hashValue`, а він у Swift засівається випадково при старті
+    /// процесу (без `SWIFT_DETERMINISTIC_HASHING`). Через це «детерміновані» демо-дані
+    /// виходили різними на кожен прогін: три однакові запуски з тим самим `FixedClock`
+    /// давали серії 0, 2 і 1, а число серії в шапці стрибало між 8 і 9 — це вже
+    /// коштувало одного хибного баг-репорту. Дизайн-QA, скріншоти та e2e, що
+    /// спираються на вміст демо-історії, вимагають повторюваності.
+    static func stableHash(_ string: String) -> UInt64 {
+        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
+        for byte in string.utf8 {
+            hash ^= UInt64(byte)
+            hash = hash &* 0x0000_0100_0000_01b3
+        }
+        return hash
     }
 
     /// Патерни підібрані так, щоб приблизно 2 з 3 днів закривали норму 2000 мл —
