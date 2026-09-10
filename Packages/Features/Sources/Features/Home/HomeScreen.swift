@@ -81,13 +81,12 @@ public struct HomeScreen: View {
             HStack(spacing: 12) {
                 Button { model.present(.calendar) } label: {
                     Group {
-                        if model.showsStreakCount {
-                            Text(model.streakLabel)
-                                .font(WTFont.number(20, .bold))
-                                .foregroundStyle(theme.accent)
-                        } else {
+                        switch model.streakIndicator {
+                        case .streak(let days):
+                            WTStreakDrop(count: days, numberColor: theme.textPrimary)
+                        case .dots(let dots):
                             HStack(spacing: 4) {
-                                ForEach(Array(model.weekDots.enumerated()), id: \.offset) { _, done in
+                                ForEach(Array(dots.enumerated()), id: \.offset) { _, done in
                                     Circle()
                                         .fill(done ? theme.accent : theme.dotOff)
                                         .frame(width: 10, height: 10)
@@ -98,8 +97,7 @@ public struct HomeScreen: View {
                     // Крапки — 10 pt: без прозорого поля в них важко влучити.
                     .frame(height: 44)
                     .contentShape(Rectangle())
-                    // `showsStreakCount` — похідне від `weekDots`, окремий тригер не потрібен.
-                    .animation(WTAnimation.fade, value: model.weekDots)
+                    .animation(WTAnimation.fade, value: model.streakIndicator)
                 }
                 .buttonStyle(WTPressStyle(scale: 0.94))
                 .accessibilityIdentifier("home.weekDots")

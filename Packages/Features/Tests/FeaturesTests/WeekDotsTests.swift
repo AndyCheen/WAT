@@ -38,6 +38,19 @@ final class WeekDotsTests: XCTestCase {
         return HomeViewModel(services: services).weekDots.map { $0 ? "X" : "O" }.joined()
     }
 
+    /// Те саме, але повертає модель — для сценаріїв, де перевіряємо індикатор серії.
+    private func model(today: Int, met: [Int]) -> HomeViewModel {
+        let services = AppServices(
+            container: Database.makeInMemoryContainer(),
+            clock: FixedClock(now: Self.date(day: today, hour: 21))
+        )
+        services.bootstrap()
+        for day in met.sorted() {
+            for _ in 0..<4 { services.hydration.addIntake(amountMl: 500, at: Self.date(day: day, hour: 9)) }
+        }
+        return HomeViewModel(services: services)
+    }
+
     /// Почав у середу й одразу закрив норму.
     func testFirstDayWithGoalMet() {
         XCTAssertEqual(dots(today: 15, met: [15]), "XOOOOOO")
@@ -60,38 +73,38 @@ final class WeekDotsTests: XCTestCase {
         XCTAssertEqual(dots(today: 17, met: [15, 17], partial: [16]), "XOXOOOO")
     }
 
-    /// Сім днів поспіль: усі крапки залиті, тож замість них показуємо число.
-    func testSevenInARowSwitchesToCount() {
-        let services = AppServices(
-            container: Database.makeInMemoryContainer(),
-            clock: FixedClock(now: Self.date(day: 21, hour: 21))
-        )
-        services.bootstrap()
-        for day in 15...21 {
-            for _ in 0..<4 { services.hydration.addIntake(amountMl: 500, at: Self.date(day: day, hour: 9)) }
-        }
-
-        let model = HomeViewModel(services: services)
+    /// Сім днів поспіль: усі крапки залиті, тож замість них показуємо число серії.
+    func testSevenInARowSwitchesToStreakDrop() {
+        let model = model(today: 21, met: Array(15...21))
         XCTAssertEqual(model.weekDots.map { $0 ? "X" : "O" }.joined(), "XXXXXXX")
-        XCTAssertTrue(model.showsStreakCount)
-        XCTAssertEqual(model.streakLabel, "7")
+        XCTAssertEqual(model.streakIndicator, .streak(7))
     }
 
-    /// Сім днів поспіль, а наступний день ще не закритий: вікно поїхало, показуємо крапки.
-    /// Серія формально жива до кінця доби, тому вмикати число тут не можна.
-    func testOpenDayAfterSevenShowsDotsAgain() {
-        let services = AppServices(
-            container: Database.makeInMemoryContainer(),
-            clock: FixedClock(now: Self.date(day: 22, hour: 21))
-        )
-        services.bootstrap()
-        for day in 15...21 {
-            for _ in 0..<4 { services.hydration.addIntake(amountMl: 500, at: Self.date(day: day, hour: 9)) }
-        }
+    /// Наступний день після сьомого ще не закритий — крапля лишається з числом 7 (WAT-10).
+    /// Повернення крапок щоранку мигало б: серія жива, показувати її «недосягнутою» нема за що.
+    func testOpenDayAfterSevenKeepsStreakDrop() {
+        let model = model(today: 22, met: Array(15...21))
+        XCTAssertEqual(model.streakIndicator, .streak(7))
+    }
 
-        let model = HomeViewModel(services: services)
-        XCTAssertEqual(model.weekDots.map { $0 ? "X" : "O" }.joined(), "XXXXXXO")
-        XCTAssertFalse(model.showsStreakCount, "день ще відкритий — число сховало б, що робити")
+    /// Восьмий день закрито — число росте.
+    func testEighthDayIncrementsStreak() {
+        let model = model(today: 22, met: Array(15...22))
+        XCTAssertEqual(model.streakIndicator, .streak(8))
+    }
+
+    /// Серію зірвано: крапля знову стає крапками. Передостання порожня — вчора норму
+    /// не закрито, остання порожня — сьогодні день ще відкритий.
+    func testBrokenStreakFallsBackToDots() {
+        let model = model(today: 23, met: Array(15...21))
+        XCTAssertEqual(model.streakIndicator, .dots(model.weekDots))
+        XCTAssertEqual(model.weekDots.map { $0 ? "X" : "O" }.joined(), "XXXXXOO")
+    }
+
+    /// Шість днів поспіль до порога не дотягують — крапки лишаються.
+    func testSixInARowStillShowsDots() {
+        let model = model(today: 20, met: Array(15...20))
+        XCTAssertEqual(model.streakIndicator, .dots(model.weekDots))
     }
 
     /// Пʼять поспіль, один пропущено, останній закрито.
