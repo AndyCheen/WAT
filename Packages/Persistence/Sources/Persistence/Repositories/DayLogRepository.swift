@@ -10,6 +10,7 @@ public protocol DayLogRepositoryProtocol: AnyObject {
     func dayLogs(in month: MonthKey) -> [DayLog]
     func allDayLogs() -> [DayLog]
     func earliestDayKey() -> DayKey?
+    func firstGoalMetDayKey() -> DayKey?
     func activeIntakes(for day: DayKey) -> [Intake]
     func intake(id: UUID) -> Intake?
     func insert(_ intake: Intake, into log: DayLog)
@@ -64,6 +65,20 @@ public final class DayLogRepository: DayLogRepositoryProtocol {
 
     public func earliestDayKey() -> DayKey? {
         var descriptor = FetchDescriptor<DayLog>(sortBy: [SortDescriptor(\.dayKey)])
+        descriptor.fetchLimit = 1
+        guard let first = (try? context.fetch(descriptor))?.first else { return nil }
+        return DayKey(rawValue: first.dayKey)
+    }
+
+    /// Найперший день, у який норму було закрито. `nil`, якщо такого ще не було.
+    ///
+    /// `goalMet` — обчислювана властивість, тому в предикат іде її означення:
+    /// порівняння двох полів моделі SwiftData тягне (перевірено `DayLogRepositoryTests`).
+    public func firstGoalMetDayKey() -> DayKey? {
+        var descriptor = FetchDescriptor<DayLog>(
+            predicate: #Predicate { $0.countedMl >= $0.goalMlSnapshot },
+            sortBy: [SortDescriptor(\.dayKey)]
+        )
         descriptor.fetchLimit = 1
         guard let first = (try? context.fetch(descriptor))?.first else { return nil }
         return DayKey(rawValue: first.dayKey)

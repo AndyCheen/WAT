@@ -20,6 +20,7 @@ final class WeekDotsTests: XCTestCase {
 
     /// Збирає застосунок із заданим «сьогодні» й історією та повертає рядок крапок.
     /// `met` — дні із закритою нормою, `partial` — дні, коли пив, але норму не закрив.
+    /// Якір вікна — перший день з `met`; дні з `partial` на нього не впливають.
     private func dots(today: Int, met: [Int], partial: [Int] = []) -> String {
         let services = AppServices(
             container: Database.makeInMemoryContainer(),
@@ -40,6 +41,12 @@ final class WeekDotsTests: XCTestCase {
     /// Почав у середу й одразу закрив норму.
     func testFirstDayWithGoalMet() {
         XCTAssertEqual(dots(today: 15, met: [15]), "XOOOOOO")
+    }
+
+    /// У перший день пив, але норму не добрав, закрив лише другого.
+    /// Рядок починається з першого **закритого** дня, а не з першого дня з даними.
+    func testAnchorIsFirstDayWithGoalMet() {
+        XCTAssertEqual(dots(today: 16, met: [16], partial: [15]), "XOOOOOO")
     }
 
     /// Середа й четвер поспіль.

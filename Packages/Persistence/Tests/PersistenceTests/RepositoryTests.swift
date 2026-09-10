@@ -87,6 +87,26 @@ final class RepositoryTests: XCTestCase {
         XCTAssertEqual(dayLogs.earliestDayKey()?.rawValue, "2026-05-02")
     }
 
+    /// Якір рядка крапок на головному (WAT-11). Заразом перевіряє, що предикат
+    /// із порівнянням двох полів моделі SwiftData справді виконується, а не тихо
+    /// падає в `try?` і не віддає `nil`.
+    func testFirstGoalMetDayKey() {
+        XCTAssertNil(dayLogs.firstGoalMetDayKey(), "закритих днів ще не було")
+
+        // Пив, але норму не закрив — день не рахується.
+        let partial = dayLogs.dayLog(for: DayKey(rawValue: "2026-05-02"), goalMl: 2000, timeZoneId: "Europe/Kyiv")
+        partial.countedMl = 1500
+        XCTAssertNil(dayLogs.firstGoalMetDayKey())
+
+        let met = dayLogs.dayLog(for: DayKey(rawValue: "2026-06-11"), goalMl: 2000, timeZoneId: "Europe/Kyiv")
+        met.countedMl = 2000
+        let laterMet = dayLogs.dayLog(for: DayKey(rawValue: "2026-07-18"), goalMl: 2000, timeZoneId: "Europe/Kyiv")
+        laterMet.countedMl = 2500
+
+        XCTAssertEqual(dayLogs.firstGoalMetDayKey()?.rawValue, "2026-06-11", "найраніший саме із закритих")
+        XCTAssertEqual(dayLogs.earliestDayKey()?.rawValue, "2026-05-02", "а найраніший з даними — інший день")
+    }
+
     func testSoftDeletedIntakesAreExcluded() {
         let key = DayKey(rawValue: "2026-07-18")
         let log = dayLogs.dayLog(for: key, goalMl: 2000, timeZoneId: "Europe/Kyiv")

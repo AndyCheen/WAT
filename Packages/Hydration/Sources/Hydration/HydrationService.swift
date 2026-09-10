@@ -37,9 +37,12 @@ public final class HydrationService {
 
     public func todaySnapshot() -> DaySnapshot { snapshot(for: calendar.today) }
 
-    /// Перший день, за який узагалі є дані. `nil`, поки користувач нічого не додав.
-    /// Якір для рядка крапок на головному: до нього історії не існує (WAT-11).
-    public func firstTrackedDay() -> DayKey? { dayLogs.earliestDayKey() }
+    /// Перший день, у який норму було закрито. `nil`, якщо такого ще не було.
+    ///
+    /// Якір для рядка крапок на головному (WAT-11). Саме перший **закритий** день,
+    /// а не перший день з даними: інакше в того, хто в перший день пив, але норми не
+    /// добрав, серія починалася б з порожньої крапки.
+    public func firstGoalMetDay() -> DayKey? { dayLogs.firstGoalMetDayKey() }
 
     public func intakes(for day: DayKey) -> [IntakeSnapshot] {
         dayLogs.activeIntakes(for: day).map { intake in

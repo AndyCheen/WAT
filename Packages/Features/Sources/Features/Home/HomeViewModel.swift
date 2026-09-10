@@ -89,9 +89,9 @@ public final class HomeViewModel {
         streak = services.gamification.streakSummary()
         quickAmounts = services.hydration.quickAddAmounts()
         hasNewAchievements = services.gamification.hasUnseenAchievements
-        // Вікно закріплене на першому дні з даними, поки їх менше семи, далі ковзає (WAT-11).
+        // Вікно закріплене на першому закритому дні, поки їх менше семи, далі ковзає (WAT-11).
         weekDots = services.calendar
-            .slidingWindow(7, anchor: services.hydration.firstTrackedDay())
+            .slidingWindow(7, anchor: services.hydration.firstGoalMetDay())
             .map { services.hydration.snapshot(for: $0).goalMet }
     }
 
