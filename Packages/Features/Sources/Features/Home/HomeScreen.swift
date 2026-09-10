@@ -83,7 +83,7 @@ public struct HomeScreen: View {
                     Group {
                         switch model.streakIndicator {
                         case .streak(let days):
-                            WTStreakDrop(count: days)
+                            WTStreakDrop(count: days, numberColor: theme.textPrimary)
                         case .dots(let dots):
                             HStack(spacing: 4) {
                                 ForEach(Array(dots.enumerated()), id: \.offset) { _, done in
