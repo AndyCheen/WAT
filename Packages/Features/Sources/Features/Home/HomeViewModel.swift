@@ -89,9 +89,10 @@ public final class HomeViewModel {
         streak = services.gamification.streakSummary()
         quickAmounts = services.hydration.quickAddAmounts()
         hasNewAchievements = services.gamification.hasUnseenAchievements
-        weekDots = services.calendar.recentDays(7).map { key in
-            services.hydration.snapshot(for: key).goalMet
-        }
+        // Вікно закріплене на першому закритому дні, поки їх менше семи, далі ковзає (WAT-11).
+        weekDots = services.calendar
+            .slidingWindow(7, anchor: services.hydration.firstGoalMetDay())
+            .map { services.hydration.snapshot(for: $0).goalMet }
     }
 
     // MARK: - Дії
@@ -203,6 +204,15 @@ public final class HomeViewModel {
     public var unlockedCount: Int { achievements.filter(\.isUnlocked).count }
     public var weekSummary: WeekSummary { services.insights.weekSummary() }
     public var monthReport: CalendarMonthReport { services.insights.calendar(month: services.calendar.currentMonth) }
+
+    /// Коли всі сім крапок залиті, вони вже нічого не додають — замінюємо їх числом серії.
+    ///
+    /// Умова навмисне на самих крапках, а не на `streak.current >= 7`: серія лишається
+    /// живою до кінця доби, тож одразу після зриву сьомого дня лічильник ще показував би 7,
+    /// і замість «шість закрито, сьогодні відкрито» користувач бачив би число.
+    /// Іконку замість тимчасового числа зробить окрема задача.
+    public var showsStreakCount: Bool { weekDots.allSatisfy { $0 } }
+    public var streakLabel: String { "\(streak.current)" }
 
     public var pctLabel: String { "\(day.completionPct)%" }
     public var volumeLabel: String {

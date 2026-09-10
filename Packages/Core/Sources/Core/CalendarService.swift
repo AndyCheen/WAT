@@ -52,6 +52,23 @@ public struct CalendarService: Sendable {
         return (0..<count).reversed().map { dayKey(offsetDays: -$0, from: last) }
     }
 
+    /// Вікно з `count` діб, що закінчується сьогоднішнім днем, але не починається раніше
+    /// за `anchor` — день, з якого історію взагалі має сенс показувати.
+    ///
+    /// Поки від `anchor` минуло менше ніж `count` діб, вікно стоїть на місці: дні, яких ще
+    /// не було, лишаються в кінці масиву, і рядок заповнюється зліва направо. Далі вікно
+    /// починає ковзати разом із сьогоднішнім днем, показуючи останні `count` діб (WAT-11).
+    ///
+    /// Перемикання між двома фазами навмисне не має окремого стану — воно випливає з `max`.
+    /// `anchor` ставиться один раз (на першому закритому дні); на новій серії його не
+    /// переносять, інакше після зриву рядок стрибав би на початок.
+    public func slidingWindow(_ count: Int, anchor: DayKey?, endingAt end: DayKey? = nil) -> [DayKey] {
+        let last = end ?? today
+        let rollingStart = dayKey(offsetDays: -(count - 1), from: last)
+        let start = anchor.map { max($0, rollingStart) } ?? rollingStart
+        return (0..<count).map { dayKey(offsetDays: $0, from: start) }
+    }
+
     public func monthKey(offsetMonths: Int, from key: MonthKey) -> MonthKey {
         let base = date(from: key)
         let shifted = calendar.date(byAdding: .month, value: offsetMonths, to: base) ?? base
