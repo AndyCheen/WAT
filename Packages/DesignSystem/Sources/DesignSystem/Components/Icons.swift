@@ -108,3 +108,33 @@ public struct WTLevelDrop: View {
         .frame(width: size, height: size)
     }
 }
+
+/// Довга серія в шапці: число днів і одна крапля замість рядка крапок (WAT-10).
+///
+/// Колір розведений навмисне: помаранчева тут тільки крапля, число — звичайний
+/// текстовий колір теми. Дві помаранчеві плями поруч перетягували б увагу з кільця,
+/// а крапля лишається впізнаваною й сама.
+public struct WTStreakDrop: View {
+    private let count: Int
+    private let numberColor: Color
+    private let dropColor: Color
+    private let size: CGFloat
+
+    public init(count: Int, numberColor: Color, dropColor: Color = WTColor.orange, size: CGFloat = 26) {
+        self.count = count
+        self.numberColor = numberColor
+        self.dropColor = dropColor
+        self.size = size
+    }
+
+    public var body: some View {
+        HStack(spacing: 4) {
+            Text("\(count)")
+                .font(WTFont.number(20, .medium))
+                .foregroundStyle(numberColor)
+            WTDropShape()
+                .fill(dropColor)
+                .frame(width: size, height: size)
+        }
+    }
+}
