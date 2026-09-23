@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>WaterTracker — модуль «Досягнення» (WAT-22)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Токени — DESIGN-TOKENS.md §2. Кадр 402×874, 1px = 1pt. */
+:root{
+  --screen:#f7fbff; --card:#fff; --sheet:#fff; --chip:#eaf4ff; --button:#eaf4ff;
+  --text:#1f4a72; --muted:#8aa1bd; --btn-text:#3d8fd6; --accent:#5aa9f0;
+  --line:rgba(31,74,114,.10); --track:#e4f0fb; --dot-off:#dce8f3;
+  --orange:#ff8a3d; --success:#3ea86b; --gold-bg:#fff2e2; --locked:#e6e8eb;
+  --tile-bar:#b9d4ee; --scrim:rgba(15,32,56,.45);
+  --r-chip:12px; --r-control:14px; --r-tile:20px; --r-panel:22px; --r-card:24px; --r-pill:999px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#e9eef5;font-family:Nunito,system-ui,sans-serif;color:var(--text);padding:40px 28px 60px}
+h1{font-size:20px;font-weight:800;margin-bottom:6px}
+.lead{font-size:13px;font-weight:700;color:#5c7291;margin-bottom:28px;max-width:760px;line-height:1.5}
+.row{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+.frame-wrap{width:402px}
+.frame-cap{font-size:12px;font-weight:800;letter-spacing:.3px;color:#5c7291;margin-bottom:8px;text-transform:uppercase}
+.frame{width:402px;height:874px;background:var(--screen);border-radius:38px;position:relative;overflow:hidden;
+       box-shadow:0 18px 50px rgba(31,74,114,.18)}
+.scr{padding:64px 24px 44px;height:100%;overflow:hidden}
+.num{font-family:Fredoka,Nunito,sans-serif}
+
+/* шапка */
+.navbar{display:flex;align-items:center;height:38px;margin-bottom:20px}
+.circle-btn{width:38px;height:38px;border-radius:var(--r-pill);background:var(--chip);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:17px;font-weight:800}
+.navbar .title{flex:1;text-align:center;font-size:20px;font-weight:600}
+.navbar .pad{width:38px}
+/* лічильник набору: маленький лейбл + велике число, без смуги (ТЗ §5.2) */
+.counter{text-align:center;margin:-2px 0 20px;line-height:1}
+.counter em{display:block;font-style:normal;font-size:11px;font-weight:800;letter-spacing:.3px;
+            color:var(--muted);margin-bottom:6px}
+.counter b{font-family:Fredoka,Nunito;font-size:34px;font-weight:600;color:var(--accent)}
+.counter span{font-family:Fredoka,Nunito;font-size:20px;font-weight:500;color:var(--muted);margin-left:3px}
+
+/* секційні лейбли */
+.sec{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.sec-label{font-size:15px;font-weight:800;letter-spacing:.3px}
+.sec-label.sm{font-size:13px}
+.sec-count{font-size:13px;font-weight:900;color:var(--accent)}
+.sec-action{margin-left:auto;font-size:13px;font-weight:800;color:var(--btn-text)}
+
+/* фільтри */
+/* Один ряд фільтрів: чипи стану + закріплена кнопка меню категорій (ТЗ §3.2) */
+.filters{display:flex;align-items:center;gap:10px;margin-bottom:18px;overflow:hidden}
+.chips{display:flex;gap:8px;overflow:hidden;flex:1;min-width:0;position:relative;
+       -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 16px),transparent);
+       mask-image:linear-gradient(to right,#000 calc(100% - 16px),transparent)}
+.chip{height:36px;padding:0 14px;border-radius:var(--r-pill);background:var(--chip);display:flex;align-items:center;
+      font-size:14px;font-weight:600;white-space:nowrap;flex:0 0 auto}
+.chip.on{background:var(--accent);color:#fff}
+.cat-btn{width:36px;height:36px;border-radius:var(--r-pill);background:var(--chip);display:flex;align-items:center;
+         justify-content:center;flex:0 0 auto;color:var(--accent)}
+/* активна категорія — чип із назвою і хрестиком замість круглої кнопки */
+.cat-chip{height:36px;padding:0 10px 0 14px;border-radius:var(--r-pill);background:var(--accent);color:#fff;
+          display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;flex:0 0 auto}
+.cat-chip b{font-weight:800;opacity:.85}
+/* меню категорій — поповер від кнопки, без затемнення екрана (ТЗ §3.3) */
+.popover{position:absolute;top:226px;right:24px;width:228px;background:var(--sheet);border-radius:var(--r-card);
+         padding:14px 0 6px;box-shadow:0 18px 46px rgba(15,32,56,.22)}
+.popover h4{font-size:11px;font-weight:800;letter-spacing:.3px;color:var(--muted);padding:0 16px 8px}
+.popover .opt{height:44px;display:flex;align-items:center;padding:0 16px;font-size:15px;font-weight:600;
+              border-top:1px solid var(--line)}
+.popover .opt .ck{margin-left:auto;color:var(--accent);font-size:15px;font-weight:800}
+.popover .opt.on{background:var(--chip);border-radius:var(--r-chip);margin:0 6px;padding:0 10px;border-top:0}
+
+/* сітка плиток 3×N */
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.tile{padding:14px 8px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px}
+.ic{width:46px;height:46px;border-radius:50%;background:var(--chip);display:flex;align-items:center;justify-content:center;font-size:22px;position:relative}
+.ic.gold{background:var(--gold-bg)}
+.ic.off{background:var(--locked)}
+.ic.off span{opacity:.35}
+.tile .t{font-size:12px;font-weight:600;line-height:1.2}
+.tile .t.off{color:var(--muted)}
+.bar{width:100%;height:6px;border-radius:var(--r-pill);background:var(--track);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:var(--r-pill);background:var(--tile-bar)}
+.p{font-size:11px;font-weight:900;color:var(--muted)}
+.xp{font-size:11px;font-weight:800;color:var(--success)}
+.new{position:absolute;top:-2px;right:-2px;width:8px;height:8px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 2px var(--screen)}
+
+/* блок A (3f): сітка 4×1 */
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 10px;justify-items:center}
+.badge{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.badge .ic{width:48px;height:48px;font-size:21px}
+.badge .t{font-size:11px;font-weight:700;line-height:1.15}
+.badge .t.off{color:var(--muted)}
+/* кільце прогресу навколо закритого бейджа (товщина 3) */
+.ic.ringed{background:conic-gradient(var(--accent) 0 var(--deg),var(--dot-off) var(--deg) 360deg);position:relative}
+.ic.ringed em{position:absolute;inset:3px;border-radius:50%;background:var(--locked);display:flex;align-items:center;justify-content:center;font-style:normal}
+.ic.ringed em span{opacity:.35}
+.hint{font-size:12px;font-weight:700;color:var(--muted);margin-top:12px}
+
+/* контекст 3f */
+.level{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:22px}
+.donut{width:150px;height:150px;border-radius:50%;background:conic-gradient(var(--accent) 0 250deg,var(--dot-off) 250deg 360deg);display:flex;align-items:center;justify-content:center;position:relative}
+.donut::after{content:"";position:absolute;inset:14px;border-radius:50%;background:var(--screen)}
+.donut i{position:relative;z-index:1;font-style:normal;text-align:center}
+.donut b{display:block;font-size:32px;font-weight:700;font-family:Fredoka,Nunito}
+.donut small{font-size:11px;font-weight:800;letter-spacing:.4px;color:var(--muted)}
+.xp-line{font-size:13px;font-weight:700;color:var(--muted)}
+.rowline{display:flex;gap:14px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.rowline .e{font-size:30px}
+.rowline .t{font-size:16px;font-weight:600}
+.rowline .d{font-size:13px;font-weight:700;color:var(--muted)}
+.mb22{margin-bottom:22px}
+
+/* модалка деталей */
+.overlay{position:absolute;inset:0;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:24px}
+.modal{width:312px;background:var(--sheet);border-radius:var(--r-card);padding:28px 22px;text-align:center;
+       box-shadow:0 26px 60px rgba(15,32,56,.28);display:flex;flex-direction:column;align-items:center;gap:10px}
+.m-ic{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:34px}
+.m-ic.gold{background:var(--gold-bg);box-shadow:0 0 0 2px rgba(255,138,61,.4)}
+.m-ic.off{background:var(--locked)}
+.m-ic.off span{opacity:.35}
+.m-t{font-size:20px;font-weight:600}
+.m-d{font-size:13px;font-weight:600;color:var(--muted);line-height:1.35}
+.cat{height:22px;padding:0 10px;border-radius:var(--r-pill);background:var(--chip);display:flex;align-items:center;font-size:11px;font-weight:900;letter-spacing:.2px}
+.m-bar{width:100%;height:8px;border-radius:var(--r-pill);background:var(--track);overflow:hidden}
+.m-bar i{display:block;height:100%;background:var(--accent);border-radius:var(--r-pill)}
+.m-val{font-size:12px;font-weight:900;color:var(--muted);margin-top:4px}
+.m-val.ok{color:var(--success)}
+.m-rw{font-size:12px;font-weight:900;color:var(--accent)}
+.m-rw.ok{color:var(--success)}
+.modal{position:relative}
+.m-close{position:absolute;top:12px;right:12px;width:28px;height:28px;border-radius:50%;background:var(--chip);
+         display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;font-weight:800}
+.m-done{height:30px;padding:0 14px;border-radius:var(--r-pill);background:rgba(63,181,111,.12);
+        display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:900;color:var(--success)}
+
+/* порожній стан */
+.empty{height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted)}
+.empty .e{font-size:34px}
+.empty .t{font-size:15px;font-weight:600;color:var(--text)}
+.empty .a{font-size:13px;font-weight:800;color:var(--btn-text)}
+
+/* тост */
+.toast{position:absolute;left:24px;right:24px;bottom:34px;background:var(--card);border-radius:var(--r-panel);
+       padding:14px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 14px 34px rgba(31,74,114,.18)}
+.toast .t{font-size:14px;font-weight:700;flex:1}
+.toast .a{font-size:13px;font-weight:800;color:var(--btn-text)}
+</style>
+</head>
+<body>
+
+<h1>Модуль «Досягнення» — дизайн (WAT-22)</h1>
+<p class="lead">Три поверхні модуля в кадрі 402 × 874 pt, світла тема, токени з <code>DESIGN-TOKENS.md</code>.
+Жодних смуг і кілець прогресу на екрані досягнень — тільки <b>лічильник набору</b> (лейбл + число),
+однаково доречний і для 7, і для 240 досягнень (§5.2). Фільтрів два, але <b>ряд контролів один</b>:
+назовні — стан (чипи), у меню за кнопкою — категорія (кадр 5); коли категорія не «Всі», кнопка стає
+чипом із хрестиком (кадр 6). Картка деталей — одна композиція на обидва стани, нижній слот містить
+або прогрес (кадр 3), або чип «✓ Отримано» (кадр 4); закриття — хрестик у куті.
+Секретні досягнення поки поза обсягом (§6). Повний опис — <code>SPEC-ACHIEVEMENTS.md</code>.</p>
+
+<div class="row">
+
+  <!-- ФРЕЙМ 1 — блок A на екрані Прогрес (3f) -->
+  <div class="frame-wrap">
+    <div class="frame-cap">1 · Прогрес (3f) — блок «Досягнення», два ряди</div>
+    <div class="frame"><div class="scr">
+      <div class="navbar"><div class="circle-btn">‹</div><div class="pad"></div></div>
+
+      <div class="level">
+        <div class="donut"><i><small>РІВЕНЬ</small><b>7</b></i></div>
+        <div class="xp-line">1 240 / 1 800 XP</div>
+      </div>
+
+      <div class="sec"><div class="sec-label sm">ПРИЗИ</div><div class="sec-count">1</div></div>
+      <div class="rowline mb22"><div class="e">🎁</div><div><div class="t">Приз</div><div class="d">Ексклюзивна тема оформлення</div></div></div>
+
+      <div class="sec">
+        <div class="sec-label">ДОСЯГНЕННЯ</div>
+        <div class="sec-action">Всі ›</div>
+      </div>
+
+      <div class="grid4">
+        <div class="badge"><div class="ic gold"><span>💧</span><i class="new"></i></div><div class="t">Перша крапля</div></div>
+        <div class="badge"><div class="ic gold">🎯</div><div class="t">Ціль дня</div></div>
+        <div class="badge"><div class="ic gold">🔥</div><div class="t">3 дні поспіль</div></div>
+        <div class="badge"><div class="ic off ringed" style="--deg:257deg"><em><span>⭐</span></em></div><div class="t off">Тиждень поспіль</div></div>
+        <div class="badge"><div class="ic off ringed" style="--deg:216deg"><em><span>🥤</span></em></div><div class="t off">Великий ковток</div></div>
+        <div class="badge"><div class="ic off ringed" style="--deg:54deg"><em><span>📅</span></em></div><div class="t off">Марафонець</div></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ФРЕЙМ 2 — екран B (2e) -->
+  <div class="frame-wrap">
+    <div class="frame-cap">2 · Екран «Досягнення» (2e)</div>
+    <div class="frame"><div class="scr">
+      <div class="navbar"><div class="circle-btn">‹</div><div class="title">Досягнення</div><div class="pad"></div></div>
+      <div class="counter"><em>ВІДКРИТО</em><b>3</b><span>/ 24</span></div>
+      <div class="filters">
+        <div class="chips">
+          <div class="chip on">Усі</div><div class="chip">У процесі</div><div class="chip">Відкриті</div><div class="chip">Закриті</div>
+        </div>
+        <div class="cat-btn"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h12l-4.6 5.2v4.1L6.6 14V8.2z"/></svg></div>
+      </div>
+      <div class="grid3">
+        <div class="tile"><div class="ic gold"><span>💧</span><i class="new"></i></div><div class="t">Перша крапля</div></div>
+        <div class="tile"><div class="ic gold">🎯</div><div class="t">Ціль дня</div></div>
+        <div class="tile"><div class="ic gold">🔥</div><div class="t">3 дні поспіль</div></div>
+
+        <div class="tile"><div class="ic off"><span>⭐</span></div><div class="t off">Тиждень поспіль</div><div class="bar"><i style="width:71%"></i></div><div class="p">5/7</div></div>
+        <div class="tile"><div class="ic off"><span>🥤</span></div><div class="t off">Великий ковток</div><div class="bar"><i style="width:60%"></i></div><div class="p">600/1000</div></div>
+        <div class="tile"><div class="ic off"><span>📅</span></div><div class="t off">Марафонець</div><div class="bar"><i style="width:15%"></i></div><div class="p">3/20</div></div>
+
+        <div class="tile"><div class="ic off"><span>🏆</span></div><div class="t off">Місяць витримки</div><div class="bar"><i style="width:17%"></i></div><div class="p">5/30</div></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ФРЕЙМ 3 — картка деталей, у процесі -->
+  <div class="frame-wrap">
+    <div class="frame-cap">3 · Картка деталей — у процесі</div>
+    <div class="frame">
+      <div class="scr">
+      <div class="navbar"><div class="circle-btn">‹</div><div class="title">Досягнення</div><div class="pad"></div></div>
+      <div class="counter"><em>ВІДКРИТО</em><b>3</b><span>/ 24</span></div>
+      <div class="filters">
+        <div class="chips">
+          <div class="chip on">Усі</div><div class="chip">У процесі</div><div class="chip">Відкриті</div><div class="chip">Закриті</div>
+        </div>
+        <div class="cat-btn"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h12l-4.6 5.2v4.1L6.6 14V8.2z"/></svg></div>
+      </div>
+      <div class="grid3">
+        <div class="tile"><div class="ic gold">💧</div><div class="t">Перша крапля</div></div>
+        <div class="tile"><div class="ic gold">🎯</div><div class="t">Ціль дня</div></div>
+        <div class="tile"><div class="ic gold">🔥</div><div class="t">3 дні поспіль</div></div>
+      </div>
+      </div>
+      <div class="overlay">
+        <div class="modal">
+          <div class="m-close">✕</div>
+          <div class="m-ic off"><span>⭐</span></div>
+          <div class="m-t">Тиждень поспіль</div>
+          <div class="m-d">Пий норму 7 днів поспіль — серія не має перерватись</div>
+          <div class="m-rw">+100 XP за виконання</div>
+          <div class="m-bar"><i style="width:71%"></i></div>
+          <div class="m-val num">5 / 7</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ФРЕЙМ 4 — картка деталей, відкрите: та сама композиція -->
+  <div class="frame-wrap">
+    <div class="frame-cap">4 · Картка деталей — відкрите (та сама композиція)</div>
+    <div class="frame">
+      <div class="scr">
+      <div class="navbar"><div class="circle-btn">‹</div><div class="title">Досягнення</div><div class="pad"></div></div>
+      <div class="counter"><em>ВІДКРИТО</em><b>3</b><span>/ 24</span></div>
+      <div class="filters">
+        <div class="chips">
+          <div class="chip on">Усі</div><div class="chip">У процесі</div><div class="chip">Відкриті</div><div class="chip">Закриті</div>
+        </div>
+        <div class="cat-btn"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h12l-4.6 5.2v4.1L6.6 14V8.2z"/></svg></div>
+      </div>
+      <div class="grid3">
+        <div class="tile"><div class="ic gold">💧</div><div class="t">Перша крапля</div></div>
+        <div class="tile"><div class="ic gold">🎯</div><div class="t">Ціль дня</div></div>
+        <div class="tile"><div class="ic gold">🔥</div><div class="t">3 дні поспіль</div></div>
+      </div>
+      </div>
+      <div class="overlay">
+        <div class="modal">
+          <div class="m-close">✕</div>
+          <div class="m-ic gold">🔥</div>
+          <div class="m-t">3 дні поспіль</div>
+          <div class="m-d">Серія 3+ днів</div>
+          <div class="m-done">✓ Отримано</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ФРЕЙМ 5 — меню категорій -->
+  <div class="frame-wrap">
+    <div class="frame-cap">5 · Меню категорій — поповер від кнопки</div>
+    <div class="frame">
+      <div class="scr">
+      <div class="navbar"><div class="circle-btn">‹</div><div class="title">Досягнення</div><div class="pad"></div></div>
+      <div class="counter"><em>ВІДКРИТО</em><b>3</b><span>/ 24</span></div>
+      <div class="filters">
+        <div class="chips">
+          <div class="chip on">Усі</div><div class="chip">У процесі</div><div class="chip">Відкриті</div><div class="chip">Закриті</div>
+        </div>
+        <div class="cat-btn"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h12l-4.6 5.2v4.1L6.6 14V8.2z"/></svg></div>
+      </div>
+      <div class="grid3">
+        <div class="tile"><div class="ic gold">💧</div><div class="t">Перша крапля</div></div>
+        <div class="tile"><div class="ic gold">🎯</div><div class="t">Ціль дня</div></div>
+        <div class="tile"><div class="ic gold">🔥</div><div class="t">3 дні поспіль</div></div>
+      </div>
+      </div>
+      <div class="popover">
+        <h4>КАТЕГОРІЯ</h4>
+        <div class="opt on">Всі<span class="ck">✓</span></div>
+        <div class="opt">Загальні</div>
+        <div class="opt">Стріки</div>
+        <div class="opt">Обʼєм</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ФРЕЙМ 6 — активна категорія, порожній фільтр, тост -->
+  <div class="frame-wrap">
+    <div class="frame-cap">6 · Активна категорія, порожній фільтр, тост</div>
+    <div class="frame">
+      <div class="scr">
+      <div class="navbar"><div class="circle-btn">‹</div><div class="title">Досягнення</div><div class="pad"></div></div>
+      <div class="counter"><em>ВІДКРИТО</em><b>3</b><span>/ 24</span></div>
+      <div class="filters">
+        <div class="chips">
+          <div class="chip">Усі</div><div class="chip on">Відкриті</div><div class="chip">Закриті</div>
+        </div>
+        <div class="cat-chip">Стріки <b>✕</b></div>
+      </div>
+
+        <div class="empty">
+          <div class="t">У цьому фільтрі порожньо</div>
+          <div class="a">Скинути фільтри</div>
+        </div>
+      </div>
+      <div class="toast">
+        <div style="font-size:20px">🏅</div>
+        <div class="t">Досягнення: Перша крапля</div>
+        <div class="a">Подивитись</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
