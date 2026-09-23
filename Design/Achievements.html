@@ -33,6 +33,10 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
 .circle-btn{width:38px;height:38px;border-radius:var(--r-pill);background:var(--chip);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:17px;font-weight:800}
 .navbar .title{flex:1;text-align:center;font-size:20px;font-weight:600}
 .navbar .pad{width:38px}
+/* підзаголовок шапки — сюди переїхав лічильник після відмови від картки прогресу */
+.subtitle{text-align:center;font-size:13px;font-weight:800;color:var(--muted);margin:-16px 0 20px}
+.subtitle b{font-family:Fredoka,Nunito;font-weight:600;color:var(--text)}
+.subtitle i{font-style:normal;font-family:Fredoka,Nunito;font-weight:600;color:var(--accent)}
 
 /* секційні лейбли */
 .sec{display:flex;align-items:center;gap:8px;margin-bottom:14px}
@@ -40,16 +44,6 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
 .sec-label.sm{font-size:13px}
 .sec-count{font-size:13px;font-weight:900;color:var(--accent)}
 .sec-action{margin-left:auto;font-size:13px;font-weight:800;color:var(--btn-text)}
-
-/* картка прогресу (2e) */
-.progress-card{display:flex;gap:16px;align-items:center;background:var(--chip);border-radius:var(--r-panel);padding:16px;margin-bottom:20px}
-.ring{width:62px;height:62px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:0 0 62px;
-      background:conic-gradient(var(--accent) 0 154deg,var(--dot-off) 154deg 360deg);position:relative}
-.ring::after{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--chip)}
-.ring span{position:relative;z-index:1;font-size:14px;font-weight:600}
-.pc-t{font-size:17px;font-weight:600}
-.pc-s{font-size:13px;font-weight:800;color:var(--muted);margin-top:2px}
-.pc-x{font-size:12px;font-weight:800;color:var(--accent);margin-top:3px}
 
 /* фільтри */
 .chips{display:flex;gap:8px;margin-bottom:10px;overflow:hidden}
@@ -139,6 +133,8 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
 
 <h1>Модуль «Досягнення» — дизайн (WAT-22)</h1>
 <p class="lead">Три поверхні модуля в кадрі 402 × 874 pt, світла тема, токени з <code>DESIGN-TOKENS.md</code>.
+Картки прогресу з кільцем <code>WTCountRing</code> тут немає — лічильник живе в підзаголовку шапки
+(чому саме так — <code>SPEC-ACHIEVEMENTS.md</code> §5.2).
 Повний опис поведінки, станів, фільтрів і доступності — <code>SPEC-ACHIEVEMENTS.md</code>.
 Кадр 4 показує стани, які не вміщаються в основні: порожній фільтр, секретне досягнення й тост розблокування.</p>
 
@@ -178,15 +174,7 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
     <div class="frame-cap">2 · Екран «Досягнення» (2e)</div>
     <div class="frame"><div class="scr">
       <div class="navbar"><div class="circle-btn">‹</div><div class="title">Досягнення</div><div class="pad"></div></div>
-
-      <div class="progress-card">
-        <div class="ring"><span class="num">3/7</span></div>
-        <div>
-          <div class="pc-t">Прогрес нагород</div>
-          <div class="pc-s">Ще 4 до повного набору</div>
-          <div class="pc-x num">+125 XP зібрано</div>
-        </div>
-      </div>
+      <div class="subtitle"><b>3</b> з <b>7</b> · <i>+125 XP</i></div>
 
       <div class="chips">
         <div class="chip on">Всі</div><div class="chip">Загальні</div><div class="chip">Стріки</div><div class="chip">Обʼєм</div>
@@ -215,10 +203,7 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
     <div class="frame">
       <div class="scr" style="filter:saturate(.9)">
         <div class="navbar"><div class="circle-btn">‹</div><div class="title">Досягнення</div><div class="pad"></div></div>
-        <div class="progress-card">
-          <div class="ring"><span class="num">3/7</span></div>
-          <div><div class="pc-t">Прогрес нагород</div><div class="pc-s">Ще 4 до повного набору</div><div class="pc-x num">+125 XP зібрано</div></div>
-        </div>
+        <div class="subtitle"><b>3</b> з <b>7</b> · <i>+125 XP</i></div>
         <div class="chips"><div class="chip on">Всі</div><div class="chip">Загальні</div><div class="chip">Стріки</div><div class="chip">Обʼєм</div></div>
         <div class="segs"><div class="seg on">Усі</div><div class="seg">В процесі</div><div class="seg">Відкриті</div></div>
         <div class="grid3">
@@ -248,6 +233,7 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
     <div class="frame">
       <div class="scr">
         <div class="navbar"><div class="circle-btn">‹</div><div class="title">Досягнення</div><div class="pad"></div></div>
+        <div class="subtitle"><b>3</b> з <b>7</b> · <i>+125 XP</i></div>
 
         <div class="frame-cap" style="margin:0 0 8px">картка відкритого</div>
         <div class="modal" style="width:100%;box-shadow:none;background:var(--card);padding:20px 22px;margin-bottom:20px">
