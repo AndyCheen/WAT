@@ -33,13 +33,12 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
 .circle-btn{width:38px;height:38px;border-radius:var(--r-pill);background:var(--chip);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:17px;font-weight:800}
 .navbar .title{flex:1;text-align:center;font-size:20px;font-weight:600}
 .navbar .pad{width:38px}
-/* індикатор набору: число + сегментна рейка (ТЗ §5.2) */
-.rail-num{text-align:center;margin:-4px 0 8px;line-height:1}
-.rail-num b{font-family:Fredoka,Nunito;font-size:30px;font-weight:600;color:var(--accent)}
-.rail-num span{font-size:15px;font-weight:900;color:var(--muted);margin-left:2px}
-.rail{display:flex;gap:5px;margin-bottom:20px}
-.rail i{flex:1;height:6px;border-radius:var(--r-pill);background:var(--track)}
-.rail i.on{background:var(--accent)}
+/* лічильник набору: маленький лейбл + велике число, без смуги (ТЗ §5.2) */
+.counter{text-align:center;margin:-2px 0 20px;line-height:1}
+.counter em{display:block;font-style:normal;font-size:11px;font-weight:800;letter-spacing:.3px;
+            color:var(--muted);margin-bottom:6px}
+.counter b{font-family:Fredoka,Nunito;font-size:34px;font-weight:600;color:var(--accent)}
+.counter span{font-family:Fredoka,Nunito;font-size:20px;font-weight:500;color:var(--muted);margin-left:3px}
 
 /* секційні лейбли */
 .sec{display:flex;align-items:center;gap:8px;margin-bottom:14px}
@@ -133,7 +132,8 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
 .modal{position:relative}
 .m-close{position:absolute;top:12px;right:12px;width:28px;height:28px;border-radius:50%;background:var(--chip);
          display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;font-weight:800}
-.m-bar i.done{background:#3fb56f}
+.m-done{height:30px;padding:0 14px;border-radius:var(--r-pill);background:rgba(63,181,111,.12);
+        display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:900;color:var(--success)}
 
 /* порожній стан */
 .empty{height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted)}
@@ -152,12 +152,12 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
 
 <h1>Модуль «Досягнення» — дизайн (WAT-22)</h1>
 <p class="lead">Три поверхні модуля в кадрі 402 × 874 pt, світла тема, токени з <code>DESIGN-TOKENS.md</code>.
-Замість картки прогресу з кільцем — <b>індикатор набору</b>: число плюс сегментна рейка, де сегмент =
-одне досягнення (§5.2). Фільтрів два, але <b>ряд контролів один</b>: назовні — стан (чипи), у меню
-за кнопкою — категорія (кадр 5), а коли категорія не «Всі», кнопка стає чипом із хрестиком (кадр 6).
-Картка деталей однакова для закритих і відкритих: у відкритого прогрес-бар заповнений і зелений
-(кадри 3 і 4), закриття — хрестик у куті. Секретні досягнення поки поза обсягом (§6).
-Повний опис — <code>SPEC-ACHIEVEMENTS.md</code>.</p>
+Жодних смуг і кілець прогресу на екрані досягнень — тільки <b>лічильник набору</b> (лейбл + число),
+однаково доречний і для 7, і для 240 досягнень (§5.2). Фільтрів два, але <b>ряд контролів один</b>:
+назовні — стан (чипи), у меню за кнопкою — категорія (кадр 5); коли категорія не «Всі», кнопка стає
+чипом із хрестиком (кадр 6). Картка деталей — одна композиція на обидва стани, нижній слот містить
+або прогрес (кадр 3), або чип «✓ Отримано · +50 XP» (кадр 4); закриття — хрестик у куті.
+Секретні досягнення поки поза обсягом (§6). Повний опис — <code>SPEC-ACHIEVEMENTS.md</code>.</p>
 
 <div class="row">
 
@@ -194,8 +194,7 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
     <div class="frame-cap">2 · Екран «Досягнення» (2e)</div>
     <div class="frame"><div class="scr">
       <div class="navbar"><div class="circle-btn">‹</div><div class="title">Досягнення</div><div class="pad"></div></div>
-      <div class="rail-num"><b>3</b><span>з 7</span></div>
-      <div class="rail"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i></div>
+      <div class="counter"><em>ВІДКРИТО</em><b>3</b><span>/ 24</span></div>
       <div class="filters">
         <div class="chips">
           <div class="chip on">Усі</div><div class="chip">У процесі</div><div class="chip">Відкриті</div><div class="chip">Закриті</div>
@@ -203,9 +202,9 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
         <div class="cat-btn"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h12l-4.6 5.2v4.1L6.6 14V8.2z"/></svg></div>
       </div>
       <div class="grid3">
-        <div class="tile"><div class="ic gold"><span>💧</span><i class="new"></i></div><div class="t">Перша крапля</div><div class="xp">+25 XP</div></div>
-        <div class="tile"><div class="ic gold">🎯</div><div class="t">Ціль дня</div><div class="xp">+50 XP</div></div>
-        <div class="tile"><div class="ic gold">🔥</div><div class="t">3 дні поспіль</div><div class="xp">+50 XP</div></div>
+        <div class="tile"><div class="ic gold"><span>💧</span><i class="new"></i></div><div class="t">Перша крапля</div></div>
+        <div class="tile"><div class="ic gold">🎯</div><div class="t">Ціль дня</div></div>
+        <div class="tile"><div class="ic gold">🔥</div><div class="t">3 дні поспіль</div></div>
 
         <div class="tile"><div class="ic off"><span>⭐</span></div><div class="t off">Тиждень поспіль</div><div class="bar"><i style="width:71%"></i></div><div class="p">5/7</div></div>
         <div class="tile"><div class="ic off"><span>🥤</span></div><div class="t off">Великий ковток</div><div class="bar"><i style="width:60%"></i></div><div class="p">600/1000</div></div>
@@ -222,8 +221,7 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
     <div class="frame">
       <div class="scr">
       <div class="navbar"><div class="circle-btn">‹</div><div class="title">Досягнення</div><div class="pad"></div></div>
-      <div class="rail-num"><b>3</b><span>з 7</span></div>
-      <div class="rail"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i></div>
+      <div class="counter"><em>ВІДКРИТО</em><b>3</b><span>/ 24</span></div>
       <div class="filters">
         <div class="chips">
           <div class="chip on">Усі</div><div class="chip">У процесі</div><div class="chip">Відкриті</div><div class="chip">Закриті</div>
@@ -231,9 +229,9 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
         <div class="cat-btn"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h12l-4.6 5.2v4.1L6.6 14V8.2z"/></svg></div>
       </div>
       <div class="grid3">
-        <div class="tile"><div class="ic gold">💧</div><div class="t">Перша крапля</div><div class="xp">+25 XP</div></div>
-        <div class="tile"><div class="ic gold">🎯</div><div class="t">Ціль дня</div><div class="xp">+50 XP</div></div>
-        <div class="tile"><div class="ic gold">🔥</div><div class="t">3 дні поспіль</div><div class="xp">+50 XP</div></div>
+        <div class="tile"><div class="ic gold">💧</div><div class="t">Перша крапля</div></div>
+        <div class="tile"><div class="ic gold">🎯</div><div class="t">Ціль дня</div></div>
+        <div class="tile"><div class="ic gold">🔥</div><div class="t">3 дні поспіль</div></div>
       </div>
       </div>
       <div class="overlay">
@@ -256,8 +254,7 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
     <div class="frame">
       <div class="scr">
       <div class="navbar"><div class="circle-btn">‹</div><div class="title">Досягнення</div><div class="pad"></div></div>
-      <div class="rail-num"><b>3</b><span>з 7</span></div>
-      <div class="rail"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i></div>
+      <div class="counter"><em>ВІДКРИТО</em><b>3</b><span>/ 24</span></div>
       <div class="filters">
         <div class="chips">
           <div class="chip on">Усі</div><div class="chip">У процесі</div><div class="chip">Відкриті</div><div class="chip">Закриті</div>
@@ -265,9 +262,9 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
         <div class="cat-btn"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h12l-4.6 5.2v4.1L6.6 14V8.2z"/></svg></div>
       </div>
       <div class="grid3">
-        <div class="tile"><div class="ic gold">💧</div><div class="t">Перша крапля</div><div class="xp">+25 XP</div></div>
-        <div class="tile"><div class="ic gold">🎯</div><div class="t">Ціль дня</div><div class="xp">+50 XP</div></div>
-        <div class="tile"><div class="ic gold">🔥</div><div class="t">3 дні поспіль</div><div class="xp">+50 XP</div></div>
+        <div class="tile"><div class="ic gold">💧</div><div class="t">Перша крапля</div></div>
+        <div class="tile"><div class="ic gold">🎯</div><div class="t">Ціль дня</div></div>
+        <div class="tile"><div class="ic gold">🔥</div><div class="t">3 дні поспіль</div></div>
       </div>
       </div>
       <div class="overlay">
@@ -276,9 +273,7 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
           <div class="m-ic gold">🔥</div>
           <div class="m-t">3 дні поспіль</div>
           <div class="m-d">Серія 3+ днів</div>
-          <div class="m-rw ok">+50 XP зараховано</div>
-          <div class="m-bar"><i class="done" style="width:100%"></i></div>
-          <div class="m-val ok">Отримано 12 вересня</div>
+          <div class="m-done">✓ Отримано · +50 XP</div>
         </div>
       </div>
     </div>
@@ -290,8 +285,7 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
     <div class="frame">
       <div class="scr">
       <div class="navbar"><div class="circle-btn">‹</div><div class="title">Досягнення</div><div class="pad"></div></div>
-      <div class="rail-num"><b>3</b><span>з 7</span></div>
-      <div class="rail"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i></div>
+      <div class="counter"><em>ВІДКРИТО</em><b>3</b><span>/ 24</span></div>
       <div class="filters">
         <div class="chips">
           <div class="chip on">Усі</div><div class="chip">У процесі</div><div class="chip">Відкриті</div><div class="chip">Закриті</div>
@@ -299,9 +293,9 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
         <div class="cat-btn"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h12l-4.6 5.2v4.1L6.6 14V8.2z"/></svg></div>
       </div>
       <div class="grid3">
-        <div class="tile"><div class="ic gold">💧</div><div class="t">Перша крапля</div><div class="xp">+25 XP</div></div>
-        <div class="tile"><div class="ic gold">🎯</div><div class="t">Ціль дня</div><div class="xp">+50 XP</div></div>
-        <div class="tile"><div class="ic gold">🔥</div><div class="t">3 дні поспіль</div><div class="xp">+50 XP</div></div>
+        <div class="tile"><div class="ic gold">💧</div><div class="t">Перша крапля</div></div>
+        <div class="tile"><div class="ic gold">🎯</div><div class="t">Ціль дня</div></div>
+        <div class="tile"><div class="ic gold">🔥</div><div class="t">3 дні поспіль</div></div>
       </div>
       </div>
       <div class="popover">
@@ -320,8 +314,7 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
     <div class="frame">
       <div class="scr">
       <div class="navbar"><div class="circle-btn">‹</div><div class="title">Досягнення</div><div class="pad"></div></div>
-      <div class="rail-num"><b>3</b><span>з 7</span></div>
-      <div class="rail"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i></div>
+      <div class="counter"><em>ВІДКРИТО</em><b>3</b><span>/ 24</span></div>
       <div class="filters">
         <div class="chips">
           <div class="chip">Усі</div><div class="chip on">Відкриті</div><div class="chip">Закриті</div>
@@ -330,7 +323,6 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
       </div>
 
         <div class="empty">
-          <div class="e">🔍</div>
           <div class="t">У цьому фільтрі порожньо</div>
           <div class="a">Скинути фільтри</div>
         </div>
