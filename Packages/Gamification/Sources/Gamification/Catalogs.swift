@@ -199,14 +199,17 @@ public enum AchievementCatalog {
         all.first { $0.key == key }
     }
 
-    /// Категорії для табів екрана 2e — «Всі» плюс ті, що реально є в каталозі.
+    /// Стеля вітрини на 3f — два ряди по 4. Три ряди вже зʼїдають екран «Прогресу»,
+    /// де досягнення — останній блок, а не головний.
+    public static let showcaseLimit = 8
+
+    /// Категорії для меню фільтра на 2e — лише непорожні, у фіксованому порядку.
+    /// Псевдо-«Всі» сюди не входить: це відсутність фільтра, її додає екран.
+    /// `.secret` поза обсягом, доки в каталозі немає жодного секретного (SPEC-ACHIEVEMENTS §6).
     public static var categories: [AchievementCategory] {
-        var result: [AchievementCategory] = [.general]
-        for category in [AchievementCategory.streak, .volume, .secret]
-        where all.contains(where: { $0.category == category }) {
-            result.append(category)
+        [AchievementCategory.general, .streak, .volume].filter { category in
+            all.contains { $0.category == category }
         }
-        return result
     }
 }
 

@@ -89,7 +89,10 @@ public final class AchievementEngine {
                 value: progress?.value ?? 0,
                 target: definition.target,
                 isUnlocked: progress?.isUnlocked ?? false,
-                isSecret: definition.isSecret
+                isSecret: definition.isSecret,
+                rewardXp: definition.rewardXp,
+                unlockedAt: progress?.unlockedAt,
+                isNew: progress.map { $0.isUnlocked && $0.seenAt == nil } ?? false
             )
         }
     }
@@ -98,6 +101,14 @@ public final class AchievementEngine {
         for progress in store.allAchievementProgress() where progress.isUnlocked && progress.seenAt == nil {
             progress.seenAt = date
         }
+        store.save()
+    }
+
+    /// Переглянуто одну картку — гасимо крапку лише на ній, решта нових лишаються новими.
+    public func markSeen(key: String, at date: Date) {
+        guard let progress = store.achievementProgress(defKey: key),
+              progress.isUnlocked, progress.seenAt == nil else { return }
+        progress.seenAt = date
         store.save()
     }
 

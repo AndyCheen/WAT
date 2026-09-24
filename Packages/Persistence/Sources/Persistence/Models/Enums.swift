@@ -64,12 +64,14 @@ public enum RewardItemState: Int, Codable, Sendable {
     case new = 0, active, used, expired
 }
 
+/// «Всі» тут свідомо немає: це псевдо-таб фільтра, а не категорія. Коли він був
+/// заголовком `.general`, «Першу краплю» й «Марафонця» не можна було відфільтрувати окремо.
 public enum AchievementCategory: Int, Codable, CaseIterable, Sendable {
     case general = 0, streak, volume, secret
 
     public var title: String {
         switch self {
-        case .general: return "Всі"
+        case .general: return "Загальні"
         case .streak: return "Стріки"
         case .volume: return "Обʼєм"
         case .secret: return "Секретні"

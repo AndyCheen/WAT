@@ -66,6 +66,15 @@ extension Collection where Element == QuestSnapshot {
     public var completed: [QuestSnapshot] { filter(\.isDone) }
 }
 
+/// Стан досягнення з погляду UI. Рахується в знімку, а не в екранах —
+/// інакше три поверхні модуля (блок 3f, екран 2e, картка) розійдуться в правилі.
+public enum AchievementState: Equatable, Sendable {
+    /// Користувач іще не наближався: `value == 0`.
+    case locked
+    case inProgress
+    case unlocked
+}
+
 public struct AchievementSnapshot: Equatable, Identifiable, Sendable {
     public let key: String
     public let title: String
@@ -76,13 +85,18 @@ public struct AchievementSnapshot: Equatable, Identifiable, Sendable {
     public let target: Double
     public let isUnlocked: Bool
     public let isSecret: Bool
+    public let rewardXp: Int
+    public let unlockedAt: Date?
+    /// Відкрите, але ще не переглянуте — помаранчева крапка на бейджі й плитці.
+    public let isNew: Bool
 
     public var id: String { key }
 
     public init(
         key: String, title: String, details: String, emoji: String,
         category: AchievementCategory, value: Double, target: Double,
-        isUnlocked: Bool, isSecret: Bool
+        isUnlocked: Bool, isSecret: Bool,
+        rewardXp: Int = 0, unlockedAt: Date? = nil, isNew: Bool = false
     ) {
         self.key = key
         self.title = title
@@ -93,11 +107,90 @@ public struct AchievementSnapshot: Equatable, Identifiable, Sendable {
         self.target = target
         self.isUnlocked = isUnlocked
         self.isSecret = isSecret
+        self.rewardXp = rewardXp
+        self.unlockedAt = unlockedAt
+        self.isNew = isNew
     }
 
     public var fraction: Double { target > 0 ? min(1, value / target) : 0 }
+
+    public var state: AchievementState {
+        if isUnlocked { return .unlocked }
+        return fraction > 0 ? .inProgress : .locked
+    }
+
+    /// «5/7» — компактний підпис під смугою плитки.
     public var progressLabel: String {
         isUnlocked ? "Готово" : "\(Int(min(value, target)))/\(Int(target))"
+    }
+
+    /// «5 / 7» — у картці деталей, де під числом є місце дихати.
+    public var valueLabel: String { "\(Int(min(value, target))) / \(Int(target))" }
+}
+
+/// Зріз за станом — чипи на екрані 2e (SPEC-ACHIEVEMENTS §3.2).
+public enum AchievementStateFilter: String, CaseIterable, Sendable {
+    case all, inProgress, unlocked, locked
+
+    public var title: String {
+        switch self {
+        case .all: return "Усі"
+        case .inProgress: return "У процесі"
+        case .unlocked: return "Відкриті"
+        case .locked: return "Закриті"
+        }
+    }
+
+    public func matches(_ item: AchievementSnapshot) -> Bool {
+        switch self {
+        case .all: return true
+        case .inProgress: return item.state == .inProgress
+        case .unlocked: return item.isUnlocked
+        // «Закриті» — усе невідкрите, зокрема й те, що в процесі: чип відповідає
+        // на «чого в мене ще немає», а не повторює «У процесі».
+        case .locked: return !item.isUnlocked
+        }
+    }
+}
+
+/// Єдиний порядок досягнень для екрана 2e і блоку 3f (SPEC-ACHIEVEMENTS §3.4).
+///
+/// Екран має відповідати на «що я можу взяти наступним», а не бути вітриною минулого:
+/// щойно відкриті → найближчі до розблокування → решта відкритих → не розпочаті.
+extension Collection where Element == AchievementSnapshot {
+    public var sortedForDisplay: [AchievementSnapshot] {
+        func group(_ item: AchievementSnapshot) -> Int {
+            if item.isNew { return 0 }
+            switch item.state {
+            case .inProgress: return 1
+            case .unlocked: return 2
+            case .locked: return 3
+            }
+        }
+        return enumerated()
+            .sorted { lhs, rhs in
+                let (l, r) = (lhs.element, rhs.element)
+                let (gl, gr) = (group(l), group(r))
+                if gl != gr { return gl < gr }
+                switch gl {
+                case 0, 2:
+                    let (dl, dr) = (l.unlockedAt ?? .distantPast, r.unlockedAt ?? .distantPast)
+                    if dl != dr { return dl > dr }
+                case 1:
+                    if l.fraction != r.fraction { return l.fraction > r.fraction }
+                default:
+                    break
+                }
+                // Рівні ключі сортування лишаються в порядку каталогу — сітка не «тасується».
+                return lhs.offset < rhs.offset
+            }
+            .map(\.element)
+    }
+
+    /// Вітрина блоку 3f: лише відкриті й ті, що в процесі, не більше двох рядів по 4.
+    /// Нульовий прогрес не показуємо ніколи — на 3f немає місця пояснювати сірий кружечок.
+    public var showcase: [AchievementSnapshot] {
+        Array(sortedForDisplay.filter { $0.state != .locked }.prefix(AchievementCatalog.showcaseLimit))
     }
 }
 
