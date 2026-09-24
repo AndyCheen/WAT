@@ -45,10 +45,13 @@ public struct ProgressScreen: View {
             // Bounce лише коли контент реально не влазить.
             .scrollBounceBehavior(.basedOnSize)
 
-            if model.showAllAchievements { allAchievementsSheet }
             if model.showLevelRewards { levelRewardsSheet }
+            if let item = model.selectedAchievement {
+                AchievementDetailModal(item: item, onClose: { model.selectAchievement(nil) })
+            }
         }
         .onAppear { model.reload() }
+        .wtFeedback(trigger: model.selectedAchievement?.key) { $0 == nil ? nil : .tap }
     }
 
     // MARK: - Рівень
@@ -174,48 +177,45 @@ public struct ProgressScreen: View {
 
     // MARK: - Досягнення
 
+    /// Вітрина, а не звіт: ні лічильника «N/M», ні підказки «найближче», ні досягнень
+    /// з нульовим прогресом — усе це живе на 2e, куди веде «Всі» (SPEC-ACHIEVEMENTS §4).
     private var achievementsBlock: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                HStack(spacing: 8) {
-                    WTSectionLabel("ДОСЯГНЕННЯ", size: 15)
-                    Text("\(model.unlockedCount)/\(model.totalCount)")
-                        .font(WTFont.text(13, .heavy))
-                        .foregroundStyle(theme.accent)
-                }
+                WTSectionLabel("ДОСЯГНЕННЯ", size: 15)
                 Spacer()
+                // «Всі» лишається навіть при порожній вітрині — це єдиний вхід на 2e.
                 WTSectionAction("Всі", action: onOpenAllAchievements)
                     .accessibilityIdentifier("progress.allAchievements")
             }
             .padding(.bottom, 14)
 
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 10) {
-                ForEach(model.unlockedAchievements) { item in
-                    WTAchievementBadge(emoji: item.emoji, title: item.title)
+            if model.achievementShowcase.isEmpty {
+                Text("Перший запис води відкриє першу нагороду")
+                    .font(WTFont.text(13, .bold))
+                    .foregroundStyle(theme.textMuted)
+                    .accessibilityIdentifier("progress.achievements.hint")
+            } else {
+                // Неповний другий ряд добивається по лівому краю — `LazyVGrid` так і робить.
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 14) {
+                    ForEach(model.achievementShowcase) { item in
+                        WTAchievementBadge(
+                            emoji: item.emoji,
+                            title: item.title,
+                            isUnlocked: item.isUnlocked,
+                            isNew: item.isNew,
+                            fraction: item.fraction,
+                            accessibilityValue: item.progressAccessibilityValue,
+                            onTap: { model.selectAchievement(item) }
+                        )
+                        .accessibilityIdentifier("progress.achievements.badge.\(item.key)")
+                    }
                 }
             }
         }
     }
 
     // MARK: - Шторки
-
-    private var allAchievementsSheet: some View {
-        WTSheet(maxHeightFraction: 0.78, onDismiss: { model.dismiss(\.showAllAchievements) }) {
-            VStack(spacing: 0) {
-                WTSheetTitle("Досягнення", subtitle: "\(model.unlockedCount) з \(model.totalCount) відкрито")
-                    .padding(.bottom, 22)
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                    ForEach(model.achievements) { item in
-                        WTAchievementCard(
-                            emoji: item.emoji, title: item.title,
-                            details: item.details, isUnlocked: item.isUnlocked
-                        )
-                    }
-                }
-            }
-        }
-        .zIndex(10)
-    }
 
     private var levelRewardsSheet: some View {
         WTSheet(maxHeightFraction: 0.78, onDismiss: { model.dismiss(\.showLevelRewards) }) {

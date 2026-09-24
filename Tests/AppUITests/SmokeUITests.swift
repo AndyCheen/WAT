@@ -144,10 +144,84 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["РІВЕНЬ"].waitForExistence(timeout: 5))
 
         app.buttons["progress.allAchievements"].tap()
-        XCTAssertTrue(app.staticTexts["Прогрес нагород"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.otherElements["achievements.counter"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["achievements.tile.first.drop"].exists)
+    }
 
-        app.buttons["Всі"].firstMatch.tap()
-        XCTAssertTrue(app.staticTexts["Перша крапля"].waitForExistence(timeout: 5))
+    // MARK: - Досягнення (SPEC-ACHIEVEMENTS §13)
+
+    func testStateChipsSliceTheGridButNotTheCounter() {
+        let app = launch(["--uitest-demo", "--start-screen", "achievements"])
+        let counter = app.otherElements["achievements.counter"]
+        XCTAssertTrue(counter.waitForExistence(timeout: 20))
+        let counterValue = counter.value as? String
+
+        app.buttons["achievements.state.inProgress"].tap()
+        XCTAssertTrue(app.buttons["achievements.tile.streak.7"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["achievements.tile.first.drop"].exists, "відкрите не «в процесі»")
+        XCTAssertEqual(counter.value as? String, counterValue, "лічильник глобальний — чип його не змінює")
+
+        app.buttons["achievements.state.unlocked"].tap()
+        XCTAssertTrue(app.buttons["achievements.tile.first.drop"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["achievements.tile.streak.7"].exists)
+    }
+
+    func testCategoryMenuFiltersAndChipClearsIt() {
+        let app = launch(["--uitest-demo", "--start-screen", "achievements"])
+        let categoryButton = app.buttons["achievements.category"]
+        XCTAssertTrue(categoryButton.waitForExistence(timeout: 20))
+
+        categoryButton.tap()
+        let streaks = app.buttons["achievements.category.option.streak"]
+        XCTAssertTrue(streaks.waitForExistence(timeout: 5))
+        // Меню розкривається з кнопки вгорі, а не шторкою знизу екрана.
+        XCTAssertLessThan(streaks.frame.minY, app.windows.firstMatch.frame.midY, "меню — під кнопкою, не знизу")
+        streaks.tap()
+
+        let clear = app.buttons["achievements.category.clear"]
+        XCTAssertTrue(clear.waitForExistence(timeout: 5), "активна категорія — чип із хрестиком")
+        XCTAssertFalse(streaks.exists, "вибір закриває меню")
+        XCTAssertTrue(app.buttons["achievements.tile.streak.3"].exists)
+        XCTAssertFalse(app.buttons["achievements.tile.first.drop"].exists)
+
+        clear.tap()
+        XCTAssertTrue(app.buttons["achievements.tile.first.drop"].waitForExistence(timeout: 5), "хрестик повертає «Всі»")
+    }
+
+    func testBadgeOnProgressOpensTheDetailCard() {
+        let app = launch(["--uitest-demo", "--start-screen", "progress"])
+        XCTAssertTrue(app.staticTexts["РІВЕНЬ"].waitForExistence(timeout: 20))
+
+        // Блок досягнень — останній на екрані, під призами.
+        let badge = app.buttons["progress.achievements.badge.streak.7"]
+        for _ in 0..<8 where !(badge.exists && badge.isHittable) { app.swipeUp() }
+        XCTAssertTrue(badge.isHittable, "бейдж у процесі потрапляє у вітрину")
+        badge.tap()
+
+        let card = app.otherElements["achievements.detail"]
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        XCTAssertEqual(card.label, "Тиждень поспіль")
+
+        app.buttons["achievements.detail.close"].tap()
+        XCTAssertFalse(card.waitForExistence(timeout: 1), "хрестик закриває картку")
+    }
+
+    func testFirstIntakeShowsAchievementToastLeadingToTheCard() {
+        let app = launch(["--uitest-empty"])
+        XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
+
+        app.buttons["home.add.200"].tap()
+
+        let message = app.staticTexts["toast.message"]
+        XCTAssertTrue(message.waitForExistence(timeout: 3))
+        XCTAssertEqual(message.label, "🏅 Досягнення: Перша крапля")
+        let action = app.buttons["toast.action"]
+        XCTAssertTrue(action.isHittable, "тост має бути в межах екрана, а не просто існувати")
+        action.tap()
+
+        let card = app.otherElements["achievements.detail"]
+        XCTAssertTrue(card.waitForExistence(timeout: 5), "«Подивитись» відкриває картку одразу")
+        XCTAssertEqual(card.label, "Перша крапля")
     }
 
     func testStatsScreenShowsAllCards() {

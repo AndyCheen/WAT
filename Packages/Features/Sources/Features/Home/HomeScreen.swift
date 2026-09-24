@@ -12,13 +12,15 @@ public struct HomeScreen: View {
     private let services: AppServices
     private let onOpenProgress: () -> Void
     private let onOpenStats: () -> Void
+    private let onOpenAchievements: () -> Void
 
     public init(
         services: AppServices,
         themeMode: Binding<ThemeMode>,
         hapticsEnabled: Binding<Bool>,
         onOpenProgress: @escaping () -> Void,
-        onOpenStats: @escaping () -> Void
+        onOpenStats: @escaping () -> Void,
+        onOpenAchievements: @escaping () -> Void
     ) {
         self.services = services
         _model = State(initialValue: HomeViewModel(services: services))
@@ -26,6 +28,7 @@ public struct HomeScreen: View {
         _hapticsEnabled = hapticsEnabled
         self.onOpenProgress = onOpenProgress
         self.onOpenStats = onOpenStats
+        self.onOpenAchievements = onOpenAchievements
     }
 
     public var body: some View {
@@ -52,14 +55,22 @@ public struct HomeScreen: View {
             toast
 
             sheets
+
+            if let item = model.achievementDetail {
+                AchievementDetailModal(item: item, onClose: { model.dismissAchievement() })
+            }
         }
-        .onAppear { model.reload() }
+        .onAppear {
+            model.onOpenAchievements = onOpenAchievements
+            model.reload()
+        }
         // Одне джерело правди для вібрації на всі дії екрана.
         .wtFeedback(trigger: model.pulse) { pulse in
             switch pulse?.kind {
             case .added: return .add
             case .goalReached: return .goalReached
             case .levelUp: return .levelUp
+            case .achievementUnlocked: return .goalReached
             case .removed: return .remove
             case .capped: return .tap
             case nil: return nil
@@ -248,7 +259,7 @@ public struct HomeScreen: View {
                 WTToast(
                     toast.message,
                     actionTitle: toast.actionTitle,
-                    onAction: toast.actionTitle == nil ? nil : { model.undoToast() },
+                    onAction: toast.actionTitle == nil ? nil : { model.performToastAction() },
                     onDismiss: { model.dismissToast() }
                 )
                 // Два видалення поспіль дають однаковий текст — без `id` таймер
@@ -279,8 +290,6 @@ public struct HomeScreen: View {
                     )
                 case .stats:
                     WeekStatsSheet(model: model)
-                case .achievements:
-                    AchievementsSheetContent(model: model)
                 }
             }
             .zIndex(10)

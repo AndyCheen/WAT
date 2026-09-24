@@ -16,8 +16,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 131 unit-тестів 8 пакетів, без симулятора — швидкий цикл
-make test-ui        # 9 e2e-сценаріїв (XCUITest) у симуляторі
+make test-packages  # 151 unit-тест 8 пакетів, без симулятора — швидкий цикл
+make test-ui        # 14 e2e-сценаріїв (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
 make clean
@@ -77,6 +77,10 @@ Features → DesignSystem → Core
 досягнення декларативні: `metricKey + comparator + target` у `Gamification/Catalogs.swift`,
 нова умова додається рядком у каталог, без коду.
 
+Що саме відкрила конкретна дія, екран дізнається з черги `GamificationService.takeRecentUnlocks()`
+(`HydrationService` про гейміфікацію не знає). `HomeViewModel` чистить чергу **до** дії й читає
+**після** — інакше тост отримають розблокування зі старту чи повернутої порції.
+
 ### Композиційний корінь
 
 `AppServices` (`Packages/Features/Sources/Features/AppServices.swift`) збирає репозиторії
@@ -118,6 +122,10 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
 - Показ/приховування шторок — **тільки через `withAnimation(WTAnimation.sheet)`**
   (див. `HomeViewModel.present(_:)`). Пряме присвоєння `model.sheet = …` обходить
   `withAnimation`, і перехід `WTSheet` не програється взагалі.
+- Поповер від кнопки — `wtPopoverAnchor()` на кнопці + `wtPopover(...)` на **корені** екрана:
+  кнопка в `ScrollView`, і меню, намальоване там, лягало б під наступні блоки.
+- Фон кола досягнення — `theme.unlockedIconBg` / `theme.lockedIconBg`, не `WTColor.goldIconBg`
+  напряму: той фіксовано світлий і «світиться» в темній темі.
 - Макети розраховані на кадр 402 × 874 pt; Dynamic Type обмежено `.wtTypeSizeLimit()`
   у `WTThemedContainer`.
 
@@ -127,6 +135,8 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
   й перекриває їхні власні. На цьому двічі ламались e2e (шторки, потім тост).
 - `waitForExistence` не є перевіркою видимості — елемент за межею екрана лишить тест
   зеленим. Для тостів і оверлеїв додатково перевіряти `isHittable` і межі вікна.
+- Позначення «переглянуто» — лише в `reload()` з `onAppear`, не в `init` моделі: інакше
+  друге читання вже не бачить нових, і крапки «нове» не з'являються зовсім (WAT-23).
 - Прапорці запуску (`App/Sources/WaterTrackerApp.swift`, `LaunchConfiguration`):
   `--uitest-empty` (чиста in-memory БД), `--uitest-demo` (демо-історія),
   `--seed-demo`, `--start-screen progress|achievements|stats`.
@@ -137,12 +147,11 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
 
 1. `scenePhase` не обробляється — застосунок, залишений відкритим на ніч, показує
    вчорашній день. Найближчий реальний баг.
-2. VoiceOver: нуль `accessibilityLabel` / `accessibilityValue` (є лише
-   `accessibilityIdentifier` для e2e).
+2. VoiceOver: `accessibilityLabel` / `accessibilityValue` є лише в модулі досягнень
+   (WAT-23); решта екранів має тільки `accessibilityIdentifier` для e2e.
 3. Рядки зашиті в коді українською — локалізація в `.xcstrings` не зроблена.
 4. `services.revision` пишеться, але його ніхто не читає.
-5. `HomeSheet.stats` і `.achievements` реалізовані (`WeekStatsSheet`,
-   `AchievementsSheetContent`), але недосяжні з UI.
+5. `HomeSheet.stats` реалізований (`WeekStatsSheet`), але недосяжний з UI.
 6. `GoalCalculatorSheet` готовий і покритий тестами, але не підключений.
 
 ## Робота із задачами Linear
@@ -166,6 +175,6 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
 | `PLAN.md` | джерело правди: архітектура, модель даних, статус етапів, журнал пасток |
 | `SPEC-TEMPLATE.md` | ТЗ |
 | `SPEC-ACHIEVEMENTS.md` | ТЗ модуля «Досягнення» (WAT-22): блок 3f, екран 2e, картка деталей |
-| `Design/Achievements.html` | макет модуля досягнень (4 кадри 402×874) до цього ТЗ |
+| `Design/Achievements.html` | макет модуля досягнень (6 кадрів 402×874) до цього ТЗ; перенесено в код у WAT-23 |
 | `DESIGN-TOKENS.md` | витяг токенів з макетів |
 | `WaterTracker.html` | оригінальні макети (1a, 3f, 2e, 4a) |
