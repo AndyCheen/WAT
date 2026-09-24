@@ -36,7 +36,7 @@ struct WaterTrackerApp: App {
 struct LaunchConfiguration {
     let isInMemory: Bool
     let seedsDemoData: Bool
-    /// `--start-screen progress|achievements|stats` — відкрити екран одразу.
+    /// `--start-screen progress|achievements|prizes|stats` — відкрити екран одразу.
     /// Використовується для дизайн-QA та e2e без ручної навігації.
     let startRoute: AppRoute?
 
@@ -49,6 +49,7 @@ struct LaunchConfiguration {
             switch arguments[index + 1] {
             case "progress": route = .progress
             case "achievements": route = .achievements
+            case "prizes": route = .prizes
             case "stats": route = .stats
             default: route = nil
             }

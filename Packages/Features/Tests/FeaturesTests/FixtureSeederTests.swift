@@ -88,6 +88,21 @@ final class FixtureSeederTests: XCTestCase {
 
         XCTAssertEqual(days.count, Self.days)
         XCTAssertEqual(skipped.count, 4, "≈ кожен 9-й день пропущений")
-        XCTAssertEqual(met.count, 23, "≈ 2 з 3 непропущених днів закривають норму")
+        // 24, а не 23: з WAT-34 позавчора завжди закриває норму (сценарій «заморозити вчора»).
+        XCTAssertEqual(met.count, 24, "≈ 2 з 3 непропущених днів закривають норму")
+        XCTAssertEqual(days[services.calendar.dayKey(offsetDays: -1, from: services.calendar.today)], 0, "учора пропущено")
+    }
+
+    /// Демо має показувати обидва тексти кнопки заморозки й буст (SPEC-PRIZES §11).
+    func testSeedStocksPrizesForTheFreezeScenario() {
+        let services = seededServices()
+        let ready = services.gamification.prizeInventory().ready
+
+        XCTAssertGreaterThanOrEqual(ready.first { $0.key == "streak.freeze" }?.count ?? 0, 2)
+        XCTAssertGreaterThanOrEqual(ready.first { $0.key == "xp.double" }?.count ?? 0, 1)
+        guard case .yesterday(let streak)? = ready.first?.freezeTarget else {
+            return XCTFail("учора пропущено після серії — заморожується вчора")
+        }
+        XCTAssertGreaterThanOrEqual(streak, 1)
     }
 }

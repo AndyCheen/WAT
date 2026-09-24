@@ -242,6 +242,66 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Коли ти пʼєш"].waitForExistence(timeout: 5))
     }
 
+    // MARK: - Призи (SPEC-PRIZES §11, §15)
+
+    /// Демо: учора пропущено після серії, у запасі ≥ 2 заморозки. Перша заморожує вчора,
+    /// після цього вчора зараховано — і друга вже заморожує сьогодні (§6.2).
+    func testFreezeButtonNamesTheDayItFreezes() {
+        let app = launch(["--uitest-demo", "--start-screen", "progress"])
+        XCTAssertTrue(app.staticTexts["РІВЕНЬ"].waitForExistence(timeout: 20))
+
+        let row = app.buttons["progress.prizes.row.streak.freeze"]
+        for _ in 0..<6 where !(row.exists && row.isHittable) { app.swipeUp() }
+        XCTAssertTrue(row.isHittable, "стос заморозок видно на 3f")
+        row.tap()
+
+        let action = app.buttons["prizes.detail.action"]
+        XCTAssertTrue(action.waitForExistence(timeout: 5))
+        XCTAssertEqual(action.label, "Заморозити вчора")
+        action.tap()
+        XCTAssertFalse(app.otherElements["prizes.detail"].waitForExistence(timeout: 1), "після дії картка закривається")
+
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        XCTAssertTrue(action.waitForExistence(timeout: 5))
+        XCTAssertEqual(action.label, "Заморозити сьогодні")
+
+        app.buttons["prizes.detail.close"].tap()
+        XCTAssertFalse(action.waitForExistence(timeout: 1), "хрестик закриває картку")
+    }
+
+    func testBoostActivationShowsActiveCardOnPrizesScreen() {
+        let app = launch(["--uitest-demo", "--start-screen", "prizes"])
+        let row = app.buttons["prizes.row.xp.double"]
+        XCTAssertTrue(row.waitForExistence(timeout: 20))
+        XCTAssertFalse(app.buttons["prizes.active"].exists, "у демо нічого не діє")
+
+        row.tap()
+        let action = app.buttons["prizes.detail.action"]
+        XCTAssertTrue(action.waitForExistence(timeout: 5))
+        XCTAssertTrue(action.label.hasPrefix("Увімкнути на "), "кнопка каже, скільки діятиме: \(action.label)")
+        action.tap()
+
+        let active = app.buttons["prizes.active"]
+        XCTAssertTrue(active.waitForExistence(timeout: 5), "буст зʼявився в «Діє зараз»")
+        XCTAssertTrue(active.isHittable)
+        active.tap()
+        XCTAssertTrue(app.otherElements["prizes.detail"].waitForExistence(timeout: 5))
+        XCTAssertFalse(action.exists, "у діючого призу кнопки немає")
+    }
+
+    func testAllPrizesLeadsFromProgressToPrizesScreen() {
+        let app = launch(["--uitest-demo", "--start-screen", "progress"])
+        XCTAssertTrue(app.staticTexts["РІВЕНЬ"].waitForExistence(timeout: 20))
+
+        let all = app.buttons["progress.allPrizes"]
+        for _ in 0..<6 where !(all.exists && all.isHittable) { app.swipeUp() }
+        all.tap()
+
+        XCTAssertTrue(app.buttons["prizes.row.streak.freeze"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["prizes.empty"].exists)
+    }
+
     // MARK: - Тема
 
     func testDarkThemeToggle() {

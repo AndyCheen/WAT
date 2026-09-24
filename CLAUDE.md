@@ -16,8 +16,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 151 unit-тест 8 пакетів, без симулятора — швидкий цикл
-make test-ui        # 14 e2e-сценаріїв (XCUITest) у симуляторі
+make test-packages  # 178 unit-тестів 8 пакетів, без симулятора — швидкий цикл
+make test-ui        # 17 e2e-сценаріїв (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
 make clean
@@ -77,6 +77,13 @@ Features → DesignSystem → Core
 досягнення декларативні: `metricKey + comparator + target` у `Gamification/Catalogs.swift`,
 нова умова додається рядком у каталог, без коду.
 
+**Призи** (SPEC-PRIZES): у каталозі лише 🧊 `streak.freeze` і ⚡ `xp.double`, один приз на рівень.
+Приз **і є** жетон — дія лише з картки: `useFreeze(prizeId:)` / `activateBoost(prizeId:)`.
+Який день заморожується, вирішує `StreakEngine.freezeTarget` (правило в doc-коментарі — не
+переписувати без рішення). Заморожений день тримає ланцюг серії, але **не додає** до числа.
+Буст множить увесь XP до 00:00 і перемножується з серією; прострочення — похідне від `Clock`.
+Блок 3f і екран «Призи» ділять одну `PrizeInventoryModel` і `PrizePresenter` (усі тексти).
+
 Що саме відкрила конкретна дія, екран дізнається з черги `GamificationService.takeRecentUnlocks()`
 (`HydrationService` про гейміфікацію не знає). `HomeViewModel` чистить чергу **до** дії й читає
 **після** — інакше тост отримають розблокування зі старту чи повернутої порції.
@@ -125,7 +132,8 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
 - Поповер від кнопки — `wtPopoverAnchor()` на кнопці + `wtPopover(...)` на **корені** екрана:
   кнопка в `ScrollView`, і меню, намальоване там, лягало б під наступні блоки.
 - Фон кола досягнення — `theme.unlockedIconBg` / `theme.lockedIconBg`, не `WTColor.goldIconBg`
-  напряму: той фіксовано світлий і «світиться» в темній темі.
+  напряму: той фіксовано світлий і «світиться» в темній темі. Те саме для призів —
+  `theme.prizeIconBg`, не `WTColor.prizeIconBg`.
 - Макети розраховані на кадр 402 × 874 pt; Dynamic Type обмежено `.wtTypeSizeLimit()`
   у `WTThemedContainer`.
 
@@ -139,7 +147,8 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
   друге читання вже не бачить нових, і крапки «нове» не з'являються зовсім (WAT-23).
 - Прапорці запуску (`App/Sources/WaterTrackerApp.swift`, `LaunchConfiguration`):
   `--uitest-empty` (чиста in-memory БД), `--uitest-demo` (демо-історія),
-  `--seed-demo`, `--start-screen progress|achievements|stats`.
+  `--seed-demo`, `--start-screen progress|achievements|prizes|stats`. Демо-історія завжди має
+  пропущений учора день після закритого позавчора й ≥ 2 заморозки — для e2e кнопки заморозки.
 
 ## Відомі прогалини
 
@@ -177,6 +186,6 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
 | `SPEC-ACHIEVEMENTS.md` | ТЗ модуля «Досягнення» (WAT-22): блок 3f, екран 2e, картка деталей |
 | `Design/Achievements.html` | макет модуля досягнень (6 кадрів 402×874) до цього ТЗ; перенесено в код у WAT-23 |
 | `SPEC-PRIZES.md` | ТЗ модуля «Призи» (WAT-26): каталог, блок на 3f, екран «Призи», картка призу, правила заморозки й буста |
-| `Design/Prizes.html` | макет модуля призів (6 кадрів 402×874) до цього ТЗ |
+| `Design/Prizes.html` | макет модуля призів (6 кадрів 402×874) до цього ТЗ; перенесено в код у WAT-34 |
 | `DESIGN-TOKENS.md` | витяг токенів з макетів |
 | `WaterTracker.html` | оригінальні макети (1a, 3f, 2e, 4a) |
