@@ -153,66 +153,6 @@ public struct WTHistoryStaticRow: View {
     }
 }
 
-/// Картка призу з кнопкою «Активувати» (макет 3f).
-public struct WTPrizeCard: View {
-    @Environment(\.wtTheme) private var theme
-    private let emoji: String
-    private let title: String
-    private let details: String
-    private let isActivated: Bool
-    private let onActivate: () -> Void
-
-    public init(
-        emoji: String, title: String, details: String,
-        isActivated: Bool, onActivate: @escaping () -> Void
-    ) {
-        self.emoji = emoji
-        self.title = title
-        self.details = details
-        self.isActivated = isActivated
-        self.onActivate = onActivate
-    }
-
-    public var body: some View {
-        HStack(spacing: 14) {
-            Text(emoji)
-                .font(.system(size: 22))
-                .frame(width: 44, height: 44)
-                .background(WTColor.prizeIconBg, in: RoundedRectangle(cornerRadius: WTRadius.control, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(WTFont.display(15, .semibold))
-                    .foregroundStyle(theme.textPrimary)
-                Text(details)
-                    .font(WTFont.text(12, .bold))
-                    .foregroundStyle(theme.textMuted)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Button(action: onActivate) {
-                Text(isActivated ? "Активовано" : "Активувати")
-                    .font(WTFont.display(13, .semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 9)
-                    .background(
-                        isActivated ? WTColor.textQuaternary : WTColor.orange,
-                        in: RoundedRectangle(cornerRadius: WTRadius.chip, style: .continuous)
-                    )
-            }
-            .buttonStyle(WTPressStyle(scale: 0.94))
-            .disabled(isActivated)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(
-            theme.isDark ? theme.card : WTColor.prizeBg,
-            in: RoundedRectangle(cornerRadius: WTRadius.button, style: .continuous)
-        )
-    }
-}
-
 /// Плитка досягнення для сітки 3×N (макет 2e, SPEC-ACHIEVEMENTS §5.3).
 ///
 /// Відкрита плитка під назвою не показує нічого — ні смуги, ні XP: у сітці з двох

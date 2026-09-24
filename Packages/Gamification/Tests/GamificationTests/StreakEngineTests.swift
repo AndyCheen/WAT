@@ -32,23 +32,23 @@ final class StreakEngineTests: XCTestCase {
         XCTAssertEqual(env.game.streakSummary().current, 2, "сьогодні ще не закрито — серія не обривається")
     }
 
-    func testFreezeSavesMissedDay() {
+    func testFreezeSavesMissedDayButDoesNotAddToStreak() {
         let env = GameEnv()
         env.completeDay("2026-07-15")
         env.completeDay("2026-07-16")
         env.completeDay("2026-07-18")
         XCTAssertEqual(env.game.streakSummary().current, 1, "17-те пропущено")
 
-        env.game.streaks.grantFreezeToken()
-        let used = env.game.streaks.useFreeze(on: DayKey(rawValue: "2026-07-17"), at: env.clock.now)
+        let frozen = env.game.streaks.freeze(day: DayKey(rawValue: "2026-07-17"), at: env.clock.now)
 
-        XCTAssertTrue(used)
-        XCTAssertEqual(env.game.streakSummary().current, 4, "заморозка зшиває серію")
-        XCTAssertEqual(env.game.streakSummary().freezeTokens, 0)
+        XCTAssertTrue(frozen)
+        XCTAssertEqual(env.game.streakSummary().current, 3, "заморозка зшиває серію, але сама не рахується")
+        XCTAssertEqual(env.game.streakSummary().longest, 3)
     }
 
-    func testFreezeWithoutTokenIsRejected() {
+    func testSameDayCannotBeFrozenTwice() {
         let env = GameEnv()
-        XCTAssertFalse(env.game.streaks.useFreeze(on: DayKey(rawValue: "2026-07-17"), at: env.clock.now))
+        XCTAssertTrue(env.game.streaks.freeze(day: DayKey(rawValue: "2026-07-17"), at: env.clock.now))
+        XCTAssertFalse(env.game.streaks.freeze(day: DayKey(rawValue: "2026-07-17"), at: env.clock.now))
     }
 }

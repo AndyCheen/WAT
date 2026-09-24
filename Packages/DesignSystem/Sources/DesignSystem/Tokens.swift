@@ -90,6 +90,10 @@ public extension WTTheme {
 
     /// Фон кола закритого досягнення — та сама причина, що й в `unlockedIconBg`.
     var lockedIconBg: Color { isDark ? dotOff : WTColor.neutralLocked }
+
+    /// Фон іконки призу. `WTColor.prizeIconBg` фіксовано світлий і «світився» в темній
+    /// темі (SPEC-PRIZES §12) — у вʼюсах лише через це поле.
+    var prizeIconBg: Color { isDark ? chip : WTColor.prizeIconBg }
 }
 
 /// Кольори, які не залежать від теми (DESIGN-TOKENS.md §2.2).
@@ -100,7 +104,6 @@ public enum WTColor {
     public static let danger = Color(hex: "#e5484d")
     public static let warnBg = Color(hex: "#fdf1da")
     public static let warnText = Color(hex: "#a97a1f")
-    public static let prizeBg = Color(hex: "#fff8ec")
     public static let prizeIconBg = Color(hex: "#ffe9c8")
     public static let goldIconBg = Color(hex: "#fff2e2")
     public static let textSecondary = Color(hex: "#3d4d66")

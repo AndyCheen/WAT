@@ -9,11 +9,18 @@ public struct ProgressScreen: View {
     @State private var model: ProgressViewModel
     private let onBack: () -> Void
     private let onOpenAllAchievements: () -> Void
+    private let onOpenAllPrizes: () -> Void
 
-    public init(services: AppServices, onBack: @escaping () -> Void, onOpenAllAchievements: @escaping () -> Void) {
+    public init(
+        services: AppServices,
+        onBack: @escaping () -> Void,
+        onOpenAllAchievements: @escaping () -> Void,
+        onOpenAllPrizes: @escaping () -> Void
+    ) {
         _model = State(initialValue: ProgressViewModel(services: services))
         self.onBack = onBack
         self.onOpenAllAchievements = onOpenAllAchievements
+        self.onOpenAllPrizes = onOpenAllPrizes
     }
 
     public var body: some View {
@@ -49,9 +56,14 @@ public struct ProgressScreen: View {
             if let item = model.selectedAchievement {
                 AchievementDetailModal(item: item, onClose: { model.selectAchievement(nil) })
             }
+            if let selection = model.prizes.selected {
+                PrizeDetailModal(model: model.prizes, selection: selection)
+            }
         }
         .onAppear { model.reload() }
         .wtFeedback(trigger: model.selectedAchievement?.key) { $0 == nil ? nil : .tap }
+        .wtFeedback(trigger: model.prizes.selected?.id) { $0 == nil ? nil : .tap }
+        .wtFeedback(trigger: model.prizes.feedback) { $0?.feedback }
     }
 
     // MARK: - Рівень
@@ -144,35 +156,46 @@ public struct ProgressScreen: View {
 
     // MARK: - Призи
 
+    /// Лише отримані й не використані (SPEC-PRIZES §4): діючий буст — статусом у заголовку,
+    /// готові — стосами. Без жодного призу блоку немає зовсім, разом із заголовком:
+    /// про майбутні вже розповідає «НАГОРОДА НА РІВНІ N».
     @ViewBuilder
     private var prizesBlock: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) {
-                WTSectionLabel("ПРИЗИ")
-                Text("\(model.prizes.count)")
-                    .font(WTFont.text(13, .heavy))
-                    .foregroundStyle(theme.accent)
-            }
-            .padding(.bottom, 12)
-
-            if model.prizes.isEmpty {
-                Text("Призи зʼявляться за виконані завдання та нові рівні")
-                    .font(WTFont.text(13, .bold))
-                    .foregroundStyle(theme.textMuted)
-                    .padding(.bottom, 4)
-            } else {
-                VStack(spacing: 10) {
-                    ForEach(model.prizes) { prize in
-                        WTPrizeCard(
-                            emoji: prize.emoji, title: prize.title, details: prize.details,
-                            isActivated: prize.isActivated,
-                            onActivate: { model.activate(prize: prize) }
-                        )
+        let inventory = model.prizes.inventory
+        if !inventory.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                // Лічильника в заголовку немає: зі стосами число рядків ≠ числу призів,
+                // і поруч із «×2» він читався б як третє число про одне.
+                HStack(spacing: 10) {
+                    WTSectionLabel("ПРИЗИ")
+                    if let active = inventory.active.first {
+                        activePrizePill(active)
                     }
+                    Spacer(minLength: 8)
+                    WTSectionAction("Всі", action: onOpenAllPrizes)
+                        .accessibilityIdentifier("progress.allPrizes")
                 }
+                .padding(.bottom, inventory.ready.isEmpty ? 0 : 8)
+
+                PrizeStackRows(model: model.prizes, identifierPrefix: "progress.prizes.row")
             }
+            .padding(.bottom, 22)
         }
-        .padding(.bottom, 22)
+    }
+
+    private func activePrizePill(_ prize: RewardSnapshot) -> some View {
+        TimelineView(.periodic(from: model.prizes.now, by: 60)) { _ in
+            let now = model.prizes.now
+            let presenter = model.prizes.presenter
+            WTPrizeStatusPill(
+                label: presenter.pillLabel(prize),
+                remaining: PrizePresenter.shortDuration(prize.remaining(at: now)),
+                accessibilityLabel: presenter.activeAccessibilityLabel(prize),
+                accessibilityValue: presenter.activeAccessibilityValue(prize, at: now),
+                identifier: "progress.prizes.active",
+                onTap: { model.prizes.select(.active(prize)) }
+            )
+        }
     }
 
     // MARK: - Досягнення

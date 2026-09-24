@@ -10,7 +10,8 @@ public struct StreakSummary: Equatable, Sendable {
     public let freezeTokens: Int
     public let lastCountedDay: DayKey?
 
-    public init(current: Int, longest: Int, freezeTokens: Int, lastCountedDay: DayKey?) {
+    /// - Parameter freezeTokens: кількість готових заморозок в інвентарі.
+    public init(current: Int, longest: Int, freezeTokens: Int = 0, lastCountedDay: DayKey?) {
         self.current = current
         self.longest = longest
         self.freezeTokens = freezeTokens
@@ -194,6 +195,12 @@ extension Collection where Element == AchievementSnapshot {
     }
 }
 
+/// Стан призу з погляду UI (SPEC-PRIZES §9.3). Прострочення буста — **похідне** від
+/// `clock.now`, без фонових задач: після 00:00 знімок сам каже `.expired`.
+public enum PrizeState: Equatable, Sendable {
+    case ready, active, used, expired
+}
+
 public struct RewardSnapshot: Equatable, Identifiable, Sendable {
     public let id: UUID
     public let key: String
@@ -201,11 +208,17 @@ public struct RewardSnapshot: Equatable, Identifiable, Sendable {
     public let details: String
     public let emoji: String
     public let kind: RewardKind
-    public let isActivated: Bool
+    public let state: PrizeState
+    /// Готовий і ще не переглянутий — помаранчева крапка на іконці.
+    public let isNew: Bool
+    public let acquiredAt: Date
+    public let activatedAt: Date?
+    public let expiresAt: Date?
 
     public init(
         id: UUID, key: String, title: String, details: String,
-        emoji: String, kind: RewardKind, isActivated: Bool
+        emoji: String, kind: RewardKind, state: PrizeState, isNew: Bool = false,
+        acquiredAt: Date, activatedAt: Date? = nil, expiresAt: Date? = nil
     ) {
         self.id = id
         self.key = key
@@ -213,7 +226,90 @@ public struct RewardSnapshot: Equatable, Identifiable, Sendable {
         self.details = details
         self.emoji = emoji
         self.kind = kind
-        self.isActivated = isActivated
+        self.state = state
+        self.isNew = isNew
+        self.acquiredAt = acquiredAt
+        self.activatedAt = activatedAt
+        self.expiresAt = expiresAt
+    }
+
+    /// Скільки лишилось дії буста; 0 — вже не діє.
+    public func remaining(at date: Date) -> TimeInterval {
+        guard let expiresAt else { return 0 }
+        return max(0, expiresAt.timeIntervalSince(date))
+    }
+
+    /// Частка часу, що лишилась, — смуга на hero-картці спадає від 1 до 0.
+    public func remainingFraction(at date: Date) -> Double {
+        guard let activatedAt, let expiresAt, expiresAt > activatedAt else { return 0 }
+        return min(1, remaining(at: date) / expiresAt.timeIntervalSince(activatedAt))
+    }
+}
+
+/// Який день заморозить заморозка, використана зараз (SPEC-PRIZES §6.2,
+/// правило — у `StreakEngine.freezeTarget(at:)`).
+public enum FreezeTarget: Equatable, Sendable {
+    /// Учора пропущено, а позавчора закінчується серія — її й рятуємо.
+    case yesterday(savedStreak: Int)
+    case today
+    /// Сьогодні вже зараховано — заморожувати нічого, кнопка неактивна.
+    case todayAlreadyCounted
+}
+
+/// Однакові готові призи — один рядок з лічильником, а не N карток (§4.1).
+public struct PrizeStack: Equatable, Identifiable, Sendable {
+    public let key: String
+    public let count: Int
+    public let isNew: Bool
+    /// Використовується найстаріший предмет стосу (FIFO).
+    public let oldest: RewardSnapshot
+    /// Лише для заморозки.
+    public let freezeTarget: FreezeTarget?
+
+    public var id: String { key }
+
+    public init(key: String, count: Int, isNew: Bool, oldest: RewardSnapshot, freezeTarget: FreezeTarget?) {
+        self.key = key
+        self.count = count
+        self.isNew = isNew
+        self.oldest = oldest
+        self.freezeTarget = freezeTarget
+    }
+}
+
+/// Інвентар для блоку 3f і екрана «Призи» — один розріз на обидві поверхні,
+/// інакше вони розійдуться в правилі (урок модуля досягнень).
+public struct PrizeInventory: Equatable, Sendable {
+    /// Діючі бусти — статус у заголовку 3f і hero-картки на екрані «Призи».
+    public let active: [RewardSnapshot]
+    /// Готові стоси в порядку каталогу: 🧊 → ⚡.
+    public let ready: [PrizeStack]
+
+    public init(active: [RewardSnapshot], ready: [PrizeStack]) {
+        self.active = active
+        self.ready = ready
+    }
+
+    public static let empty = PrizeInventory(active: [], ready: [])
+
+    public var isEmpty: Bool { active.isEmpty && ready.isEmpty }
+}
+
+extension Collection where Element == RewardSnapshot {
+    /// Лише `.active` і `.ready`: використане й прострочене з інтерфейсу зникає (§3.1).
+    public func inventory(freezeTarget: FreezeTarget?) -> PrizeInventory {
+        let active = filter { $0.state == .active }.sorted { ($0.expiresAt ?? .distantPast) < ($1.expiresAt ?? .distantPast) }
+        let ready = filter { $0.state == .ready }
+        let stacks: [PrizeStack] = RewardCatalog.all.compactMap { definition in
+            let items = ready.filter { $0.key == definition.key }.sorted { $0.acquiredAt < $1.acquiredAt }
+            guard let oldest = items.first else { return nil }
+            return PrizeStack(
+                key: definition.key, count: items.count, isNew: items.contains(where: \.isNew),
+                oldest: oldest,
+                freezeTarget: definition.key == RewardCatalog.freezeKey ? freezeTarget : nil
+            )
+        }
+        return PrizeInventory(active: active, ready: stacks)
     }
 }
 

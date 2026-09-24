@@ -95,15 +95,20 @@ public struct WTCircleButton: View {
 }
 
 /// Головна кнопка: акцентний фон, радіус 20, шрифт Fredoka 18.
+///
+/// Неактивна — приглушена (`chip` + `textMuted`), а не напівпрозора: напівпрозорий
+/// акцент на темному фоні читався як «натиснута», а не «недоступна».
 public struct WTPrimaryButton: View {
     @Environment(\.wtTheme) private var theme
     private let title: String
     private let background: Color?
+    private let isEnabled: Bool
     private let action: () -> Void
 
-    public init(_ title: String, background: Color? = nil, action: @escaping () -> Void) {
+    public init(_ title: String, background: Color? = nil, isEnabled: Bool = true, action: @escaping () -> Void) {
         self.title = title
         self.background = background
+        self.isEnabled = isEnabled
         self.action = action
     }
 
@@ -111,12 +116,16 @@ public struct WTPrimaryButton: View {
         Button(action: action) {
             Text(title)
                 .font(WTFont.display(18, .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(isEnabled ? .white : theme.textMuted)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 17)
-                .background(background ?? theme.accent, in: RoundedRectangle(cornerRadius: WTRadius.primaryButton, style: .continuous))
+                .background(
+                    isEnabled ? (background ?? theme.accent) : theme.chip,
+                    in: RoundedRectangle(cornerRadius: WTRadius.primaryButton, style: .continuous)
+                )
         }
         .buttonStyle(WTPressStyle())
+        .disabled(!isEnabled)
     }
 }
 

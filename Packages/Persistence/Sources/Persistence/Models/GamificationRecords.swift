@@ -52,6 +52,8 @@ public final class StreakState {
     public var currentStreak: Int = 0
     public var longestStreak: Int = 0
     public var lastCountedDayKey: String?
+    /// Не використовується з WAT-34: готова заморозка — це сам `RewardItem` в інвентарі.
+    /// Поле лишається в схемі, щоб не ламати міграцію.
     public var freezeTokens: Int = 0
     public var lastFreezeUsedDayKey: String?
     public var frozenDayKeys: [String] = []
@@ -116,7 +118,8 @@ public final class AchievementProgress {
     public var fraction: Double { target > 0 ? min(1, value / target) : 0 }
 }
 
-/// Видана нагорода або приз (у т. ч. «заморозка серії»).
+/// Виданий приз (SPEC-PRIZES §9.1). Використані й прострочені записи не видаляються:
+/// на них тримаються `XPEntry.refId`, метрика `prize.activated` і повернення заморозки.
 @Model
 public final class RewardItem {
     public var id: UUID = UUID()
@@ -125,8 +128,12 @@ public final class RewardItem {
     public var acquiredAt: Date = Date()
     public var activatedAt: Date?
     public var expiresAt: Date?
-    public var stateRaw: Int = RewardItemState.new.rawValue
+    public var stateRaw: Int = RewardItemState.ready.rawValue
     public var acquiredByRef: UUID?
+    /// Крапка «нове» — окремо від стану, як в `AchievementProgress`.
+    public var seenAt: Date?
+    /// Який день заморожено — щоб повернути приз, якщо день усе ж закрили (§6.3).
+    public var usedOnDayKey: String?
 
     public init(
         id: UUID = UUID(),
@@ -144,7 +151,7 @@ public final class RewardItem {
 
     public var source: RewardSource { RewardSource(rawValue: sourceRaw) ?? .level }
     public var state: RewardItemState {
-        get { RewardItemState(rawValue: stateRaw) ?? .new }
+        get { RewardItemState(rawValue: stateRaw) ?? .ready }
         set { stateRaw = newValue.rawValue }
     }
 }
