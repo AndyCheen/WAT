@@ -37,23 +37,18 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
 .sec-label{font-size:15px;font-weight:800;letter-spacing:.3px}
 .sec-label.sm{font-size:13px;color:var(--muted);margin-top:14px}
 .sec-action{margin-left:auto;font-size:13px;font-weight:800;color:var(--btn-text)}
-.link{font-size:13px;font-weight:800;color:var(--btn-text);margin-top:14px}
 
 /* Рядок призу WTPrizeRow — без кольорової плашки, волосок між рядками (ТЗ §4.1) */
 .prow{display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 0;border-bottom:1px solid var(--line)}
 .prow:last-child{border-bottom:0}
 .pic{width:40px;height:40px;border-radius:var(--r-control);background:var(--prize-ic);display:flex;align-items:center;justify-content:center;font-size:20px;position:relative;flex:0 0 auto}
-.pic.off{background:var(--locked)} .pic.off span{opacity:.5}
 .pb{flex:1;min-width:0}
 .pt{font-size:15px;font-weight:600}
-.pt.off{color:var(--muted)}
 .pd{font-size:12px;font-weight:700;color:var(--muted)}
 .pd.warn{color:var(--orange)}
 .tail{font-size:13px;font-weight:900;color:var(--accent);white-space:nowrap}
 .tail.sm{font-size:12px}
-.tail.mute{color:var(--muted)}
 .chev{color:var(--muted);font-size:16px;font-weight:800;margin-left:2px}
-.prow.next{opacity:.5}
 .new{position:absolute;top:-3px;right:-3px;width:8px;height:8px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 2px var(--screen)}
 
 /* контекст 3f */
@@ -70,12 +65,10 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
 .task .v{margin-left:auto;font-size:12px;font-weight:900;color:var(--muted)}
 .sub{font-size:12px;font-weight:800;letter-spacing:.3px;color:var(--accent);margin:4px 0 2px}
 
-/* перемикач «Мої · Історія» — WTSegmentedTabs, 2 рівні сегменти */
-.seg{display:flex;height:40px;background:var(--chip);border-radius:var(--r-pill);padding:4px;margin-bottom:20px}
-.seg div{flex:1;display:flex;align-items:center;justify-content:center;border-radius:var(--r-pill);font-size:14px;font-weight:700;color:var(--muted)}
-.seg .on{background:var(--card);color:var(--text);box-shadow:0 2px 8px rgba(31,74,114,.10)}
-.note{font-size:13px;font-weight:700;color:var(--muted);margin:2px 0 4px}
-.month{font-size:12px;font-weight:800;letter-spacing:.3px;color:var(--muted);margin:4px 0 2px}
+/* діючий приз — акцентна плашка (ТЗ §4.1) */
+.prow.active{background:var(--chip);border:1.5px solid var(--accent);border-radius:var(--r-panel);padding:12px 14px;margin-bottom:6px}
+.prow.active .pic{background:var(--card)}
+.prow.active .pd{color:var(--accent)}
 
 /* картка призу WTPrizeDetail */
 .overlay{position:absolute;inset:0;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:24px}
@@ -83,62 +76,52 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
        box-shadow:0 26px 60px rgba(15,32,56,.28);display:flex;flex-direction:column;align-items:center;gap:10px}
 .m-close{position:absolute;top:12px;right:12px;width:28px;height:28px;border-radius:50%;background:var(--chip);
          display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;font-weight:800}
-.m-ic{width:72px;height:72px;border-radius:50%;background:var(--prize-ic);display:flex;align-items:center;justify-content:center;font-size:34px}
+.m-ic{width:72px;height:72px;border-radius:50%;background:var(--prize-ic);display:flex;align-items:center;justify-content:center;font-size:34px;position:relative}
+/* «×N» — бейдж на іконці, не в назві (ТЗ §8.1) */
+.m-ic .cnt{position:absolute;right:-2px;bottom:-2px;height:24px;padding:0 8px;border-radius:var(--r-pill);background:var(--accent);
+           color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;box-shadow:0 0 0 2px var(--sheet)}
 .m-t{font-size:20px;font-weight:600}
-.m-t b{font-size:15px;font-weight:900;color:var(--accent)}
 .m-d{font-size:13px;font-weight:600;color:var(--muted);line-height:1.35}
 .m-state{font-size:13px;font-weight:800;color:var(--orange)}
 .m-state.mute{font-size:12px;font-weight:700;color:var(--muted)}
 .m-btn{width:100%;height:50px;border-radius:var(--r-control);background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;
        font-size:16px;font-weight:600;margin-top:6px}
-.m-src{font-size:11px;font-weight:700;color:var(--muted)}
-.timer{line-height:1}
-.timer b{font-family:Fredoka,Nunito;font-size:34px;font-weight:600;color:var(--accent)}
-.timer em{display:block;font-style:normal;font-size:11px;font-weight:800;letter-spacing:.3px;color:var(--muted);margin-top:4px}
-
-/* головний — спрощено, лише контекст для тосту */
-.home-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:40px}
-.dots{display:flex;gap:6px}
-.dots i{width:10px;height:10px;border-radius:50%;background:var(--accent)}
-.dots i.off{background:var(--dot-off)}
-.ring{width:242px;height:242px;margin:0 auto 34px;border-radius:50%;background:conic-gradient(var(--accent) 0 40deg,var(--track) 40deg 360deg);position:relative;display:flex;align-items:center;justify-content:center}
-.ring::after{content:"";position:absolute;inset:20px;border-radius:50%;background:var(--screen)}
-.ring i{position:relative;z-index:1;font-style:normal;text-align:center}
-.ring b{display:block;font-family:Fredoka;font-size:44px;font-weight:600}
-.ring small{font-size:13px;font-weight:700;color:var(--muted)}
-.quick{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-.quick div{height:74px;border-radius:var(--r-panel);background:var(--button);display:flex;align-items:center;justify-content:center;font-family:Fredoka;font-size:17px;font-weight:600;color:var(--btn-text)}
-.toast{position:absolute;left:24px;right:24px;bottom:34px;background:var(--card);border-radius:var(--r-panel);
-       padding:14px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 14px 34px rgba(31,74,114,.18)}
-.toast .t{font-size:14px;font-weight:700;flex:1}
-.toast .a{font-size:13px;font-weight:800;color:var(--btn-text)}
+.timer{font-family:Fredoka,Nunito;font-size:34px;font-weight:600;color:var(--accent);line-height:1}
 </style>
 </head>
 <body>
 
 <h1>Модуль «Призи» — дизайн (WAT-26)</h1>
-<p class="lead">Приз — предмет, який користувач <b>сам вирішує, коли використати</b>. У каталозі цієї
-ітерації два призи, обидва з реальним ефектом: 🧊 заморозка серії і ⚡ подвійний XP до кінця дня (§3).
-Блок на 3f об'єднує «що є» і «що буде на наступному рівні», однакові призи складаються в стос «×N» (кадр 1).
-Екран «Призи» — один перемикач «Мої · Історія», без фільтра за видом (кадри 2–3). Дія — <b>лише в картці</b>,
-де видно наслідок: кнопка заморозки називає день (кадр 4), буст показує таймер (кадр 5).
-Пропущений учора день — пропозиція на головному (кадр 6). Повний опис — <code>SPEC-PRIZES.md</code>.</p>
+<p class="lead">Приз — предмет, який користувач <b>сам вирішує, коли використати</b>. У каталозі два призи:
+🧊 заморозка серії і ⚡ подвійний XP до кінця дня (§3). Показуємо <b>лише отримані й не використані</b>:
+діючий — акцентною плашкою, готові — стосами «×N» (кадри 1–2). Без призів блоку на 3f немає.
+Дія — лише в картці; кількість — бейдж на іконці. Кнопка заморозки — «вчора» або «сьогодні»
+за правилом §6.2 (кадри 3–4). Таймер буста без підпису (кадр 5). Головний екран не змінюється.
+Повний опис — <code>SPEC-PRIZES.md</code>.</p>
 
 <div class="row">
 
   <!-- ФРЕЙМ 1 — блок A на екрані Прогрес (3f) -->
   <div class="frame-wrap">
-    <div class="frame-cap">1 · Прогрес (3f) — блок «Призи» під рівнем</div>
+    <div class="frame-cap">1 · Прогрес (3f) — блок «Призи»</div>
     <div class="frame"><div class="scr">
       <div class="navbar"><div class="circle-btn">‹</div><div class="pad"></div></div>
       <div class="level">
         <div class="donut"><i><small>РІВЕНЬ</small><b>7</b></i></div>
         <div class="xp-line">320/500 XP до рівня 8</div>
       </div>
-
+      <div class="block">
+        <div class="sec"><div class="sec-label sm" style="margin-top:0;color:var(--text)">НАГОРОДА НА РІВНІ 8</div></div>
+        <div class="prow" style="border-bottom:1px solid var(--line)"><div style="font-size:30px">⚡</div><div class="pb"><div class="pt" style="font-size:16px">Подвійний XP</div><div class="pd" style="font-size:13px">×2 XP до кінця дня</div></div></div>
+      </div>
+      <div class="block">
+        <div class="sec"><div class="sec-label">ЗАВДАННЯ</div></div>
+        <div class="sub">СЬОГОДНІ</div>
+        <div class="task"><div class="ck"></div>Випий 500 мл до 12:00<div class="v">300/500</div></div>
+      </div>
       <div class="block">
         <div class="sec"><div class="sec-label">ПРИЗИ</div><div class="sec-action">Всі ›</div></div>
-        <div class="prow">
+        <div class="prow active">
           <div class="pic">⚡</div>
           <div class="pb"><div class="pt">Подвійний XP</div><div class="pd">Діє до 00:00</div></div>
           <div class="tail sm">ще 3 год 20 хв</div><div class="chev">›</div>
@@ -153,34 +136,22 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
           <div class="pb"><div class="pt">Подвійний XP</div><div class="pd">×2 XP до кінця дня</div></div>
           <div class="tail">×1</div><div class="chev">›</div>
         </div>
-        <div class="prow next">
-          <div class="pic">⚡</div>
-          <div class="pb"><div class="pt">Подвійний XP</div><div class="pd">Наступна нагорода</div></div>
-          <div class="tail sm mute">Рівень 8</div>
-        </div>
       </div>
-
-      <div class="sec"><div class="sec-label">ЗАВДАННЯ</div></div>
-      <div class="sub">СЬОГОДНІ</div>
-      <div class="task"><div class="ck"></div>Випий 500 мл до 12:00<div class="v">300/500</div></div>
     </div></div>
   </div>
 
-  <!-- ФРЕЙМ 2 — екран B, вкладка «Мої» -->
+  <!-- ФРЕЙМ 2 — екран B -->
   <div class="frame-wrap">
-    <div class="frame-cap">2 · Екран «Призи» — Мої</div>
+    <div class="frame-cap">2 · Екран «Призи» — діє зараз / готові</div>
     <div class="frame"><div class="scr">
       <div class="navbar"><div class="circle-btn">‹</div><div class="title">Призи</div><div class="pad"></div></div>
-      <div class="seg"><div class="on">Мої</div><div>Історія</div></div>
-
       <div class="sec"><div class="sec-label sm" style="margin-top:0">ДІЄ ЗАРАЗ</div></div>
-      <div class="prow">
+      <div class="prow active">
         <div class="pic">⚡</div>
         <div class="pb"><div class="pt">Подвійний XP</div><div class="pd">Діє до 00:00</div></div>
         <div class="tail sm">ще 3 год 20 хв</div><div class="chev">›</div>
       </div>
-
-      <div class="sec"><div class="sec-label sm">ГОТОВІ ДО ВИКОРИСТАННЯ</div></div>
+      <div class="sec"><div class="sec-label sm" style="margin-top:22px">ГОТОВІ ДО ВИКОРИСТАННЯ</div></div>
       <div class="prow">
         <div class="pic"><span>🧊</span><i class="new"></i></div>
         <div class="pb"><div class="pt">Заморозка серії</div><div class="pd warn">Можна врятувати серію 12 днів</div></div>
@@ -191,91 +162,115 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
         <div class="pb"><div class="pt">Подвійний XP</div><div class="pd">×2 XP до кінця дня</div></div>
         <div class="tail">×1</div><div class="chev">›</div>
       </div>
-
-      <div class="sec"><div class="sec-label sm">НАСТУПНІ НАГОРОДИ</div></div>
-      <div class="prow next"><div class="pic">⚡</div><div class="pb"><div class="pt">Подвійний XP</div></div><div class="tail sm mute">Рівень 8</div></div>
-      <div class="prow next"><div class="pic">🧊</div><div class="pb"><div class="pt">Заморозка серії</div></div><div class="tail sm mute">Рівень 9</div></div>
-      <div class="prow next"><div class="pic">⚡</div><div class="pb"><div class="pt">Подвійний XP</div></div><div class="tail sm mute">Рівень 10</div></div>
-      <div class="link">Усі нагороди за рівні ›</div>
     </div></div>
   </div>
 
-  <!-- ФРЕЙМ 3 — екран B, вкладка «Історія» -->
+  <!-- ФРЕЙМ 3 -->
   <div class="frame-wrap">
-    <div class="frame-cap">3 · Екран «Призи» — Історія (без тапу)</div>
-    <div class="frame"><div class="scr">
-      <div class="navbar"><div class="circle-btn">‹</div><div class="title">Призи</div><div class="pad"></div></div>
-      <div class="seg"><div>Мої</div><div class="on">Історія</div></div>
-
-      <div class="prow"><div class="pic off"><span>⚡</span></div><div class="pb"><div class="pt off">Подвійний XP</div><div class="pd">Діяв 22 вересня</div></div></div>
-      <div class="prow"><div class="pic off"><span>🧊</span></div><div class="pb"><div class="pt off">Заморозка серії</div><div class="pd">Заморожено 17 вересня</div></div></div>
-      <div class="prow"><div class="pic off"><span>⚡</span></div><div class="pb"><div class="pt off">Подвійний XP</div><div class="pd">Діяв 14 вересня</div></div></div>
-      <div class="prow"><div class="pic off"><span>⚡</span></div><div class="pb"><div class="pt off">Подвійний XP</div><div class="pd">Діяв 9 вересня</div></div></div>
-      <div class="prow"><div class="pic off"><span>🧊</span></div><div class="pb"><div class="pt off">Заморозка серії</div><div class="pd">Заморожено 2 вересня</div></div></div>
-    </div></div>
-  </div>
-
-  <!-- ФРЕЙМ 4 — картка заморозки, є що рятувати -->
-  <div class="frame-wrap">
-    <div class="frame-cap">4 · Картка — заморозка, ціль «учора»</div>
+    <div class="frame-cap">3 · Картка — заморозка, учора пропущено при серії</div>
     <div class="frame">
       <div class="scr">
-        <div class="navbar"><div class="circle-btn">‹</div><div class="title">Призи</div><div class="pad"></div></div>
-        <div class="seg"><div class="on">Мої</div><div>Історія</div></div>
-        <div class="prow"><div class="pic">🧊</div><div class="pb"><div class="pt">Заморозка серії</div></div><div class="tail">×2</div></div>
+      <div class="navbar"><div class="circle-btn">‹</div><div class="title">Призи</div><div class="pad"></div></div>
+      <div class="sec"><div class="sec-label sm" style="margin-top:0">ДІЄ ЗАРАЗ</div></div>
+      <div class="prow active">
+        <div class="pic">⚡</div>
+        <div class="pb"><div class="pt">Подвійний XP</div><div class="pd">Діє до 00:00</div></div>
+        <div class="tail sm">ще 3 год 20 хв</div><div class="chev">›</div>
+      </div>
+      <div class="sec"><div class="sec-label sm" style="margin-top:22px">ГОТОВІ ДО ВИКОРИСТАННЯ</div></div>
+      <div class="prow">
+        <div class="pic"><span>🧊</span></div>
+        <div class="pb"><div class="pt">Заморозка серії</div><div class="pd warn">Можна врятувати серію 12 днів</div></div>
+        <div class="tail">×2</div><div class="chev">›</div>
+      </div>
+      <div class="prow">
+        <div class="pic">⚡</div>
+        <div class="pb"><div class="pt">Подвійний XP</div><div class="pd">×2 XP до кінця дня</div></div>
+        <div class="tail">×1</div><div class="chev">›</div>
+      </div>
       </div>
       <div class="overlay">
         <div class="modal">
           <div class="m-close">✕</div>
-          <div class="m-ic">🧊</div>
-          <div class="m-t">Заморозка серії <b>×2</b></div>
+          <div class="m-ic">🧊<span class="cnt">×2</span></div>
+          <div class="m-t">Заморозка серії</div>
           <div class="m-d">Пропущений день не обірве серію. Серія збережеться, але не зросте</div>
           <div class="m-state">Серія 12 днів збережеться</div>
-          <div class="m-btn">Заморозити вчора, 23 вересня</div>
-          <div class="m-src">Отримано за рівень 3</div>
+          <div class="m-btn">Заморозити вчора</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ФРЕЙМ 5 — картка буста, діє -->
+  <!-- ФРЕЙМ 4 -->
+  <div class="frame-wrap">
+    <div class="frame-cap">4 · Картка — заморозка, учора зараховано</div>
+    <div class="frame">
+      <div class="scr">
+      <div class="navbar"><div class="circle-btn">‹</div><div class="title">Призи</div><div class="pad"></div></div>
+      <div class="sec"><div class="sec-label sm" style="margin-top:0">ДІЄ ЗАРАЗ</div></div>
+      <div class="prow active">
+        <div class="pic">⚡</div>
+        <div class="pb"><div class="pt">Подвійний XP</div><div class="pd">Діє до 00:00</div></div>
+        <div class="tail sm">ще 3 год 20 хв</div><div class="chev">›</div>
+      </div>
+      <div class="sec"><div class="sec-label sm" style="margin-top:22px">ГОТОВІ ДО ВИКОРИСТАННЯ</div></div>
+      <div class="prow">
+        <div class="pic"><span>🧊</span></div>
+        <div class="pb"><div class="pt">Заморозка серії</div><div class="pd warn">Можна врятувати серію 12 днів</div></div>
+        <div class="tail">×2</div><div class="chev">›</div>
+      </div>
+      <div class="prow">
+        <div class="pic">⚡</div>
+        <div class="pb"><div class="pt">Подвійний XP</div><div class="pd">×2 XP до кінця дня</div></div>
+        <div class="tail">×1</div><div class="chev">›</div>
+      </div>
+      </div>
+      <div class="overlay">
+        <div class="modal">
+          <div class="m-close">✕</div>
+          <div class="m-ic">🧊<span class="cnt">×2</span></div>
+          <div class="m-t">Заморозка серії</div>
+          <div class="m-d">Пропущений день не обірве серію. Серія збережеться, але не зросте</div>
+          <div class="m-state mute">Якщо все ж закриєш норму — заморозка повернеться</div>
+          <div class="m-btn">Заморозити сьогодні</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ФРЕЙМ 5 -->
   <div class="frame-wrap">
     <div class="frame-cap">5 · Картка — подвійний XP діє (без кнопки)</div>
     <div class="frame">
       <div class="scr">
-        <div class="navbar"><div class="circle-btn">‹</div><div class="title">Призи</div><div class="pad"></div></div>
-        <div class="seg"><div class="on">Мої</div><div>Історія</div></div>
-        <div class="prow"><div class="pic">⚡</div><div class="pb"><div class="pt">Подвійний XP</div></div><div class="tail sm">ще 3 год 20 хв</div></div>
+      <div class="navbar"><div class="circle-btn">‹</div><div class="title">Призи</div><div class="pad"></div></div>
+      <div class="sec"><div class="sec-label sm" style="margin-top:0">ДІЄ ЗАРАЗ</div></div>
+      <div class="prow active">
+        <div class="pic">⚡</div>
+        <div class="pb"><div class="pt">Подвійний XP</div><div class="pd">Діє до 00:00</div></div>
+        <div class="tail sm">ще 3 год 20 хв</div><div class="chev">›</div>
+      </div>
+      <div class="sec"><div class="sec-label sm" style="margin-top:22px">ГОТОВІ ДО ВИКОРИСТАННЯ</div></div>
+      <div class="prow">
+        <div class="pic"><span>🧊</span></div>
+        <div class="pb"><div class="pt">Заморозка серії</div><div class="pd warn">Можна врятувати серію 12 днів</div></div>
+        <div class="tail">×2</div><div class="chev">›</div>
+      </div>
+      <div class="prow">
+        <div class="pic">⚡</div>
+        <div class="pb"><div class="pt">Подвійний XP</div><div class="pd">×2 XP до кінця дня</div></div>
+        <div class="tail">×1</div><div class="chev">›</div>
+      </div>
       </div>
       <div class="overlay">
         <div class="modal">
           <div class="m-close">✕</div>
           <div class="m-ic">⚡</div>
           <div class="m-t">Подвійний XP</div>
-          <div class="m-d">Увесь XP до кінця дня — удвічі. Множиться разом із бонусом серії</div>
-          <div class="timer"><b>3:20</b><em>ГОД : ХВ ДО 00:00</em></div>
-          <div class="m-src">Отримано за рівень 5</div>
+          <div class="m-d">Діє до 00:00</div>
+          <div class="timer">3:20</div>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ФРЕЙМ 6 — головний: пропозиція заморозки -->
-  <div class="frame-wrap">
-    <div class="frame-cap">6 · Головний — серія під загрозою</div>
-    <div class="frame"><div class="scr">
-      <div class="home-top">
-        <div class="circle-btn" style="width:42px;height:42px">⚙︎</div>
-        <div class="dots"><i></i><i></i><i></i><i></i><i></i><i class="off"></i><i class="off"></i></div>
-        <div class="circle-btn" style="width:42px;height:42px">💧</div>
-      </div>
-      <div class="ring"><i><b>250</b><small>з 2000 мл</small></i></div>
-      <div class="quick"><div>+200</div><div>+500</div><div>+1000</div><div>…</div></div>
-    </div>
-      <div class="toast">
-        <div style="font-size:20px">🧊</div>
-        <div class="t">Серія 12 днів під загрозою</div>
-        <div class="a">Врятувати</div>
       </div>
     </div>
   </div>
