@@ -38,6 +38,33 @@ public enum WTIcons {
             .font(.system(size: size, weight: .heavy))
             .foregroundStyle(color)
     }
+
+    /// Лійка фільтра. Малюємо шляхом з макета: у SF Symbols лійки немає, а
+    /// `line.3.horizontal.decrease` читається як «сортування», не як «фільтр».
+    public static func filter(color: Color, size: CGFloat = 15) -> some View {
+        WTFunnelShape()
+            .stroke(color, style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
+            .frame(width: size, height: size)
+    }
+}
+
+/// Лійка — `M2 3h12l-4.6 5.2v4.1L6.6 14V8.2z` у сітці 16 × 16 (Design/Achievements.html).
+public struct WTFunnelShape: Shape {
+    public init() {}
+
+    public func path(in rect: CGRect) -> Path {
+        let sx = rect.width / 16, sy = rect.height / 16
+        func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: rect.minX + x * sx, y: rect.minY + y * sy) }
+        var path = Path()
+        path.move(to: p(2, 3))
+        path.addLine(to: p(14, 3))
+        path.addLine(to: p(9.4, 8.2))
+        path.addLine(to: p(9.4, 12.3))
+        path.addLine(to: p(6.6, 14))
+        path.addLine(to: p(6.6, 8.2))
+        path.closeSubpath()
+        return path
+    }
 }
 
 /// Крапля з номером рівня — кнопка переходу на екран прогресу (макет 1a).

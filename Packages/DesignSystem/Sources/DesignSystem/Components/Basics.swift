@@ -276,6 +276,142 @@ public struct WTSegmentedTabs: View {
     }
 }
 
+/// Варіант для рядів вибору — скрол-чипів і меню. `id` стабільний і йде в ідентифікатор e2e.
+public struct WTOption: Identifiable, Equatable, Sendable {
+    public let id: String
+    public let title: String
+
+    public init(id: String, title: String) {
+        self.id = id
+        self.title = title
+    }
+}
+
+/// Скрол-чипи по ширині контенту (екран 2e, чипи стану).
+///
+/// Окремо від `WTSegmentedTabs`: рівні сегменти тут не вміщаються — 354 / 4 = 88 pt,
+/// а «У процесі» просить ~95 (SPEC-ACHIEVEMENTS §3.2).
+public struct WTChipTabs: View {
+    @Environment(\.wtTheme) private var theme
+    private let options: [WTOption]
+    private let selection: String
+    private let identifierPrefix: String
+    private let onSelect: (String) -> Void
+
+    /// Ширина згасання праворуч: чипи йдуть під сусідню кнопку, а не обрізаються «ножем».
+    private static let fadeWidth: CGFloat = 16
+
+    public init(
+        options: [WTOption], selection: String, identifierPrefix: String,
+        onSelect: @escaping (String) -> Void
+    ) {
+        self.options = options
+        self.selection = selection
+        self.identifierPrefix = identifierPrefix
+        self.onSelect = onSelect
+    }
+
+    public var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(options) { option in
+                    let isSelected = option.id == selection
+                    Button { onSelect(option.id) } label: {
+                        Text(option.title)
+                            .font(WTFont.display(14, .semibold))
+                            .foregroundStyle(isSelected ? .white : theme.textPrimary)
+                            .padding(.horizontal, 14)
+                            .frame(height: 36)
+                            .background(isSelected ? theme.accent : theme.chip, in: Capsule())
+                    }
+                    .buttonStyle(WTPressStyle())
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
+                    .accessibilityIdentifier("\(identifierPrefix).\(option.id)")
+                }
+            }
+            // Останній чип має змогу виїхати з-під згасання повністю.
+            .padding(.trailing, Self.fadeWidth)
+        }
+        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+        .mask {
+            HStack(spacing: 0) {
+                Rectangle()
+                LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                    .frame(width: Self.fadeWidth)
+            }
+        }
+        .animation(WTAnimation.fade, value: selection)
+        .wtFeedback(.toggle, trigger: selection)
+    }
+}
+
+/// Кнопка фільтра, яка при активному значенні розгортається в чип «Стріки ✕» (екран 2e).
+///
+/// Контрол прихований рівно доти, доки вимкнений, — і ніколи не приховує того,
+/// що зараз фільтрує (SPEC-ACHIEVEMENTS §3.2).
+public struct WTFilterButton: View {
+    @Environment(\.wtTheme) private var theme
+    private let activeTitle: String?
+    private let accessibilityLabel: String
+    private let identifier: String
+    private let onOpen: () -> Void
+    private let onClear: () -> Void
+
+    public init(
+        activeTitle: String?, accessibilityLabel: String, identifier: String,
+        onOpen: @escaping () -> Void, onClear: @escaping () -> Void
+    ) {
+        self.activeTitle = activeTitle
+        self.accessibilityLabel = accessibilityLabel
+        self.identifier = identifier
+        self.onOpen = onOpen
+        self.onClear = onClear
+    }
+
+    public var body: some View {
+        Group {
+            if let activeTitle {
+                HStack(spacing: 0) {
+                    Button(action: onOpen) {
+                        Text(activeTitle)
+                            .font(WTFont.text(13, .bold))
+                            .foregroundStyle(.white)
+                            .padding(.leading, 14)
+                            .padding(.trailing, 6)
+                            .frame(height: 36)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(WTPressStyle())
+                    .accessibilityLabel(accessibilityLabel)
+                    .accessibilityValue(activeTitle)
+                    .accessibilityIdentifier(identifier)
+
+                    Button(action: onClear) {
+                        WTIcons.close(color: .white.opacity(0.85), size: 11)
+                            .frame(width: 28, height: 36)
+                            .padding(.trailing, 4)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(WTPressStyle())
+                    .accessibilityLabel("Скинути фільтр")
+                    .accessibilityIdentifier("\(identifier).clear")
+                }
+                .background(theme.accent, in: Capsule())
+                .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .trailing)))
+            } else {
+                WTCircleButton(size: 36, action: onOpen) {
+                    WTIcons.filter(color: theme.accent)
+                }
+                .accessibilityLabel(accessibilityLabel)
+                .accessibilityValue("Всі")
+                .accessibilityIdentifier(identifier)
+                .transition(.opacity)
+            }
+        }
+        .animation(WTAnimation.fade, value: activeTitle)
+    }
+}
+
 /// Шапка екрана: кнопка «назад», заголовок по центру, симетричний відступ справа.
 public struct WTNavBar: View {
     @Environment(\.wtTheme) private var theme

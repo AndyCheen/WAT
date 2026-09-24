@@ -82,6 +82,16 @@ public struct WTTheme: Equatable, Sendable {
     )
 }
 
+public extension WTTheme {
+    /// Фон кола відкритого досягнення. `goldIconBg` — фіксований світлий колір, на темному
+    /// екрані він «світиться», тож у темній темі беремо `chip` (SPEC-ACHIEVEMENTS §11).
+    /// Похідне поле замість `if theme.isDark` у кожній вʼюсі.
+    var unlockedIconBg: Color { isDark ? chip : WTColor.goldIconBg }
+
+    /// Фон кола закритого досягнення — та сама причина, що й в `unlockedIconBg`.
+    var lockedIconBg: Color { isDark ? dotOff : WTColor.neutralLocked }
+}
+
 /// Кольори, які не залежать від теми (DESIGN-TOKENS.md §2.2).
 public enum WTColor {
     public static let orange = Color(hex: "#ff8a3d")

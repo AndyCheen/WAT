@@ -213,25 +213,33 @@ public struct WTPrizeCard: View {
     }
 }
 
-/// Плитка досягнення для сітки 3×N з прогрес-баром (макет 2e).
+/// Плитка досягнення для сітки 3×N (макет 2e, SPEC-ACHIEVEMENTS §5.3).
+///
+/// Відкрита плитка під назвою не показує нічого — ні смуги, ні XP: у сітці з двох
+/// десятків комірок однакові «+50 XP» читаються як шум. Нагорода живе в картці деталей.
 public struct WTAchievementTile: View {
     @Environment(\.wtTheme) private var theme
     private let emoji: String
     private let title: String
     private let isUnlocked: Bool
+    private let isNew: Bool
     private let fraction: Double
     private let progressLabel: String
+    private let accessibilityValue: String
     private let onTap: () -> Void
 
     public init(
-        emoji: String, title: String, isUnlocked: Bool,
-        fraction: Double, progressLabel: String, onTap: @escaping () -> Void
+        emoji: String, title: String, isUnlocked: Bool, isNew: Bool = false,
+        fraction: Double, progressLabel: String, accessibilityValue: String,
+        onTap: @escaping () -> Void
     ) {
         self.emoji = emoji
         self.title = title
         self.isUnlocked = isUnlocked
+        self.isNew = isNew
         self.fraction = fraction
         self.progressLabel = progressLabel
+        self.accessibilityValue = accessibilityValue
         self.onTap = onTap
     }
 
@@ -242,13 +250,17 @@ public struct WTAchievementTile: View {
                     .font(.system(size: 22))
                     .opacity(isUnlocked ? 1 : 0.35)
                     .frame(width: 46, height: 46)
-                    .background(isUnlocked ? theme.chip : WTColor.neutralLocked, in: Circle())
+                    .background(isUnlocked ? theme.unlockedIconBg : theme.lockedIconBg, in: Circle())
+                    .overlay(alignment: .topTrailing) {
+                        if isNew { WTNewDot().offset(x: WTNewDot.outset, y: -WTNewDot.outset) }
+                    }
 
                 Text(title)
                     .font(WTFont.display(12, .semibold))
                     .foregroundStyle(isUnlocked ? theme.textPrimary : theme.textMuted)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
+                    .minimumScaleFactor(0.9)
 
                 if !isUnlocked {
                     WTProgressBar(
@@ -268,75 +280,99 @@ public struct WTAchievementTile: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(WTPressStyle(scale: 0.95))
+        .accessibilityLabel("Досягнення: \(title)")
+        .accessibilityValue(accessibilityValue)
     }
 }
 
-/// Картка досягнення для сітки 2×N у шторках (макети 1a і 3f).
-public struct WTAchievementCard: View {
-    @Environment(\.wtTheme) private var theme
-    private let emoji: String
-    private let title: String
-    private let details: String
-    private let isUnlocked: Bool
-
-    public init(emoji: String, title: String, details: String, isUnlocked: Bool) {
-        self.emoji = emoji
-        self.title = title
-        self.details = details
-        self.isUnlocked = isUnlocked
-    }
-
-    public var body: some View {
-        VStack(spacing: 8) {
-            Text(emoji)
-                .font(.system(size: 24))
-                .opacity(isUnlocked ? 1 : 0.35)
-                .frame(width: 52, height: 52)
-                .background(isUnlocked ? WTColor.goldIconBg : theme.dotOff, in: Circle())
-
-            Text(title)
-                .font(WTFont.display(14, .semibold))
-                .foregroundStyle(isUnlocked ? theme.textPrimary : theme.textMuted)
-                .multilineTextAlignment(.center)
-
-            Text(details)
-                .font(WTFont.text(12, .bold))
-                .foregroundStyle(theme.textMuted)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .padding(.horizontal, 10)
-        .background(
-            isUnlocked ? theme.chip : theme.button,
-            in: RoundedRectangle(cornerRadius: WTRadius.tile, style: .continuous)
-        )
-    }
-}
-
-/// Маленький бейдж досягнення для сітки 4×N (макет 3f).
+/// Маленький бейдж досягнення для вітрини 4×2 на екрані «Прогрес» (макет 3f, SPEC-ACHIEVEMENTS §4.1).
+///
+/// Закритий бейдж показує прогрес кільцем по колу: у 48 pt прогрес-бар не вміщається,
+/// а без індикації сірий кружечок у вітрині виглядає як помилка.
 public struct WTAchievementBadge: View {
     @Environment(\.wtTheme) private var theme
     private let emoji: String
     private let title: String
+    private let isUnlocked: Bool
+    private let isNew: Bool
+    private let fraction: Double
+    private let accessibilityValue: String
+    private let onTap: () -> Void
 
-    public init(emoji: String, title: String) {
+    private static let ringWidth: CGFloat = 3
+
+    public init(
+        emoji: String, title: String, isUnlocked: Bool, isNew: Bool = false,
+        fraction: Double, accessibilityValue: String, onTap: @escaping () -> Void
+    ) {
         self.emoji = emoji
         self.title = title
+        self.isUnlocked = isUnlocked
+        self.isNew = isNew
+        self.fraction = fraction
+        self.accessibilityValue = accessibilityValue
+        self.onTap = onTap
     }
 
     public var body: some View {
-        VStack(spacing: 6) {
+        Button(action: onTap) {
+            VStack(spacing: 6) {
+                icon
+                Text(title)
+                    .font(WTFont.text(11, .bold))
+                    .foregroundStyle(isUnlocked ? theme.textPrimary : theme.textMuted)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.9)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(WTPressStyle(scale: 0.95))
+        .accessibilityLabel("Досягнення: \(title)")
+        .accessibilityValue(accessibilityValue)
+    }
+
+    private var icon: some View {
+        ZStack {
+            Circle().fill(isUnlocked ? theme.unlockedIconBg : theme.lockedIconBg)
+            if !isUnlocked {
+                Circle()
+                    .stroke(theme.dotOff, lineWidth: Self.ringWidth)
+                Circle()
+                    .trim(from: 0, to: max(0, min(1, fraction)))
+                    .stroke(theme.accent, style: StrokeStyle(lineWidth: Self.ringWidth, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+            }
             Text(emoji)
                 .font(.system(size: 21))
-                .frame(width: 48, height: 48)
-                .background(theme.chip, in: Circle())
-            Text(title)
-                .font(WTFont.text(11, .bold))
-                .foregroundStyle(theme.textPrimary)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
+                .opacity(isUnlocked ? 1 : 0.35)
         }
+        // Кільце стоїть по внутрішньому краю кола, а не виходить за 48 pt.
+        .padding(Self.ringWidth / 2)
+        .frame(width: 48, height: 48)
+        .overlay(alignment: .topTrailing) {
+            if isNew { WTNewDot().offset(x: WTNewDot.outset, y: -WTNewDot.outset) }
+        }
+    }
+}
+
+/// Помаранчева крапка «щойно відкрито» — однакова на бейджі 3f і плитці 2e.
+struct WTNewDot: View {
+    @Environment(\.wtTheme) private var theme
+
+    /// Зсув від кута кола: макетні `top:-2; right:-2` для самої крапки плюс 2 pt обведення,
+    /// яке входить у рамку вʼюхи.
+    static let outset: CGFloat = 4
+
+    var body: some View {
+        Circle()
+            .fill(WTColor.orange)
+            .frame(width: 8, height: 8)
+            // Обведення кольором фону відокремлює крапку від кола, на якому вона сидить.
+            .padding(2)
+            .background(theme.screen, in: Circle())
+            .accessibilityHidden(true)
     }
 }
 
