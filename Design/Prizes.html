@@ -65,10 +65,21 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
 .task .v{margin-left:auto;font-size:12px;font-weight:900;color:var(--muted)}
 .sub{font-size:12px;font-weight:800;letter-spacing:.3px;color:var(--accent);margin:4px 0 2px}
 
-/* діючий приз — акцентна плашка (ТЗ §4.1) */
-.prow.active{background:var(--chip);border:1.5px solid var(--accent);border-radius:var(--r-panel);padding:12px 14px;margin-bottom:6px}
-.prow.active .pic{background:var(--card)}
-.prow.active .pd{color:var(--accent)}
+/* діючий приз на 3f — статус у заголовку, не рядок (ТЗ §4.1) */
+.status-pill{margin-left:auto;height:30px;padding:0 12px 0 8px;border-radius:var(--r-pill);background:var(--chip);display:flex;align-items:center;gap:6px;
+             font-size:12px;font-weight:900;color:var(--btn-text)}
+.status-pill .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px rgba(90,169,240,.25)}
+.status-pill .num{font-size:13px;font-weight:600}
+.sec-action.after{margin-left:10px}
+/* діючий приз на екрані «Призи» — hero-картка (ТЗ §5.2) */
+.hero{background:var(--card);border-radius:var(--r-panel);padding:16px;box-shadow:0 8px 12px rgba(30,60,120,.06);display:flex;flex-direction:column;gap:12px}
+.hero .top{display:flex;align-items:center;gap:14px}
+.hero .hi{width:52px;height:52px;border-radius:var(--r-control);background:var(--prize-ic);display:flex;align-items:center;justify-content:center;font-size:26px}
+.hero .ht{font-size:17px;font-weight:700}
+.hero .hd{font-size:12px;font-weight:700;color:var(--muted)}
+.hero .hn{margin-left:auto;font-family:Fredoka,Nunito;font-size:28px;font-weight:600;color:var(--accent)}
+.hero .bar{height:6px;border-radius:var(--r-pill);background:var(--track);overflow:hidden}
+.hero .bar i{display:block;height:100%;width:var(--w);background:var(--accent);border-radius:var(--r-pill)}
 
 /* картка призу WTPrizeDetail */
 .overlay{position:absolute;inset:0;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:24px}
@@ -94,7 +105,7 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
 <h1>Модуль «Призи» — дизайн (WAT-26)</h1>
 <p class="lead">Приз — предмет, який користувач <b>сам вирішує, коли використати</b>. У каталозі два призи:
 🧊 заморозка серії і ⚡ подвійний XP до кінця дня (§3). Показуємо <b>лише отримані й не використані</b>:
-діючий — акцентною плашкою, готові — стосами «×N» (кадри 1–2). Без призів блоку на 3f немає.
+діючий — статусом у заголовку на 3f і hero-карткою на екрані «Призи», готові — стосами «×N» (кадри 1–2). Без призів блоку на 3f немає.
 Дія — лише в картці; кількість — бейдж на іконці. Кнопка заморозки — «вчора» або «сьогодні»
 за правилом §6.2 (кадри 3–4). Таймер буста без підпису (кадр 5). Головний екран не змінюється.
 Повний опис — <code>SPEC-PRIZES.md</code>.</p>
@@ -120,12 +131,7 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
         <div class="task"><div class="ck"></div>Випий 500 мл до 12:00<div class="v">300/500</div></div>
       </div>
       <div class="block">
-        <div class="sec"><div class="sec-label">ПРИЗИ</div><div class="sec-action">Всі ›</div></div>
-        <div class="prow active">
-          <div class="pic">⚡</div>
-          <div class="pb"><div class="pt">Подвійний XP</div><div class="pd">Діє до 00:00</div></div>
-          <div class="tail sm">ще 3 год 20 хв</div><div class="chev">›</div>
-        </div>
+        <div class="sec"><div class="sec-label">ПРИЗИ</div><div class="status-pill"><i class="dot"></i>⚡ ×2 XP · <span class="num">3:20</span></div><div class="sec-action after">Всі ›</div></div>
         <div class="prow">
           <div class="pic"><span>🧊</span><i class="new"></i></div>
           <div class="pb"><div class="pt">Заморозка серії</div><div class="pd warn">Можна врятувати серію 12 днів</div></div>
@@ -146,10 +152,9 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
     <div class="frame"><div class="scr">
       <div class="navbar"><div class="circle-btn">‹</div><div class="title">Призи</div><div class="pad"></div></div>
       <div class="sec"><div class="sec-label sm" style="margin-top:0">ДІЄ ЗАРАЗ</div></div>
-      <div class="prow active">
-        <div class="pic">⚡</div>
-        <div class="pb"><div class="pt">Подвійний XP</div><div class="pd">Діє до 00:00</div></div>
-        <div class="tail sm">ще 3 год 20 хв</div><div class="chev">›</div>
+      <div class="hero" style="--w:33%">
+        <div class="top"><div class="hi">⚡</div><div><div class="ht">Подвійний XP</div><div class="hd">×2 XP · діє до 00:00</div></div><div class="hn">3:20</div></div>
+        <div class="bar"><i></i></div>
       </div>
       <div class="sec"><div class="sec-label sm" style="margin-top:22px">ГОТОВІ ДО ВИКОРИСТАННЯ</div></div>
       <div class="prow">
@@ -172,10 +177,9 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
       <div class="scr">
       <div class="navbar"><div class="circle-btn">‹</div><div class="title">Призи</div><div class="pad"></div></div>
       <div class="sec"><div class="sec-label sm" style="margin-top:0">ДІЄ ЗАРАЗ</div></div>
-      <div class="prow active">
-        <div class="pic">⚡</div>
-        <div class="pb"><div class="pt">Подвійний XP</div><div class="pd">Діє до 00:00</div></div>
-        <div class="tail sm">ще 3 год 20 хв</div><div class="chev">›</div>
+      <div class="hero" style="--w:33%">
+        <div class="top"><div class="hi">⚡</div><div><div class="ht">Подвійний XP</div><div class="hd">×2 XP · діє до 00:00</div></div><div class="hn">3:20</div></div>
+        <div class="bar"><i></i></div>
       </div>
       <div class="sec"><div class="sec-label sm" style="margin-top:22px">ГОТОВІ ДО ВИКОРИСТАННЯ</div></div>
       <div class="prow">
@@ -209,10 +213,9 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
       <div class="scr">
       <div class="navbar"><div class="circle-btn">‹</div><div class="title">Призи</div><div class="pad"></div></div>
       <div class="sec"><div class="sec-label sm" style="margin-top:0">ДІЄ ЗАРАЗ</div></div>
-      <div class="prow active">
-        <div class="pic">⚡</div>
-        <div class="pb"><div class="pt">Подвійний XP</div><div class="pd">Діє до 00:00</div></div>
-        <div class="tail sm">ще 3 год 20 хв</div><div class="chev">›</div>
+      <div class="hero" style="--w:33%">
+        <div class="top"><div class="hi">⚡</div><div><div class="ht">Подвійний XP</div><div class="hd">×2 XP · діє до 00:00</div></div><div class="hn">3:20</div></div>
+        <div class="bar"><i></i></div>
       </div>
       <div class="sec"><div class="sec-label sm" style="margin-top:22px">ГОТОВІ ДО ВИКОРИСТАННЯ</div></div>
       <div class="prow">
@@ -246,10 +249,9 @@ h1{font-size:20px;font-weight:800;margin-bottom:6px}
       <div class="scr">
       <div class="navbar"><div class="circle-btn">‹</div><div class="title">Призи</div><div class="pad"></div></div>
       <div class="sec"><div class="sec-label sm" style="margin-top:0">ДІЄ ЗАРАЗ</div></div>
-      <div class="prow active">
-        <div class="pic">⚡</div>
-        <div class="pb"><div class="pt">Подвійний XP</div><div class="pd">Діє до 00:00</div></div>
-        <div class="tail sm">ще 3 год 20 хв</div><div class="chev">›</div>
+      <div class="hero" style="--w:33%">
+        <div class="top"><div class="hi">⚡</div><div><div class="ht">Подвійний XP</div><div class="hd">×2 XP · діє до 00:00</div></div><div class="hn">3:20</div></div>
+        <div class="bar"><i></i></div>
       </div>
       <div class="sec"><div class="sec-label sm" style="margin-top:22px">ГОТОВІ ДО ВИКОРИСТАННЯ</div></div>
       <div class="prow">
