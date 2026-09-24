@@ -121,6 +121,45 @@ public struct WTCountRing: View {
     }
 }
 
+/// Лічильник набору «ВІДКРИТО / 3 / 24» (екран 2e, SPEC-ACHIEVEMENTS §5.2).
+///
+/// Свідомо без смуги й кільця: частку видно із самої сітки, а число однаково
+/// доречне і для 7, і для 240 елементів — верстка від розміру каталогу не залежить.
+/// Пара «маленький лейбл — велике число» та сама, що й у донаті рівня на 3f.
+public struct WTStatCounter: View {
+    @Environment(\.wtTheme) private var theme
+    private let label: String
+    private let value: Int
+    private let total: Int
+
+    public init(label: String, value: Int, total: Int) {
+        self.label = label
+        self.value = value
+        self.total = total
+    }
+
+    public var body: some View {
+        VStack(spacing: 4) {
+            Text(label)
+                .font(WTFont.text(11, .heavy))
+                .tracking(0.3)
+                .foregroundStyle(theme.textMuted)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("\(value)")
+                    .font(WTFont.number(34, .semibold))
+                    .foregroundStyle(theme.accent)
+                    .contentTransition(.numericText(value: Double(value)))
+                Text("/ \(total)")
+                    .font(WTFont.number(20, .medium))
+                    .foregroundStyle(theme.textMuted)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        // Лейбл і число — один елемент для VoiceOver; підпис задає екран.
+        .accessibilityElement(children: .ignore)
+    }
+}
+
 /// Горизонтальний XP-бар (шторка «Нагороди за рівні»).
 public struct WTProgressBar: View {
     @Environment(\.wtTheme) private var theme

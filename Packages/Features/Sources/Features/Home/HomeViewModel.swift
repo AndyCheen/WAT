@@ -8,15 +8,16 @@ import Gamification
 import Insights
 import DesignSystem
 
+/// Шторки головного. Досягнень серед них немає: шторка-дубль екрана 2e з гіршим
+/// набором функцій прибрана, до досягнень веде лише екран (SPEC-ACHIEVEMENTS §1).
 public enum HomeSheet: Identifiable {
-    case custom, calendar, settings, stats, achievements
+    case custom, calendar, settings, stats
     public var id: Int {
         switch self {
         case .custom: return 0
         case .calendar: return 1
         case .settings: return 2
         case .stats: return 3
-        case .achievements: return 4
         }
     }
 }
@@ -30,6 +31,9 @@ public struct HomePulse: Equatable, Identifiable {
         case added(Int)
         case goalReached
         case levelUp(Int)
+        /// Відкрито досягнення. На дотик — як закрита норма, але не як рівень:
+        /// рівень і досягнення мають відрізнятись (SPEC-ACHIEVEMENTS §8).
+        case achievementUnlocked
         case removed
         /// Порція вийшла за стелю 120 % — зараховано менше, ніж випито.
         case capped
@@ -45,13 +49,33 @@ public enum StreakIndicator: Equatable {
     case streak(Int)
 }
 
-/// Тост із можливістю скасувати останню дію.
+/// Тост головного: скасування видалення, новий рівень, нове досягнення.
 public struct HomeToast: Equatable, Identifiable {
+    public enum Action: Equatable {
+        /// Повернути видалену порцію.
+        case restoreIntake(UUID)
+        /// Одне досягнення — одразу його картка.
+        case showAchievement(String)
+        /// Кілька за одну дію — один тост, дія веде на екран 2e.
+        case showAllAchievements
+    }
+
     public let id = UUID()
     public let message: String
     public let actionTitle: String?
+    public let action: Action?
+
+    public init(message: String, actionTitle: String? = nil, action: Action? = nil) {
+        self.message = message
+        self.actionTitle = actionTitle
+        self.action = action
+    }
+
     /// Порція, яку поверне «Скасувати».
-    public let restoreIntakeId: UUID?
+    public var restoreIntakeId: UUID? {
+        if case .restoreIntake(let id) = action { return id }
+        return nil
+    }
 }
 
 @MainActor
@@ -81,6 +105,10 @@ public final class HomeViewModel {
     public private(set) var toast: HomeToast?
 
     public var sheet: HomeSheet?
+    /// Картка досягнення, відкрита з тоста — поверх головного, без переходу.
+    public private(set) var achievementDetail: AchievementSnapshot?
+    /// Перехід на екран 2e — його робить `RootView`, модель лише просить.
+    @ObservationIgnored public var onOpenAchievements: () -> Void = {}
     public var openHistoryId: UUID?
     public var customAmount: Int = 300
 
@@ -89,6 +117,9 @@ public final class HomeViewModel {
         self.day = services.hydration.todaySnapshot()
         self.level = services.gamification.levelProgress()
         reload()
+        // Розблокування зі старту (демо-історія, стартовий `refresh`) — не заслуга
+        // жодної дії на цьому екрані, тост за них був би незрозумілий.
+        _ = services.gamification.takeRecentUnlocks()
     }
 
     public func reload() {
@@ -109,18 +140,29 @@ public final class HomeViewModel {
 
     public func add(_ ml: Int) {
         let levelBefore = level.level
+        _ = services.gamification.takeRecentUnlocks()
         let result = services.hydration.addIntake(amountMl: ml)
+        let unlocked = services.gamification.takeRecentUnlocks()
         services.touch()
         withAnimation(WTAnimation.fade) { reload() }
 
         guard let result else { return }
 
+        // Тост один на дію. Рівень важливіший: він рідший, а про нове досягнення
+        // все одно нагадає крапка на краплі рівня в шапці.
+        if level.level > levelBefore {
+            showToast(HomeToast(message: "Рівень \(level.level)!"))
+        } else if let toast = Self.achievementToast(unlocked) {
+            showToast(toast)
+        }
+
         // Вібрація одна на дію — беремо найпомітнішу з подій.
         if level.level > levelBefore {
-            showToast(HomeToast(message: "Рівень \(level.level)!", actionTitle: nil, restoreIntakeId: nil))
             pulse = HomePulse(kind: .levelUp(level.level))
         } else if result.goalJustReached {
             pulse = HomePulse(kind: .goalReached)
+        } else if !unlocked.isEmpty {
+            pulse = HomePulse(kind: .achievementUnlocked)
         } else if result.cappedAmountMl > 0 {
             pulse = HomePulse(kind: .capped)
         } else {
@@ -145,19 +187,29 @@ public final class HomeViewModel {
 
         pulse = HomePulse(kind: .removed)
         // Видалення мʼяке (`Intake.deletedAt`), тому шлях назад є — просто його досі не пропонували.
-        showToast(HomeToast(message: "Порцію видалено", actionTitle: "Скасувати", restoreIntakeId: id))
+        showToast(HomeToast(message: "Порцію видалено", actionTitle: "Скасувати", action: .restoreIntake(id)))
     }
 
     public func restore(id: UUID) {
         guard services.hydration.restoreIntake(id: id) != nil else { return }
+        // Повернута порція може знову відкрити досягнення — але його вже раз святкували.
+        _ = services.gamification.takeRecentUnlocks()
         services.touch()
         withAnimation(WTAnimation.fade) { reload() }
         pulse = HomePulse(kind: .added(0))
     }
 
-    public func undoToast() {
-        guard let id = toast?.restoreIntakeId else { return }
-        restore(id: id)
+    public func performToastAction() {
+        switch toast?.action {
+        case .restoreIntake(let id):
+            restore(id: id)
+        case .showAchievement(let key):
+            showAchievement(key: key)
+        case .showAllAchievements:
+            onOpenAchievements()
+        case nil:
+            break
+        }
     }
 
     public func dismissToast() {
@@ -179,9 +231,36 @@ public final class HomeViewModel {
         withAnimation(WTAnimation.fade) { reload() }
     }
 
-    public func markAchievementsSeen() {
-        services.gamification.markAchievementsSeen()
-        hasNewAchievements = false
+    // MARK: - Досягнення
+
+    /// «🏅 Досягнення: Перша крапля» або «🏅 Нові досягнення: 2» (SPEC-ACHIEVEMENTS §8).
+    static func achievementToast(_ unlocked: [AchievementSnapshot]) -> HomeToast? {
+        switch unlocked.count {
+        case 0:
+            return nil
+        case 1:
+            return HomeToast(
+                message: "🏅 Досягнення: \(unlocked[0].title)",
+                actionTitle: "Подивитись", action: .showAchievement(unlocked[0].key)
+            )
+        default:
+            return HomeToast(
+                message: "🏅 Нові досягнення: \(unlocked.count)",
+                actionTitle: "Подивитись", action: .showAllAchievements
+            )
+        }
+    }
+
+    /// Крапка «нове» гасне саме на переглянутому досягненні.
+    public func showAchievement(key: String) {
+        guard let item = services.gamification.achievementSnapshots().first(where: { $0.key == key }) else { return }
+        services.gamification.markAchievementSeen(key: key)
+        hasNewAchievements = services.gamification.hasUnseenAchievements
+        withAnimation(WTAnimation.fade) { achievementDetail = item }
+    }
+
+    public func dismissAchievement() {
+        withAnimation(WTAnimation.fade) { achievementDetail = nil }
     }
 
     // MARK: - Шторки
@@ -210,8 +289,6 @@ public final class HomeViewModel {
 
     // MARK: - Дані для шторок
 
-    public var achievements: [AchievementSnapshot] { services.gamification.achievementSnapshots() }
-    public var unlockedCount: Int { achievements.filter(\.isUnlocked).count }
     public var weekSummary: WeekSummary { services.insights.weekSummary() }
     public var monthReport: CalendarMonthReport { services.insights.calendar(month: services.calendar.currentMonth) }
 

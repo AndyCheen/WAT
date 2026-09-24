@@ -24,6 +24,11 @@ public final class GamificationService: MetricsSubscriber {
     /// Захист від рекурсії: внутрішні події (XP, розблокування) не запускають новий цикл.
     private var isEvaluating = false
 
+    /// Досягнення, відкриті діями користувача з моменту останнього `takeRecentUnlocks()`.
+    /// Черга, а не повернене значення: `HydrationService` про гейміфікацію не знає,
+    /// тож дізнатись «що відкрила ця порція» екран може лише тут.
+    private var recentUnlocks: [String] = []
+
     public init(
         store: GamificationStoreProtocol,
         dayLogs: DayLogRepositoryProtocol,
@@ -98,6 +103,7 @@ public final class GamificationService: MetricsSubscriber {
 
         let unlocked = achievements.evaluate(context: makeContext(at: date), triggerRef: event.sourceRef)
         awardAchievementXP(unlocked, at: date)
+        recentUnlocks.append(contentsOf: unlocked.map(\.key))
 
         grantLevelRewards(at: date)
     }
@@ -146,6 +152,7 @@ public final class GamificationService: MetricsSubscriber {
         }
         for key in achievements.revert(context: context, sourceRef: sourceRef, policy: revertPolicy, at: date) {
             xp.revert(refId: DeterministicID.uuid(from: "achievement:\(key)"), at: date)
+            recentUnlocks.removeAll { $0 == key }
         }
     }
 
@@ -162,6 +169,18 @@ public final class GamificationService: MetricsSubscriber {
     public func achievementSnapshots() -> [AchievementSnapshot] { achievements.snapshots() }
     public var hasUnseenAchievements: Bool { achievements.hasUnseenUnlocks }
     public func markAchievementsSeen() { achievements.markAllSeen(at: calendar.now) }
+    public func markAchievementSeen(key: String) { achievements.markSeen(key: key, at: calendar.now) }
+
+    /// Забирає досягнення, відкриті з попереднього виклику, і очищає чергу.
+    /// Екран викликає це до і після дії: «до» — щоб не показати тост за чуже розблокування
+    /// (стартовий `refresh`, демо-історія, повернута порція).
+    public func takeRecentUnlocks() -> [AchievementSnapshot] {
+        defer { recentUnlocks.removeAll() }
+        guard !recentUnlocks.isEmpty else { return [] }
+        let keys = recentUnlocks
+        let snapshots = achievements.snapshots().filter(\.isUnlocked)
+        return keys.compactMap { key in snapshots.first { $0.key == key } }
+    }
 
     /// Призи в інвентарі (макет 3f).
     public func prizes() -> [RewardSnapshot] {

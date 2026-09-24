@@ -239,31 +239,6 @@ struct WeekStatsSheet: View {
     }
 }
 
-/// Досягнення сіткою 2×N (шторка з макета 1a).
-struct AchievementsSheetContent: View {
-    @Bindable var model: HomeViewModel
-
-    var body: some View {
-        WTSheet(maxHeightFraction: 0.78, onDismiss: { model.dismissSheet() }) {
-            let items = model.achievements
-            VStack(spacing: 0) {
-                WTSheetTitle("Досягнення", subtitle: "\(model.unlockedCount) з \(items.count) відкрито")
-                    .padding(.bottom, 22)
-
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                    ForEach(items) { item in
-                        WTAchievementCard(
-                            emoji: item.emoji, title: item.title,
-                            details: item.details, isUnlocked: item.isUnlocked
-                        )
-                    }
-                }
-            }
-        }
-        .onAppear { model.markAchievementsSeen() }
-    }
-}
-
 /// Перетворення звіту календаря в комірки дизайн-системи.
 enum CalendarCellMapper {
     static func cell(_ day: CalendarDay, selected: DayKey? = nil) -> WTCalendarCell {

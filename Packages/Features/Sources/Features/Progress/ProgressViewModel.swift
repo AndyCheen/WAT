@@ -21,8 +21,9 @@ public final class ProgressViewModel {
     /// два окремі перемикачі в одній секції читались би як помилка.
     public private(set) var showCompletedQuests = false
 
-    public var showAllAchievements = false
     public var showLevelRewards = false
+    /// Картка деталей, відкрита з бейджа вітрини — прямо тут, без переходу на 2e.
+    public private(set) var selectedAchievement: AchievementSnapshot?
 
     public init(services: AppServices) {
         self.services = services
@@ -69,9 +70,22 @@ public final class ProgressViewModel {
     public func dismiss(_ flag: ReferenceWritableKeyPath<ProgressViewModel, Bool>) {
         withAnimation(WTAnimation.sheet) { self[keyPath: flag] = false }
     }
-    public var unlockedAchievements: [AchievementSnapshot] { achievements.filter(\.isUnlocked) }
-    public var unlockedCount: Int { unlockedAchievements.count }
-    public var totalCount: Int { achievements.count }
+
+    // MARK: - Досягнення
+
+    /// Вітрина: відкриті й ті, що в процесі, до двох рядів (SPEC-ACHIEVEMENTS §4.1).
+    public var achievementShowcase: [AchievementSnapshot] { achievements.showcase }
+
+    /// Відкриття картки гасить крапку «нове» лише на цьому досягненні — але вітрину
+    /// не перечитуємо до наступного візиту: переглянуте випадає з групи «щойно відкриті»,
+    /// і сітка перетасовувалась би просто під модалкою. Так само поводиться екран 2e.
+    public func selectAchievement(_ item: AchievementSnapshot?) {
+        if let item, item.isNew {
+            services.gamification.markAchievementSeen(key: item.key)
+        }
+        withAnimation(WTAnimation.fade) { selectedAchievement = item }
+    }
+
     public var levelRewards: [LevelRewardSnapshot] { services.gamification.levelRewards() }
     public var xpLabel: String { "\(level.xpIntoLevel)/\(level.xpForNextLevel) XP до рівня \(level.nextLevel)" }
 

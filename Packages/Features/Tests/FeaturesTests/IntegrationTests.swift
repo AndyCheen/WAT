@@ -96,7 +96,7 @@ final class IntegrationTests: XCTestCase {
         XCTAssertEqual(model.day.completionPct, 0)
         XCTAssertEqual(model.toast?.restoreIntakeId, intakeId, "тост пропонує скасування")
 
-        model.undoToast()
+        model.performToastAction()
 
         XCTAssertEqual(model.day.completionPct, pctAfterAdd)
         XCTAssertEqual(model.history.count, 1, "порція повернулась в історію")
@@ -109,7 +109,7 @@ final class IntegrationTests: XCTestCase {
         let model = HomeViewModel(services: services)
         for _ in 0..<3 { model.add(500) }
         XCTAssertEqual(model.pulse?.kind, .added(500), "норма ще не закрита")
-        XCTAssertNil(model.toast)
+        model.dismissToast() // тост «Першої краплі» від першої порції
 
         model.add(500)
         if case .levelUp = model.pulse?.kind {

@@ -30,7 +30,8 @@ public struct RootView: View {
                     themeMode: $themeMode,
                     hapticsEnabled: $hapticsEnabled,
                     onOpenProgress: { path.append(.progress) },
-                    onOpenStats: { path.append(.stats) }
+                    onOpenStats: { path.append(.stats) },
+                    onOpenAchievements: { path.append(.achievements) }
                 )
                 .wtHideNavigationBar()
                 .navigationDestination(for: AppRoute.self) { route in
