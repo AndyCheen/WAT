@@ -147,6 +147,27 @@ final class PrizesFeatureTests: XCTestCase {
         XCTAssertNil(model.success)
     }
 
+    /// Під підтвердженням картка малює вміст на мить дії: у буста після активації з'явився б
+    /// рядок «Уже діє до 00:00», і картка змінила б висоту.
+    func testCardContentIsFrozenWhileConfirming() {
+        services.gamification.grantPrize(key: RewardCatalog.boostKey, source: .seed)
+        services.gamification.grantPrize(key: RewardCatalog.boostKey, source: .seed)
+        let model = PrizeInventoryModel(services: services)
+        let selection = PrizeSelection.stack(stack(model, RewardCatalog.boostKey))
+        model.select(selection)
+        let before = model.presenter.detail(for: selection, inventory: model.inventory, at: model.now)
+
+        model.performSelectedAction()
+
+        let during = model.presenter.detail(
+            for: selection, inventory: model.inventoryAtAction ?? model.inventory, at: model.now
+        )
+        XCTAssertEqual(during, before)
+        XCTAssertFalse(model.inventory.active.isEmpty, "а сам інвентар уже свіжий")
+        model.select(nil)
+        XCTAssertNil(model.inventoryAtAction)
+    }
+
     // MARK: - «Нове»
 
     func testOpeningStackCardClearsItsNewDot() {

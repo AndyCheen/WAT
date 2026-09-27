@@ -294,8 +294,9 @@ public struct WTPrizeDetail: View {
             VStack(spacing: 16) {
                 info
                 if let success {
+                    // Лише прозорість: стискання плашки читалось би як зміна розміру картки.
                     successBar(success)
-                        .transition(.opacity.combined(with: .scale(scale: 0.94)))
+                        .transition(.opacity)
                 } else if let action {
                     WTPrimaryButton(action.title, isEnabled: action.isEnabled, action: onAction)
                         .accessibilityHint(action.isEnabled ? "" : (action.disabledHint ?? ""))
@@ -339,15 +340,30 @@ public struct WTPrizeDetail: View {
                 .foregroundStyle(theme.textPrimary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            Text(success?.message ?? details)
-                .font(WTFont.text(13, .semibold))
-                .foregroundStyle(theme.textMuted)
-                .multilineTextAlignment(.center)
-                .lineLimit(3)
-                .fixedSize(horizontal: false, vertical: true)
-                .contentTransition(.opacity)
-            if success == nil {
-                statusView
+            // Звичайний вміст лишається в розкладці й лише ховається, а результат лягає
+            // поверх: інакше картка при підтвердженні змінювала висоту — зникав рядок стану,
+            // а опис ставав коротшим (рев'ю WAT-34).
+            ZStack(alignment: .top) {
+                VStack(spacing: 10) {
+                    Text(details)
+                        .font(WTFont.text(13, .semibold))
+                        .foregroundStyle(theme.textMuted)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                    statusView
+                }
+                .opacity(success == nil ? 1 : 0)
+
+                if let success {
+                    Text(success.message)
+                        .font(WTFont.text(13, .semibold))
+                        .foregroundStyle(theme.textMuted)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .transition(.opacity)
+                }
             }
         }
         .frame(maxWidth: .infinity)

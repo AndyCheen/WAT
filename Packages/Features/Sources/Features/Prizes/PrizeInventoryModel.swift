@@ -45,6 +45,10 @@ public final class PrizeInventoryModel {
     public private(set) var feedback: PrizeFeedback?
     /// Дію виконано — картка показує підтвердження, а потім закривається сама.
     public private(set) var success: WTPrizeDetailSuccess?
+    /// Інвентар на мить дії — з нього картка малює вміст, поки показує підтвердження.
+    /// Свіжий інвентар змінив би прихований під підтвердженням текст (у буста з'являється
+    /// «Уже діє до 00:00»), і картка змінила б висоту.
+    public private(set) var inventoryAtAction: PrizeInventory?
 
     /// Скільки картка тримає підтвердження: досить, щоб прочитати плашку й побачити
     /// анімацію, але не стільки, щоб довелося закривати руками.
@@ -89,6 +93,7 @@ public final class PrizeInventoryModel {
             selected = selection
             success = nil
         }
+        inventoryAtAction = nil
         if selection == nil { reload() }
     }
 
@@ -121,6 +126,7 @@ public final class PrizeInventoryModel {
         }
         feedback = PrizeFeedback(serial: (feedback?.serial ?? 0) + 1, feedback: haptic)
         services.touch()
+        inventoryAtAction = inventory
         withAnimation(WTAnimation.toast) {
             success = confirmation
             reload()

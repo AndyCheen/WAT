@@ -215,7 +215,9 @@ struct PrizeDetailModal: View {
 
     var body: some View {
         TimelineView(.periodic(from: model.now, by: 60)) { _ in
-            let content = model.presenter.detail(for: selection, inventory: model.inventory, at: model.now)
+            let content = model.presenter.detail(
+                for: selection, inventory: model.inventoryAtAction ?? model.inventory, at: model.now
+            )
             WTPrizeDetail(
                 emoji: content.emoji, title: content.title, count: content.count,
                 details: content.details, status: content.status, action: content.action,

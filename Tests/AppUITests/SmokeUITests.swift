@@ -289,12 +289,22 @@ final class SmokeUITests: XCTestCase {
         let action = app.buttons["prizes.detail.action"]
         XCTAssertTrue(action.waitForExistence(timeout: 5))
         XCTAssertTrue(action.label.hasPrefix("Увімкнути на "), "кнопка каже, скільки діятиме: \(action.label)")
+        let card = app.otherElements["prizes.detail"]
+        // Картка центрована по вертикалі: зміна її висоти зсунула б хрестик у кутку.
+        // Рамку самого блоку не міряємо — кільце успіху навколо іконки розширює її, не
+        // змінюючи розкладки.
+        let close = app.buttons["prizes.detail.close"]
+        let closeY = close.frame.minY
+        let buttonFrame = action.frame
         action.tap()
 
         let success = app.descendants(matching: .any)["prizes.detail.success"]
         XCTAssertTrue(success.waitForExistence(timeout: 2))
         XCTAssertTrue(success.label.hasPrefix("Увімкнено до"), success.label)
-        let card = app.otherElements["prizes.detail"]
+        // Картка не змінює висоту: плашка стає на місце кнопки, опис — поверх прихованого вмісту.
+        XCTAssertEqual(close.frame.minY, closeY, accuracy: 0.5, "висота картки не змінилась")
+        XCTAssertEqual(success.frame.height, buttonFrame.height, accuracy: 0.5, "плашка тієї ж висоти, що кнопка")
+        XCTAssertEqual(success.frame.minY, buttonFrame.minY, accuracy: 0.5, "плашка на місці кнопки")
         wait(for: [expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: card)], timeout: 5)
 
         let active = app.buttons["prizes.active"]
