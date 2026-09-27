@@ -117,7 +117,7 @@ final class PrizesFeatureTests: XCTestCase {
 
         XCTAssertEqual(model.feedback?.feedback, .toggle)
         XCTAssertEqual(model.success?.title, "Увімкнено до 00:00")
-        XCTAssertTrue(services.gamification.isBoostActive(), "бейдж «⚡×2» на рівні має що показати")
+        XCTAssertFalse(model.inventory.active.isEmpty, "бейдж «⚡×2» на донаті рівня 3f має що показати")
         let active = model.inventory.active.first!
         let running = model.presenter.detail(for: .active(active), inventory: model.inventory, at: model.now)
         XCTAssertNil(running.action, "у діючого призу кнопки немає")
@@ -145,20 +145,6 @@ final class PrizesFeatureTests: XCTestCase {
 
         XCTAssertNil(model.selected, "після підтвердження картка закривається сама")
         XCTAssertNil(model.success)
-    }
-
-    func testHomeShowsBoostBadgeOnLevel() {
-        let home = HomeViewModel(services: services)
-        XCTAssertFalse(home.isBoostActive)
-
-        let prize = services.gamification.grantPrize(key: RewardCatalog.boostKey, source: .seed)!
-        services.gamification.activateBoost(prizeId: prize.id)
-        home.reload()
-
-        XCTAssertTrue(home.isBoostActive)
-        clock.set(Self.date(day: 19, hour: 0))
-        home.reload()
-        XCTAssertFalse(home.isBoostActive, "після 00:00 бейдж зникає")
     }
 
     // MARK: - «Нове»

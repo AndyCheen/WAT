@@ -118,12 +118,10 @@ public struct HomeScreen: View {
                         level: model.level.level,
                         color: theme.accent,
                         hasBadge: model.hasNewAchievements,
-                        badgeBorder: theme.screen,
-                        boostBadge: model.isBoostActive ? PrizePresenter.boostBadge : nil
+                        badgeBorder: theme.screen
                     )
                 }
                 .buttonStyle(WTPressStyle())
-                .accessibilityValue(model.isBoostActive ? "Діє подвійний XP" : "")
                 .accessibilityIdentifier("home.level")
             }
         }
