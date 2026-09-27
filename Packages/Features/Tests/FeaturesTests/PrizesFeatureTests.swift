@@ -67,8 +67,15 @@ final class PrizesFeatureTests: XCTestCase {
         model.select(.stack(stack(model, RewardCatalog.freezeKey)))
         model.performSelectedAction()
 
-        XCTAssertNil(model.selected, "після дії картка закривається")
+        XCTAssertNotNil(model.selected, "картка не зникає одразу — показує підтвердження")
+        XCTAssertEqual(model.success?.title, "Серію збережено")
+        XCTAssertEqual(model.success?.message, "Учора заморожено — серія 1 день не обірвалась")
         XCTAssertEqual(model.feedback?.feedback, .goalReached)
+        model.performSelectedAction()
+        XCTAssertEqual(stack(model, RewardCatalog.freezeKey).count, before - 1, "повторний тап під час підтвердження не витрачає ще один приз")
+
+        model.select(nil)
+        XCTAssertNil(model.success)
         let after = stack(model, RewardCatalog.freezeKey)
         XCTAssertEqual(after.count, before - 1, "стос зменшився")
         let card = model.presenter.detail(for: .stack(after), inventory: model.inventory, at: model.now)
@@ -109,10 +116,12 @@ final class PrizesFeatureTests: XCTestCase {
         model.performSelectedAction()
 
         XCTAssertEqual(model.feedback?.feedback, .toggle)
+        XCTAssertEqual(model.success?.title, "Увімкнено до 00:00")
+        XCTAssertTrue(services.gamification.isBoostActive(), "бейдж «⚡×2» на рівні має що показати")
         let active = model.inventory.active.first!
         let running = model.presenter.detail(for: .active(active), inventory: model.inventory, at: model.now)
         XCTAssertNil(running.action, "у діючого призу кнопки немає")
-        XCTAssertEqual(running.status, .timer("3:20"))
+        XCTAssertEqual(running.status, .timer("03:20"))
         XCTAssertEqual(running.details, "Діє до 00:00")
         XCTAssertTrue(running.accessibilityValue.contains("3 години 20 хвилин"), "VoiceOver не читає «3:20» як час")
         XCTAssertEqual(model.presenter.activeSubtitle(active), "×2 XP · діє до 00:00")
@@ -122,6 +131,34 @@ final class PrizesFeatureTests: XCTestCase {
         )
         XCTAssertEqual(other.action?.isEnabled, false)
         XCTAssertEqual(other.status, .info("Уже діє до 00:00"))
+    }
+
+    func testSuccessCardClosesItselfAfterHold() async throws {
+        services.gamification.grantPrize(key: RewardCatalog.boostKey, source: .seed)
+        let model = PrizeInventoryModel(services: services)
+        model.successHold = .milliseconds(50)
+        model.select(.stack(stack(model, RewardCatalog.boostKey)))
+
+        model.performSelectedAction()
+        XCTAssertNotNil(model.success)
+        try await Task.sleep(for: .milliseconds(300))
+
+        XCTAssertNil(model.selected, "після підтвердження картка закривається сама")
+        XCTAssertNil(model.success)
+    }
+
+    func testHomeShowsBoostBadgeOnLevel() {
+        let home = HomeViewModel(services: services)
+        XCTAssertFalse(home.isBoostActive)
+
+        let prize = services.gamification.grantPrize(key: RewardCatalog.boostKey, source: .seed)!
+        services.gamification.activateBoost(prizeId: prize.id)
+        home.reload()
+
+        XCTAssertTrue(home.isBoostActive)
+        clock.set(Self.date(day: 19, hour: 0))
+        home.reload()
+        XCTAssertFalse(home.isBoostActive, "після 00:00 бейдж зникає")
     }
 
     // MARK: - «Нове»
@@ -151,8 +188,9 @@ final class PrizesFeatureTests: XCTestCase {
     // MARK: - Формат
 
     func testDurationsAndPlurals() {
-        XCTAssertEqual(PrizePresenter.shortDuration(3 * 3600 + 20 * 60), "3:20")
-        XCTAssertEqual(PrizePresenter.shortDuration(30), "0:01", "хвилини вгору — «0:00» читалось би як «скінчився»")
+        XCTAssertEqual(PrizePresenter.shortDuration(3 * 3600 + 20 * 60), "03:20", "години з нулем попереду")
+        XCTAssertEqual(PrizePresenter.shortDuration(10 * 3600), "10:00")
+        XCTAssertEqual(PrizePresenter.shortDuration(30), "00:01", "хвилини вгору — «00:00» читалось би як «скінчився»")
         XCTAssertEqual(PrizePresenter.compactDuration(10 * 60), "10 хв")
         XCTAssertEqual(PrizePresenter.compactDuration(2 * 3600), "2 год")
         XCTAssertEqual(PrizePresenter.longDuration(1 * 3600 + 1 * 60), "1 година 1 хвилина")

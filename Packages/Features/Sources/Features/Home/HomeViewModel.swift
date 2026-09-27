@@ -95,6 +95,9 @@ public final class HomeViewModel {
     public private(set) var streak: StreakSummary = .empty
     public private(set) var quickAmounts: [Int] = []
     public private(set) var hasNewAchievements = false
+    /// Діє «Подвійний XP» — бейдж «⚡×2» на краплі рівня (рев'ю WAT-34: після активації
+    /// буст ніде не було видно поза модулем призів).
+    public private(set) var isBoostActive = false
 
     /// Виконані завдання сховані, доки користувач не попросить показати.
     /// Стан екранний: новий день і новий запуск починаються з активного списку.
@@ -130,6 +133,7 @@ public final class HomeViewModel {
         streak = services.gamification.streakSummary()
         quickAmounts = services.hydration.quickAddAmounts()
         hasNewAchievements = services.gamification.hasUnseenAchievements
+        isBoostActive = services.gamification.isBoostActive()
         // Вікно закріплене на першому закритому дні, поки їх менше семи, далі ковзає (WAT-11).
         weekDots = services.calendar
             .slidingWindow(7, anchor: services.hydration.firstGoalMetDay())

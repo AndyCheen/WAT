@@ -104,13 +104,20 @@ public struct WTLevelDrop: View {
     private let size: CGFloat
     private let hasBadge: Bool
     private let badgeBorder: Color
+    private let boostBadge: String?
 
-    public init(level: Int, color: Color, size: CGFloat = 30, hasBadge: Bool = false, badgeBorder: Color = .white) {
+    /// - Parameter boostBadge: «×2» — діє подвійний XP. Бейдж сидить на самому індикаторі
+    ///   рівня: саме сюди дивляться, коли хочуть знати, як швидко росте XP.
+    public init(
+        level: Int, color: Color, size: CGFloat = 30, hasBadge: Bool = false,
+        badgeBorder: Color = .white, boostBadge: String? = nil
+    ) {
         self.level = level
         self.color = color
         self.size = size
         self.hasBadge = hasBadge
         self.badgeBorder = badgeBorder
+        self.boostBadge = boostBadge
     }
 
     public var body: some View {
@@ -133,6 +140,36 @@ public struct WTLevelDrop: View {
             }
         }
         .frame(width: size, height: size)
+        // Бейдж звисає під краплею по центру: у куті він закривав номер рівня —
+        // крапля всього 30 pt, і цифра займає майже всю її ширину.
+        .overlay(alignment: .bottom) {
+            if let boostBadge {
+                WTBoostBadge(label: boostBadge, fontSize: 9, border: badgeBorder)
+                    .fixedSize()
+                    .offset(y: 12)
+                    .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .animation(WTAnimation.toast, value: boostBadge)
+    }
+}
+
+/// «⚡×2» — діє подвійний XP. Один вигляд для краплі рівня (1a) і донату (3f).
+struct WTBoostBadge: View {
+    @Environment(\.wtTheme) private var theme
+    let label: String
+    let fontSize: CGFloat
+    let border: Color
+
+    var body: some View {
+        Text(label)
+            .font(WTFont.text(fontSize, .heavy))
+            .foregroundStyle(.white)
+            .padding(.horizontal, fontSize * 0.5)
+            .padding(.vertical, fontSize * 0.2)
+            .background(WTColor.orange, in: Capsule())
+            .overlay(Capsule().stroke(border, lineWidth: 2))
+            .accessibilityHidden(true)
     }
 }
 

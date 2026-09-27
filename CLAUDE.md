@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 178 unit-тестів 8 пакетів, без симулятора — швидкий цикл
+make test-packages  # 180 unit-тестів 8 пакетів, без симулятора — швидкий цикл
 make test-ui        # 17 e2e-сценаріїв (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
@@ -83,6 +83,8 @@ Features → DesignSystem → Core
 переписувати без рішення). Заморожений день тримає ланцюг серії, але **не додає** до числа.
 Буст множить увесь XP до 00:00 і перемножується з серією; прострочення — похідне від `Clock`.
 Блок 3f і екран «Призи» ділять одну `PrizeInventoryModel` і `PrizePresenter` (усі тексти).
+Після дії картка показує підтвердження й закривається сама (`successHold`); поки діє буст,
+на індикаторі рівня (1a і 3f) — бейдж «⚡×2». Таймер — «06:53», без секунд.
 
 Що саме відкрила конкретна дія, екран дізнається з черги `GamificationService.takeRecentUnlocks()`
 (`HydrationService` про гейміфікацію не знає). `HomeViewModel` чистить чергу **до** дії й читає

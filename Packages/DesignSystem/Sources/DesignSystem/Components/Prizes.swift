@@ -228,6 +228,22 @@ public struct WTPrizeDetailAction: Equatable, Sendable {
     }
 }
 
+/// Підтвердження дії в картці призу: кнопка на місці перетворюється на плашку успіху.
+///
+/// Раніше картка після тапу просто зникала, і було незрозуміло, чи спрацювало взагалі
+/// (WAT-34, рев'ю). Плашка тієї самої висоти, що й кнопка, — картка не «стрибає».
+public struct WTPrizeDetailSuccess: Equatable, Sendable {
+    /// «Увімкнено до 00:00» — на плашці замість кнопки.
+    public let title: String
+    /// «Увесь XP до 00:00 — удвічі» — замість опису.
+    public let message: String
+
+    public init(title: String, message: String) {
+        self.title = title
+        self.message = message
+    }
+}
+
 /// Картка призу — спільна для блоку 3f і екрана «Призи» (§8).
 ///
 /// На відміну від картки досягнення тут є кнопка: картка існує заради рішення
@@ -235,21 +251,27 @@ public struct WTPrizeDetailAction: Equatable, Sendable {
 /// тож окремого алерта «Ви впевнені?» немає.
 public struct WTPrizeDetail: View {
     @Environment(\.wtTheme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Кільце, що розходиться від іконки в мить успіху.
+    @State private var burst = false
     private let emoji: String
     private let title: String
     private let count: Int
     private let details: String
     private let status: WTPrizeDetailStatus
     private let action: WTPrizeDetailAction?
+    private let success: WTPrizeDetailSuccess?
     private let accessibilityValue: String
     private let onAction: () -> Void
     private let onClose: () -> Void
 
+    /// - Parameter success: не `nil` — дію виконано: іконка підстрибує, кнопка стає плашкою.
     /// - Parameter count: «×N» — бейдж на іконці, лише коли N ≥ 2. Кількість належить
     ///   предмету, а не назві: «Заморозка серії ×2» читалось як назва іншого призу.
     public init(
         emoji: String, title: String, count: Int, details: String,
         status: WTPrizeDetailStatus, action: WTPrizeDetailAction?,
+        success: WTPrizeDetailSuccess? = nil,
         accessibilityValue: String, onAction: @escaping () -> Void, onClose: @escaping () -> Void
     ) {
         self.emoji = emoji
@@ -258,6 +280,7 @@ public struct WTPrizeDetail: View {
         self.details = details
         self.status = status
         self.action = action
+        self.success = success
         self.accessibilityValue = accessibilityValue
         self.onAction = onAction
         self.onClose = onClose
@@ -270,14 +293,41 @@ public struct WTPrizeDetail: View {
         ) {
             VStack(spacing: 16) {
                 info
-                if let action {
+                if let success {
+                    successBar(success)
+                        .transition(.opacity.combined(with: .scale(scale: 0.94)))
+                } else if let action {
                     WTPrimaryButton(action.title, isEnabled: action.isEnabled, action: onAction)
                         .accessibilityHint(action.isEnabled ? "" : (action.disabledHint ?? ""))
                         .accessibilityIdentifier("prizes.detail.action")
+                        .transition(.opacity)
                 }
             }
             .frame(maxWidth: .infinity)
         }
+        .onChange(of: success) { _, new in
+            guard let new else { return }
+            // Картка закриється сама — VoiceOver має почути результат до того.
+            AccessibilityNotification.Announcement(new.title).post()
+            guard !reduceMotion else { return }
+            burst = false
+            withAnimation(.easeOut(duration: 0.7)) { burst = true }
+        }
+    }
+
+    /// Та сама висота й радіус, що в `WTPrimaryButton`, — кнопка «перетворюється» на місці.
+    private func successBar(_ success: WTPrizeDetailSuccess) -> some View {
+        HStack(spacing: 8) {
+            WTIcons.check(color: WTColor.successText, size: 16)
+            Text(success.title)
+                .font(WTFont.display(18, .semibold))
+                .foregroundStyle(WTColor.successText)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 17)
+        .background(WTColor.success.opacity(0.14), in: RoundedRectangle(cornerRadius: WTRadius.primaryButton, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("prizes.detail.success")
     }
 
     /// Інформаційна частина — один елемент для VoiceOver; кнопка й хрестик лишаються окремими.
@@ -289,18 +339,21 @@ public struct WTPrizeDetail: View {
                 .foregroundStyle(theme.textPrimary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            Text(details)
+            Text(success?.message ?? details)
                 .font(WTFont.text(13, .semibold))
                 .foregroundStyle(theme.textMuted)
                 .multilineTextAlignment(.center)
                 .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
-            statusView
+                .contentTransition(.opacity)
+            if success == nil {
+                statusView
+            }
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)
-        .accessibilityValue(accessibilityValue)
+        .accessibilityValue(success.map { "\($0.title). \($0.message)" } ?? accessibilityValue)
         .accessibilityIdentifier("prizes.detail")
     }
 
@@ -309,8 +362,36 @@ public struct WTPrizeDetail: View {
             .font(.system(size: 34))
             .frame(width: 72, height: 72)
             .background(theme.prizeIconBg, in: Circle())
+            .background {
+                Circle()
+                    .stroke(theme.accent, lineWidth: 3)
+                    .scaleEffect(burst ? 1.7 : 1)
+                    .opacity(burst ? 0 : (success == nil ? 0 : 0.7))
+            }
+            // Пружний «стрибок» у мить успіху. Тригер — лише поява `success`, тож повторне
+            // відкриття картки не підстрибує.
+            .keyframeAnimator(initialValue: 1.0, trigger: success != nil) { content, scale in
+                content.scaleEffect(scale)
+            } keyframes: { _ in
+                if success != nil && !reduceMotion {
+                    SpringKeyframe(1.18, duration: 0.2, spring: .snappy)
+                    SpringKeyframe(1.0, duration: 0.45, spring: .bouncy)
+                } else {
+                    LinearKeyframe(1.0, duration: 0.01)
+                }
+            }
             .overlay(alignment: .bottomTrailing) {
-                if count >= 2 {
+                if success != nil {
+                    // Кількість уже не актуальна — на її місці галочка «готово».
+                    ZStack {
+                        Circle().fill(WTColor.success)
+                        WTIcons.check(color: .white, size: 11)
+                    }
+                    .frame(width: 24, height: 24)
+                    .overlay(Circle().stroke(theme.sheet, lineWidth: 2))
+                    .offset(x: 2, y: 2)
+                    .transition(.scale.combined(with: .opacity))
+                } else if count >= 2 {
                     Text("×\(count)")
                         .font(WTFont.text(12, .heavy))
                         .foregroundStyle(.white)

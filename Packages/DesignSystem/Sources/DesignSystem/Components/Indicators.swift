@@ -43,11 +43,14 @@ public struct WTLevelDonut: View {
     private let level: Int
     private let fraction: Double
     private let diameter: CGFloat
+    private let boostBadge: String?
 
-    public init(level: Int, fraction: Double, diameter: CGFloat = 112) {
+    /// - Parameter boostBadge: «⚡ ×2» — діє подвійний XP (WAT-34).
+    public init(level: Int, fraction: Double, diameter: CGFloat = 112, boostBadge: String? = nil) {
         self.level = level
         self.fraction = fraction
         self.diameter = diameter
+        self.boostBadge = boostBadge
     }
 
     public var body: some View {
@@ -90,6 +93,15 @@ public struct WTLevelDonut: View {
             }
         }
         .frame(width: diameter, height: diameter)
+        .overlay(alignment: .bottomTrailing) {
+            if let boostBadge {
+                WTBoostBadge(label: boostBadge, fontSize: 13, border: theme.screen)
+                    .fixedSize()
+                    .offset(x: 8, y: -2)
+                    .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .animation(WTAnimation.toast, value: boostBadge)
     }
 }
 

@@ -22,6 +22,9 @@ struct PrizePresenter {
     /// Кінець буста, увімкненого в цю мить, — `GamificationService.boostExpiry(activatedAt:)`.
     let boostExpiry: (Date) -> Date
 
+    /// «⚡×2» на індикаторі рівня, поки діє буст.
+    static let boostBadge = "⚡×2"
+
     static let freezeDetails = "Пропущений день не обірве серію. Серія збережеться, але не зросте"
     static let boostDetails = "Увесь XP до кінця дня — удвічі. Множиться разом із бонусом серії"
 
@@ -123,6 +126,28 @@ struct PrizePresenter {
         )
     }
 
+    /// Підтвердження після дії — що саме сталося, а не «Готово».
+    func success(for stack: PrizeStack, at now: Date) -> WTPrizeDetailSuccess {
+        switch (stack.key, stack.freezeTarget) {
+        case (RewardCatalog.freezeKey, .yesterday(let streak)?):
+            return WTPrizeDetailSuccess(
+                title: "Серію збережено",
+                message: "Учора заморожено — серія \(Self.days(streak)) не обірвалась"
+            )
+        case (RewardCatalog.freezeKey, _):
+            return WTPrizeDetailSuccess(
+                title: "Сьогодні заморожено",
+                message: "Серія не обірветься, навіть якщо норму не закриєш"
+            )
+        default:
+            let until = clockTime(boostExpiry(now))
+            return WTPrizeDetailSuccess(
+                title: "Увімкнено до \(until)",
+                message: "Увесь XP до \(until) — удвічі"
+            )
+        }
+    }
+
     // MARK: - Формат часу
 
     /// «00:00» у локальному часовому поясі застосунку.
@@ -138,10 +163,12 @@ struct PrizePresenter {
         max(0, Int((interval / 60).rounded(.up)))
     }
 
-    /// «3:20» — таймер.
+    /// «06:53» — таймер. Години з нулем попереду (рішення з рев'ю WAT-34), секунд немає:
+    /// буст триває години, а число, що тікає щосекунди, тягнуло б око на й так рухливому
+    /// екрані. Хвилинної точності досить — кінець однаково завжди о 00:00.
     static func shortDuration(_ interval: TimeInterval) -> String {
         let total = minutes(interval)
-        return String(format: "%d:%02d", total / 60, total % 60)
+        return String(format: "%02d:%02d", total / 60, total % 60)
     }
 
     /// «3 год 20 хв» — у кнопці, де місця на повні слова немає.
@@ -192,6 +219,7 @@ struct PrizeDetailModal: View {
             WTPrizeDetail(
                 emoji: content.emoji, title: content.title, count: content.count,
                 details: content.details, status: content.status, action: content.action,
+                success: model.success,
                 accessibilityValue: content.accessibilityValue,
                 onAction: { model.performSelectedAction() },
                 onClose: { model.select(nil) }

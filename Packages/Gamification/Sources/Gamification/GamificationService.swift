@@ -218,6 +218,12 @@ public final class GamificationService: MetricsSubscriber {
         return snapshots.inventory(freezeTarget: hasFreeze ? streaks.freezeTarget(at: now) : nil)
     }
 
+    /// Чи діє зараз «Подвійний XP» — для бейджа на індикаторі рівня. Дешевше за
+    /// `prizeInventory()`: не рахує стоси й ціль заморозки.
+    public func isBoostActive(at date: Date? = nil) -> Bool {
+        xp.boostMultiplier(at: date ?? calendar.now) > 1
+    }
+
     public func freezeTarget(at date: Date? = nil) -> FreezeTarget {
         streaks.freezeTarget(at: date ?? calendar.now)
     }

@@ -259,7 +259,16 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(action.waitForExistence(timeout: 5))
         XCTAssertEqual(action.label, "Заморозити вчора")
         action.tap()
-        XCTAssertFalse(app.otherElements["prizes.detail"].waitForExistence(timeout: 1), "після дії картка закривається")
+
+        // Результат видно в самій картці: кнопка стала плашкою підтвердження.
+        let success = app.descendants(matching: .any)["prizes.detail.success"]
+        XCTAssertTrue(success.waitForExistence(timeout: 2), "після дії картка показує підтвердження")
+        XCTAssertTrue(success.isHittable, "підтвердження видно, а не просто є в дереві")
+        XCTAssertTrue(success.label.contains("Серію збережено"))
+        XCTAssertFalse(action.exists, "кнопки під час підтвердження немає — другий тап нічого не витратить")
+        let card = app.otherElements["prizes.detail"]
+        let closed = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: card)
+        wait(for: [closed], timeout: 5)
 
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
@@ -281,6 +290,12 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(action.waitForExistence(timeout: 5))
         XCTAssertTrue(action.label.hasPrefix("Увімкнути на "), "кнопка каже, скільки діятиме: \(action.label)")
         action.tap()
+
+        let success = app.descendants(matching: .any)["prizes.detail.success"]
+        XCTAssertTrue(success.waitForExistence(timeout: 2))
+        XCTAssertTrue(success.label.hasPrefix("Увімкнено до"), success.label)
+        let card = app.otherElements["prizes.detail"]
+        wait(for: [expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: card)], timeout: 5)
 
         let active = app.buttons["prizes.active"]
         XCTAssertTrue(active.waitForExistence(timeout: 5), "буст зʼявився в «Діє зараз»")

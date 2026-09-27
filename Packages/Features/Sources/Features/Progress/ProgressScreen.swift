@@ -71,7 +71,10 @@ public struct ProgressScreen: View {
     private var levelBlock: some View {
         Button { model.present(\.showLevelRewards) } label: {
             VStack(spacing: 10) {
-                WTLevelDonut(level: model.level.level, fraction: model.level.fraction)
+                WTLevelDonut(
+                    level: model.level.level, fraction: model.level.fraction,
+                    boostBadge: model.prizes.inventory.active.isEmpty ? nil : PrizePresenter.boostBadge
+                )
                 Text(model.xpLabel)
                     .font(WTFont.text(13, .bold))
                     .foregroundStyle(theme.textMuted)
@@ -80,6 +83,7 @@ public struct ProgressScreen: View {
         }
         .buttonStyle(WTPressStyle(scale: 0.97))
         .padding(.bottom, 22)
+        .accessibilityValue(model.prizes.inventory.active.isEmpty ? "" : "Діє подвійний XP")
         .accessibilityIdentifier("progress.level")
     }
 
