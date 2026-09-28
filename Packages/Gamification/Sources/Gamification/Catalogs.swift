@@ -233,33 +233,31 @@ public struct RewardDefinition: Sendable, Identifiable {
     }
 }
 
-/// Нагороди за рівні — послідовність з макета 3f.
+/// Каталог призів (SPEC-PRIZES §3). Правило каталогу: **не видаємо призів, що нічого
+/// не роблять** — «Новий бейдж», «Новий тип завдань» і тема без палітри звідси прибрані.
+/// Предмети зі старими ключами не проходять через `definition(_:)` і просто не показуються.
 public enum RewardCatalog {
+    public static let freezeKey = "streak.freeze"
+    public static let boostKey = "xp.double"
+
+    /// Порядок — порядок рядків в інвентарі: заморозка вище, бо цінніша й рідша.
     public static let all: [RewardDefinition] = [
-        RewardDefinition(key: "badge.hydration", kind: .badge, title: "Новий бейдж",
-                         details: "«Знавець гідратації»", emoji: "🎖️"),
-        RewardDefinition(key: "quests.weekly", kind: .questType, title: "Новий тип завдань",
-                         details: "Щотижневі виклики", emoji: "🧩"),
-        RewardDefinition(key: "theme.ocean", kind: .theme, title: "Приз",
-                         details: "Ексклюзивна тема оформлення", emoji: "🎁"),
-        RewardDefinition(key: "xp.streakBonus", kind: .xpBonus, title: "Бонус XP",
-                         details: "+50 XP за щоденний стрік", emoji: "🌟"),
-        RewardDefinition(key: "streak.freeze", kind: .streakFreeze, title: "Заморозка серії",
-                         details: "Пропустити день без втрати серії", emoji: "🧊")
+        RewardDefinition(key: freezeKey, kind: .streakFreeze, title: "Заморозка серії",
+                         details: "Пропущений день не обірве серію", emoji: "🧊"),
+        RewardDefinition(key: boostKey, kind: .xpBoost, title: "Подвійний XP",
+                         details: "×2 XP до кінця дня", emoji: "⚡")
     ]
 
     public static func definition(_ key: String) -> RewardDefinition? {
         all.first { $0.key == key }
     }
 
-    /// Яка нагорода видається на кожному рівні (макет 3f циклічно повторює 4 типи,
-    /// а кожен 5-й рівень додає заморозку серії).
+    /// Рівно один приз на рівень (§3.4): «НАГОРОДА НА РІВНІ N» завжди один рядок.
+    /// Заморозка — кожен третій рівень: рідша за буст, бо рятує серію, а серія —
+    /// головний множник XP. Рівень 1 стартовий, нагороди за нього немає.
     public static func rewards(forLevel level: Int) -> [RewardDefinition] {
-        let cycle = Array(all.prefix(4))
-        var result = [cycle[(max(1, level) - 1) % cycle.count]]
-        if level % 5 == 0, let freeze = definition("streak.freeze") {
-            result.append(freeze)
-        }
-        return result
+        guard level > 1 else { return [] }
+        let key = level % 3 == 0 ? freezeKey : boostKey
+        return definition(key).map { [$0] } ?? []
     }
 }

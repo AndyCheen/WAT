@@ -52,16 +52,20 @@ public enum QuestState: Int, Codable, Sendable {
     case active = 0, completed, expired, claimed
 }
 
+/// `questType` і `badge` прибрано (SPEC-PRIZES §3.2): предмет без дії — це досягнення
+/// або властивість рівня, а не приз. Raw-значення решти не зсуваються.
 public enum RewardKind: Int, Codable, CaseIterable, Sendable {
-    case theme = 0, xpBonus, streakFreeze, questType, badge
+    case theme = 0, xpBoost, streakFreeze
 }
 
 public enum RewardSource: Int, Codable, Sendable {
     case level = 0, quest, achievement, random, seed
 }
 
+/// `ready` раніше звався `new` і плутав «не бачив» із «не використав» — тепер
+/// «нове» живе окремо в `RewardItem.seenAt`. Raw 0 лишився, тож збережені записи читаються.
 public enum RewardItemState: Int, Codable, Sendable {
-    case new = 0, active, used, expired
+    case ready = 0, active, used, expired
 }
 
 /// «Всі» тут свідомо немає: це псевдо-таб фільтра, а не категорія. Коли він був

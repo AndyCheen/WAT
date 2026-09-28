@@ -13,7 +13,8 @@ public final class ProgressViewModel {
     public private(set) var level: LevelProgress
     public private(set) var dailyQuests: [QuestSnapshot] = []
     public private(set) var weeklyQuests: [QuestSnapshot] = []
-    public private(set) var prizes: [RewardSnapshot] = []
+    /// Інвентар, картка й дія з призом — спільні з екраном «Призи».
+    public let prizes: PrizeInventoryModel
     public private(set) var achievements: [AchievementSnapshot] = []
     public private(set) var nextReward: (level: Int, rewards: [LevelRewardSnapshot])
 
@@ -27,6 +28,7 @@ public final class ProgressViewModel {
 
     public init(services: AppServices) {
         self.services = services
+        self.prizes = PrizeInventoryModel(services: services)
         self.level = services.gamification.levelProgress()
         self.nextReward = services.gamification.nextLevelRewards()
         reload()
@@ -36,7 +38,7 @@ public final class ProgressViewModel {
         level = services.gamification.levelProgress()
         dailyQuests = services.gamification.dailyQuests()
         weeklyQuests = services.gamification.weeklyQuests()
-        prizes = services.gamification.prizes()
+        prizes.reload()
         achievements = services.gamification.achievementSnapshots()
         nextReward = services.gamification.nextLevelRewards()
     }
@@ -88,10 +90,4 @@ public final class ProgressViewModel {
 
     public var levelRewards: [LevelRewardSnapshot] { services.gamification.levelRewards() }
     public var xpLabel: String { "\(level.xpIntoLevel)/\(level.xpForNextLevel) XP до рівня \(level.nextLevel)" }
-
-    public func activate(prize: RewardSnapshot) {
-        services.gamification.activatePrize(id: prize.id)
-        services.touch()
-        reload()
-    }
 }

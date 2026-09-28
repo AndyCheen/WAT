@@ -2,6 +2,7 @@ import Foundation
 import Core
 import Persistence
 import Hydration
+import Gamification
 
 /// Детерміновані демо-дані: історія за 60 днів + сьогоднішній день як у макетах.
 /// Використовується в дизайн-QA, превʼю та e2e-тестах (PLAN.md §9).
@@ -29,12 +30,18 @@ public enum FixtureSeeder {
             let date = calendar.date(from: dayKey)
             let seed = stableHash(dayKey.rawValue)
 
+            // Учора пропущено, а позавчора норму закрито — сценарій «заморозити вчора»
+            // (SPEC-PRIZES §11): e2e перевіряє обидва тексти кнопки заморозки.
+            if offset == 1 { continue }
+
             // Кожен 9-й день пропускаємо — щоб серії й календар мали розриви.
-            if seed % 9 == 0 { continue }
+            if seed % 9 == 0, offset != 2 { continue }
 
             // Пропуск і патерн беремо з різних половин хешу: спільне джерело остач
             // корелює (9 і 6 мають дільник 3) і перекошує частку днів із закритою нормою.
-            let pattern = patterns[Int((seed >> 32) % UInt64(patterns.count))]
+            let pattern = offset == 2
+                ? patterns[0]
+                : patterns[Int((seed >> 32) % UInt64(patterns.count))]
             for entry in pattern {
                 var components = DateComponents()
                 components.year = dayKey.year
@@ -56,9 +63,22 @@ public enum FixtureSeeder {
             services.hydration.addIntake(amountMl: entry.ml, source: .seed, at: stamp)
         }
 
-        // Два призи в інвентарі — як на макеті 3f.
         services.gamification.refresh(at: calendar.now)
+        topUpPrizes(services)
         services.touch()
+    }
+
+    /// Демо-інвентар: щонайменше 2 заморозки (обидва тексти кнопки) і 1 буст.
+    /// Рівні видають призи й самі, але скільки саме — залежить від дати запуску.
+    private static func topUpPrizes(_ services: AppServices) {
+        let ready = services.gamification.prizeInventory().ready
+        let minimum = [RewardCatalog.freezeKey: 2, RewardCatalog.boostKey: 1]
+        for (key, count) in minimum {
+            let have = ready.first { $0.key == key }?.count ?? 0
+            for _ in 0..<max(0, count - have) {
+                services.gamification.grantPrize(key: key, source: .seed)
+            }
+        }
     }
 
     /// FNV-1a — хеш, стабільний між запусками процесу.

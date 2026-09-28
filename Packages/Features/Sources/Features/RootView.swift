@@ -5,10 +5,11 @@ import DesignSystem
 public enum AppRoute: Hashable {
     case progress
     case achievements
+    case prizes
     case stats
 }
 
-/// Кореневий екран: стек навігації 1a → 3f → 2e, 1a → 4a (PLAN.md §8).
+/// Кореневий екран: стек навігації 1a → 3f → 2e, 1a → 3f → «Призи», 1a → 4a (PLAN.md §8).
 public struct RootView: View {
     @State private var services: AppServices
     @State private var path: [AppRoute] = []
@@ -48,10 +49,13 @@ public struct RootView: View {
             ProgressScreen(
                 services: services,
                 onBack: { path.removeLast() },
-                onOpenAllAchievements: { path.append(.achievements) }
+                onOpenAllAchievements: { path.append(.achievements) },
+                onOpenAllPrizes: { path.append(.prizes) }
             )
         case .achievements:
             AchievementsScreen(services: services, onBack: { path.removeLast() })
+        case .prizes:
+            PrizesScreen(services: services, onBack: { path.removeLast() })
         case .stats:
             StatsScreen(services: services, onBack: { path.removeLast() })
         }

@@ -136,6 +136,26 @@ public struct WTLevelDrop: View {
     }
 }
 
+/// «⚡×2» — діє подвійний XP, на донаті рівня (3f). На краплі головного екрана бейджа
+/// немає свідомо (рішення від 27.09.2026): шапка 1a лишається без змін.
+struct WTBoostBadge: View {
+    @Environment(\.wtTheme) private var theme
+    let label: String
+    let fontSize: CGFloat
+    let border: Color
+
+    var body: some View {
+        Text(label)
+            .font(WTFont.text(fontSize, .heavy))
+            .foregroundStyle(.white)
+            .padding(.horizontal, fontSize * 0.5)
+            .padding(.vertical, fontSize * 0.2)
+            .background(WTColor.orange, in: Capsule())
+            .overlay(Capsule().stroke(border, lineWidth: 2))
+            .accessibilityHidden(true)
+    }
+}
+
 /// Довга серія в шапці: число днів і одна крапля замість рядка крапок (WAT-10).
 ///
 /// Колір розведений навмисне: помаранчева тут тільки крапля, число — звичайний

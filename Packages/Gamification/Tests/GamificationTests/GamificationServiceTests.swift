@@ -167,24 +167,14 @@ final class GamificationServiceTests: XCTestCase {
         XCTAssertGreaterThan(env.game.levelProgress().level, 1)
     }
 
-    func testPrizeActivationGrantsFreezeToken() {
-        let env = GameEnv()
-        let item = RewardItem(defKey: "streak.freeze", source: .quest, acquiredAt: env.clock.now)
-        env.store.insertReward(item)
-        env.store.save()
-
-        XCTAssertTrue(env.game.activatePrize(id: item.id))
-        XCTAssertEqual(env.game.streakSummary().freezeTokens, 1)
-        XCTAssertFalse(env.game.activatePrize(id: item.id), "приз не можна активувати двічі")
-    }
-
     func testLevelRewardsMarkUnlockedUpToCurrentLevel() {
         let env = GameEnv()
         let rewards = env.game.levelRewards()
-        XCTAssertTrue(rewards.first { $0.level == 1 }!.isUnlocked)
-        XCTAssertFalse(rewards.first { $0.level == 5 }!.isUnlocked)
-        XCTAssertTrue(rewards.contains { $0.level == 5 && $0.key == "streak.freeze" },
-                      "кожен 5-й рівень додає заморозку серії")
+        XCTAssertFalse(rewards.contains { $0.level == 1 }, "стартовий рівень нагороди не дає")
+        XCTAssertFalse(rewards.first { $0.level == 2 }!.isUnlocked)
+        XCTAssertEqual(rewards.first { $0.level == 3 }?.key, "streak.freeze", "кожен 3-й рівень — заморозка")
+        XCTAssertEqual(rewards.first { $0.level == 4 }?.key, "xp.double")
+        XCTAssertEqual(Set(rewards.map(\.level)).count, rewards.count, "по одному призу на рівень")
     }
 }
 

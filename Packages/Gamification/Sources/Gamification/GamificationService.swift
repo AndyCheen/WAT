@@ -62,7 +62,7 @@ public final class GamificationService: MetricsSubscriber {
     /// Повний перерахунок стану — на старті застосунку та при зміні доби.
     public func refresh(at date: Date) {
         grantLevelRewards(at: date)
-        streaks.recompute(at: date)
+        recomputeStreaks(at: date)
         let context = makeContext(at: date)
         quests.ensureInstances(context: context, level: xp.progress().level)
         let completed = quests.evaluate(context: context, triggerRef: nil)
@@ -81,7 +81,7 @@ public final class GamificationService: MetricsSubscriber {
         let date = event.occurredAt
 
         if event.name == .dayGoalMet {
-            streaks.recompute(at: date)
+            recomputeStreaks(at: date)
             publishStreakMetric(at: date)
         }
 
@@ -108,8 +108,10 @@ public final class GamificationService: MetricsSubscriber {
         grantLevelRewards(at: date)
     }
 
-    /// Кожен новий рівень кладе свої нагороди в інвентар призів (макет 3f).
+    /// Кожен новий рівень кладе свій приз в інвентар (SPEC-PRIZES §3.4).
     /// Дедуплікація — за детермінованим ключем, тому повторний виклик безпечний.
+    /// Відкат рівня призу не забирає: повторна видача однаково неможлива, а витрачену
+    /// заморозку не забереш — «виданий приз не відкликається» єдине несуперечливе правило.
     @discardableResult
     public func grantLevelRewards(at date: Date) -> [RewardItem] {
         let level = xp.progress().level
@@ -142,7 +144,7 @@ public final class GamificationService: MetricsSubscriber {
         // 1. Забираємо XP, нарахований саме цією дією.
         xp.revert(refId: sourceRef, at: date)
         // 2. Серія перераховується з денних логів — вона вже врахувала зміну.
-        streaks.recompute(at: date)
+        recomputeStreaks(at: date)
 
         let context = makeContext(at: date)
         // 3. Завдання та досягнення знімаються, якщо умова більше не виконується.
@@ -159,7 +161,15 @@ public final class GamificationService: MetricsSubscriber {
     // MARK: - Знімки для UI
 
     public func levelProgress() -> LevelProgress { xp.progress() }
-    public func streakSummary() -> StreakSummary { streaks.summary() }
+    /// Серія + кількість готових заморозок з інвентаря (жетонів у `StreakState` більше немає).
+    public func streakSummary() -> StreakSummary {
+        let summary = streaks.summary()
+        let freezes = store.rewardItems(defKey: RewardCatalog.freezeKey).filter { $0.state == .ready }.count
+        return StreakSummary(
+            current: summary.current, longest: summary.longest,
+            freezeTokens: freezes, lastCountedDay: summary.lastCountedDay
+        )
+    }
     public func dailyQuests(at date: Date? = nil) -> [QuestSnapshot] {
         quests.snapshots(scope: .daily, at: date ?? calendar.now)
     }
@@ -182,37 +192,100 @@ public final class GamificationService: MetricsSubscriber {
         return keys.compactMap { key in snapshots.first { $0.key == key } }
     }
 
-    /// Призи в інвентарі (макет 3f).
-    public func prizes() -> [RewardSnapshot] {
-        store.rewardItems().compactMap { item in
+    // MARK: - Призи (SPEC-PRIZES)
+
+    /// Усі призи з відомими ключами, у т. ч. використані: екранам потрібен `prizeInventory()`,
+    /// а повний список — тестам і аналітиці.
+    public func prizes(at date: Date? = nil) -> [RewardSnapshot] {
+        let now = date ?? calendar.now
+        return store.rewardItems().compactMap { item in
             guard let definition = RewardCatalog.definition(item.defKey) else { return nil }
             return RewardSnapshot(
                 id: item.id, key: item.defKey, title: definition.title, details: definition.details,
-                emoji: definition.emoji, kind: definition.kind, isActivated: item.activatedAt != nil
+                emoji: definition.emoji, kind: definition.kind, state: Self.prizeState(item, at: now),
+                isNew: item.state == .ready && item.seenAt == nil,
+                acquiredAt: item.acquiredAt, activatedAt: item.activatedAt, expiresAt: item.expiresAt
             )
         }
     }
 
-    @discardableResult
-    public func activatePrize(id: UUID, at date: Date? = nil) -> Bool {
+    /// Інвентар для блоку 3f і екрана «Призи»: діючі + готові стоси.
+    public func prizeInventory(at date: Date? = nil) -> PrizeInventory {
         let now = date ?? calendar.now
-        guard let item = store.rewardItems().first(where: { $0.id == id }), item.activatedAt == nil else {
-            return false
-        }
-        item.activatedAt = now
-        item.state = .active
-        store.save()
+        let snapshots = prizes(at: now)
+        let hasFreeze = snapshots.contains { $0.key == RewardCatalog.freezeKey && $0.state == .ready }
+        // `freezeTarget` читає DayLog — не рахуємо його, коли заморожувати нічим.
+        return snapshots.inventory(freezeTarget: hasFreeze ? streaks.freezeTarget(at: now) : nil)
+    }
 
-        if item.defKey == "streak.freeze" {
-            streaks.grantFreezeToken()
+    public func freezeTarget(at date: Date? = nil) -> FreezeTarget {
+        streaks.freezeTarget(at: date ?? calendar.now)
+    }
+
+    /// Кінець дії буста, увімкненого в `date`: найближча локальна північ, а не +24 год —
+    /// «день» у застосунку одиниця всього (норма, серія, завдання).
+    public func boostExpiry(activatedAt date: Date) -> Date {
+        calendar.date(from: calendar.dayKey(offsetDays: 1, from: calendar.dayKey(for: date)))
+    }
+
+    public var hasUnseenPrizes: Bool {
+        store.rewardItems().contains { $0.state == .ready && $0.seenAt == nil && RewardCatalog.definition($0.defKey) != nil }
+    }
+
+    /// Гасить крапку «нове» на всіх готових — при відкритті екрана «Призи».
+    public func markPrizesSeen() { markSeen { _ in true } }
+
+    /// Гасить крапку «нове» на одному стосі — при відкритті його картки.
+    public func markPrizesSeen(key: String) { markSeen { $0.defKey == key } }
+
+    /// Кладе приз в інвентар поза рівнями (демо-дані; у майбутньому — призи за завдання).
+    @discardableResult
+    public func grantPrize(key: String, source: RewardSource, at date: Date? = nil) -> RewardSnapshot? {
+        guard RewardCatalog.definition(key) != nil else { return nil }
+        let item = RewardItem(defKey: key, source: source, acquiredAt: date ?? calendar.now)
+        store.insertReward(item)
+        store.save()
+        return prizes(at: date).first { $0.id == item.id }
+    }
+
+    /// Використовує заморозку. День обирається **тут**, за `freezeTarget` на цю мить, а не
+    /// той, що був на кнопці: якщо між відкриттям картки й тапом настала північ, ціль інша.
+    /// `false` — приз не готовий або заморожувати нічого (сьогодні вже зараховано).
+    @discardableResult
+    public func useFreeze(prizeId: UUID, at date: Date? = nil) -> Bool {
+        let now = date ?? calendar.now
+        guard let item = readyItem(id: prizeId, key: RewardCatalog.freezeKey) else { return false }
+        let today = calendar.dayKey(for: now)
+        let day: DayKey
+        switch streaks.freezeTarget(at: now) {
+        case .yesterday: day = calendar.dayKey(offsetDays: -1, from: today)
+        case .today: day = today
+        case .todayAlreadyCounted: return false
         }
-        if item.defKey == "xp.streakBonus" {
-            xp.award(amount: 50, reason: .prize, refId: item.id, at: now)
-        }
-        metrics.record(MetricEvent(
-            name: .prizeActivated, value: 1, occurredAt: now, sourceRef: item.id,
-            payload: ["key": item.defKey]
-        ))
+
+        item.state = .used
+        item.activatedAt = now
+        item.usedOnDayKey = day.rawValue
+        store.save()
+        streaks.freeze(day: day, at: now)
+        recordActivation(item, at: now)
+        return true
+    }
+
+    /// Вмикає «Подвійний XP» до найближчої півночі. Одночасно діє лише один буст:
+    /// черги немає, поки діє — `false`.
+    @discardableResult
+    public func activateBoost(prizeId: UUID, at date: Date? = nil) -> Bool {
+        let now = date ?? calendar.now
+        guard let item = readyItem(id: prizeId, key: RewardCatalog.boostKey),
+              xp.boostMultiplier(at: now) == 1 else { return false }
+
+        item.state = .active
+        item.activatedAt = now
+        item.expiresAt = boostExpiry(activatedAt: now)
+        store.save()
+        xp.invalidateBoosts()
+        recordActivation(item, at: now)
         return true
     }
 
@@ -245,6 +318,52 @@ public final class GamificationService: MetricsSubscriber {
     private static let internalMetrics: Set<MetricKey> = [
         .xpEarned, .levelReached, .achievementUnlocked, .questCompleted, .streakCurrent, .prizeActivated
     ]
+
+    private static func prizeState(_ item: RewardItem, at date: Date) -> PrizeState {
+        switch item.state {
+        case .ready: return .ready
+        case .used: return .used
+        case .expired: return .expired
+        case .active:
+            guard let expiresAt = item.expiresAt else { return .active }
+            return date < expiresAt ? .active : .expired
+        }
+    }
+
+    private func readyItem(id: UUID, key: String) -> RewardItem? {
+        store.rewardItems(defKey: key).first { $0.id == id && $0.state == .ready }
+    }
+
+    private func markSeen(where matches: (RewardItem) -> Bool) {
+        let unseen = store.rewardItems().filter { $0.state == .ready && $0.seenAt == nil && matches($0) }
+        guard !unseen.isEmpty else { return }
+        for item in unseen { item.seenAt = calendar.now }
+        store.save()
+    }
+
+    /// Дія з призом — окрема дія користувача, тож і `commit()` свій, один (CLAUDE.md, батчинг).
+    private func recordActivation(_ item: RewardItem, at date: Date) {
+        metrics.record(MetricEvent(
+            name: .prizeActivated, value: 1, occurredAt: date, sourceRef: item.id,
+            payload: ["key": item.defKey]
+        ))
+        metrics.commit()
+    }
+
+    /// Перерахунок серії + відкат метрики `prize.activated` для заморозок, які повернулися
+    /// в інвентар: інакше повторне використання того самого предмета відсіклось би
+    /// ідемпотентністю шини. Під `isEvaluating`, щоб власний відкат не запустив цикл реверсу.
+    private func recomputeStreaks(at date: Date) {
+        streaks.recompute(at: date)
+        let returned = streaks.takeReturnedFreezes()
+        guard !returned.isEmpty else { return }
+        let wasEvaluating = isEvaluating
+        isEvaluating = true
+        defer { isEvaluating = wasEvaluating }
+        for id in returned {
+            metrics.revert(sourceRef: id, at: date)
+        }
+    }
 
     private func makeContext(at date: Date) -> RuleContext {
         let streak = streaks.summary()

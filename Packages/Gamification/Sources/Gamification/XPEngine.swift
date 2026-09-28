@@ -12,6 +12,10 @@ public final class XPEngine {
     public let curve: LevelCurve
     public var rules: XPRules
 
+    /// Вікна дії бустів `[activatedAt, expiresAt)`. Кеш, бо `award` викликається кілька
+    /// разів на кожну порцію (PerformanceTests); скидається в `invalidateBoosts()`.
+    private var boostWindows: [Range<Date>]?
+
     public init(
         store: GamificationStoreProtocol,
         metrics: MetricsService,
@@ -50,7 +54,10 @@ public final class XPEngine {
     ) -> Int {
         guard amount > 0 else { return 0 }
         let levelBefore = progress().level
-        let multiplier = reason == .intake ? rules.multiplier(streak: streak) : 1
+        // Буст множить увесь XP, а не лише порції, і перемножується з серією (SPEC-PRIZES §7).
+        // Визначається за `date` нарахування, тож і демо-історія, і північ рахуються чесно.
+        let streakMultiplier = reason == .intake ? rules.multiplier(streak: streak) : 1
+        let multiplier = streakMultiplier * boostMultiplier(at: date)
 
         let entry = XPEntry(
             amount: amount,
@@ -92,6 +99,24 @@ public final class XPEngine {
         syncCache(after, at: date)
         return removed
     }
+
+    /// ×2, якщо на момент `date` діє «Подвійний XP».
+    public func boostMultiplier(at date: Date) -> Double {
+        if boostWindows == nil {
+            boostWindows = store.rewardItems(defKey: RewardCatalog.boostKey).compactMap { item in
+                guard let start = item.activatedAt, let end = item.expiresAt, start < end else { return nil }
+                return start..<end
+            }
+        }
+        return boostWindows?.contains { $0.contains(date) } == true ? Self.boostFactor : 1
+    }
+
+    /// Викликати після активації буста — інакше кеш вікон його не побачить.
+    public func invalidateBoosts() {
+        boostWindows = nil
+    }
+
+    static let boostFactor: Double = 2
 
     private func syncCache(_ progress: LevelProgress, at date: Date) {
         let state = store.levelState()
