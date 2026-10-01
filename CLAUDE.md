@@ -8,6 +8,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 пояснює *чому*, а не *що*: у цьому репозиторії вони фіксують прийняті рішення
 й пастки, а не переказують сусідній рядок.
 
+Тексти інтерфейсу звертаються до користувача на **«ти»** і без родового минулого часу
+(«пив / пила») — навіть коли стать відома (SPEC-NOTIFICATIONS §14.1).
+
 ## Команди
 
 Потрібен `xcodegen` (`brew install xcodegen`). `WaterTracker.xcodeproj` у `.gitignore` —
