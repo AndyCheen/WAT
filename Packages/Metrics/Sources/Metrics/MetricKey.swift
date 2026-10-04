@@ -35,7 +35,15 @@ public struct MetricKey: RawRepresentable, Hashable, Codable, Sendable, Expressi
 
     // Поведінка
     public static let appOpened: MetricKey = "app.opened"
+    /// Порція протягом 60 хв після сповіщення; значення — хвилини до порції (SPEC-NOTIFICATIONS §3.2).
     public static let reminderResponded: MetricKey = "reminder.responded"
+
+    // Сповіщення (SPEC-NOTIFICATIONS §16.9). `sourceRef` — id рядка журналу, тож повторна
+    // звірка при переплануванні нічого не подвоює.
+    public static let notificationDelivered: MetricKey = "notification.delivered"
+    public static let notificationOpened: MetricKey = "notification.opened"
+    public static let notificationSnoozed: MetricKey = "notification.snoozed"
+    public static let notificationPaused: MetricKey = "notification.paused"
 
     public static func part(_ index: Int) -> MetricKey {
         [partMorning, partNoon, partAfternoon, partEvening, partNight][max(0, min(4, index))]
