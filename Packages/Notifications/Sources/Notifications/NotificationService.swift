@@ -313,6 +313,8 @@ public final class NotificationService: MetricsSubscriber {
     /// Розблокування від порції, внесеної поза відкритим застосунком, — одразу сповіщенням.
     public func sendEcho(title: String, body: String, route: NotificationTapRoute, intakeId: UUID, at date: Date) async {
         let preferences = preferences()
+        // Холодний старт від дії: перший прохід перепланування ще не встиг перевірити дозвіл.
+        if authorization == nil { authorization = await center.authorization() }
         guard authorization == .authorized, preferences.isEnabled, preferences.echoEnabled else { return }
         let day = calendar.dayKey(for: date)
         let identifier = "wt.echo.\(day.rawValue).\(intakeId.uuidString.prefix(8).lowercased())"

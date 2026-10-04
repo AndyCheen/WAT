@@ -98,6 +98,13 @@ final class NotificationServiceTests: XCTestCase {
         XCTAssertTrue(scheduledIds.contains { $0.hasPrefix("wt.echo.2026-10-01.") })
     }
 
+    /// Дія, що запустила застосунок із закритого стану, приходить раніше за перше перепланування.
+    func testEchoOnColdStartChecksPermissionItself() async {
+        XCTAssertNil(service.authorization)
+        await service.sendEcho(title: "🎉 Рівень 3", body: "", route: .progress, intakeId: UUID(), at: clock.now)
+        XCTAssertTrue(scheduledIds.contains { $0.hasPrefix("wt.echo.") })
+    }
+
     func testEchoRespectsItsSwitch() async {
         await service.rescheduleNow()
         service.settings.echoEnabled = false
