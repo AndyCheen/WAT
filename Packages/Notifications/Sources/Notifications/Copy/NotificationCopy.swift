@@ -125,28 +125,30 @@ enum NotificationCopy {
     static func bounceBackInsert(xp: Int) -> String {
         "Закриєш норму сьогодні — +\(xp) XP «Знову в ритмі»"
     }
+}
 
-    // MARK: - Відлуння (§12.1, тип 8)
+/// Тексти відлуння розблокувань (§12.1, тип 8). Публічні: відлуння складає композиційний
+/// корінь — лише він знає, що саме відкрила порція з дії сповіщення.
+public enum EchoText {
+    public static let body = "Відкрито щойно — подивись у застосунку"
 
-    static let echoBody = "Відкрито щойно — подивись у застосунку"
-
-    static func echoAchievement(_ title: String) -> (title: String, body: String) {
+    public static func achievement(_ title: String) -> (title: String, body: String) {
         let full = "🏅 Досягнення: \(title)"
-        if full.count <= 30 { return (full, echoBody) }
+        if full.count <= 30 { return (full, body) }
         return ("🏅 Нове досягнення", "«\(title)» — відкрито щойно, подивись у застосунку")
     }
 
-    static func echoAchievements(count: Int) -> (title: String, body: String) {
-        ("🏅 Нові досягнення: \(count)", echoBody)
+    public static func achievements(count: Int) -> (title: String, body: String) {
+        ("🏅 Нові досягнення: \(count)", body)
     }
 
-    static func echoLevel(_ level: Int) -> (title: String, body: String) {
-        ("🎉 Рівень \(level)", echoBody)
+    public static func level(_ level: Int) -> (title: String, body: String) {
+        ("🎉 Рівень \(level)", body)
     }
 
-    static let echoComebackGift = (title: "🎁 З поверненням!", body: "⚡ Подвійний XP уже в призах — подивись у застосунку")
+    public static let comebackGift = (title: "🎁 З поверненням!", body: "⚡ Подвійний XP уже в призах — подивись у застосунку")
 
-    static func echoBounceBack(xp: Int) -> (title: String, body: String) {
+    public static func bounceBack(xp: Int) -> (title: String, body: String) {
         ("🔁 Знову в ритмі: +\(xp) XP", "Норму закрито — ритм повернувся")
     }
 }

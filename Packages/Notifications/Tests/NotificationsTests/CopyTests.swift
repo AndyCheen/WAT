@@ -36,8 +36,10 @@ final class CopyCatalogTests: XCTestCase {
         let inserts = [
             NotificationCopy.streakInsert(365), NotificationCopy.boostInsert(remaining: "11 год 55 хв"),
             NotificationCopy.questInsert(title: "Додати 4 записи"), NotificationCopy.weeklyInsert(xp: 100),
-            NotificationCopy.bounceBackInsert(xp: 25), NotificationCopy.echoBody,
-            NotificationCopy.echoComebackGift.title, NotificationCopy.echoComebackGift.body
+            NotificationCopy.bounceBackInsert(xp: 25), EchoText.body,
+            EchoText.comebackGift.title, EchoText.comebackGift.body,
+            EchoText.achievement("Тиждень поспіль").title, EchoText.level(12).title,
+            EchoText.bounceBack(xp: 50).title, EchoText.bounceBack(xp: 50).body
         ]
         for text in NotificationCopy.all.flatMap({ [$0.title, $0.body] }) + inserts {
             let found = words(text)
@@ -53,6 +55,14 @@ final class CopyCatalogTests: XCTestCase {
             XCTAssertLessThanOrEqual(emoji.count, 1, variant.title)
             if let first = emoji.first { XCTAssertEqual(variant.title.first, first, variant.title) }
         }
+    }
+
+    /// Довга назва досягнення не обрізається на заблокованому екрані — переїжджає в текст.
+    func testEchoTitlesFit() {
+        XCTAssertEqual(EchoText.achievement("Тиждень поспіль").title, "🏅 Досягнення: Тиждень поспіль")
+        let long = EchoText.achievement("Знавець гідратації рівня 10")
+        XCTAssertLessThanOrEqual(long.title.count, 30)
+        XCTAssertTrue(long.body.contains("Знавець гідратації рівня 10"))
     }
 
     func testVariantIdsAreUniquePerType() {

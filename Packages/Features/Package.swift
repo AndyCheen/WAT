@@ -15,6 +15,7 @@ let package = Package(
         .package(path: "../Hydration"),
         .package(path: "../Gamification"),
         .package(path: "../Insights"),
+        .package(path: "../Notifications"),
         .package(path: "../DesignSystem"),
     ],
     targets: [
@@ -27,6 +28,7 @@ let package = Package(
                 .product(name: "Hydration", package: "Hydration"),
                 .product(name: "Gamification", package: "Gamification"),
                 .product(name: "Insights", package: "Insights"),
+                .product(name: "Notifications", package: "Notifications"),
                 .product(name: "DesignSystem", package: "DesignSystem"),
             ]
         ),

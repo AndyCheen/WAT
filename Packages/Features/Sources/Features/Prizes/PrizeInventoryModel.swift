@@ -77,6 +77,13 @@ public final class PrizeInventoryModel {
 
     public var now: Date { services.calendar.now }
 
+    /// Відкрити картку готового стосу — тап по порятунку серії чи подарунку за повернення
+    /// (SPEC-NOTIFICATIONS §12.1, §12.5). Немає такого призу — лишається сам екран.
+    public func focus(key: String) {
+        guard let stack = inventory.ready.first(where: { $0.key == key }) else { return }
+        select(.stack(stack))
+    }
+
     var presenter: PrizePresenter {
         PrizePresenter(calendar: services.calendar, boostExpiry: services.gamification.boostExpiry(activatedAt:))
     }

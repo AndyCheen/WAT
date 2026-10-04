@@ -26,6 +26,8 @@ packages:
     path: Packages/Gamification
   Insights:
     path: Packages/Insights
+  Notifications:
+    path: Packages/Notifications
   DesignSystem:
     path: Packages/DesignSystem
   Features:
@@ -54,6 +56,11 @@ targets:
         UIAppFonts:
           - Fredoka.ttf
           - Nunito.ttf
+        # Фонове оновлення плану сповіщень — лише бонус, план від нього не залежить (SPEC-NOTIFICATIONS §16.3).
+        UIBackgroundModes:
+          - fetch
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.watertracker.app.refresh
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.watertracker.app
@@ -67,6 +74,7 @@ targets:
       - package: Hydration
       - package: Gamification
       - package: Insights
+      - package: Notifications
       - package: DesignSystem
       - package: Features
 

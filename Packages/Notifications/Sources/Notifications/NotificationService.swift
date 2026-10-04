@@ -375,6 +375,41 @@ public final class NotificationService: MetricsSubscriber {
         store.save()
     }
 
+    // MARK: - Тихі періоди (§13.2)
+
+    public func quietPeriods() -> [QuietPeriod] { store.quietPeriods() }
+
+    @discardableResult
+    public func addQuietPeriod(fromMinutes: Int, toMinutes: Int, weekdayMask: Int) -> QuietPeriod {
+        store.addQuietPeriod(fromMinutes: fromMinutes, toMinutes: toMinutes, weekdayMask: weekdayMask)
+    }
+
+    public func deleteQuietPeriod(_ period: QuietPeriod) { store.delete(period) }
+
+    // MARK: - DEBUG
+
+    /// «Тестове за 5 с» на екрані «План сповіщень»: нагадування з усіма діями, щоб руками
+    /// перевірити «+склянку» у фоні й поведінку при відкритому застосунку. Префікс `debug.` —
+    /// поза диффом планувальника, тож наступне перепланування його не зніме.
+    public func scheduleTestReminder(after seconds: TimeInterval = 5) async {
+        let preferences = preferences()
+        registerCategoriesIfNeeded(glassMl: preferences.glassMl)
+        let fireAt = calendar.now.addingTimeInterval(seconds)
+        var parts = calendar.calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: fireAt)
+        parts.timeZone = calendar.calendar.timeZone
+        let identifier = "debug.\(UUID().uuidString.prefix(8).lowercased())"
+        await center.add(ScheduledRequest(
+            identifier: identifier, title: "💧 Час на воду", body: "Тестове нагадування — спробуй дії",
+            categoryId: NotificationCategory.reminder.rawValue,
+            sound: SoundResolver.resolve(preferences.sound, bubbleAvailable: bubbleSoundAvailable),
+            trigger: .calendar(parts, floating: false), fireAt: fireAt,
+            userInfo: [UserInfoKey.glassMl: String(preferences.glassMl),
+                       UserInfoKey.portionMl: String(lastPlan.typicalPortionMl),
+                       UserInfoKey.route: NotificationTapRoute.customAmount(ml: lastPlan.typicalPortionMl).encoded],
+            fingerprint: identifier
+        ))
+    }
+
     // MARK: - Категорії (§16.4)
 
     /// Назва дії «+250 мл» належить категорії, а не запиту — при зміні склянки категорії

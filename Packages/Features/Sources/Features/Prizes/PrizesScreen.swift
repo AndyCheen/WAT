@@ -10,10 +10,13 @@ import DesignSystem
 public struct PrizesScreen: View {
     @Environment(\.wtTheme) private var theme
     @State private var model: PrizeInventoryModel
+    /// Картка, яку відкрити одразу — один раз, а не на кожне повернення на екран.
+    @State private var focusKey: String?
     private let onBack: () -> Void
 
-    public init(services: AppServices, onBack: @escaping () -> Void) {
+    public init(services: AppServices, onBack: @escaping () -> Void, focusKey: String? = nil) {
         _model = State(initialValue: PrizeInventoryModel(services: services))
+        _focusKey = State(initialValue: focusKey)
         self.onBack = onBack
     }
 
@@ -45,7 +48,13 @@ public struct PrizesScreen: View {
                 PrizeDetailModal(model: model, selection: selection)
             }
         }
-        .onAppear { model.reloadMarkingSeen() }
+        .onAppear {
+            model.reloadMarkingSeen()
+            if let key = focusKey {
+                focusKey = nil
+                model.focus(key: key)
+            }
+        }
         .onChange(of: model.epoch) { model.reload() }
         .wtFeedback(trigger: model.selected?.id) { $0 == nil ? nil : .tap }
         .wtFeedback(trigger: model.feedback) { $0?.feedback }

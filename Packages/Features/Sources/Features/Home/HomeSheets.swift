@@ -4,7 +4,8 @@ import Persistence
 import DesignSystem
 import Insights
 
-/// «Скільки ви випили?» — довільний обʼєм (макет 1a).
+/// «Скільки води?» — довільний обʼєм (макет 1a). Не «Скільки ви випили?»: застосунок звертається
+/// на «ти», а «скільки ти випив» мало б рід — тексти нейтральні (SPEC-NOTIFICATIONS §14.1).
 struct CustomAmountSheet: View {
     @Environment(\.wtTheme) private var theme
     @Bindable var model: HomeViewModel
@@ -12,7 +13,7 @@ struct CustomAmountSheet: View {
     var body: some View {
         WTSheet(onDismiss: { model.dismissSheet() }) {
             VStack(spacing: 0) {
-                Text("Скільки ви випили?")
+                Text("Скільки води?")
                     .font(WTFont.display(22, .semibold))
                     .foregroundStyle(theme.textPrimary)
                     .padding(.bottom, 20)
@@ -98,13 +99,6 @@ struct SettingsSheet: View {
         )
     }
 
-    private var notificationsEnabled: Binding<Bool> {
-        Binding(
-            get: { services.profile.notificationsEnabled },
-            set: { services.profile.notificationsEnabled = $0; services.profiles.save() }
-        )
-    }
-
     /// Прапорець уже був у моделі профілю, але ним ніхто не керував.
     private var haptics: Binding<Bool> {
         Binding(
@@ -144,10 +138,11 @@ struct SettingsSheet: View {
 
                 divider
 
-                settingRow("Нагадування") {
-                    WTToggle(isOn: notificationsEnabled)
-                        .accessibilityIdentifier("settings.notifications")
+                // Шторка не вміщує всіх параметрів — рядок веде на екран «Сповіщення» (§15.1).
+                WTNavigationRow("Нагадування", value: model.notificationsSummary) {
+                    model.openNotificationSettings()
                 }
+                .accessibilityIdentifier("settings.notifications")
 
                 divider
 
@@ -182,6 +177,35 @@ struct SettingsSheet: View {
             control()
         }
         .padding(.vertical, 6)
+    }
+}
+
+/// «Нагадувати, коли забудеш про воду?» — разова шторка після першої порції замість системного
+/// запиту на першому запуску: запит без контексту — найчастіша причина відмови (SPEC-NOTIFICATIONS §16.5).
+/// Коли з'явиться онбординг 5a–5f, цей крок переїде туди (§21).
+struct NotificationPermissionSheet: View {
+    @Environment(\.wtTheme) private var theme
+    @Bindable var model: HomeViewModel
+
+    var body: some View {
+        WTSheet(onDismiss: { model.postponeNotifications() }) {
+            VStack(spacing: 0) {
+                WTSheetTitle(
+                    "Нагадувати, коли забудеш про воду?",
+                    subtitle: "Лише коли відстаєш від свого темпу — хто п'є рівномірно, нагадувань не отримує"
+                )
+                .multilineTextAlignment(.center)
+                .padding(.bottom, 24)
+
+                WTPrimaryButton("Увімкнути") { model.enableNotifications() }
+                    .accessibilityIdentifier("permission.enable")
+                    .padding(.bottom, 4)
+
+                WTSectionAction("Не зараз") { model.postponeNotifications() }
+                    .frame(minHeight: 44)
+                    .accessibilityIdentifier("permission.later")
+            }
+        }
     }
 }
 
