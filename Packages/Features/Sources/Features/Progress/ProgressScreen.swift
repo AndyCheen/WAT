@@ -61,6 +61,7 @@ public struct ProgressScreen: View {
             }
         }
         .onAppear { model.reload() }
+        .onChange(of: model.epoch) { model.reload() }
         .wtFeedback(trigger: model.selectedAchievement?.key) { $0 == nil ? nil : .tap }
         .wtFeedback(trigger: model.prizes.selected?.id) { $0 == nil ? nil : .tap }
         .wtFeedback(trigger: model.prizes.feedback) { $0?.feedback }

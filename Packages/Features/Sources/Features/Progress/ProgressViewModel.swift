@@ -10,6 +10,10 @@ import Gamification
 public final class ProgressViewModel {
     private let services: AppServices
 
+    /// Дані застаріли не через дію на цьому екрані (нова доба, повернення з фону) — екран
+    /// слухає це значення й викликає `reload()`.
+    public var epoch: Int { services.epoch }
+
     public private(set) var level: LevelProgress
     public private(set) var dailyQuests: [QuestSnapshot] = []
     public private(set) var weeklyQuests: [QuestSnapshot] = []

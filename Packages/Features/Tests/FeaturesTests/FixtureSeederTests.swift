@@ -68,13 +68,9 @@ final class FixtureSeederTests: XCTestCase {
         )
     }
 
-    /// Єдина перевірка, що справді ловить повернення `hashValue`: XCTest живе в одному
-    /// процесі, і всередині нього `hashValue` теж стабільний — тест на дві бази пройшов
-    /// би й зі старим кодом. Тому прибиваємо самі числа хешу.
-    func testStableHashIsPinnedToKnownValues() {
-        XCTAssertEqual(FixtureSeeder.stableHash("2026-07-18"), 12_381_657_508_597_159_859)
-        XCTAssertEqual(FixtureSeeder.stableHash("2026-01-01"), 18_099_244_625_767_376_899)
-        XCTAssertEqual(FixtureSeeder.stableHash("1970-01-01"), 8_492_760_844_693_528_672)
+    /// Сам хеш прибитий числами в `CoreTests/StableHashTests`; тут — що сідер бере саме його.
+    func testSeederUsesTheStableHash() {
+        XCTAssertEqual(FixtureSeeder.stableHash("2026-07-18"), StableHash.fnv1a("2026-07-18"))
     }
 
     /// Фіксуємо не лише збіг двох прогонів, а й самі числа: якщо стабільну функцію

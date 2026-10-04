@@ -5,16 +5,19 @@ import Foundation
 /// Новий день починається о 00:00 локального часу (ТЗ §14).
 public struct CalendarService: Sendable {
     public let clock: Clock
-    public let calendar: Calendar
+    private let cache = CalendarCache()
 
     public init(clock: Clock) {
         self.clock = clock
-        var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = clock.timeZone
-        cal.firstWeekday = 2 // понеділок — усі макети починають тиждень з «Пн»
-        cal.locale = Locale(identifier: "uk_UA")
-        self.calendar = cal
     }
+
+    /// Календар у **поточному** поясі годинника, а не в тому, що був на старті.
+    ///
+    /// Раніше пояс записувався в `init`, а `AppServices` створює сервіс один раз — після
+    /// перельоту ключі доби рахувались у старому поясі до перезапуску (SPEC-NOTIFICATIONS §16.6).
+    /// Кеш спільний для всіх копій структури: копії, що вже лежать у Hydration та Gamification,
+    /// переходять на новий пояс разом з оригіналом.
+    public var calendar: Calendar { cache.calendar(for: clock.timeZone) }
 
     public var now: Date { clock.now }
     public var today: DayKey { DayKey(date: clock.now, calendar: calendar) }
@@ -114,5 +117,23 @@ public struct CalendarService: Sendable {
     public func monthTitle(_ key: MonthKey) -> String {
         let idx = max(1, min(12, key.month)) - 1
         return "\(Self.monthNames[idx]) \(key.year)"
+    }
+}
+
+/// Перебудовує календар лише коли змінився пояс: `calendar` читається на кожен `dayKey`,
+/// а `Calendar(identifier:)` на кожне читання коштував би помітно на шляху порції.
+final class CalendarCache: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cached: Calendar?
+
+    func calendar(for zone: TimeZone) -> Calendar {
+        lock.lock(); defer { lock.unlock() }
+        if let cached, cached.timeZone.identifier == zone.identifier { return cached }
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = zone
+        cal.firstWeekday = 2 // понеділок — усі макети починають тиждень з «Пн»
+        cal.locale = Locale(identifier: "uk_UA")
+        cached = cal
+        return cal
     }
 }

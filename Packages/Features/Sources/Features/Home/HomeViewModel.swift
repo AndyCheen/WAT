@@ -12,12 +12,15 @@ import DesignSystem
 /// набором функцій прибрана, до досягнень веде лише екран (SPEC-ACHIEVEMENTS §1).
 public enum HomeSheet: Identifiable {
     case custom, calendar, settings, stats
+    /// «Нагадувати, коли забудеш про воду?» — після першої порції (SPEC-NOTIFICATIONS §16.5).
+    case permission
     public var id: Int {
         switch self {
         case .custom: return 0
         case .calendar: return 1
         case .settings: return 2
         case .stats: return 3
+        case .permission: return 4
         }
     }
 }
@@ -58,6 +61,8 @@ public struct HomeToast: Equatable, Identifiable {
         case showAchievement(String)
         /// Кілька за одну дію — один тост, дія веде на екран 2e.
         case showAllAchievements
+        /// Подарунок за повернення — картка призу (SPEC-NOTIFICATIONS §12.5 А).
+        case showPrize(String)
     }
 
     public let id = UUID()
@@ -87,6 +92,10 @@ public final class HomeViewModel {
 
     private let services: AppServices
 
+    /// Дані застаріли не через дію на цьому екрані (нова доба, повернення з фону) — екран
+    /// слухає це значення й викликає `reload()`.
+    public var epoch: Int { services.epoch }
+
     public private(set) var day: DaySnapshot
     public private(set) var history: [IntakeSnapshot] = []
     public private(set) var quests: [QuestSnapshot] = []
@@ -107,8 +116,13 @@ public final class HomeViewModel {
     public var sheet: HomeSheet?
     /// Картка досягнення, відкрита з тоста — поверх головного, без переходу.
     public private(set) var achievementDetail: AchievementSnapshot?
-    /// Перехід на екран 2e — його робить `RootView`, модель лише просить.
+    /// Переходи робить `RootView`, модель лише просить.
     @ObservationIgnored public var onOpenAchievements: () -> Void = {}
+    @ObservationIgnored public var onOpenPrize: (String) -> Void = { _ in }
+    @ObservationIgnored public var onOpenNotifications: () -> Void = {}
+    /// Шторка дозволу чекає, поки зникне тост чи картка досягнення: першу порцію майже завжди
+    /// святкує «Перша крапля», і шторка поверх тоста сховала б його.
+    private var permissionOfferPending = false
     public var openHistoryId: UUID?
     public var customAmount: Int = 300
 
@@ -148,20 +162,21 @@ public final class HomeViewModel {
 
         guard let result else { return }
 
-        // Тост один на дію. Рівень важливіший: він рідший, а про нове досягнення
-        // все одно нагадає крапка на краплі рівня в шапці.
-        if level.level > levelBefore {
-            showToast(HomeToast(message: "Рівень \(level.level)!"))
-        } else if let toast = Self.achievementToast(unlocked) {
+        // Тост один на дію. Подарунок за повернення — найрідкісніший і веде в призи;
+        // рівень важливіший за досягнення: про нове досягнення все одно нагадає крапка
+        // на краплі рівня в шапці. «Знову в ритмі» приєднується до тоста рівня — норма
+        // наступного дня після пропуску майже завжди піднімає й рівень.
+        if let toast = Self.unlockToast(unlocked, levelUp: level.level > levelBefore ? level.level : nil) {
             showToast(toast)
         }
+        offerNotificationsIfNeeded()
 
         // Вібрація одна на дію — беремо найпомітнішу з подій.
         if level.level > levelBefore {
             pulse = HomePulse(kind: .levelUp(level.level))
         } else if result.goalJustReached {
             pulse = HomePulse(kind: .goalReached)
-        } else if !unlocked.isEmpty {
+        } else if !unlocked.achievements.isEmpty || unlocked.comebackGift != nil {
             pulse = HomePulse(kind: .achievementUnlocked)
         } else if result.cappedAmountMl > 0 {
             pulse = HomePulse(kind: .capped)
@@ -207,6 +222,8 @@ public final class HomeViewModel {
             showAchievement(key: key)
         case .showAllAchievements:
             onOpenAchievements()
+        case .showPrize(let key):
+            onOpenPrize(key)
         case nil:
             break
         }
@@ -214,6 +231,7 @@ public final class HomeViewModel {
 
     public func dismissToast() {
         withAnimation(WTAnimation.toast) { toast = nil }
+        presentPendingPermissionOffer()
     }
 
     /// Перемикання лише через `withAnimation` — інакше рядки зникають ривком.
@@ -232,6 +250,24 @@ public final class HomeViewModel {
     }
 
     // MARK: - Досягнення
+
+    /// Тост за все, що відкрила дія: подарунок → рівень (+ «Знову в ритмі») → досягнення →
+    /// «Знову в ритмі» (SPEC-NOTIFICATIONS §12.5).
+    static func unlockToast(_ unlocked: RecentUnlocks, levelUp: Int?) -> HomeToast? {
+        if let gift = unlocked.comebackGift {
+            return HomeToast(message: "🎁 З поверненням! ⚡ Подвійний XP — у призах",
+                             actionTitle: "Подивитись", action: .showPrize(gift.key))
+        }
+        if let level = levelUp {
+            let bonus = unlocked.bounceBackXp.map { " · 🔁 Знову в ритмі: +\($0) XP" } ?? ""
+            return HomeToast(message: "Рівень \(level)!\(bonus)")
+        }
+        if let toast = achievementToast(unlocked.achievements) { return toast }
+        if let xp = unlocked.bounceBackXp {
+            return HomeToast(message: "🔁 Знову в ритмі: +\(xp) XP")
+        }
+        return nil
+    }
 
     /// «🏅 Досягнення: Перша крапля» або «🏅 Нові досягнення: 2» (SPEC-ACHIEVEMENTS §8).
     static func achievementToast(_ unlocked: [AchievementSnapshot]) -> HomeToast? {
@@ -261,6 +297,57 @@ public final class HomeViewModel {
 
     public func dismissAchievement() {
         withAnimation(WTAnimation.fade) { achievementDetail = nil }
+        presentPendingPermissionOffer()
+    }
+
+    // MARK: - Сповіщення (SPEC-NOTIFICATIONS)
+
+    /// Тап по сповіщенню просить шторку «Інше» з типовою порцією чи картку досягнення.
+    public func apply(_ intent: AppRouter.HomeIntent) {
+        switch intent {
+        case .customAmount(let ml):
+            customAmount = Intake.clamp(ml)
+            present(.custom)
+        case .achievement(let key):
+            showAchievement(key: key)
+        }
+    }
+
+    /// На першому запуску системного запиту немає — шторка з поясненням після першої порції,
+    /// а «Не зараз» відкладає її на 3 дні (§16.5).
+    private func offerNotificationsIfNeeded() {
+        guard services.notifications.shouldOfferPermission(at: services.calendar.now) else { return }
+        permissionOfferPending = true
+        if toast == nil, achievementDetail == nil { presentPendingPermissionOffer() }
+    }
+
+    private func presentPendingPermissionOffer() {
+        guard permissionOfferPending, sheet == nil, toast == nil, achievementDetail == nil else { return }
+        permissionOfferPending = false
+        present(.permission)
+    }
+
+    /// «Увімкнути» — системний запит `[.alert, .sound]`.
+    public func enableNotifications() {
+        dismissSheet()
+        Task { await services.notifications.requestAuthorization() }
+    }
+
+    /// «Не зараз» або тап повз шторку — спитаємо ще раз через 3 дні.
+    public func postponeNotifications() {
+        services.notifications.postponePermissionPrompt(at: services.calendar.now)
+        dismissSheet()
+    }
+
+    /// Рядок «Нагадування» в налаштуваннях — вхід на екран «Сповіщення» (§15.1).
+    public func openNotificationSettings() {
+        dismissSheet()
+        onOpenNotifications()
+    }
+
+    public var notificationsSummary: String {
+        guard services.profile.notificationsEnabled else { return "Вимк." }
+        return services.notifications.authorization == .denied ? "Без дозволу" : "Увімк."
     }
 
     // MARK: - Шторки

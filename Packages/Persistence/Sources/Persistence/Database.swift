@@ -20,7 +20,9 @@ public enum Database {
         AchievementProgress.self,
         RewardItem.self,
         QuickAddPreset.self,
-        NotificationRule.self
+        QuietPeriod.self,
+        NotificationSettings.self,
+        NotificationLog.self
     ])
 
     /// Версія схеми. Підвищується разом з появою `SchemaMigrationPlan`.

@@ -40,6 +40,10 @@ public struct PrizeFeedback: Equatable {
 public final class PrizeInventoryModel {
     private let services: AppServices
 
+    /// Дані застаріли не через дію на цьому екрані (нова доба, повернення з фону) — екран
+    /// слухає це значення й викликає `reload()`.
+    public var epoch: Int { services.epoch }
+
     public private(set) var inventory: PrizeInventory = .empty
     public private(set) var selected: PrizeSelection?
     public private(set) var feedback: PrizeFeedback?
@@ -72,6 +76,13 @@ public final class PrizeInventoryModel {
     }
 
     public var now: Date { services.calendar.now }
+
+    /// Відкрити картку готового стосу — тап по порятунку серії чи подарунку за повернення
+    /// (SPEC-NOTIFICATIONS §12.1, §12.5). Немає такого призу — лишається сам екран.
+    public func focus(key: String) {
+        guard let stack = inventory.ready.first(where: { $0.key == key }) else { return }
+        select(.stack(stack))
+    }
 
     var presenter: PrizePresenter {
         PrizePresenter(calendar: services.calendar, boostExpiry: services.gamification.boostExpiry(activatedAt:))

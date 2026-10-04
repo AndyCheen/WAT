@@ -19,8 +19,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 180 unit-тестів 8 пакетів, без симулятора — швидкий цикл
-make test-ui        # 17 e2e-сценаріїв (XCUITest) у симуляторі
+make test-packages  # 306 unit-тестів 9 пакетів, без симулятора — швидкий цикл
+make test-ui        # 24 e2e-сценарії (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
 make clean
@@ -49,11 +49,11 @@ xcodebuild test -scheme WaterTracker -destination 'platform=iOS Simulator,name=i
 
 ## Архітектура
 
-8 локальних SPM-пакетів у `Packages/` + тонкий app-таргет `App/`. Граф залежностей
+9 локальних SPM-пакетів у `Packages/` + тонкий app-таргет `App/`. Граф залежностей
 жорсткий — його тримають самі маніфести `Package.swift`, зайвий `import` просто не збереться:
 
 ```
-Features → (Hydration | Gamification | Insights) → Metrics → Persistence → Core
+Features → (Hydration | Gamification | Insights | Notifications) → Metrics → Persistence → Core
 Features → DesignSystem → Core
 ```
 
@@ -97,7 +97,35 @@ Features → DesignSystem → Core
 
 `AppServices` (`Packages/Features/Sources/Features/AppServices.swift`) збирає репозиторії
 та сервіси. `bootstrap()` створює профіль, стартову норму 2000 мл, пресети й підписує
-гейміфікацію. `services.touch()` інкрементує `revision` після кожної дії.
+гейміфікацію й сповіщення. `services.touch()` — «дія користувача завершена»: один раз на дію,
+як `metrics.commit()`; просить перепланування сповіщень. `services.epoch` — зміни не від
+екрана (повернення з фону, нова доба, пояс, дія зі сповіщення у фоні): екрани слухають його
+й викликають `reload()`.
+
+`CalendarService` бере пояс годинника на кожне читання (спільний кеш): після перельоту доба
+рахується в новому поясі без перезапуску. У тестах пояс міняє `FixedClock.setTimeZone(_:)`.
+
+### Сповіщення (SPEC-NOTIFICATIONS, WAT-36)
+
+Лише локальні сповіщення: у момент доставки код не виконується, тож план складається
+**наперед з припущенням «користувач більше нічого не робить»** і перебудовується на кожну зміну.
+
+- `NotificationPlanner.plan(context:preferences:journal:)` — **чиста функція**, тести на `FixedClock`.
+  Чотири дні з §6.1 прибиті дослівно (`SpecDaysTests`) — правка алгоритму, що їх ламає, суперечить ТЗ.
+- Пакет `Notifications` не імпортує `Hydration` / `Gamification` / `Insights`: усе приходить
+  значенням `NotificationContext`, яке збирає `AppServices+Notifications.swift`. Дія «+склянка»
+  додає порцію там же, через `HydrationService`.
+- `NotificationService`: послідовний воркер перепланування (`setNeedsReschedule` / `rescheduleNow`),
+  журнал `NotificationLog`, атрибуція порції (підписник на `intake.added`), дозвіл.
+  Метрики `notification.*` — у `GamificationService.internalMetrics`, інакше кожна позначка
+  «доставлено» ганяла б квести.
+- Ідентифікатори `wt.<тип>.<dayKey>.<слот>`, у нагадувань слот — `HHmm`. `wt.echo.*` дифф не знімає.
+- `UNUserNotificationCenter` — лише в застосунку (`SystemNotificationCenter`): у SPM-тестах він
+  падає. Тести й e2e — `InMemoryNotificationCenter`.
+- Сервіси живуть у `App/Sources/AppContainer.swift` (лінивий `static`), бо делегат центру
+  виставляється в `didFinishLaunching` і дія, що запустила застосунок, приходить раніше за вікно.
+- Тексти — `Copy/NotificationCopy.swift`: на «ти», без роду, заголовок ≤ 30, текст ≤ 100,
+  емодзі лише на початку заголовка. `CopyCatalogTests` перевіряє це на найгірших значеннях.
 
 ViewModel-и — `@MainActor @Observable`, кешують знімки в збережені властивості й
 перечитують їх у `reload()`. Весь доменний шар — `@MainActor`.
@@ -152,21 +180,25 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
   друге читання вже не бачить нових, і крапки «нове» не з'являються зовсім (WAT-23).
 - Прапорці запуску (`App/Sources/WaterTrackerApp.swift`, `LaunchConfiguration`):
   `--uitest-empty` (чиста in-memory БД), `--uitest-demo` (демо-історія),
-  `--seed-demo`, `--start-screen progress|achievements|prizes|stats`. Демо-історія завжди має
-  пропущений учора день після закритого позавчора й ≥ 2 заморозки — для e2e кнопки заморозки.
+  `--seed-demo`, `--start-screen progress|achievements|prizes|stats|notifications|notification-plan`.
+  Демо-історія завжди має пропущений учора день після закритого позавчора й ≥ 2 заморозки —
+  для e2e кнопки заморозки.
+- Сповіщення в e2e: під `--uitest-*` центр — у пам'яті з дозволом `--notifications-auth
+  authorized|denied|notDetermined` (типово є — інакше шторка дозволу після першої порції ламала б
+  сценарії); `--notification-tap reminder|morning|evening|rescue|comeback|echo` імітує тап;
+  `--uitest-now 2026-10-01T07:00:00+03:00` фіксує годинник для DEBUG-екрана «План сповіщень».
 
 ## Відомі прогалини
 
 Актуальний список — `PLAN.md` §«Наступні кроки». Найсуттєвіші:
 
-1. `scenePhase` не обробляється — застосунок, залишений відкритим на ніч, показує
-   вчорашній день. Найближчий реальний баг.
-2. VoiceOver: `accessibilityLabel` / `accessibilityValue` є лише в модулі досягнень
+1. VoiceOver: `accessibilityLabel` / `accessibilityValue` є лише в модулі досягнень
    (WAT-23); решта екранів має тільки `accessibilityIdentifier` для e2e.
-3. Рядки зашиті в коді українською — локалізація в `.xcstrings` не зроблена.
-4. `services.revision` пишеться, але його ніхто не читає.
-5. `HomeSheet.stats` реалізований (`WeekStatsSheet`), але недосяжний з UI.
-6. `GoalCalculatorSheet` готовий і покритий тестами, але не підключений.
+2. Рядки зашиті в коді українською — локалізація в `.xcstrings` не зроблена.
+3. `HomeSheet.stats` реалізований (`WeekStatsSheet`), але недосяжний з UI.
+4. `GoalCalculatorSheet` готовий і покритий тестами, але не підключений.
+5. Сповіщення: етапи B (шторка «Склянка», звіти, чекпоінти) і C (несподівані завдання) —
+   WAT-37 і WAT-38; ассету звуку «булькання» (`drop.caf`) немає — грає системний.
 
 ## Робота із задачами Linear
 
@@ -192,6 +224,6 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
 | `Design/Achievements.html` | макет модуля досягнень (6 кадрів 402×874) до цього ТЗ; перенесено в код у WAT-23 |
 | `SPEC-PRIZES.md` | ТЗ модуля «Призи» (WAT-26): каталог, блок на 3f, екран «Призи», картка призу, правила заморозки й буста |
 | `Design/Prizes.html` | макет модуля призів (6 кадрів 402×874) до цього ТЗ; перенесено в код у WAT-34 |
-| `SPEC-NOTIFICATIONS.md` | ТЗ модуля «Сповіщення» (WAT-17): типи, нагадування за кривою темпу, анти-спам, тексти, налаштування, локальні сповіщення й планувальник |
+| `SPEC-NOTIFICATIONS.md` | ТЗ модуля «Сповіщення» (WAT-17): типи, нагадування за кривою темпу, анти-спам, тексти, налаштування, локальні сповіщення й планувальник; етапи 0 і A реалізовано в WAT-36, рішення реалізації — §23 |
 | `DESIGN-TOKENS.md` | витяг токенів з макетів |
 | `WaterTracker.html` | оригінальні макети (1a, 3f, 2e, 4a) |

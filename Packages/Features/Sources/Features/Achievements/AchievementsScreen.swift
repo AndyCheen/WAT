@@ -17,6 +17,10 @@ public final class AchievementsViewModel {
 
     private let services: AppServices
 
+    /// Дані застаріли не через дію на цьому екрані (нова доба, повернення з фону) — екран
+    /// слухає це значення й викликає `reload()`.
+    public var epoch: Int { services.epoch }
+
     /// Уже в порядку §3.4 — фільтри лише вирізають, не пересортовують.
     public private(set) var items: [AchievementSnapshot] = []
     public private(set) var stateFilter: AchievementStateFilter = .all
@@ -139,6 +143,7 @@ public struct AchievementsScreen: View {
             categoryMenu
         }
         .onAppear { model.reload() }
+        .onChange(of: model.epoch) { model.reload() }
         .wtFeedback(trigger: model.selected?.key) { $0 == nil ? nil : .tap }
         .wtFeedback(.toggle, trigger: model.category)
     }

@@ -13,6 +13,8 @@ public struct HomeScreen: View {
     private let onOpenProgress: () -> Void
     private let onOpenStats: () -> Void
     private let onOpenAchievements: () -> Void
+    private let onOpenPrize: (String) -> Void
+    private let onOpenNotifications: () -> Void
 
     public init(
         services: AppServices,
@@ -20,7 +22,9 @@ public struct HomeScreen: View {
         hapticsEnabled: Binding<Bool>,
         onOpenProgress: @escaping () -> Void,
         onOpenStats: @escaping () -> Void,
-        onOpenAchievements: @escaping () -> Void
+        onOpenAchievements: @escaping () -> Void,
+        onOpenPrize: @escaping (String) -> Void = { _ in },
+        onOpenNotifications: @escaping () -> Void = {}
     ) {
         self.services = services
         _model = State(initialValue: HomeViewModel(services: services))
@@ -29,6 +33,8 @@ public struct HomeScreen: View {
         self.onOpenProgress = onOpenProgress
         self.onOpenStats = onOpenStats
         self.onOpenAchievements = onOpenAchievements
+        self.onOpenPrize = onOpenPrize
+        self.onOpenNotifications = onOpenNotifications
     }
 
     public var body: some View {
@@ -62,7 +68,14 @@ public struct HomeScreen: View {
         }
         .onAppear {
             model.onOpenAchievements = onOpenAchievements
+            model.onOpenPrize = onOpenPrize
+            model.onOpenNotifications = onOpenNotifications
             model.reload()
+        }
+        .onChange(of: model.epoch) { model.reload() }
+        // Тап по сповіщенню просить шторку «Інше» з типовою порцією чи картку досягнення.
+        .onChange(of: services.router.pendingHomeIntent, initial: true) {
+            if let intent = services.router.takeHomeIntent() { model.apply(intent) }
         }
         // Одне джерело правди для вібрації на всі дії екрана.
         .wtFeedback(trigger: model.pulse) { pulse in
@@ -290,6 +303,8 @@ public struct HomeScreen: View {
                     )
                 case .stats:
                     WeekStatsSheet(model: model)
+                case .permission:
+                    NotificationPermissionSheet(model: model)
                 }
             }
             .zIndex(10)

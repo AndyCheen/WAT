@@ -11,6 +11,8 @@ public protocol DayLogRepositoryProtocol: AnyObject {
     func allDayLogs() -> [DayLog]
     func earliestDayKey() -> DayKey?
     func firstGoalMetDayKey() -> DayKey?
+    /// Останній день із порціями раніше за `day` — для подарунка за повернення (§12.5).
+    func lastActiveDayKey(before day: DayKey) -> DayKey?
     func activeIntakes(for day: DayKey) -> [Intake]
     func intake(id: UUID) -> Intake?
     func insert(_ intake: Intake, into log: DayLog)
@@ -74,6 +76,18 @@ public final class DayLogRepository: DayLogRepositoryProtocol {
     ///
     /// `goalMet` — обчислювана властивість, тому в предикат іде її означення:
     /// порівняння двох полів моделі SwiftData тягне (перевірено `DayLogRepositoryTests`).
+    /// Один запит з `fetchLimit = 1`: перевірка йде на першій порції дня, усередині шляху,
+    /// який міряє `PerformanceTests`, — читати всю історію тут не можна.
+    public func lastActiveDayKey(before day: DayKey) -> DayKey? {
+        let key = day.rawValue
+        var descriptor = FetchDescriptor<DayLog>(
+            predicate: #Predicate { $0.dayKey < key && $0.entriesCount > 0 },
+            sortBy: [SortDescriptor(\.dayKey, order: .reverse)]
+        )
+        descriptor.fetchLimit = 1
+        return (try? context.fetch(descriptor))?.first.map { DayKey(rawValue: $0.dayKey) }
+    }
+
     public func firstGoalMetDayKey() -> DayKey? {
         var descriptor = FetchDescriptor<DayLog>(
             predicate: #Predicate { $0.countedMl >= $0.goalMlSnapshot },

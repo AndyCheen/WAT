@@ -45,20 +45,27 @@ public final class StatsViewModel {
     }
     // MARK: - Звіти
 
-    public var evenness: EvennessReport { services.insights.evenness() }
-    public var volumeChart: VolumeChartReport { services.insights.volumeChart(mode: chartMode) }
-    public var typicalDay: TypicalDayReport { services.insights.typicalDay(period: period) }
-    public var heatmap: HeatmapReport { services.insights.heatmap(period: period) }
+    /// Звіти рахуються на льоту в `body`, тож читання `epoch` тут підписує екран на нову
+    /// добу й повернення з фону — окремий `reload()` не потрібен.
+    private var insights: InsightsService {
+        _ = services.epoch
+        return services.insights
+    }
+
+    public var evenness: EvennessReport { insights.evenness() }
+    public var volumeChart: VolumeChartReport { insights.volumeChart(mode: chartMode) }
+    public var typicalDay: TypicalDayReport { insights.typicalDay(period: period) }
+    public var heatmap: HeatmapReport { insights.heatmap(period: period) }
 
     public var month: MonthKey {
         services.calendar.monthKey(offsetMonths: monthOffset, from: services.calendar.currentMonth)
     }
 
-    public var calendarReport: CalendarMonthReport { services.insights.calendar(month: month) }
+    public var calendarReport: CalendarMonthReport { insights.calendar(month: month) }
 
     public var dayDetail: DayDetailReport? {
         guard let selectedDay else { return nil }
-        return services.insights.dayDetail(for: selectedDay)
+        return insights.dayDetail(for: selectedDay)
     }
 
     public var goalLabel: String {
@@ -71,7 +78,7 @@ public final class StatsViewModel {
     public func shiftMonth(_ delta: Int) {
         let candidate = monthOffset + delta
         guard candidate <= 0 else { return }
-        let report = services.insights.calendar(
+        let report = insights.calendar(
             month: services.calendar.monthKey(offsetMonths: candidate, from: services.calendar.currentMonth)
         )
         // Далі за місяць встановлення не гортаємо.

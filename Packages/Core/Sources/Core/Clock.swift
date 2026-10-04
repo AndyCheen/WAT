@@ -19,16 +19,27 @@ public struct SystemClock: Clock {
 public final class FixedClock: Clock, @unchecked Sendable {
     private let lock = NSLock()
     private var _now: Date
-    public let timeZone: TimeZone
+    private var _timeZone: TimeZone
 
     public init(now: Date, timeZone: TimeZone = TimeZone(identifier: "Europe/Kyiv") ?? .current) {
         self._now = now
-        self.timeZone = timeZone
+        self._timeZone = timeZone
     }
 
     public var now: Date {
         lock.lock(); defer { lock.unlock() }
         return _now
+    }
+
+    public var timeZone: TimeZone {
+        lock.lock(); defer { lock.unlock() }
+        return _timeZone
+    }
+
+    /// Переліт у інший пояс — для тестів доби й сповіщень (SPEC-NOTIFICATIONS §16.6).
+    public func setTimeZone(_ zone: TimeZone) {
+        lock.lock(); defer { lock.unlock() }
+        _timeZone = zone
     }
 
     public func set(_ date: Date) {

@@ -142,6 +142,58 @@ final class RepositoryTests: XCTestCase {
     }
 
     func testSchemaCoversEveryModel() {
-        XCTAssertEqual(Database.schema.entities.count, 14, "усі 14 таблиць у схемі (PLAN.md §3.2)")
+        XCTAssertEqual(Database.schema.entities.count, 16, "усі 16 таблиць у схемі (PLAN.md §3.2, SPEC-NOTIFICATIONS §16.8)")
+    }
+
+    // MARK: - Сповіщення (SPEC-NOTIFICATIONS §16.8)
+
+    func testLastActiveDayKeySkipsEmptyDays() {
+        let active = dayLogs.dayLog(for: DayKey(rawValue: "2026-07-10"), goalMl: 2000, timeZoneId: "Europe/Kyiv")
+        active.entriesCount = 2
+        _ = dayLogs.dayLog(for: DayKey(rawValue: "2026-07-12"), goalMl: 2000, timeZoneId: "Europe/Kyiv")
+        dayLogs.save()
+
+        XCTAssertEqual(dayLogs.lastActiveDayKey(before: DayKey(rawValue: "2026-07-14"))?.rawValue, "2026-07-10",
+                       "день без порцій (усі видалені) не рахується активним")
+        XCTAssertNil(dayLogs.lastActiveDayKey(before: DayKey(rawValue: "2026-07-10")), "лише строго раніше")
+    }
+
+    func testNotificationSettingsAreASingleRow() {
+        let store = NotificationStore(context: container.mainContext)
+        store.settings().remindersEnabled = false
+        store.save()
+
+        let reopened = NotificationStore(context: container.mainContext)
+        XCTAssertFalse(reopened.settings().remindersEnabled)
+        XCTAssertEqual((try? container.mainContext.fetch(FetchDescriptor<NotificationSettings>()))?.count, 1)
+    }
+
+    func testNotificationLogIsFoundByIdentifierAndPruned() {
+        let store = NotificationStore(context: container.mainContext)
+        let early = NotificationLog(identifier: "wt.reminder.2026-07-01.1109", type: .reminder, slot: "primary",
+                                    dayKey: "2026-07-01", fireAt: now.addingTimeInterval(-40 * 86_400), plannedAt: now, variant: 0)
+        let late = NotificationLog(identifier: "wt.morning.2026-07-18", type: .morning, slot: "morning",
+                                   dayKey: "2026-07-18", fireAt: now, plannedAt: now, variant: 1)
+        store.insert(early)
+        store.insert(late)
+        store.save()
+
+        XCTAssertIdentical(store.log(identifier: "wt.morning.2026-07-18"), late)
+        XCTAssertEqual(store.logs(firingFrom: now.addingTimeInterval(-60), to: now.addingTimeInterval(60)).map(\.identifier),
+                       ["wt.morning.2026-07-18"])
+
+        store.deleteLogs(firedBefore: now.addingTimeInterval(-35 * 86_400))
+        XCTAssertNil(store.log(identifier: "wt.reminder.2026-07-01.1109"))
+        XCTAssertNotNil(store.log(identifier: "wt.morning.2026-07-18"))
+    }
+
+    func testQuietPeriodsKeepOrder() {
+        let store = NotificationStore(context: container.mainContext)
+        store.addQuietPeriod(fromMinutes: 600, toMinutes: 720, weekdayMask: 0b0001010)
+        let second = store.addQuietPeriod(fromMinutes: 780, toMinutes: 840, weekdayMask: QuietPeriod.allDays)
+
+        XCTAssertEqual(store.quietPeriods().map(\.fromMinutes), [600, 780])
+        store.delete(second)
+        XCTAssertEqual(store.quietPeriods().count, 1)
     }
 }

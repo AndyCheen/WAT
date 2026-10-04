@@ -7,6 +7,13 @@ public enum AppRoute: Hashable {
     case achievements
     case prizes
     case stats
+    /// Екран «Призи» з уже відкритою карткою — тап по порятунку серії веде в картку
+    /// заморозки, бо заморожувати можна лише з неї (SPEC-NOTIFICATIONS §12.1).
+    case prizeCard(String)
+    /// Екран «Сповіщення» (§15.1).
+    case notifications
+    /// DEBUG: «План сповіщень» — заплановане з часами (§16.11).
+    case notificationPlan
 }
 
 /// Кореневий екран: стек навігації 1a → 3f → 2e, 1a → 3f → «Призи», 1a → 4a (PLAN.md §8).
@@ -32,13 +39,20 @@ public struct RootView: View {
                     hapticsEnabled: $hapticsEnabled,
                     onOpenProgress: { path.append(.progress) },
                     onOpenStats: { path.append(.stats) },
-                    onOpenAchievements: { path.append(.achievements) }
+                    onOpenAchievements: { path.append(.achievements) },
+                    onOpenPrize: { path.append(.prizeCard($0)) },
+                    onOpenNotifications: { path.append(.notifications) }
                 )
                 .wtHideNavigationBar()
                 .navigationDestination(for: AppRoute.self) { route in
                     destination(route).wtHideNavigationBar()
                 }
             }
+        }
+        // Тап по сповіщенню, зокрема той, що запустив застосунок: `initial` — бо при холодному
+        // старті маршрут з'являється раніше за перший кадр.
+        .onChange(of: services.router.pendingPath, initial: true) {
+            if let route = services.router.takePath() { path = route }
         }
     }
 
@@ -58,6 +72,16 @@ public struct RootView: View {
             PrizesScreen(services: services, onBack: { path.removeLast() })
         case .stats:
             StatsScreen(services: services, onBack: { path.removeLast() })
+        case .prizeCard(let key):
+            PrizesScreen(services: services, onBack: { path.removeLast() }, focusKey: key)
+        case .notifications:
+            NotificationsScreen(
+                services: services,
+                onBack: { path.removeLast() },
+                onOpenPlan: { path.append(.notificationPlan) }
+            )
+        case .notificationPlan:
+            NotificationPlanScreen(services: services, onBack: { path.removeLast() })
         }
     }
 }
