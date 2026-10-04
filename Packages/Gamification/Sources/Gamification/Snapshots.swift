@@ -332,3 +332,47 @@ public struct LevelRewardSnapshot: Equatable, Identifiable, Sendable {
         self.isUnlocked = isUnlocked
     }
 }
+
+/// Що відкрила остання дія користувача — черга `GamificationService.takeRecentUnlocks()`.
+///
+/// Не лише досягнення: подарунок за повернення й «Знову в ритмі» теж показуються тостом
+/// у момент дії (SPEC-NOTIFICATIONS §12.5), а `HydrationService` про гейміфікацію не знає.
+public struct RecentUnlocks: Equatable, Sendable {
+    public var achievements: [AchievementSnapshot]
+    /// ⚡ «Подвійний XP» за першу порцію після перерви.
+    public var comebackGift: RewardSnapshot?
+    /// Скільки XP дав «Знову в ритмі» (з бустом, якщо діяв).
+    public var bounceBackXp: Int?
+
+    public init(achievements: [AchievementSnapshot] = [], comebackGift: RewardSnapshot? = nil, bounceBackXp: Int? = nil) {
+        self.achievements = achievements
+        self.comebackGift = comebackGift
+        self.bounceBackXp = bounceBackXp
+    }
+
+    public var isEmpty: Bool { achievements.isEmpty && comebackGift == nil && bounceBackXp == nil }
+
+    public static let empty = RecentUnlocks()
+}
+
+/// Серія на три дні навколо сьогодні — вхід для сповіщень: порятунок серії й «Знову в ритмі»
+/// (SPEC-NOTIFICATIONS §8, §12.1, §12.5). «Зараховано» — норма або заморозка, як у `freezeTarget`.
+public struct StreakFacts: Equatable, Sendable {
+    public let countedToday: Bool
+    public let countedYesterday: Bool
+    public let countedDayBefore: Bool
+    /// Дні з нормою в ланцюгу, що закінчується на цей день; 0, якщо день не зараховано.
+    public let lengthEndingToday: Int
+    public let lengthEndingYesterday: Int
+    public let lengthEndingDayBefore: Int
+
+    public init(countedToday: Bool, countedYesterday: Bool, countedDayBefore: Bool,
+                lengthEndingToday: Int, lengthEndingYesterday: Int, lengthEndingDayBefore: Int) {
+        self.countedToday = countedToday
+        self.countedYesterday = countedYesterday
+        self.countedDayBefore = countedDayBefore
+        self.lengthEndingToday = lengthEndingToday
+        self.lengthEndingYesterday = lengthEndingYesterday
+        self.lengthEndingDayBefore = lengthEndingDayBefore
+    }
+}

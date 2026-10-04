@@ -28,6 +28,9 @@ public final class GamificationService: MetricsSubscriber {
     /// Черга, а не повернене значення: `HydrationService` про гейміфікацію не знає,
     /// тож дізнатись «що відкрила ця порція» екран може лише тут.
     private var recentUnlocks: [String] = []
+    /// Подарунок за повернення й «Знову в ритмі» з тієї самої дії — та сама черга (§12.5).
+    private var pendingComebackGift: UUID?
+    private var pendingBounceBackXp: Int?
 
     public init(
         store: GamificationStoreProtocol,
@@ -91,9 +94,11 @@ public final class GamificationService: MetricsSubscriber {
                 amount: xp.rules.perIntake, reason: .intake,
                 refId: event.sourceRef, at: date, streak: streak
             )
+            grantComebackGiftIfDue(event)
         }
         if event.name == .dayGoalMet {
             xp.award(amount: xp.rules.perDailyGoal, reason: .dailyGoal, refId: event.sourceRef, at: date)
+            awardBounceBackIfDue(event)
         }
 
         let context = makeContext(at: date)
@@ -156,6 +161,13 @@ public final class GamificationService: MetricsSubscriber {
             xp.revert(refId: DeterministicID.uuid(from: "achievement:\(key)"), at: date)
             recentUnlocks.removeAll { $0 == key }
         }
+        // 4. «Знову в ритмі» тримається на закритій нормі дня: норму відкотили — і бонус теж.
+        //    Повернута порція знову запише `day.goalMet`, і бонус нарахується наново.
+        for event in events where event.name == .dayGoalMet {
+            if xp.revert(refId: Self.bounceBackRef(DayKey(rawValue: event.dayKey)), at: date) > 0 {
+                pendingBounceBackXp = nil
+            }
+        }
     }
 
     // MARK: - Знімки для UI
@@ -181,15 +193,42 @@ public final class GamificationService: MetricsSubscriber {
     public func markAchievementsSeen() { achievements.markAllSeen(at: calendar.now) }
     public func markAchievementSeen(key: String) { achievements.markSeen(key: key, at: calendar.now) }
 
-    /// Забирає досягнення, відкриті з попереднього виклику, і очищає чергу.
+    /// Забирає все, що відкрилось з попереднього виклику, і очищає чергу.
     /// Екран викликає це до і після дії: «до» — щоб не показати тост за чуже розблокування
     /// (стартовий `refresh`, демо-історія, повернута порція).
-    public func takeRecentUnlocks() -> [AchievementSnapshot] {
-        defer { recentUnlocks.removeAll() }
-        guard !recentUnlocks.isEmpty else { return [] }
-        let keys = recentUnlocks
-        let snapshots = achievements.snapshots().filter(\.isUnlocked)
-        return keys.compactMap { key in snapshots.first { $0.key == key } }
+    public func takeRecentUnlocks() -> RecentUnlocks {
+        defer {
+            recentUnlocks.removeAll()
+            pendingComebackGift = nil
+            pendingBounceBackXp = nil
+        }
+        var result = RecentUnlocks(bounceBackXp: pendingBounceBackXp)
+        if !recentUnlocks.isEmpty {
+            let snapshots = achievements.snapshots().filter(\.isUnlocked)
+            result.achievements = recentUnlocks.compactMap { key in snapshots.first { $0.key == key } }
+        }
+        if let giftId = pendingComebackGift {
+            result.comebackGift = prizes().first { $0.id == giftId }
+        }
+        return result
+    }
+
+    // MARK: - Для сповіщень (SPEC-NOTIFICATIONS)
+
+    /// Серія на сьогодні, учора й позавчора — порятунок серії й «Знову в ритмі».
+    public func streakFacts(at date: Date? = nil) -> StreakFacts {
+        streaks.facts(at: date ?? calendar.now)
+    }
+
+    /// Коли востаннє дарували ⚡ за повернення — сповіщення 7-го дня згадує подарунок,
+    /// лише якщо минуло 30 днів (§12.5, §14.2).
+    public func lastComebackGiftAt() -> Date? {
+        store.rewardItems().filter { $0.source == .comeback }.map(\.acquiredAt).max()
+    }
+
+    /// День останнього нарахованого (не відкоченого) «Знову в ритмі».
+    public func lastBounceBackDay() -> DayKey? {
+        store.xpEntries(reason: .bounceBack).first { $0.revertedAt == nil }.map { DayKey(rawValue: $0.dayKey) }
     }
 
     // MARK: - Призи (SPEC-PRIZES)
@@ -268,6 +307,9 @@ public final class GamificationService: MetricsSubscriber {
         item.usedOnDayKey = day.rawValue
         store.save()
         streaks.freeze(day: day, at: now)
+        // Заморожений учорашній день зарахований — ритм не обривався, і «Знову в ритмі»,
+        // нарахований сьогодні раніше, вже не заслужений (SPEC-NOTIFICATIONS §12.5 Б).
+        if day != today { xp.revert(refId: Self.bounceBackRef(today), at: now) }
         recordActivation(item, at: now)
         return true
     }
@@ -315,9 +357,68 @@ public final class GamificationService: MetricsSubscriber {
 
     // MARK: - Внутрішнє
 
+    /// Події, на які гейміфікація не реагує. Сповіщення сюди обов'язково: «доставлено»
+    /// пишеться на кожне перепланування, і без цього кожна позначка ганяла б квести й досягнення.
     private static let internalMetrics: Set<MetricKey> = [
-        .xpEarned, .levelReached, .achievementUnlocked, .questCompleted, .streakCurrent, .prizeActivated
+        .xpEarned, .levelReached, .achievementUnlocked, .questCompleted, .streakCurrent, .prizeActivated,
+        .reminderResponded, .notificationDelivered, .notificationOpened, .notificationSnoozed, .notificationPaused
     ]
+
+    // MARK: - Нагороди за повернення (SPEC-NOTIFICATIONS §12.5)
+
+    /// А. ⚡ «Подвійний XP» за першу порцію після перерви ≥ 3 днів, не частіше ніж раз на 30 днів.
+    ///
+    /// Нагорода за дію, а не за відкриття застосунку чи реакцію на сповіщення: хто повернувся
+    /// сам або має вимкнені сповіщення, отримує так само. Undo порції подарунок **не** забирає —
+    /// виданий приз не відкликається (SPEC-PRIZES §3.4), зловживання обмежує частота.
+    ///
+    /// Перевірка йде на кожну порцію, тож перший відсів — дешевий: лише перша порція дня.
+    private func grantComebackGiftIfDue(_ event: RecordedMetricEvent) {
+        let day = DayKey(rawValue: event.dayKey)
+        guard dayLogs.existingDayLog(for: day)?.entriesCount == 1,
+              let lastActive = dayLogs.lastActiveDayKey(before: day),
+              calendar.daysBetween(lastActive, day) >= xp.rules.comebackMinGapDays else { return }
+
+        let ref = DeterministicID.uuid(from: "comeback:\(day.rawValue)")
+        let items = store.rewardItems()
+        guard !items.contains(where: { $0.acquiredByRef == ref }) else { return }
+        if let lastGift = items.filter({ $0.source == .comeback }).map(\.acquiredAt).max(),
+           calendar.daysBetween(calendar.dayKey(for: lastGift), day) < xp.rules.comebackCooldownDays {
+            return
+        }
+
+        let item = RewardItem(
+            defKey: RewardCatalog.boostKey, source: .comeback, acquiredAt: event.occurredAt, acquiredByRef: ref
+        )
+        store.insertReward(item)
+        pendingComebackGift = item.id
+    }
+
+    /// Б. «Знову в ритмі»: +25 XP за норму, закриту наступного дня після пропуску, що обірвав
+    /// серію ≥ 3, не частіше ніж раз на 7 днів.
+    ///
+    /// Ref — день, а не порція: XP тримається на `day.goalMet` і відкочується разом із ним, навіть
+    /// коли видалили не ту порцію, що закрила норму. Множник серії `XPEngine` дає лише порціям,
+    /// тож тут діє тільки буст.
+    private func awardBounceBackIfDue(_ event: RecordedMetricEvent) {
+        let day = DayKey(rawValue: event.dayKey)
+        let facts = streaks.facts(at: calendar.date(from: day))
+        guard !facts.countedYesterday,
+              facts.lengthEndingDayBefore >= xp.rules.bounceBackMinStreak else { return }
+
+        let ref = Self.bounceBackRef(day)
+        guard !store.xpEntries(refId: ref).contains(where: { $0.revertedAt == nil }) else { return }
+        if let last = lastBounceBackDay(), calendar.daysBetween(last, day) < xp.rules.bounceBackCooldownDays {
+            return
+        }
+
+        let gained = xp.award(amount: xp.rules.perBounceBack, reason: .bounceBack, refId: ref, at: event.occurredAt)
+        if gained > 0 { pendingBounceBackXp = gained }
+    }
+
+    static func bounceBackRef(_ day: DayKey) -> UUID {
+        DeterministicID.uuid(from: "bounceBack:\(day.rawValue)")
+    }
 
     private static func prizeState(_ item: RewardItem, at date: Date) -> PrizeState {
         switch item.state {

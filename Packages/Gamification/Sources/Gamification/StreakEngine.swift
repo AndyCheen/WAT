@@ -102,6 +102,22 @@ public final class StreakEngine {
         return isCounted(today) ? .todayAlreadyCounted : .today
     }
 
+    /// Факти серії на сьогодні, учора й позавчора — один прохід по `DayLog`.
+    public func facts(at date: Date) -> StreakFacts {
+        let frozen = Set(store.streakState().frozenDayKeys)
+        let completed = Set(dayLogs.allDayLogs().filter { $0.goalMet }.map(\.dayKey))
+        let today = calendar.dayKey(for: date)
+        let yesterday = calendar.dayKey(offsetDays: -1, from: today)
+        let dayBefore = calendar.dayKey(offsetDays: -2, from: today)
+        func counted(_ day: DayKey) -> Bool { completed.contains(day.rawValue) || frozen.contains(day.rawValue) }
+        func run(_ day: DayKey) -> Int { self.length(endingAt: day, completed: completed, frozen: frozen) }
+        return StreakFacts(
+            countedToday: counted(today), countedYesterday: counted(yesterday), countedDayBefore: counted(dayBefore),
+            lengthEndingToday: run(today), lengthEndingYesterday: run(yesterday),
+            lengthEndingDayBefore: run(dayBefore)
+        )
+    }
+
     /// Заморожує день. Жетонів більше немає — предмет і є жетон, його стан міняє
     /// координатор (`GamificationService.useFreeze(prizeId:)`).
     @discardableResult
@@ -138,6 +154,10 @@ public final class StreakEngine {
     /// Скільки днів із нормою в ланцюгу, що закінчується на `day`.
     private func streakLength(endingAt day: DayKey, frozen: Set<String>) -> Int {
         let completed = Set(dayLogs.allDayLogs().filter { $0.goalMet }.map(\.dayKey))
+        return length(endingAt: day, completed: completed, frozen: frozen)
+    }
+
+    private func length(endingAt day: DayKey, completed: Set<String>, frozen: Set<String>) -> Int {
         var cursor = day
         var length = 0
         while completed.contains(cursor.rawValue) || frozen.contains(cursor.rawValue) {

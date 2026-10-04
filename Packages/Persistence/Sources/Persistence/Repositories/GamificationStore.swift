@@ -9,6 +9,8 @@ public protocol GamificationStoreProtocol: AnyObject {
     func insertXP(_ entry: XPEntry)
     func xpEntries(dayKey: String?) -> [XPEntry]
     func xpEntries(refId: UUID) -> [XPEntry]
+    /// Записи однієї причини, новіші спершу — для частоти «Знову в ритмі» (SPEC-NOTIFICATIONS §12.5).
+    func xpEntries(reason: XPReason) -> [XPEntry]
     func totalXP() -> Int
 
     func quests(scope: QuestScope?, periodKey: String?) -> [QuestInstance]
@@ -80,6 +82,15 @@ public final class GamificationStore: GamificationStoreProtocol {
 
     public func xpEntries(refId: UUID) -> [XPEntry] {
         let descriptor = FetchDescriptor<XPEntry>(predicate: #Predicate { $0.refId == refId })
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    public func xpEntries(reason: XPReason) -> [XPEntry] {
+        let raw = reason.rawValue
+        let descriptor = FetchDescriptor<XPEntry>(
+            predicate: #Predicate { $0.reasonRaw == raw },
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
         return (try? context.fetch(descriptor)) ?? []
     }
 

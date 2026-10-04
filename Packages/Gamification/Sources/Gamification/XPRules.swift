@@ -11,6 +11,17 @@ public struct XPRules: Sendable {
     public var streakMultiplierStep: Double
     public var streakMultiplierCap: Double
 
+    // Нагороди за повернення (SPEC-NOTIFICATIONS §12.5).
+    /// «Знову в ритмі» — як щоденне завдання.
+    public var perBounceBack: Int
+    /// Серія, обрив якої вартий бонусу: інакше чергування «норма — пропуск — норма» стало б фармом.
+    public var bounceBackMinStreak: Int
+    public var bounceBackCooldownDays: Int
+    /// `daysBetween(останній день з порцією, сьогодні)` — з якого розриву перша порція дає подарунок.
+    public var comebackMinGapDays: Int
+    /// Не частіше: інакше «пропущу 3 дні — отримаю приз» стає стратегією.
+    public var comebackCooldownDays: Int
+
     public init(
         perIntake: Int = 5,
         perDayPartGoal: Int = 10,
@@ -18,7 +29,12 @@ public struct XPRules: Sendable {
         perDailyQuest: Int = 25,
         perWeeklyQuest: Int = 100,
         streakMultiplierStep: Double = 0.05,
-        streakMultiplierCap: Double = 1.5
+        streakMultiplierCap: Double = 1.5,
+        perBounceBack: Int = 25,
+        bounceBackMinStreak: Int = 3,
+        bounceBackCooldownDays: Int = 7,
+        comebackMinGapDays: Int = 3,
+        comebackCooldownDays: Int = 30
     ) {
         self.perIntake = perIntake
         self.perDayPartGoal = perDayPartGoal
@@ -27,6 +43,11 @@ public struct XPRules: Sendable {
         self.perWeeklyQuest = perWeeklyQuest
         self.streakMultiplierStep = streakMultiplierStep
         self.streakMultiplierCap = streakMultiplierCap
+        self.perBounceBack = perBounceBack
+        self.bounceBackMinStreak = bounceBackMinStreak
+        self.bounceBackCooldownDays = bounceBackCooldownDays
+        self.comebackMinGapDays = comebackMinGapDays
+        self.comebackCooldownDays = comebackCooldownDays
     }
 
     /// Серія збільшує коефіцієнт досвіду (ТЗ §5.3).

@@ -112,7 +112,7 @@ final class AchievementPresentationTests: XCTestCase {
         XCTAssertTrue(env.game.takeRecentUnlocks().isEmpty, "стартовий refresh у чергу не потрапляє")
 
         env.addIntakeEvent(1000)
-        XCTAssertEqual(Set(env.game.takeRecentUnlocks().map(\.key)), ["first.drop", "big.gulp"])
+        XCTAssertEqual(Set(env.game.takeRecentUnlocks().achievements.map(\.key)), ["first.drop", "big.gulp"])
         XCTAssertTrue(env.game.takeRecentUnlocks().isEmpty, "черга очищається після читання")
     }
 

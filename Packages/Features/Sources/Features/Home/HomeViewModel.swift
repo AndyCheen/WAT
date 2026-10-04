@@ -156,7 +156,7 @@ public final class HomeViewModel {
         // все одно нагадає крапка на краплі рівня в шапці.
         if level.level > levelBefore {
             showToast(HomeToast(message: "Рівень \(level.level)!"))
-        } else if let toast = Self.achievementToast(unlocked) {
+        } else if let toast = Self.achievementToast(unlocked.achievements) {
             showToast(toast)
         }
 
@@ -165,7 +165,7 @@ public final class HomeViewModel {
             pulse = HomePulse(kind: .levelUp(level.level))
         } else if result.goalJustReached {
             pulse = HomePulse(kind: .goalReached)
-        } else if !unlocked.isEmpty {
+        } else if !unlocked.achievements.isEmpty {
             pulse = HomePulse(kind: .achievementUnlocked)
         } else if result.cappedAmountMl > 0 {
             pulse = HomePulse(kind: .capped)
