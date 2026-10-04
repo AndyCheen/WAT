@@ -102,3 +102,40 @@ final class CalendarServiceTests: XCTestCase {
         XCTAssertEqual(s.currentWeek.rawValue, "2026-W29")
     }
 }
+
+// MARK: - Поточний пояс (SPEC-NOTIFICATIONS §16.6)
+
+final class CalendarServiceTimeZoneTests: XCTestCase {
+    /// 18 липня 2026, 23:30 за Києвом — у Токіо вже 19-те.
+    private func lateEveningKyiv() -> FixedClock {
+        var c = DateComponents()
+        c.year = 2026; c.month = 7; c.day = 18; c.hour = 23; c.minute = 30
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Europe/Kyiv")!
+        return FixedClock(now: cal.date(from: c)!)
+    }
+
+    func testTodayFollowsTimeZoneChange() {
+        let clock = lateEveningKyiv()
+        let service = CalendarService(clock: clock)
+        XCTAssertEqual(service.today.rawValue, "2026-07-18")
+
+        clock.setTimeZone(TimeZone(identifier: "Asia/Tokyo")!)
+
+        XCTAssertEqual(service.today.rawValue, "2026-07-19", "після перельоту доба рахується в новому поясі")
+        XCTAssertEqual(service.calendar.timeZone.identifier, "Asia/Tokyo")
+    }
+
+    /// Hydration і Gamification тримають власні копії структури — вони теж мають перейти.
+    func testCopiesShareTheCurrentTimeZone() {
+        let clock = lateEveningKyiv()
+        let original = CalendarService(clock: clock)
+        let copy = original
+        _ = original.today
+
+        clock.setTimeZone(TimeZone(identifier: "Asia/Tokyo")!)
+
+        XCTAssertEqual(copy.today.rawValue, "2026-07-19")
+        XCTAssertEqual(copy.calendar.firstWeekday, 2, "перебудований календар зберігає тиждень з понеділка")
+    }
+}

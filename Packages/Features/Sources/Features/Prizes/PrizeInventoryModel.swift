@@ -40,6 +40,10 @@ public struct PrizeFeedback: Equatable {
 public final class PrizeInventoryModel {
     private let services: AppServices
 
+    /// Дані застаріли не через дію на цьому екрані (нова доба, повернення з фону) — екран
+    /// слухає це значення й викликає `reload()`.
+    public var epoch: Int { services.epoch }
+
     public private(set) var inventory: PrizeInventory = .empty
     public private(set) var selected: PrizeSelection?
     public private(set) var feedback: PrizeFeedback?

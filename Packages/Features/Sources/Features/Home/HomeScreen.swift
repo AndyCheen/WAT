@@ -64,6 +64,7 @@ public struct HomeScreen: View {
             model.onOpenAchievements = onOpenAchievements
             model.reload()
         }
+        .onChange(of: model.epoch) { model.reload() }
         // Одне джерело правди для вібрації на всі дії екрана.
         .wtFeedback(trigger: model.pulse) { pulse in
             switch pulse?.kind {

@@ -38,6 +38,26 @@ final class IntegrationTests: XCTestCase {
         XCTAssertEqual(services.gamification.achievementSnapshots().count, 7)
     }
 
+    /// Застосунок, лишений відкритим на ніч, після повернення з фону показує новий день
+    /// з новими щоденними завданнями (SPEC-NOTIFICATIONS §2, п. 8).
+    func testBecameActiveAfterMidnightStartsTheNewDay() throws {
+        let clock = try XCTUnwrap(services.clock as? FixedClock)
+        services.hydration.addIntake(amountMl: 2000)
+        XCTAssertEqual(services.gamification.dailyQuests().first { $0.key == "daily.goal" }?.progress, 2000)
+        let epochBefore = services.epoch
+
+        clock.set(Self.date(day: 19, hour: 8))
+        services.handleBecameActive()
+
+        XCTAssertGreaterThan(services.epoch, epochBefore, "екрани отримали сигнал перечитати знімки")
+        XCTAssertEqual(services.calendar.today.rawValue, "2026-07-19")
+        XCTAssertEqual(
+            services.gamification.dailyQuests().first { $0.key == "daily.goal" }?.progress, 0,
+            "щоденні завдання нової доби створено з нуля"
+        )
+        XCTAssertEqual(services.gamification.streakSummary().current, 1, "учорашній день зараховано в серію")
+    }
+
     func testAddingWaterDrivesEveryModule() {
         services.hydration.addIntake(amountMl: 500)
 

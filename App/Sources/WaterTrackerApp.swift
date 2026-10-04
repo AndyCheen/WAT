@@ -7,6 +7,7 @@ import Features
 @main
 struct WaterTrackerApp: App {
     @State private var services: AppServices
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         let launch = LaunchConfiguration.current
@@ -28,6 +29,20 @@ struct WaterTrackerApp: App {
     var body: some Scene {
         WindowGroup {
             RootView(services: services, initialRoute: LaunchConfiguration.current.startRoute)
+                // Північ і переведення годинника, поки застосунок на екрані.
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+                    NSTimeZone.resetSystemTimeZone()
+                    services.handleTimeChange()
+                }
+                // Системний пояс кешується процесом — без скидання `TimeZone.current`
+                // віддавав би старий пояс до перезапуску (SPEC-NOTIFICATIONS §16.6).
+                .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange)) { _ in
+                    NSTimeZone.resetSystemTimeZone()
+                    services.handleTimeChange()
+                }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { services.handleBecameActive() }
         }
     }
 }

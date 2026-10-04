@@ -46,6 +46,7 @@ public struct PrizesScreen: View {
             }
         }
         .onAppear { model.reloadMarkingSeen() }
+        .onChange(of: model.epoch) { model.reload() }
         .wtFeedback(trigger: model.selected?.id) { $0 == nil ? nil : .tap }
         .wtFeedback(trigger: model.feedback) { $0?.feedback }
     }

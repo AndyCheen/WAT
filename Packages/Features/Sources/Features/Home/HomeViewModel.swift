@@ -87,6 +87,10 @@ public final class HomeViewModel {
 
     private let services: AppServices
 
+    /// Дані застаріли не через дію на цьому екрані (нова доба, повернення з фону) — екран
+    /// слухає це значення й викликає `reload()`.
+    public var epoch: Int { services.epoch }
+
     public private(set) var day: DaySnapshot
     public private(set) var history: [IntakeSnapshot] = []
     public private(set) var quests: [QuestSnapshot] = []

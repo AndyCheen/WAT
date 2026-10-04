@@ -26,6 +26,15 @@ public final class AppServices {
     /// Змінюється при кожній дії — екрани перечитують знімки.
     public private(set) var revision: Int = 0
 
+    /// Змінюється, коли дані застаріли не через дію на екрані: повернення з фону, нова доба,
+    /// зміна поясу. Екрани слухають його й перечитують знімки — власні дії вони й так
+    /// перечитують самі, з анімацією.
+    public private(set) var epoch: Int = 0
+
+    /// День останнього повного перерахунку гейміфікації — щоб не ганяти його на кожне
+    /// повернення з фону, а лише коли настала нова доба.
+    private var lastRefreshedDay: DayKey?
+
     public init(container: ModelContainer, clock: Clock = SystemClock()) {
         self.container = container
         self.clock = clock
@@ -60,8 +69,34 @@ public final class AppServices {
         }
         _ = profiles.quickAddPresets()
         gamification.bootstrap()
+        lastRefreshedDay = calendar.today
         metrics.record(MetricEvent(name: .appOpened, value: 1, occurredAt: calendar.now))
         touch()
+    }
+
+    /// Застосунок повернувся з фону (`scenePhase == .active`).
+    ///
+    /// Без цього застосунок, лишений відкритим на ніч, показував учорашній день: доба
+    /// перераховувалась лише після дії користувача (CLAUDE.md, «Відомі прогалини», п. 1).
+    public func handleBecameActive() {
+        refreshIfNewDay()
+        epoch &+= 1
+    }
+
+    /// Північ, зміна поясу чи системного часу, поки застосунок відкритий.
+    public func handleTimeChange() {
+        refreshIfNewDay()
+        epoch &+= 1
+    }
+
+    /// Нова доба — нові щоденні завдання й перерахована серія. Свій `commit()`: це окрема
+    /// подія, не частина дії користувача.
+    private func refreshIfNewDay() {
+        let today = calendar.today
+        guard today != lastRefreshedDay else { return }
+        lastRefreshedDay = today
+        gamification.refresh(at: calendar.now)
+        metrics.commit()
     }
 
     /// Сигнал екранам, що дані змінилися.
