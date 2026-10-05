@@ -96,3 +96,28 @@ extension PaceCurve {
         goalBlocks().first { $0.contains(minute: minute) }
     }
 }
+
+/// Поточна частина доби для рядка на головному (WAT-40): яка частина, скільки в ній випито
+/// і скільки хвилин до її кінця. Ті самі блоки й те саме «випито», що в чекпоінта, XP і звіту.
+public struct DayPartProgress: Sendable, Equatable {
+    public let block: GoalBlock
+    public let drunkMl: Int
+    public let minutesLeft: Int
+
+    /// Скільки бракує до цілі — точно, без округлення: як показати, вирішує екран.
+    public var leftMl: Int { max(0, block.targetMl - drunkMl) }
+    public var isReached: Bool { drunkMl >= block.targetMl }
+    public var fraction: Double { block.targetMl > 0 ? min(1, Double(drunkMl) / Double(block.targetMl)) : 1 }
+}
+
+extension PaceCurve {
+    /// Частина доби, що триває о хвилині `minute`. `nil` до підйому й після відбою: частина ще
+    /// не почалась або вже скінчилась (рішення від 05.10.2026, WAT-40). Порція до підйому все одно
+    /// рахується першому блоку — як у XP, — тож о підйомі рядок уже бачить ранкову склянку.
+    public func dayPartProgress(atMinute minute: Int, portions: [TimedPortion]) -> DayPartProgress? {
+        guard let block = goalBlocks().first(where: { minute >= $0.fromMinute && minute < $0.toMinute }) else {
+            return nil
+        }
+        return DayPartProgress(block: block, drunkMl: block.drunkMl(of: portions), minutesLeft: block.toMinute - minute)
+    }
+}
