@@ -189,7 +189,7 @@ extension InsightsService {
     /// частину, яку «то закриває, то ні»). З кількох — та, де медіана найменша.
     ///
     /// Частини — блоки цілей (`GoalBlock`), а не сирі `DayPart`: обрізаний активними годинами
-    /// «ранок» 08–09 мав би ціль 130 мл і випадкові 300 % через одну склянку.
+    /// «ранок» 08–09 мав би ціль 138 мл і випадкові 300 % через одну склянку.
     public func weakDayPart(days: [DayKey]) -> WeakPart? {
         guard let first = days.first, let last = days.last else { return nil }
         let logs = dayLogs.dayLogs(from: first, to: last).filter { $0.entriesCount > 0 }

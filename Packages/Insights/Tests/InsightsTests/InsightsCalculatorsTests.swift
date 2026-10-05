@@ -6,7 +6,7 @@ final class InsightsCalculatorsTests: XCTestCase {
 
     // MARK: - Бал рівномірності
 
-    /// Крива 08:00–22:00, норма 2000: цілі 130 / 519 / 780 / 571 / 0.
+    /// Крива 08:00–22:00, норма 2000: цілі 138 / 551 / 826 / 485 / 0.
     private let curve = PaceCurve(goalMl: 2000, wakeMinutes: 8 * 60, sleepMinutes: 22 * 60)
 
     func testDistributionAlongCurveScores100() {
@@ -45,7 +45,7 @@ final class InsightsCalculatorsTests: XCTestCase {
         XCTAssertEqual(rows[0].ml, 0)
         XCTAssertEqual(rows[2].fraction, 1.0, accuracy: 0.001, "найбільша смуга займає всю ширину")
         XCTAssertTrue(rows.allSatisfy { $0.fraction <= 1 && ($0.tickFraction ?? 0) <= 1 })
-        XCTAssertEqual(rows[2].idealMl, 780, "«День» — шматок кривої 12–17")
+        XCTAssertEqual(rows[2].idealMl, 826, "«День» — шматок кривої 12–17")
         XCTAssertNil(rows[4].tickFraction, "ніч — без ризки")
         XCTAssertEqual(rows[4].ml, 150, "випите вночі все одно показується")
     }
@@ -63,7 +63,7 @@ final class InsightsCalculatorsTests: XCTestCase {
         XCTAssertEqual(report.daysCounted, 5)
         XCTAssertEqual(report.rows[2].median, 500.0 / 1400.0, accuracy: 0.001)
         XCTAssertEqual(report.rows[2].low, report.rows[2].high, accuracy: 0.001, "однакові дні — нульовий розкид")
-        XCTAssertEqual(report.rows[2].ideal ?? 0, 0.39, accuracy: 0.001)
+        XCTAssertEqual(report.rows[2].ideal ?? 0, 0.413, accuracy: 0.001)
         XCTAssertNil(report.rows[4].ideal)
     }
 

@@ -58,6 +58,8 @@ public enum DayPart: Int, CaseIterable, Codable, Sendable, Identifiable {
     /// Вага частини доби в кривій темпу (сума = 1.0) — за повних активних годин.
     /// Ціль конкретного дня — не ця частка, а `PaceCurve.partTargetsMl()`: частина, обрізана
     /// підйомом чи відбоєм, бере пропорційно менше, а поза активними годинами — нуль (WAT-39).
+    /// Спад перед сном — не тут, а в `PaceCurve.taperMinutes`: ці ваги прив'язані до годинника,
+    /// а спад — до відбою людини (WAT-43).
     public var idealShare: Double {
         switch self {
         case .morning: return 0.20

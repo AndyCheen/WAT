@@ -27,12 +27,12 @@ final class SpecDaysTests: XCTestCase {
     /// «Забудько»: порції о 08:30, 13:00, 15:00, 18:30, разом 1,05 л.
     func testForgetfulDay() {
         let day = intakes([(8, 30, 250), (13, 0, 250), (15, 0, 300), (18, 30, 250)])
-        XCTAssertEqual(simulator.reminders(intakes: day), ["11:09", "11:39", "14:37", "16:37", "17:07"])
+        XCTAssertEqual(simulator.reminders(intakes: day), ["10:59", "11:29", "14:31", "16:31", "17:01"])
     }
 
     /// «Подорож»: жодної порції → 4 нагадування від підйому, далі тиша (критерій §19.4).
     func testTravelDay() {
-        XCTAssertEqual(simulator.reminders(intakes: []), ["09:42", "10:12", "12:12", "12:42"])
+        XCTAssertEqual(simulator.reminders(intakes: []), ["09:37", "10:07", "12:07", "12:37"])
     }
 
     /// «Нарада 9–12, далі регулярно, 1,85 л». ТЗ не дає порцій дня — фікстура підібрана так,
@@ -42,13 +42,13 @@ final class SpecDaysTests: XCTestCase {
     ])
 
     func testMeetingDay() {
-        XCTAssertEqual(simulator.reminders(intakes: meeting), ["11:09", "11:39", "15:07", "19:12"])
+        XCTAssertEqual(simulator.reminders(intakes: meeting), ["10:59", "11:29", "15:01", "19:04"])
     }
 
     /// Те саме з тихим періодом 9–12: два нагадування наради зсуваються на 12:00 і зливаються в одне.
     func testMeetingDayWithQuietPeriodMergesAtNoon() {
         var simulator = simulator
         simulator.preferences.quietWindows = [QuietWindow(fromMinutes: 9 * 60, toMinutes: 12 * 60)]
-        XCTAssertEqual(simulator.reminders(intakes: meeting), ["12:00", "15:07", "19:12"])
+        XCTAssertEqual(simulator.reminders(intakes: meeting), ["12:00", "15:01", "19:04"])
     }
 }

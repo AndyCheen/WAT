@@ -75,7 +75,7 @@ struct DayFrame {
         return Double((parts.hour ?? 0) * 60 + (parts.minute ?? 0)) + seconds / 60
     }
 
-    /// Округлення вгору до хвилини — у ТЗ 11:08:15 означає «11:09» (§6.1). Запас на похибку
+    /// Округлення вгору до хвилини — у ТЗ 10:58:21 означає «10:59» (§6.1). Запас на похибку
     /// `Double`, щоб рівно ціла хвилина не стала наступною.
     func ceilToMinute(_ minute: Double) -> Double {
         (minute - 1e-6).rounded(.up)

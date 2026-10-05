@@ -18,8 +18,8 @@ final class ReminderChainTests: XCTestCase {
     func testIntakeRestartsChain() {
         let at = Fixture.date(10)
         let context = Fixture.context(at: at, countedMl: 250, intakes: [at])
-        // E(10:00) = 303 > A → R = 303, ціль 553 → 11:26:42 → 11:27 (у межах [11:00, 13:00]).
-        XCTAssertEqual(reminders(plan(context)), ["11:27", "11:57", "13:57", "14:27"])
+        // E(10:00) = 321 > A → R = 321, ціль 571 → 11:21:41 → 11:22 (у межах [11:00, 13:00]).
+        XCTAssertEqual(reminders(plan(context)), ["11:22", "11:52", "13:52", "14:22"])
     }
 
     /// Відкриття застосунку без порції: якір той самий, але перше нагадування — не раніше ніж
@@ -49,9 +49,9 @@ final class ReminderChainTests: XCTestCase {
         let context = Fixture.context(at: Fixture.date(7))
         var preferences = NotificationPreferences.default
         preferences.cadence = .pace(.more)
-        XCTAssertEqual(reminders(plan(context, preferences)).first, "09:20", "k = 0,75")
+        XCTAssertEqual(reminders(plan(context, preferences)).first, "09:17", "k = 0,75")
         preferences.cadence = .pace(.rarer)
-        XCTAssertEqual(reminders(plan(context, preferences)).first, "10:25", "k = 1,5")
+        XCTAssertEqual(reminders(plan(context, preferences)).first, "10:18", "k = 1,5")
     }
 
     func testEqualIntervals() {
@@ -63,19 +63,22 @@ final class ReminderChainTests: XCTestCase {
     func testFollowUpCanBeTurnedOff() {
         var preferences = NotificationPreferences.default
         preferences.followUpEnabled = false
-        XCTAssertEqual(reminders(plan(Fixture.context(at: Fixture.date(7)), preferences)), ["09:42", "12:12"])
+        XCTAssertEqual(reminders(plan(Fixture.context(at: Fixture.date(7)), preferences)), ["09:37", "12:07"])
     }
 
     /// Після S − 2 год працює вечірній підсумок; без нього відсічка — S − 1 год.
+    ///
+    /// Порція о 18:15, а не о 18:30, як у «забудька»: зі спадом перед сном (WAT-43) після 18:30
+    /// темп уже не встигає до 21:00, і різниці між відсічками не було б видно.
     func testCutoffDependsOnEveningSummary() {
-        let intakeTimes = [Fixture.date(8, 30), Fixture.date(13), Fixture.date(15), Fixture.date(18, 30)]
-        let context = Fixture.context(at: Fixture.date(18, 30), countedMl: 1050, intakes: intakeTimes)
-        XCTAssertEqual(reminders(plan(context)), [], "20:42 — уже після 20:00")
+        let intakeTimes = [Fixture.date(8, 30), Fixture.date(13), Fixture.date(15), Fixture.date(18, 15)]
+        let context = Fixture.context(at: Fixture.date(18, 15), countedMl: 1050, intakes: intakeTimes)
+        XCTAssertEqual(reminders(plan(context)), [], "20:38 — уже після 20:00")
 
         var preferences = NotificationPreferences.default
         preferences.eveningEnabled = false
-        // R = E(18:30) = 1600, ціль 1850 → 20:41:15 → 20:42.
-        XCTAssertEqual(reminders(plan(context, preferences)), ["20:42"], "повторне 21:12 — після 21:00")
+        // R = E(18:15) = 1667, ціль 1917; E(20:00) = 1879, далі половинний темп → 20:37:30 → 20:38.
+        XCTAssertEqual(reminders(plan(context, preferences)), ["20:38"], "повторне 21:08 — після 21:00")
     }
 
     func testClosedGoalSilencesReminders() {
@@ -93,7 +96,7 @@ final class ReminderChainTests: XCTestCase {
     /// доставленими рядками журналу (рішення від 04.10.2026).
     func testReminderIdentifiersUseClockTime() {
         let ids = plan(Fixture.context(at: Fixture.date(7))).items.filter { $0.type == .reminder }.map(\.id)
-        XCTAssertEqual(ids.first, "wt.reminder.2026-10-01.0942")
+        XCTAssertEqual(ids.first, "wt.reminder.2026-10-01.0937")
         XCTAssertFalse(plan(Fixture.context(at: Fixture.date(7))).items.first { $0.type == .reminder }!.isFloating,
                        "нагадування — абсолютний момент від порції")
     }
@@ -109,6 +112,6 @@ final class ReminderChainTests: XCTestCase {
     func testQuietPeriodRespectsWeekdays() {
         var preferences = NotificationPreferences.default
         preferences.quietWindows = [QuietWindow(weekdayMask: 0b0000010, fromMinutes: 9 * 60, toMinutes: 12 * 60)]
-        XCTAssertEqual(reminders(plan(Fixture.context(at: Fixture.date(7)), preferences)).first, "09:42")
+        XCTAssertEqual(reminders(plan(Fixture.context(at: Fixture.date(7)), preferences)).first, "09:37")
     }
 }

@@ -2,7 +2,7 @@ import XCTest
 @testable import Core
 
 /// Цілі частин доби — SPEC-NOTIFICATIONS §9: при 08:00–22:00 чекпоінти «до 12:00» і «до 17:00»,
-/// цілі 649 і 780 мл (різниці округлених E: 1429 − 649), разом із вечором — рівно норма.
+/// цілі 689 і 826 мл (різниці округлених E: 1515 − 689), разом із вечором — рівно норма.
 final class GoalBlockTests: XCTestCase {
     private func blocks(_ wake: Int, _ sleep: Int, goal: Int = 2000) -> [GoalBlock] {
         PaceCurve(goalMl: goal, wakeMinutes: wake, sleepMinutes: sleep).goalBlocks()
@@ -13,7 +13,7 @@ final class GoalBlockTests: XCTestCase {
         XCTAssertEqual(result.map(\.parts), [[.morning, .noon], [.afternoon], [.evening]])
         XCTAssertEqual(result.map(\.fromMinute), [8 * 60, 12 * 60, 17 * 60])
         XCTAssertEqual(result.map(\.toMinute), [12 * 60, 17 * 60, 22 * 60])
-        XCTAssertEqual(result.map(\.targetMl), [649, 780, 571])
+        XCTAssertEqual(result.map(\.targetMl), [689, 826, 485])
         XCTAssertEqual(result.map(\.targetMl).reduce(0, +), 2000)
         XCTAssertEqual(result[0].deadlinePart, .noon)
         XCTAssertEqual(result[0].title, "ранок і полудень")
@@ -62,9 +62,9 @@ final class GoalBlockTests: XCTestCase {
         let portions = [
             TimedPortion(minute: 6 * 60 + 30, ml: 250),
             TimedPortion(minute: 9 * 60, ml: 200),
-            TimedPortion(minute: 11 * 60, ml: 200)
+            TimedPortion(minute: 11 * 60, ml: 250)
         ]
-        XCTAssertEqual(result[0].drunkMl(of: portions), 650)
+        XCTAssertEqual(result[0].drunkMl(of: portions), 700)
         XCTAssertTrue(result[0].isReached(by: portions))
         XCTAssertEqual(result[1].drunkMl(of: portions), 0)
     }
@@ -103,12 +103,12 @@ final class GoalBlockTests: XCTestCase {
 
     // MARK: - Цілі частин доби для графіків 4a
 
-    /// Ті самі мілілітри, що в блоках: ранок 130 + полудень 519 = 649 до 12:00; ніч поза
+    /// Ті самі мілілітри, що в блоках: ранок 138 + полудень 551 = 689 до 12:00; ніч поза
     /// активними годинами — 0; сума — рівно норма.
     func testPartTargetsMatchBlocks() {
         let curve = PaceCurve(goalMl: 2000, wakeMinutes: 8 * 60, sleepMinutes: 22 * 60)
         let targets = curve.partTargetsMl()
-        XCTAssertEqual(targets, [130, 519, 780, 571, 0])
+        XCTAssertEqual(targets, [138, 551, 826, 485, 0])
         XCTAssertEqual(targets.reduce(0, +), 2000)
         let blocks = curve.goalBlocks()
         XCTAssertEqual(targets[DayPart.morning.rawValue] + targets[DayPart.noon.rawValue], blocks[0].targetMl)
@@ -140,19 +140,19 @@ final class GoalBlockTests: XCTestCase {
 
     private let day = PaceCurve(goalMl: 2000, wakeMinutes: 8 * 60, sleepMinutes: 22 * 60)
 
-    /// Критерій приймання WAT-40: 300 + 250 мл до 11:25 — до 12:00 бракує 99 мл, лишається 35 хв.
+    /// Критерій приймання WAT-40: 300 + 250 мл до 11:25 — до 12:00 бракує 139 мл, лишається 35 хв.
     func testProgressBeforeNoonCheckpoint() throws {
         let portions = [TimedPortion(minute: 9 * 60 + 10, ml: 300), TimedPortion(minute: 10 * 60 + 40, ml: 250)]
         let progress = try XCTUnwrap(day.dayPartProgress(atMinute: 11 * 60 + 25, portions: portions))
         XCTAssertEqual(progress.block.toMinute, 12 * 60)
         XCTAssertEqual(progress.drunkMl, 550)
-        XCTAssertEqual(progress.leftMl, 99)
+        XCTAssertEqual(progress.leftMl, 139)
         XCTAssertEqual(progress.minutesLeft, 35)
         XCTAssertFalse(progress.isReached)
     }
 
     func testProgressReachedOnceTargetIsDrunk() throws {
-        let portions = [TimedPortion(minute: 9 * 60, ml: 400), TimedPortion(minute: 11 * 60 + 40, ml: 250)]
+        let portions = [TimedPortion(minute: 9 * 60, ml: 450), TimedPortion(minute: 11 * 60 + 40, ml: 250)]
         let progress = try XCTUnwrap(day.dayPartProgress(atMinute: 11 * 60 + 40, portions: portions))
         XCTAssertTrue(progress.isReached)
         XCTAssertEqual(progress.leftMl, 0)

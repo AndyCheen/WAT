@@ -81,16 +81,16 @@ final class ReportsTests: XCTestCase {
         drink("2026-10-04", 8, 30, 300)
         drink("2026-10-04", 10, 0, 420)
         drink("2026-10-04", 13, 0, 520)
-        drink("2026-10-04", 18, 0, 560)
+        drink("2026-10-04", 18, 0, 460)
         let report = insights.report(for: .day(DayKey(rawValue: "2026-10-04")))
 
         XCTAssertEqual(report.blocks.map(\.title), ["ранок і полудень", "день", "вечір"])
-        XCTAssertEqual(report.blocks.map(\.targetMl), [649, 780, 571])
-        XCTAssertEqual(report.blocks.compactMap(\.drunkMl), [720, 520, 560])
+        XCTAssertEqual(report.blocks.map(\.targetMl), [689, 826, 485])
+        XCTAssertEqual(report.blocks.compactMap(\.drunkMl), [720, 520, 460])
         XCTAssertEqual(report.blocks.map(\.isReached), [true, false, false])
         XCTAssertEqual(report.weakestBlock?.title, "день")
         XCTAssertEqual(report.portions.map(\.minute), [510, 600, 780, 1080])
-        XCTAssertEqual(report.thought, .strongestPart(title: "ранок і полудень", percent: 111))
+        XCTAssertEqual(report.thought, .strongestPart(title: "ранок і полудень", percent: 104))
     }
 
     // MARK: - Одна модель частин доби (WAT-39)
@@ -99,10 +99,10 @@ final class ReportsTests: XCTestCase {
     func testPortionBeforeWakeClosesFirstBlock() {
         drink("2026-10-04", 6, 30, 250)
         drink("2026-10-04", 9, 0, 200)
-        drink("2026-10-04", 11, 0, 200)
+        drink("2026-10-04", 11, 0, 250)
         drink("2026-10-04", 22, 30, 300)
         let report = insights.report(for: .day(DayKey(rawValue: "2026-10-04")))
-        XCTAssertEqual(report.blocks.compactMap(\.drunkMl), [650, 0, 300], "22:30 — вечору")
+        XCTAssertEqual(report.blocks.compactMap(\.drunkMl), [700, 0, 300], "22:30 — вечору")
         XCTAssertEqual(report.blocks.map(\.isReached), [true, false, false])
     }
 
@@ -120,7 +120,7 @@ final class ReportsTests: XCTestCase {
         XCTAssertEqual(after.blocks, before.blocks)
         XCTAssertEqual(after.schedule, DaySchedule(wakeMinutes: 8 * 60, sleepMinutes: 22 * 60))
         XCTAssertEqual(after.blocks.first?.isReached, true)
-        XCTAssertEqual(insights.evenness(for: DayKey(rawValue: "2026-10-04")).rows.map(\.idealMl), [130, 519, 780, 571, 0])
+        XCTAssertEqual(insights.evenness(for: DayKey(rawValue: "2026-10-04")).rows.map(\.idealMl), [138, 551, 826, 485, 0])
     }
 
     /// Дні без знімка (історія до WAT-39) — розклад із профілю.
@@ -135,7 +135,7 @@ final class ReportsTests: XCTestCase {
         XCTAssertEqual(report.blocks.first?.fromMinute, 6 * 60)
     }
 
-    /// «Рівномірність» і звіт рахують той самий день однаково: ранок 130 + полудень 519 = 649
+    /// «Рівномірність» і звіт рахують той самий день однаково: ранок 138 + полудень 551 = 689
     /// до 12:00, ніч без ризки, сума цілей — норма.
     func testEvennessUsesReportModel() {
         drink("2026-10-04", 8, 30, 300)
@@ -144,7 +144,7 @@ final class ReportsTests: XCTestCase {
         let rows = insights.evenness(for: day).rows
         let blocks = insights.report(for: .day(day)).blocks
 
-        XCTAssertEqual(rows.map(\.idealMl), [130, 519, 780, 571, 0])
+        XCTAssertEqual(rows.map(\.idealMl), [138, 551, 826, 485, 0])
         XCTAssertEqual(rows.map(\.idealMl).reduce(0, +), 2000)
         XCTAssertEqual(rows[0].idealMl + rows[1].idealMl, blocks[0].targetMl)
         XCTAssertEqual(rows[2].idealMl, blocks[1].targetMl)
@@ -159,7 +159,7 @@ final class ReportsTests: XCTestCase {
         for day in 1...4 { evenDay("2026-10-0\(day)") }
         let rows = insights.typicalDay(period: .week7).rows
         XCTAssertNil(rows[DayPart.night.rawValue].ideal)
-        XCTAssertEqual(rows[DayPart.morning.rawValue].ideal ?? 0, 130.0 / 2000, accuracy: 0.001)
+        XCTAssertEqual(rows[DayPart.morning.rawValue].ideal ?? 0, 138.0 / 2000, accuracy: 0.001)
         XCTAssertEqual(rows.compactMap(\.ideal).reduce(0, +), 1, accuracy: 1e-9)
     }
 
@@ -172,14 +172,14 @@ final class ReportsTests: XCTestCase {
     // MARK: - Системна прогалина (§10.1)
 
     func testWeakDayPartFindsSystematicGap() {
-        // 10 днів: ранок і день — повністю, вечір — 100 мл із 571.
+        // 10 днів: ранок і день — повністю, вечір — 100 мл із 485.
         for day in 22...30 { forgetfulEvening("2026-09-\(day)") }
         forgetfulEvening("2026-10-01")
         let weak = insights.weakDayPart(days: calendar.recentDays(14, endingAt: DayKey(rawValue: "2026-10-01")))
         XCTAssertEqual(weak?.key, "evening")
         XCTAssertEqual(weak?.title, "вечір")
         XCTAssertEqual(weak?.toMinute, 22 * 60)
-        XCTAssertEqual(weak?.median ?? 1, 0.18, accuracy: 0.01)
+        XCTAssertEqual(weak?.median ?? 1, 0.21, accuracy: 0.01)
     }
 
     func testNoWeakPartWithoutEnoughHistoryOrGap() {
@@ -211,7 +211,7 @@ final class ReportsTests: XCTestCase {
         XCTAssertNil(week.weakestBlock, "звідси «найслабше — …» у тексті сповіщення")
         guard case .bestDay = week.thought else { return XCTFail("\(String(describing: week.thought))") }
         XCTAssertEqual(week.goalDays, 0)
-        XCTAssertEqual(week.totalMl, 3 * 1530, "числа води — ті самі")
+        XCTAssertEqual(week.totalMl, 3 * 1630, "числа води — ті самі")
 
         let day = insights.report(for: .day(DayKey(rawValue: "2026-09-30")))
         XCTAssertTrue(day.blocks.isEmpty)
@@ -220,8 +220,8 @@ final class ReportsTests: XCTestCase {
     }
 
     private func forgetfulEvening(_ day: String) {
-        drink(day, 9, 0, 650)
-        drink(day, 14, 0, 780)
+        drink(day, 9, 0, 700)
+        drink(day, 14, 0, 830)
         drink(day, 19, 0, 100)
     }
 

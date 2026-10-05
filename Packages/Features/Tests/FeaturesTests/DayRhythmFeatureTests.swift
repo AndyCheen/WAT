@@ -8,7 +8,7 @@ import Notifications
 @testable import Features
 
 /// Перемикач «Ритм дня» (WAT-42, SPEC-NOTIFICATIONS §28): вимкнено — режим «просто норма за день».
-/// Розклад за замовчуванням — 08:00–22:00, норма 2000 мл: цілі частин 649, 780 і 571 мл.
+/// Розклад за замовчуванням — 08:00–22:00, норма 2000 мл: цілі частин 689, 826 і 485 мл.
 @MainActor
 final class DayRhythmFeatureTests: XCTestCase {
     private var clock: FixedClock!
@@ -63,7 +63,7 @@ final class DayRhythmFeatureTests: XCTestCase {
         XCTAssertFalse(report?.body.contains("найслабше") ?? true, report?.body ?? "")
 
         add(700, at: 11, to: model)
-        XCTAssertTrue(dayPartXp.isEmpty, "950 ≥ 649, але режим «просто норма»")
+        XCTAssertTrue(dayPartXp.isEmpty, "950 ≥ 689, але режим «просто норма»")
         XCTAssertNil(model.dayPartLine(), "капсули на головному немає")
 
         let slides = presenter(for: .day(services.calendar.today)).slides

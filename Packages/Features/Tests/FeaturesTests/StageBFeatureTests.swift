@@ -140,7 +140,7 @@ final class StageBFeatureTests: XCTestCase {
         XCTAssertEqual(foot, "Найслабше — день: 0 % від потрібного")
         guard case let .thought(_, emoji, headline, detail, _) = slides[3] else { return XCTFail("\(slides[3])") }
         XCTAssertEqual(emoji, "🌙")
-        XCTAssertEqual(headline, "Ранок і полудень — найсильніша частина: 108 % від потрібного")
+        XCTAssertEqual(headline, "Ранок і полудень — найсильніша частина: 102 % від потрібного")
         XCTAssertEqual(detail, "Добраніч. Завтра ранкова склянка — о 08:00.")
     }
 

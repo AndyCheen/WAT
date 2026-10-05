@@ -4,7 +4,7 @@ import Persistence
 @testable import Gamification
 
 /// XP `dayPartGoal` — SPEC-NOTIFICATIONS §9: +10 XP, коли порції всередині частини доби набрали
-/// її ціль за кривою темпу. При 08:00–22:00 ціль «до 12:00» — 649 мл.
+/// її ціль за кривою темпу. При 08:00–22:00 ціль «до 12:00» — 689 мл.
 @MainActor
 final class DayPartGoalTests: XCTestCase {
     private func activeAwards(_ env: GameEnv) -> [XPEntry] {
@@ -15,7 +15,7 @@ final class DayPartGoalTests: XCTestCase {
         let env = GameEnv()
         env.addIntake(250, hour: 8, minute: 30)
         env.addIntake(250, hour: 10)
-        XCTAssertTrue(activeAwards(env).isEmpty, "500 із 649 — ще ні")
+        XCTAssertTrue(activeAwards(env).isEmpty, "500 із 689 — ще ні")
 
         env.addIntake(200, hour: 11, minute: 30)
         XCTAssertEqual(activeAwards(env).map(\.amount), [XPRules.default.perDayPartGoal])
@@ -38,8 +38,8 @@ final class DayPartGoalTests: XCTestCase {
         let env = GameEnv()
         env.addIntake(250, hour: 6, minute: 30)
         env.addIntake(200, hour: 9)
-        XCTAssertTrue(activeAwards(env).isEmpty, "450 із 649 — ще ні")
-        env.addIntake(200, hour: 11)
+        XCTAssertTrue(activeAwards(env).isEmpty, "450 із 689 — ще ні")
+        env.addIntake(250, hour: 11)
         XCTAssertEqual(activeAwards(env).count, 1)
     }
 
@@ -55,11 +55,11 @@ final class DayPartGoalTests: XCTestCase {
         let env = GameEnv(hour: 23)
         env.addIntake(300, hour: 18)
         env.addIntake(300, hour: 22, minute: 30)
-        XCTAssertEqual(activeAwards(env).count, 1, "600 ≥ 571 — вечір закрито")
+        XCTAssertEqual(activeAwards(env).count, 1, "600 ≥ 485 — вечір закрито")
     }
 
     /// Розклад дня — зі знімка в записі дня: підйом, змінений після, межі вже оціненого дня не
-    /// пересуває. При 08:00 «до 12:00» — 649 мл; при 06:00 полудень 09–12 мав би ціль 460, і
+    /// пересуває. При 08:00 «до 12:00» — 689 мл; при 06:00 полудень 09–12 мав би ціль 484, і
     /// без знімка видалення порції 11:00 лишило б XP.
     func testScheduleSnapshotKeepsPastDayBlocks() {
         let env = GameEnv()
@@ -71,7 +71,7 @@ final class DayPartGoalTests: XCTestCase {
         env.profiles.save()
 
         env.removeIntake(closing)
-        XCTAssertTrue(activeAwards(env).isEmpty, "500 < 649 за розкладом того дня")
+        XCTAssertTrue(activeAwards(env).isEmpty, "500 < 689 за розкладом того дня")
     }
 
     func testUndoRevertsAndRestoreAwardsAgain() {
@@ -96,7 +96,7 @@ final class DayPartGoalTests: XCTestCase {
         XCTAssertEqual(activeAwards(env).count, 1)
     }
 
-    /// 18 липня 2026 — субота: з окремим розкладом вихідних (10:00–23:00) ціль «до 12:00» — 401 мл.
+    /// 18 липня 2026 — субота: з окремим розкладом вихідних (10:00–23:00) ціль «до 12:00» — 419 мл.
     func testWeekendScheduleChangesTarget() {
         let env = GameEnv()
         let profile = env.profiles.profile()
@@ -105,7 +105,7 @@ final class DayPartGoalTests: XCTestCase {
         profile.weekendSleepMinutes = 23 * 60
         env.profiles.save()
 
-        env.addIntake(410, hour: 11)
+        env.addIntake(420, hour: 11)
         XCTAssertEqual(activeAwards(env).count, 1)
     }
 
@@ -137,8 +137,8 @@ final class DayPartGoalTests: XCTestCase {
         setDayRhythm(false, env)
         XCTAssertEqual(activeAwards(env).count, 1, "вимкнення XP не відкочує")
         env.addIntake(500, hour: 13)
-        env.addIntake(300, hour: 15)
-        XCTAssertEqual(activeAwards(env).count, 1, "800 ≥ 780, але режим вимкнено")
+        env.addIntake(350, hour: 15)
+        XCTAssertEqual(activeAwards(env).count, 1, "850 ≥ 826, але режим вимкнено")
 
         setDayRhythm(true, env)
         env.addIntake(100, hour: 16)
