@@ -65,7 +65,6 @@ final class ReportViewModel {
         let report = services.insights.report(for: period)
         let days = calendar.days(in: period)
         let profile = services.profile
-        let first = days.first ?? calendar.today
         let last = days.last ?? calendar.today
 
         let presenter = ReportPresenter(
@@ -73,7 +72,7 @@ final class ReportViewModel {
             game: services.gamification.periodSummary(days: days),
             streak: services.gamification.streakSummary(),
             recentGoalDays: calendar.recentDays(7, endingAt: last).map { services.hydration.snapshot(for: $0).goalMet },
-            schedule: profile.schedule(isWeekend: calendar.isWeekend(first)),
+            schedule: report.schedule,
             weekendScheduleEnabled: profile.weekendScheduleEnabled,
             dayPartXp: services.gamification.xp.rules.perDayPartGoal,
             today: calendar.today,

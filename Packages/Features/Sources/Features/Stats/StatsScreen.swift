@@ -382,7 +382,7 @@ public struct StatsScreen: View {
                 VStack(alignment: .leading, spacing: 10) {
                     infoLine("Медіана", "типова частка на цей період.")
                     infoLine("Розкид", "наскільки по-різному минали дні. Чим ширше — тим менш стабільна звичка.")
-                    infoLine("Ціль", "скільки мало припадати на цей період за ідеального розподілу.")
+                    infoLine("Ціль", "скільки мало припадати на цей період за твоїм режимом дня. Поза активними годинами цілі немає.")
                 }
                 .padding(14)
                 .background(Color(hex: "#f6f9fd"), in: RoundedRectangle(cornerRadius: 16, style: .continuous))

@@ -94,6 +94,8 @@ public struct PeriodReport: Equatable, Sendable {
     /// Порції дня в хвилинах доби — для слайда «як минув день».
     public let portions: [TimedPortion]
     public let blocks: [ReportBlock]
+    /// Розклад, з якого побудовано `blocks` — першого дня періоду, зі знімка його запису.
+    public let schedule: DaySchedule
     public let previous: ReportComparison?
     public let longestStreak: StreakRun?
     public let weekdayAverageMl: Int?
@@ -137,8 +139,8 @@ extension InsightsService {
         let previous = periodSnapshot(calendar.shifted(period, by: -1))
         let profile = profiles.profile()
 
-        let template = blockTemplate(for: period)
-        let blocks: [ReportBlock] = template.map { block in
+        let curve = templateCurve(for: period)
+        let blocks: [ReportBlock] = curve.goalBlocks().map { block in
             let ratios = snapshot.blockRatios[block.deadlinePart.key] ?? []
             let previousRatios = previous.blockRatios[block.deadlinePart.key] ?? []
             let drunk: Int? = period.kind == .day ? block.drunkMl(of: snapshot.portions) : nil
@@ -166,7 +168,8 @@ extension InsightsService {
         var report = PeriodReport(
             period: period, days: snapshot.days, totalMl: snapshot.totalMl, goalDays: snapshot.goalDays,
             averageMl: snapshot.averageMl, goalMl: snapshot.days.last?.goalMl ?? profiles.currentGoalMl(on: calendar.today),
-            glassMl: profile.glassMl, portions: snapshot.portions, blocks: blocks, previous: comparison,
+            glassMl: profile.glassMl, portions: snapshot.portions, blocks: blocks,
+            schedule: DaySchedule(wakeMinutes: curve.wakeMinutes, sleepMinutes: curve.sleepMinutes), previous: comparison,
             longestStreak: snapshot.longestRun, weekdayAverageMl: average(weekdays), weekendAverageMl: average(weekends),
             thought: nil
         )
@@ -240,21 +243,19 @@ extension InsightsService {
         return snapshot
     }
 
-    /// Блоки, що показуються в звіті: розклад першого дня періоду з поточною нормою.
-    /// Розклад вихідних може дати інші межі — тоді частини зводяться за ключем кінцевої частини.
-    private func blockTemplate(for period: ReportPeriod) -> [GoalBlock] {
+    /// Крива, з якої беруться блоки звіту: перший день періоду, його знімки розкладу й норми.
+    /// Розклад вихідних чи змінений підйом може дати іншим дням інші межі — тоді частини
+    /// зводяться за ключем кінцевої частини.
+    private func templateCurve(for period: ReportPeriod) -> PaceCurve {
         let day = calendar.days(in: period).first ?? calendar.today
-        let goal = dayLogs.existingDayLog(for: day)?.goalMlSnapshot ?? profiles.currentGoalMl(on: day)
-        return schedule(for: day).curve(goalMl: goal).goalBlocks()
+        return dayCurve(dayLogs.existingDayLog(for: day), day: day, profile: profiles.profile())
     }
 
-    private func schedule(for day: DayKey) -> DaySchedule {
-        profiles.profile().schedule(isWeekend: calendar.isWeekend(day))
-    }
-
+    /// Кожен день — зі своїм розкладом (WAT-39): звіт за вересень після зміни підйому в жовтні
+    /// оцінює вересневі частини доби так само, як XP, нарахований тоді.
     private func blockRatios(log: DayLog, day: DayKey) -> [(GoalBlock, Double)] {
         let portions = portions(of: log)
-        return schedule(for: day).curve(goalMl: log.goalMlSnapshot).goalBlocks().map { block in
+        return dayCurve(log, day: day, profile: profiles.profile()).goalBlocks().map { block in
             (block, block.targetMl > 0 ? Double(block.drunkMl(of: portions)) / Double(block.targetMl) : 0)
         }
     }
@@ -344,7 +345,7 @@ extension PeriodReport {
     func with(thought: ReportThought?) -> PeriodReport {
         PeriodReport(
             period: period, days: days, totalMl: totalMl, goalDays: goalDays, averageMl: averageMl, goalMl: goalMl,
-            glassMl: glassMl, portions: portions, blocks: blocks, previous: previous, longestStreak: longestStreak,
+            glassMl: glassMl, portions: portions, blocks: blocks, schedule: schedule, previous: previous, longestStreak: longestStreak,
             weekdayAverageMl: weekdayAverageMl, weekendAverageMl: weekendAverageMl, thought: thought
         )
     }

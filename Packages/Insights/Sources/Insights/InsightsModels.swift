@@ -8,8 +8,9 @@ public struct EvennessRow: Equatable, Identifiable, Sendable {
     public let idealMl: Int
     /// Частка від максимуму на графіку — ширина синьої смуги.
     public let fraction: Double
-    /// Позиція ризки «ціль» у тих самих координатах.
-    public let tickFraction: Double
+    /// Позиція ризки «ціль» у тих самих координатах; `nil` — частина поза активними годинами,
+    /// цілі в неї немає (WAT-39).
+    public let tickFraction: Double?
 
     public var id: Int { part.rawValue }
     public var label: String { part.title }
@@ -30,7 +31,8 @@ public struct TypicalDayRow: Equatable, Identifiable, Sendable {
     public let median: Double
     public let low: Double
     public let high: Double
-    public let ideal: Double
+    /// Цільова частка з кривої темпу; `nil` — частина поза активними годинами.
+    public let ideal: Double?
 
     public var id: Int { part.rawValue }
     public var label: String { part.title }
