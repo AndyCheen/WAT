@@ -97,6 +97,24 @@ final class CheckpointTests: XCTestCase {
         XCTAssertTrue(checkpoints(oneMorningGlass, off).isEmpty)
     }
 
+    /// Режим «просто норма» (WAT-42) гасить чекпоінти, хоч їхній власний перемикач увімкнений; решта
+    /// дня — та сама: нагадування стоять там, де стояли б без чекпоінта.
+    func testDayRhythmOffSilencesCheckpointsButKeepsReminders() {
+        var plain = NotificationPreferences.default
+        plain.dayRhythmEnabled = false
+        XCTAssertTrue(plain.checkpointsEnabled)
+        XCTAssertTrue(checkpoints(oneMorningGlass, plain).isEmpty)
+
+        var noCheckpoints = NotificationPreferences.default
+        noCheckpoints.checkpointsEnabled = false
+        let today: (NotificationPreferences) -> [String] = { preferences in
+            NotificationPlanner.plan(context: self.oneMorningGlass, preferences: preferences).items
+                .filter { $0.dayKey.day == 1 }.map { "\(Fixture.clock($0.fireAt)) \($0.type)" }
+        }
+        XCTAssertEqual(today(plain), today(noCheckpoints))
+        XCTAssertFalse(today(plain).isEmpty)
+    }
+
     /// Тихий період зсуває чекпоінт на свій кінець, поки той ще до дедлайну.
     func testQuietPeriodShiftsCheckpoint() {
         var preferences = NotificationPreferences.default

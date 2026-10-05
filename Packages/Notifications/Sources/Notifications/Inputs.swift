@@ -44,6 +44,9 @@ public struct NotificationPreferences: Sendable, Equatable {
     public var morningEnabled = true
     /// Чекпоінти частин доби (§9, етап B).
     public var checkpointsEnabled = true
+    /// «Ритм дня» з профілю (WAT-42, §28): вимкнено — чекпоінтів немає незалежно від `checkpointsEnabled`.
+    /// Окреме поле, а не злите з ним: власний перемикач чекпоінтів лишається, і увімкнення ритму його повертає.
+    public var dayRhythmEnabled = true
     /// Звіти (§11.1): денний — о відбої, тижневий — у вибраний день, місячний — 1-го числа.
     public var dailyReportEnabled = true
     public var weeklyReportEnabled = true
@@ -89,6 +92,7 @@ extension NotificationPreferences {
             ? DaySchedule(wakeMinutes: profile.weekendWakeMinutes, sleepMinutes: profile.weekendSleepMinutes)
             : nil
         glassMl = profile.glassMl
+        dayRhythmEnabled = profile.dayRhythmEnabled
         quietWindows = quietPeriods.filter(\.enabled).map {
             QuietWindow(weekdayMask: $0.weekdayMask, fromMinutes: $0.fromMinutes, toMinutes: $0.toMinutes)
         }

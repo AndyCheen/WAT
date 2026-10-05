@@ -108,4 +108,50 @@ final class DayPartGoalTests: XCTestCase {
         env.addIntake(410, hour: 11)
         XCTAssertEqual(activeAwards(env).count, 1)
     }
+
+    // MARK: - Режим «просто норма» (WAT-42, §28)
+
+    private func setDayRhythm(_ enabled: Bool, _ env: GameEnv) {
+        env.profiles.profile().dayRhythmEnabled = enabled
+        env.profiles.save()
+    }
+
+    /// Без ритму дня закрита частина XP не дає, а порція й норма — як завжди.
+    func testPlainModeAwardsNoDayPartXp() {
+        let env = GameEnv()
+        setDayRhythm(false, env)
+        env.addIntake(700, hour: 9)
+        env.addIntake(700, hour: 14)
+        env.addIntake(700, hour: 19)
+        XCTAssertTrue(env.store.xpEntries(reason: .dayPartGoal).isEmpty)
+        XCTAssertEqual(env.store.xpEntries(reason: .intake).count, 3)
+    }
+
+    /// Вимкнення не забирає вже нараховане, а увімкнення назад нараховує з наступної порції —
+    /// за весь блок, разом із порціями, випитими без ритму.
+    func testTogglingKeepsEarnedAndResumesFromNextPortion() {
+        let env = GameEnv()
+        env.addIntake(700, hour: 9)
+        XCTAssertEqual(activeAwards(env).count, 1)
+
+        setDayRhythm(false, env)
+        XCTAssertEqual(activeAwards(env).count, 1, "вимкнення XP не відкочує")
+        env.addIntake(500, hour: 13)
+        env.addIntake(300, hour: 15)
+        XCTAssertEqual(activeAwards(env).count, 1, "800 ≥ 780, але режим вимкнено")
+
+        setDayRhythm(true, env)
+        env.addIntake(100, hour: 16)
+        XCTAssertEqual(activeAwards(env).count, 2, "наступна порція в блоці 12–17 закриває його")
+    }
+
+    /// Завдання на частину доби — у пулі лише з ритмом дня.
+    func testDayPartQuestsAreMarked() {
+        XCTAssertEqual(QuestCatalog.all.filter(\.isDayPartQuest).map(\.key), ["daily.morning"])
+        let env = GameEnv()
+        setDayRhythm(false, env)
+        env.addIntake(250, hour: 9)
+        XCTAssertFalse(env.game.dailyQuests().contains { $0.key == "daily.morning" })
+        XCTAssertEqual(env.game.dailyQuests().count, QuestCatalog.dailySlots)
+    }
 }
