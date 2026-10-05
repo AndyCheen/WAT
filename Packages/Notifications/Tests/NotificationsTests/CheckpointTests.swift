@@ -4,7 +4,7 @@ import Persistence
 @testable import Notifications
 
 /// Чекпоінти частин доби — SPEC-NOTIFICATIONS §9. При 08:00–22:00 і нормі 2000 мл чекпоінти
-/// о 11:15 (до 12:00, ціль 649 мл) і 16:15 (до 17:00, 779 мл); у вечора чекпоінта немає.
+/// о 11:15 (до 12:00, ціль 649 мл) і 16:15 (до 17:00, 780 мл); у вечора чекпоінта немає.
 final class CheckpointTests: XCTestCase {
     private func checkpoints(_ context: NotificationContext,
                              _ preferences: NotificationPreferences = .default) -> [PlannedNotification] {
@@ -64,6 +64,22 @@ final class CheckpointTests: XCTestCase {
     /// Бракує більше ніж 2·P — недосяжний чекпоінт не мотивує (умова 2).
     func testUnreachableCheckpointIsSkipped() {
         XCTAssertTrue(checkpoints(Fixture.context(at: Fixture.date(9))).isEmpty, "бракує всі 649 мл")
+    }
+
+    /// Склянка о 06:30 при підйомі о 08:00 зараховується ранку (WAT-39): разом із порціями до
+    /// 12:00 ціль закрита — чекпоінта немає.
+    func testPortionBeforeWakeClosesMorningCheckpoint() {
+        let portions = [Portion(at: Fixture.date(6, 30), ml: 250), Portion(at: Fixture.date(8, 30), ml: 250),
+                        Portion(at: Fixture.date(10), ml: 200)]
+        XCTAssertTrue(checkpoints(Fixture.context(at: Fixture.date(10, 5), portions: portions)).filter { $0.slot == "noon" }.isEmpty)
+    }
+
+    /// Рання склянка зменшує й відставання: 06:30 + 08:30 — це 500 мл ранку, о 11:15 за темпом
+    /// 519, відставання 19 < ½P. Без неї був би той самий чекпоінт, що й в `oneMorningGlass`.
+    func testPortionBeforeWakeCountsTowardLag() {
+        let portions = [Portion(at: Fixture.date(6, 30), ml: 250), Portion(at: Fixture.date(8, 30), ml: 250)]
+        XCTAssertTrue(checkpoints(Fixture.context(at: Fixture.date(9), portions: portions)).filter { $0.slot == "noon" }.isEmpty)
+        XCTAssertFalse(checkpoints(oneMorningGlass).filter { $0.slot == "noon" }.isEmpty)
     }
 
     func testNoCheckpointOnceDayGoalIsMet() {
