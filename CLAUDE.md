@@ -19,8 +19,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 401 unit-тест 9 пакетів, без симулятора — швидкий цикл
-make test-ui        # 28 e2e-сценаріїв (XCUITest) у симуляторі
+make test-packages  # 431 unit-тест 9 пакетів, без симулятора — швидкий цикл
+make test-ui        # 33 e2e-сценарії (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
 make clean
@@ -143,6 +143,20 @@ Features → DesignSystem → Core
   контекст `ReportDigest` за періодами з `NotificationPlanner.reportPeriods`, текст складає `ReportText`.
   Денний — `.passive`, усі звіти без звуку й поза лімітом 8.
 
+### Пропозиція графіка (WAT-41, SPEC-NOTIFICATIONS §27)
+
+- `ScheduleShift.suggest` (`Insights`) — чиста функція: 14 повних днів до сьогодні проти **поточного**
+  розкладу профілю, не знімків `DayLog`. Ранок — в обидва боки (підйом = медіана першої склянки), вечір раніше —
+  лише понад нормальну паузу 2 год (§13.6). Будні й вихідні окремо. Пороги — `ScheduleShiftRules`.
+- Частота — `ScheduleOfferPolicy`, стан — `UserProfile.scheduleOffer*`. Показ одразу пишеться як «закрили»:
+  застосунок можуть закрити з відкритим вікном.
+- Показ — лише на відкритті: `services.activation` (холодний старт / повернення з фону), а не `epoch` — той
+  змінюється й опівночі. `HomeViewModel.offerScheduleIfNeeded` перевіряє, що головний «чистий». Вікно —
+  `HomeSheet.schedule` на весь екран, тексти — `SchedulePresenter`.
+- Застосування — `AppServices+Schedule.swift` (зачіпає `Hydration`): профіль → `scheduleDidChange()` → `touch()`.
+- Межі розкладу (підйом від 04:00, відбій до 24:00, ≥ 6 год, крок 15 хв) — `DaySchedule`, одні для екрана
+  «Сповіщення», вікна й `Insights`.
+
 ViewModel-и — `@MainActor @Observable`, кешують знімки в збережені властивості й
 перечитують їх у `reload()`. Весь доменний шар — `@MainActor`.
 
@@ -200,10 +214,13 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
   друге читання вже не бачить нових, і крапки «нове» не з'являються зовсім (WAT-23).
 - Прапорці запуску (`App/Sources/WaterTrackerApp.swift`, `LaunchConfiguration`):
   `--uitest-empty` (чиста in-memory БД), `--uitest-demo` (демо-історія),
-  `--seed-demo`, `--start-screen progress|achievements|prizes|stats|notifications|notification-plan|report`
-  (`report` — минулий тиждень; період явно — `report:day:2026-10-04`, `report:month:2026-09`).
+  `--seed-demo`, `--start-screen progress|achievements|prizes|stats|notifications|notification-plan|report|schedule-suggestion`
+  (`report` — минулий тиждень; період явно — `report:day:2026-10-04`, `report:month:2026-09`;
+  `schedule-suggestion:wake-early|wake-late|sleep-late|sleep-early|both|weekend|weekdays` — вікно «Графік дня»
+  повз правило частоти). `--seed-schedule-shift` — 10 днів із першою склянкою ≈ 06:30: вікно з'являється само.
   Демо-історія завжди має пропущений учора день після закритого позавчора й ≥ 2 заморозки —
-  для e2e кнопки заморозки.
+  для e2e кнопки заморозки — і вважається такою, що вже відповіла на пропозицію графіка: її патерн
+  залежить від дати, і вікно могло б перекрити чужий сценарій.
 - Сповіщення в e2e: під `--uitest-*` центр — у пам'яті з дозволом `--notifications-auth
   authorized|denied|notDetermined` (типово є — інакше шторка дозволу після першої порції ламала б
   сценарії); `--notification-tap reminder|morning|evening|rescue|comeback|echo|report` імітує тап
@@ -246,8 +263,9 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
 | `Design/Achievements.html` | макет модуля досягнень (6 кадрів 402×874) до цього ТЗ; перенесено в код у WAT-23 |
 | `SPEC-PRIZES.md` | ТЗ модуля «Призи» (WAT-26): каталог, блок на 3f, екран «Призи», картка призу, правила заморозки й буста |
 | `Design/Prizes.html` | макет модуля призів (6 кадрів 402×874) до цього ТЗ; перенесено в код у WAT-34 |
-| `SPEC-NOTIFICATIONS.md` | ТЗ модуля «Сповіщення» (WAT-17): типи, нагадування за кривою темпу, анти-спам, тексти, налаштування, локальні сповіщення й планувальник; етапи 0 і A реалізовано в WAT-36 (рішення — §23), етап B — у WAT-37 (§24), одна модель цілей частин доби — WAT-39 (§25), капсула частини доби на головному — WAT-40 (§26) |
+| `SPEC-NOTIFICATIONS.md` | ТЗ модуля «Сповіщення» (WAT-17): типи, нагадування за кривою темпу, анти-спам, тексти, налаштування, локальні сповіщення й планувальник; етапи 0 і A реалізовано в WAT-36 (рішення — §23), етап B — у WAT-37 (§24), одна модель цілей частин доби — WAT-39 (§25), капсула частини доби на головному — WAT-40 (§26), пропозиція змінити графік дня — WAT-41 (§27) |
 | `Design/DayPart.html` | макет капсули частини доби на головному (WAT-40): три варіанти, погоджено A (SPEC-NOTIFICATIONS §26) |
+| `Design/Schedule.html` | макет вікна «Графік дня» (WAT-41): три варіанти, погоджено A «Час», і правило зсуву на 14 днях (SPEC-NOTIFICATIONS §27) |
 | `Design/Notifications.html` | інтерактивний макет етапу B (WAT-37): вікно «Склянка», звіт-історія дня / тижня / місяця, рядки B на екрані «Сповіщення» |
 | `DESIGN-TOKENS.md` | витяг токенів з макетів |
 | `WaterTracker.html` | оригінальні макети (1a, 3f, 2e, 4a) |
