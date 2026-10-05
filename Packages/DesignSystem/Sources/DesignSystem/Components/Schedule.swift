@@ -42,7 +42,8 @@ public struct WTScopePill: View {
 }
 
 /// «08:00 → 06:30»: старий час блідий і закреслений, новий — великий. Знак частини доби — лише коли
-/// рядків два, інакше його вже показує іконка вікна.
+/// рядків два, інакше його вже показує іконка вікна. Ширини колонок фіксовані: цифри Fredoka різної ширини,
+/// і два рядки, центровані кожен окремо, «їхали» один відносно одного.
 public struct WTTimeChange: View {
     @Environment(\.wtTheme) private var theme
     private let glyph: String?
@@ -66,13 +67,16 @@ public struct WTTimeChange: View {
                 .font(WTFont.number(30, .medium))
                 .foregroundStyle(theme.textMuted)
                 .strikethrough(color: theme.textMuted)
-            Text("→")
-                .font(WTFont.text(22, .black))
+                .frame(width: 82, alignment: .trailing)
+            // SF Symbol, а не «→»: у Nunito цього гліфа немає, і система підставляла тонку стрілку.
+            Image(systemName: "arrow.right")
+                .font(.system(size: 20, weight: .heavy))
                 .foregroundStyle(theme.textMuted)
             Text(new)
                 .font(WTFont.number(58, .semibold))
                 .foregroundStyle(theme.textPrimary)
                 .monospacedDigit()
+                .frame(width: 152, alignment: .leading)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
