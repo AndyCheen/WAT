@@ -215,6 +215,23 @@ public final class InsightsService {
         )
     }
 
+    // MARK: - Пропозиція графіка (WAT-41)
+
+    /// Зсув за 14 повних днів до сьогодні проти поточного розкладу профілю — не проти знімків у `DayLog`:
+    /// пропонуємо змінити те, що діє зараз. Частоту показу вирішує `ScheduleOfferPolicy` у викликача.
+    public func scheduleSuggestion(rules: ScheduleShiftRules = .standard) -> ScheduleSuggestion? {
+        let today = calendar.today
+        let logs = dayLogs.dayLogs(from: calendar.dayKey(offsetDays: -rules.windowDays, from: today),
+                                   to: calendar.dayKey(offsetDays: -1, from: today))
+        let days = logs.map { log in
+            ScheduleDay(
+                isWeekend: calendar.isWeekend(DayKey(rawValue: log.dayKey)),
+                intakeMinutes: (log.intakes ?? []).filter { !$0.isDeleted }.map { calendar.minuteOfDay($0.createdAt) }
+            )
+        }
+        return ScheduleShift.suggest(days: days, current: profiles.profile().weekSchedule, rules: rules)
+    }
+
     // MARK: - Тиждень для шторки 1a
 
     public func weekSummary() -> WeekSummary {

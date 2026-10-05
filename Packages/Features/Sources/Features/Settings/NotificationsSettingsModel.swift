@@ -71,24 +71,22 @@ public final class NotificationsSettingsModel {
         changed()
     }
 
-    // MARK: - Режим дня (крок 15 хв, відбій ≤ 24:00, не менше 6 год активних)
+    // MARK: - Режим дня (межі — `DaySchedule`, ті самі, що у вікні «Графік дня»)
 
-    static let timeStep = 15
-    static let minActiveMinutes = 6 * 60
+    static let timeStep = DaySchedule.stepMinutes
 
     func stepWake(_ direction: Int, weekend: Bool = false) {
-        let sleep = weekend ? profile.weekendSleepMinutes : profile.sleepMinutes
-        let current = weekend ? profile.weekendWakeMinutes : profile.wakeMinutes
-        let value = clamp(current + direction * Self.timeStep, 4 * 60, sleep - Self.minActiveMinutes)
-        if weekend { profile.weekendWakeMinutes = value } else { profile.wakeMinutes = value }
-        scheduleChanged()
+        updateSchedule(weekend: weekend) { $0.steppingWake(direction) }
     }
 
     func stepSleep(_ direction: Int, weekend: Bool = false) {
-        let wake = weekend ? profile.weekendWakeMinutes : profile.wakeMinutes
-        let current = weekend ? profile.weekendSleepMinutes : profile.sleepMinutes
-        let value = clamp(current + direction * Self.timeStep, wake + Self.minActiveMinutes, 24 * 60)
-        if weekend { profile.weekendSleepMinutes = value } else { profile.sleepMinutes = value }
+        updateSchedule(weekend: weekend) { $0.steppingSleep(direction) }
+    }
+
+    private func updateSchedule(weekend: Bool, _ change: (DaySchedule) -> DaySchedule) {
+        var week = profile.weekSchedule
+        if weekend { week.weekend = change(week.weekend) } else { week.weekday = change(week.weekday) }
+        profile.weekSchedule = week
         scheduleChanged()
     }
 

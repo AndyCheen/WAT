@@ -16,6 +16,8 @@ public enum HomeSheet: Identifiable {
     case permission
     /// Вікно «Склянка» на весь екран — лише з ранкової склянки (§7.1, рішення від 05.10.2026).
     case glass
+    /// Вікно «Графік дня» на весь екран — пропозиція змінити підйом чи відбій (WAT-41, §27).
+    case schedule
     public var id: Int {
         switch self {
         case .custom: return 0
@@ -24,6 +26,7 @@ public enum HomeSheet: Identifiable {
         case .stats: return 3
         case .permission: return 4
         case .glass: return 5
+        case .schedule: return 6
         }
     }
 }
@@ -146,6 +149,14 @@ public final class HomeViewModel {
     public var calibrationChoice: Int = 250
     /// Записаний об'єм — поки показується «+250»; потім вікно закривається само.
     public var glassRecorded: Int?
+
+    // Вікно «Графік дня» (WAT-41).
+    public private(set) var scheduleOffer: ScheduleSuggestion?
+    /// Що буде збережено: пропозиція, а після «Налаштувати» — підправлене кроками.
+    public private(set) var scheduleDraft = DaySchedule.weekdayDefault
+    public private(set) var scheduleAdjusting = false
+    /// Відкриття, на якому вже перевіряли пропозицію: повернення на головний з іншого екрана — не відкриття.
+    private var scheduleCheckedActivation: Int?
 
     public init(services: AppServices) {
         self.services = services
@@ -335,6 +346,8 @@ public final class HomeViewModel {
             showAchievement(key: key)
         case .glass:
             openGlass()
+        case .schedule(let offer):
+            openSchedule(offer)
         }
     }
 
@@ -408,6 +421,70 @@ public final class HomeViewModel {
     }
 
     static let recordedHold: Duration = .milliseconds(1100)
+
+    // MARK: - Вікно «Графік дня» (WAT-41, §27)
+
+    /// Скільки чекати після відкриття: тап по сповіщенню, що запустив застосунок, доходить до роутера
+    /// трохи пізніше за перший кадр, і вікно не має його перекрити.
+    static let scheduleOfferDelay: Duration = .milliseconds(800)
+
+    /// Лише на «чистому» відкритті головного: не поверх «Склянки», звіту, шторки дозволу, картки чи тоста
+    /// й не коли застосунок відкрили зі сповіщення — тоді людина прийшла по інше. Без сповіщення:
+    /// застосунок і так відкривають щодня (§3.1, п. 1).
+    func offerScheduleIfNeeded(activation: Int, isHomeOnTop: Bool) {
+        guard scheduleCheckedActivation != activation else { return }
+        scheduleCheckedActivation = activation
+        guard isHomeOnTop, sheet == nil, toast == nil, achievementDetail == nil, !permissionOfferPending,
+              services.router.pendingPath == nil, services.router.pendingHomeIntent == nil,
+              let offer = services.scheduleOffer() else { return }
+        services.markScheduleOfferShown(offer)
+        openSchedule(offer)
+    }
+
+    func openSchedule(_ offer: ScheduleSuggestion) {
+        scheduleOffer = offer
+        scheduleDraft = offer.proposed
+        scheduleAdjusting = false
+        present(.schedule)
+    }
+
+    var scheduleContent: SchedulePresenter.Content? {
+        scheduleOffer.map { SchedulePresenter.content($0, draft: scheduleDraft) }
+    }
+
+    /// «Налаштувати» — кроки часу прямо у вікні, без переходу в налаштування.
+    public func adjustSchedule() {
+        withAnimation(WTAnimation.fade) { scheduleAdjusting = true }
+    }
+
+    public func stepScheduleWake(_ direction: Int) {
+        scheduleDraft = scheduleDraft.steppingWake(direction)
+    }
+
+    public func stepScheduleSleep(_ direction: Int) {
+        scheduleDraft = scheduleDraft.steppingSleep(direction)
+    }
+
+    /// «Так, змінити» чи «Зберегти»: вікно закривається, тост — на головному, капсула частини доби
+    /// одразу за новим розкладом.
+    public func acceptSchedule() {
+        guard let offer = scheduleOffer else { return }
+        let schedule = scheduleDraft
+        services.acceptScheduleOffer(offer, schedule: schedule)
+        dismissSheet()
+        withAnimation(WTAnimation.fade) { reload() }
+        showToast(HomeToast(message: SchedulePresenter.toast(offer, schedule: schedule)))
+    }
+
+    public func declineSchedule() {
+        services.declineScheduleOffer()
+        dismissSheet()
+    }
+
+    /// ✕ — без відповіді: показ уже записано як «закрили», спитаємо через 7 днів.
+    public func closeSchedule() {
+        dismissSheet()
+    }
 
     /// На першому запуску системного запиту немає — шторка з поясненням після першої порції,
     /// а «Не зараз» відкладає її на 3 дні (§16.5).

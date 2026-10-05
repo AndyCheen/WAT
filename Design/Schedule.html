@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WaterTracker — пропозиція графіка дня (WAT-41)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Токени — DESIGN-TOKENS.md §2, як у Notifications.html. Кадр 402×874, 1px = 1pt. Нових кольорів немає:
+   вода — градієнт кільця прогресу, «Світанок» — фон слайда-обкладинки звіту. */
+:root{
+  --screen:#f7fbff; --card:#fff; --chip:#eaf4ff; --button:#eaf4ff;
+  --text:#1f4a72; --muted:#8aa1bd; --btn-text:#3d8fd6; --accent:#5aa9f0;
+  --line:rgba(31,74,114,.10); --track:#e4f0fb; --dot-off:#dce8f3;
+  --orange:#ff8a3d; --success:#3ea86b; --w1:#bfe3ff; --w2:#6bb6f2; --deep:#3d8fd6;
+  --r-chip:12px; --r-control:14px; --r-card:24px; --r-pill:999px;
+}
+.dark{
+  --screen:#0c1524; --card:#161f33; --chip:#17233a; --button:#17233a;
+  --text:#eaf2ff; --muted:#8ba0bd; --btn-text:#bcd8ff; --accent:#7cc4ff;
+  --line:rgba(255,255,255,.08); --track:rgba(255,255,255,.08); --dot-off:rgba(255,255,255,.14);
+  --w1:#8fd0ff; --w2:#3b6ef5; --deep:#2a55c9;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#e9eef5;font-family:Nunito,system-ui,sans-serif;color:#1f4a72;padding:40px 28px 80px}
+h1{font-size:20px;font-weight:800;margin-bottom:6px}
+h2{font-size:16px;font-weight:800;margin:44px 0 6px}
+.lead{font-size:13px;font-weight:700;color:#5c7291;margin-bottom:18px;max-width:1000px;line-height:1.5}
+.lead b{color:#1f4a72}
+code{font-size:12px}
+.row{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+.frame-wrap{width:402px}
+.frame-cap{font-size:12px;font-weight:800;letter-spacing:.3px;color:#5c7291;margin-bottom:8px;text-transform:uppercase}
+.frame-note{font-size:12px;font-weight:700;color:#5c7291;margin-top:10px;line-height:1.45}
+.frame-note b{color:#1f4a72}
+.frame{width:402px;height:874px;background:var(--screen);border-radius:38px;position:relative;overflow:hidden;
+       box-shadow:0 18px 50px rgba(31,74,114,.18);color:var(--text);user-select:none}
+.num{font-family:Fredoka,Nunito,sans-serif}
+
+/* ---------- панель ---------- */
+.ctl{background:#fff;border-radius:18px;padding:16px 18px;max-width:1262px;display:flex;gap:14px 28px;flex-wrap:wrap;box-shadow:0 6px 20px rgba(31,74,114,.08)}
+.ctl label{font-size:12px;font-weight:900;color:#5c7291;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:6px}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+.btns button{height:30px;padding:0 12px;border-radius:999px;border:0;background:#dbe6f3;color:#1f4a72;font:800 13px Nunito;cursor:pointer}
+.btns button.on{background:#5aa9f0;color:#fff}
+
+/* ---------- спільне для вікна ---------- */
+.win{position:absolute;inset:0;display:flex;flex-direction:column;padding:60px 26px 40px;background:var(--screen);
+     transition:transform .45s cubic-bezier(.22,1,.36,1)}
+.win.out{transform:translateY(100%)}
+.close{width:38px;height:38px;border-radius:var(--r-pill);background:var(--chip);display:flex;align-items:center;justify-content:center;
+       color:var(--accent);font-size:16px;font-weight:900;cursor:pointer;position:relative;z-index:2}
+.mid{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;position:relative}
+.scope{height:28px;display:inline-flex;align-items:center;padding:0 12px;border-radius:var(--r-pill);background:var(--chip);color:var(--btn-text);
+       font-size:13px;font-weight:900;margin-bottom:12px}
+.title{font-size:28px;font-weight:800;line-height:1.15}
+.sub{font-size:15px;font-weight:700;color:var(--muted);margin-top:8px;line-height:1.38;max-width:320px}
+.primary{width:100%;height:56px;border-radius:var(--r-control);background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;
+         font-size:17px;font-weight:800;cursor:pointer;border:0;font-family:inherit;position:relative}
+.links{display:flex;justify-content:center;gap:28px;margin-top:16px;position:relative}
+.links button{background:none;border:0;font:800 15px Nunito;color:var(--btn-text);cursor:pointer}
+.links button.quiet{color:var(--muted)}
+.stp{display:flex;align-items:center;gap:14px;justify-content:center}
+.stp button{width:44px;height:44px;border-radius:50%;border:0;background:var(--chip);color:var(--btn-text);font:900 22px Nunito;cursor:pointer}
+.bubbles{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.bubbles i{position:absolute;bottom:-20px;border-radius:50%;background:var(--accent);opacity:.10;animation:rise linear infinite}
+@keyframes rise{to{transform:translateY(-920px)}}
+.a{opacity:0;transform:translateY(12px)}
+.play .a{animation:up .55s cubic-bezier(.22,1,.36,1) forwards;animation-delay:var(--d,0s)}
+@keyframes up{to{opacity:1;transform:none}}
+
+/* ---------- A. «Час» ---------- */
+.va .icon{width:92px;height:92px;border-radius:50%;background:var(--chip);display:flex;align-items:center;justify-content:center;font-size:46px;margin-bottom:22px}
+.va .change{margin-top:34px;display:flex;flex-direction:column;gap:14px}
+.va .line{display:flex;align-items:center;justify-content:center;gap:14px}
+.va .line .old{font-family:Fredoka;font-size:30px;font-weight:500;color:var(--muted);text-decoration:line-through;text-decoration-thickness:2px}
+.va .line .arr{font-size:22px;color:var(--muted);font-weight:900}
+.va .line .new{font-family:Fredoka;font-size:58px;font-weight:600;line-height:1}
+.va .line .g{font-size:22px;width:28px}
+.va .stp span{font-family:Fredoka;font-size:50px;font-weight:600;min-width:150px}
+
+/* ---------- B. «Дуга» ---------- */
+.vb .arcwrap{margin-top:34px;position:relative}
+.vb .arc .seg{transition:stroke-dasharray .9s cubic-bezier(.22,1,.36,1)}
+.vb .arc .mark{transition:transform .9s cubic-bezier(.22,1,.36,1)}
+.vb .arc text{font-family:Fredoka;font-weight:600}
+.vb .adj{background:var(--card);border-radius:var(--r-card);padding:2px 16px;margin-top:22px;width:100%;box-shadow:0 4px 14px rgba(31,74,114,.06)}
+.vb .adj .r{display:flex;align-items:center;justify-content:space-between;height:54px;font-size:16px;font-weight:800}
+.vb .adj .r+.r{border-top:1px solid var(--line)}
+.vb .adj .stp{gap:10px}.vb .adj .stp button{width:34px;height:34px;font-size:18px}
+.vb .adj .stp span{font-family:Fredoka;font-size:18px;font-weight:600;min-width:62px}
+
+/* ---------- C. «Світанок» ---------- */
+.vc{background:linear-gradient(180deg,var(--w1) 0%,var(--w2) 62%,var(--deep) 100%);color:#fff}
+.vc.night{background:linear-gradient(180deg,#3d8fd6 0%,#2a4f86 55%,#1f3559 100%)}
+.vc .close{background:rgba(255,255,255,.25);color:#fff}
+.vc .scope{background:rgba(255,255,255,.22);color:#fff}
+.vc .sub{color:rgba(255,255,255,.88)}
+.vc .sky{position:absolute;left:-26px;right:-26px;bottom:-40px;height:470px;pointer-events:none;overflow:hidden}
+.vc .sun{position:absolute;left:50%;width:120px;height:120px;margin-left:-60px;border-radius:50%;
+         background:radial-gradient(circle,#fff6d6 0%,#ffd77a 55%,rgba(255,215,122,0) 72%);top:330px;transition:top 1.6s cubic-bezier(.22,1,.36,1)}
+.vc .moon{background:radial-gradient(circle at 40% 40%,#fff 0%,#e7f0ff 50%,rgba(231,240,255,0) 72%)}
+.play .vc .sun,.vc.play .sun{top:60px}
+.vc.night .sun{top:60px}.vc.night.play .sun{top:330px}
+.vc .wave{position:absolute;left:-30%;right:-30%;bottom:0;height:150px;background:rgba(255,255,255,.16);border-radius:45% 45% 0 0;animation:sway 6s ease-in-out infinite}
+.vc .wave.w2{height:120px;background:rgba(255,255,255,.12);border-radius:40% 48% 0 0;animation-duration:7s;animation-direction:reverse}
+@keyframes sway{0%,100%{transform:translateX(0)}50%{transform:translateX(6%)}}
+.vc .time{font-family:Fredoka;font-size:92px;font-weight:600;line-height:1;margin-top:26px}
+.vc .time.two{font-size:62px}
+.vc .was{font-size:16px;font-weight:800;opacity:.85;margin-top:6px}
+.vc .primary{background:#fff;color:#3d8fd6}
+.vc .links button{color:#fff}.vc .links button.quiet{color:rgba(255,255,255,.75)}
+.vc .stp{margin-top:20px}
+.vc .stp button{background:rgba(255,255,255,.25);color:#fff}
+.vc .stp span{font-family:Fredoka;font-size:64px;font-weight:600;min-width:190px}
+
+/* ---------- головний із тостом ---------- */
+.home{position:absolute;inset:0;padding:64px 26px 0;cursor:pointer}
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
+.gear{width:42px;height:42px;border-radius:50%;background:var(--chip);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:20px}
+.dots{display:flex;gap:4px}.dots i{width:10px;height:10px;border-radius:50%;background:var(--accent)}.dots i.off{background:var(--dot-off)}
+.ring{position:relative;width:242px;height:242px;margin:14px auto 0}
+.ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.rin{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.rin .pct{font-family:Fredoka;font-size:64px;font-weight:600;line-height:1}
+.rin .vol{font-size:17px;font-weight:700;color:var(--muted)}
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:38px 0 28px}
+.quick div{height:50px;border-radius:var(--r-control);background:var(--button);color:var(--btn-text);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px}
+.quick div.acc{background:var(--accent);color:#fff}
+.reopen{text-align:center;font-size:12px;font-weight:800;color:var(--muted)}
+.toast{position:absolute;left:20px;right:20px;bottom:28px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-control);
+       padding:14px 16px;font-size:14px;font-weight:700;box-shadow:0 8px 24px rgba(31,74,114,.14);transform:translateY(140%);opacity:0;
+       transition:transform .4s cubic-bezier(.22,1.2,.36,1),opacity .3s}
+.toast.show{transform:none;opacity:1}
+.toast .num{font-weight:600}
+
+/* ---------- 14 днів: правило ---------- */
+.rules{background:#fff;border-radius:22px;padding:20px 22px;max-width:1262px;box-shadow:0 6px 20px rgba(31,74,114,.08)}
+.days{display:grid;grid-template-columns:86px 1fr;gap:3px 12px;font-size:12px;font-weight:800;color:#5c7291;margin-top:14px}
+.days .lab{height:22px;display:flex;align-items:center}
+.days .lab.we{color:#3d8fd6}
+.days .lane{position:relative;height:22px;border-radius:6px;background:#f2f6fb}
+.days .band{position:absolute;top:4px;bottom:4px;border-radius:5px;background:rgba(90,169,240,.18)}
+.days .norm{position:absolute;top:4px;bottom:4px;border-radius:5px;background:repeating-linear-gradient(45deg,rgba(90,169,240,.22) 0 4px,transparent 4px 8px)}
+.days .f,.days .l{position:absolute;top:6px;width:10px;height:10px;border-radius:50%;transform:translateX(-50%)}
+.days .f{background:#8aa1bd}.days .f.hit{background:#5aa9f0}
+.days .l{border:2px solid #8aa1bd;background:#fff}.days .l.hit{border-color:#5aa9f0}
+.days .axis{position:relative;height:16px}
+.days .axis span{position:absolute;transform:translateX(-50%);font-size:11px;color:#8aa1bd}
+.verdict{margin-top:16px;padding:14px 16px;border-radius:14px;background:#f2f6fb;font-size:13px;font-weight:700;line-height:1.55;color:#1f4a72}
+.verdict b{font-weight:900}
+.verdict .ok{color:#3ea86b}.verdict .no{color:#ff8a3d}
+table{border-collapse:collapse;margin-top:12px;font-size:13px;font-weight:700;color:#1f4a72;max-width:1262px}
+td,th{padding:7px 12px;border-bottom:1px solid rgba(31,74,114,.10);text-align:left;vertical-align:top;line-height:1.4}
+th{font-size:12px;font-weight:900;color:#5c7291;text-transform:uppercase;letter-spacing:.3px}
+
+@media (prefers-reduced-motion: reduce){ .bubbles{display:none} }
+.reduce .bubbles{display:none}
+.reduce .a{animation:none!important;opacity:1;transform:none}
+.reduce .vc .sun,.reduce .vb .arc .seg,.reduce .vb .arc .mark{transition:none}
+.reduce .vc .wave{animation:none}
+</style>
+</head>
+<body>
+
+<h1>Пропозиція змінити графік дня — WAT-41</h1>
+<p class="lead">
+  Друга спроба: перша мала забагато всього — дугу з позначками й крапками-доказами, «було / стане», легенду, плашку, три кнопки.
+  Тепер у кожного варіанта однаковий скорочений набір: <b>✕, заголовок-питання, одне речення, одна картинка, «Так, змінити»</b>
+  і рядок <b>«Налаштувати · Ні, залишити»</b>. Число нового часу — лише в картинці. Варіанти відрізняються самою картинкою.
+  Обери сценарій і тисни кнопки у вікнах: «Так» показує тост на головному, тап по головному відкриває вікно знову.
+  <b>Погоджено варіант A «Час» (05.10.2026)</b>; B і C лишаються для історії рішення.
+</p>
+
+<div class="ctl">
+  <div>
+    <label>Сценарій</label>
+    <div class="btns" id="scn">
+      <button data-s="wakeEarly" class="on">Підйом раніше</button>
+      <button data-s="wakeLate">Підйом пізніше</button>
+      <button data-s="sleepLate">Відбій пізніше</button>
+      <button data-s="sleepEarly">Відбій раніше</button>
+      <button data-s="both">Обидва</button>
+      <button data-s="weekend">Вихідні: довше спиш</button>
+      <button data-s="split">Лише будні раніше</button>
+    </div>
+  </div>
+  <div>
+    <label>Тема й рух</label>
+    <div class="btns">
+      <button id="dark">Темна</button>
+      <button id="rm">Reduce Motion</button>
+      <button id="replay">▶ Ще раз</button>
+    </div>
+  </div>
+</div>
+
+<h2>Варіанти вікна</h2>
+<div class="row" id="frames">
+  <div class="frame-wrap">
+    <div class="frame-cap">A · «Час» — лише числа · <em style="font-style:normal;color:#3ea86b">погоджено</em></div>
+    <div class="frame" id="fA"></div>
+    <div class="frame-note"><b>Найпростіший.</b> Іконка частини доби, питання, «08:00 → 06:30». «Налаштувати» перетворює число на крок ±15 хв.
+      Ризик: без картинки дня неочевидно, що зміниться не лише ранкова склянка.</div>
+  </div>
+  <div class="frame-wrap">
+    <div class="frame-cap">B · «Дуга» — графік дня</div>
+    <div class="frame" id="fB"></div>
+    <div class="frame-note"><b>Дуга без шуму.</b> Лише смуга дня від підйому до відбою, блідий слід старого графіка, ☀️ і 🌙 з часом.
+      Без позначок годин, крапок і легенди. Видно, що день став довшим чи коротшим.</div>
+  </div>
+  <div class="frame-wrap">
+    <div class="frame-cap">C · «Світанок» — як слайд звіту</div>
+    <div class="frame" id="fC"></div>
+    <div class="frame-note"><b>Настрій замість схеми.</b> Фон обкладинки звіту, сонце сходить (увечері — місяць заходить), великий час,
+      «замість 08:00». Найтепліший, але найменш інформативний: не видно, як зміниться весь день.</div>
+  </div>
+</div>
+
+<h2>Коли пропонувати — 14 днів до сьогодні (5 жовтня, пн)</h2>
+<p class="lead">Рядок — день, смуга — графік 08:00–22:00, штрихування — нормальна вечірня пауза (до 2 год перед відбоєм, §13.6).
+  ● — перша склянка (не раніше 04:00: порція о 00:30 — це ще вчорашній вечір), ○ — остання. Синім — день, що відходить від графіка.
+  Той самий алгоритм піде в <code>Insights</code>.</p>
+<div class="rules">
+  <div class="btns" id="data">
+    <button data-d="early10" class="on">10 днів ≈ 06:30</button>
+    <button data-d="late10">Перша склянка ≈ 09:45</button>
+    <button data-d="noise">3 ранні з 10</button>
+    <button data-d="eveningEarly">Остання ≈ 19:00</button>
+    <button data-d="eveningNormal">Остання за 1–2 год до сну</button>
+    <button data-d="weekendLate">Вихідні: довше спиш</button>
+    <button data-d="split">Будні раніше, вихідні як є</button>
+    <button data-d="few">7 днів із порціями</button>
+    <button data-d="night">Порції після півночі</button>
+  </div>
+  <div class="days" id="days"></div>
+  <div class="verdict" id="verdict"></div>
+</div>
+
+<table>
+  <tr><th>Правило</th><th>Значення</th><th>Чому</th></tr>
+  <tr><td>Дані</td><td>14 повних днів до сьогодні, ≥ 8 із порціями</td><td>сьогодні ще не закінчився; 8 активних днів самі по собі виключають перший тиждень користування</td></tr>
+  <tr><td>Ранок</td><td>перша склянка ≥ 45 хв <b>раніше чи пізніше</b> за підйом у ≥ 70 % днів → підйом = медіана першої склянки</td><td>о першій склянці людина точно не спить; ранкова склянка прийде тоді, коли день справді починається</td></tr>
+  <tr><td>Вечір пізніше</td><td>остання склянка ≥ 45 хв пізніше за відбій у ≥ 70 % днів → відбій = медіана останньої</td><td>о цій порі людина точно не спить</td></tr>
+  <tr><td>Вечір раніше</td><td>остання склянка ≥ 2 год 45 хв раніше за відбій у ≥ 70 % днів → відбій = остання + 2 год</td><td>перестати пити за 1–2 год до сну нормально (§13.6) — це не зсув; зсув — лише понад цю паузу</td></tr>
+  <tr><td>Нове значення</td><td>до найближчих 15 хв; підйом від 04:00, відбій до 24:00, активних годин ≥ 6</td><td>межі й крок — як на екрані «Сповіщення»</td></tr>
+  <tr><td>Будні й вихідні</td><td>кожна група — проти свого розкладу; вихідним треба ≥ 3 активні дні з 4</td><td>вихідні з даними, але без зсуву, лишаються як були — щоб не будити о 06:30 у суботу</td></tr>
+  <tr><td>Частота</td><td>«Так» — 30 днів; «Ні» — 60 днів, раніше лише якщо зсув виріс на ≥ 60 хв (але не раніше 30); ✕ — 7 днів</td><td>з ТЗ задачі</td></tr>
+  <tr><td>Коли показати</td><td>відкриття застосунку, головний без шторки, тоста, картки й переходу зі сповіщення</td><td>не поверх «Склянки», звіту, дозволу</td></tr>
+</table>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const hm = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const span = s => `${hm(s.wake)}–${hm(s.sleep)}`;
+const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), Math.max(lo, hi));
+
+/* ===================== сценарії ===================== */
+const SCN = {
+  wakeEarly:  {scope:'everyDay',     old:{wake:480,sleep:1320}, neu:{wake:390,sleep:1320}},
+  wakeLate:   {scope:'everyDay',     old:{wake:480,sleep:1320}, neu:{wake:585,sleep:1320}},
+  sleepLate:  {scope:'everyDay',     old:{wake:480,sleep:1320}, neu:{wake:480,sleep:1395}},
+  sleepEarly: {scope:'everyDay',     old:{wake:480,sleep:1380}, neu:{wake:480,sleep:1290}},
+  both:       {scope:'everyDay',     old:{wake:480,sleep:1320}, neu:{wake:390,sleep:1395}},
+  weekend:    {scope:'weekends',     old:{wake:480,sleep:1320}, neu:{wake:600,sleep:1320}},
+  split:      {scope:'weekdaysOnly', old:{wake:480,sleep:1320}, neu:{wake:390,sleep:1320}},
+};
+
+// Тексти — так їх складе ScheduleSuggestionPresenter: на «ти», без роду (§14.1). Час — лише в картинці.
+function texts(c){
+  const w = c.neu.wake !== c.old.wake, s = c.neu.sleep !== c.old.sleep;
+  const title = w && s ? 'Змінити графік?' : w ? 'Змінити підйом?' : 'Змінити відбій?';
+  const when = c.scope === 'weekends' ? 'Останні два вихідні' : c.scope === 'weekdaysOnly' ? 'Останні 2 тижні в будні' : 'Останні 2 тижні';
+  const morning = c.neu.wake < c.old.wake ? 'починаєш пити раніше' : 'починаєш пити пізніше';
+  const evening = c.neu.sleep > c.old.sleep ? 'закінчуєш пити пізніше' : 'закінчуєш пити раніше';
+  const sub = `${when} ти ${w && s ? `${morning}, а закінчуєш ${c.neu.sleep > c.old.sleep ? 'пізніше' : 'раніше'}` : w ? morning : evening}`;
+  const scope = c.scope === 'weekends' ? 'Лише вихідні' : c.scope === 'weekdaysOnly' ? 'Лише будні' : null;
+  const who = c.scope === 'weekends' ? 'Графік вихідних оновлено' : c.scope === 'weekdaysOnly' ? 'Графік буднів оновлено' : 'Графік оновлено';
+  return {title, sub, scope, w, s, toast: sch => `${who}: <span class="num">${span(sch)}</span>`};
+}
+
+const bubbles = `<div class="bubbles">${Array.from({length: 9}, (_, i) => `<i style="left:${8 + i * 11}%;width:${8 + (i % 3) * 6}px;height:${8 + (i % 3) * 6}px;animation-duration:${9 + (i % 4) * 3}s;animation-delay:-${i * 1.7}s"></i>`).join('')}</div>`;
+const home = `<div class="home">
+  <div class="hdr"><div class="gear">⚙︎</div><div class="dots"><i></i><i></i><i class="off"></i><i></i><i></i><i></i><i class="off"></i></div></div>
+  <div class="ring"><svg width="242" height="242"><circle cx="121" cy="121" r="104" fill="none" stroke="var(--track)" stroke-width="26"/>
+    <circle cx="121" cy="121" r="104" fill="none" stroke="var(--accent)" stroke-width="26" stroke-linecap="round" stroke-dasharray="653" stroke-dashoffset="490"/></svg>
+    <div class="rin"><div class="pct">25%</div><div class="vol">0.50 / 2.0 л</div></div></div>
+  <div class="quick"><div>200 мл</div><div>0.5 л</div><div>1 л</div><div class="acc">Інше</div></div>
+  <div class="reopen">тап — відкрити вікно знову</div>
+</div><div class="toast"></div>`;
+const links = `<div class="links a" style="--d:.5s"><button data-a="adjust">Налаштувати</button><button class="quiet" data-a="no">Ні, залишити</button></div>`;
+const head = t => `${t.scope ? `<div class="scope a" style="--d:.05s">${t.scope}</div>` : ''}
+  <div class="title a" style="--d:.1s">${t.title}</div><div class="sub a" style="--d:.18s">${t.sub}</div>`;
+
+/* ---------- A. «Час» ---------- */
+const A = {
+  body(c, t, st){
+    const glyph = t.w && t.s ? '🕰️' : t.w ? '☀️' : '🌙';
+    const rows = [t.w || st.adjust ? ['☀️', 'wake'] : null, t.s || st.adjust ? ['🌙', 'sleep'] : null].filter(Boolean);
+    const change = st.adjust
+      ? rows.map(([g, k]) => `<div class="stp"><button data-a="${k}-">–</button><span class="${k}">${hm(st.sch[k])}</span><button data-a="${k}+">+</button></div>`).join('')
+      : rows.map(([g, k]) => `<div class="line">${rows.length > 1 ? `<span class="g">${g}</span>` : ''}<span class="old">${hm(c.old[k])}</span><span class="arr">→</span><span class="new">${hm(st.sch[k])}</span></div>`).join('');
+    return `${bubbles}<div class="close" data-a="close">✕</div>
+      <div class="mid"><div class="icon a">${glyph}</div>${head(t)}<div class="change a" style="--d:.3s">${change}</div></div>
+      <button class="primary a" style="--d:.42s" data-a="yes">${st.adjust ? 'Зберегти' : 'Так, змінити'}</button>${links}`;
+  }
+};
+
+/* ---------- B. «Дуга» ---------- */
+// 00:00 — лівий край, 12:00 — угорі, 24:00 — правий. Час — біля ☀️ і 🌙, більше нічого.
+const CX = 175, CY = 168, R = 138, SW = 24, LEN = Math.PI * R;
+const pt = (m, r = R) => { const a = Math.PI - m / 1440 * Math.PI; return [CX + r * Math.cos(a), CY - r * Math.sin(a)]; };
+const arcPath = `M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`;
+const dash = s => `0 ${s.wake / 1440 * LEN} ${(s.sleep - s.wake) / 1440 * LEN} ${LEN}`;
+const B = {
+  body(c, t, st, id){
+    const adj = st.adjust ? `<div class="adj">
+        <div class="r">Підйом<div class="stp"><button data-a="wake-">–</button><span class="wake">${hm(st.sch.wake)}</span><button data-a="wake+">+</button></div></div>
+        <div class="r">Відбій<div class="stp"><button data-a="sleep-">–</button><span class="sleep">${hm(st.sch.sleep)}</span><button data-a="sleep+">+</button></div></div></div>` : '';
+    return `${bubbles}<div class="close" data-a="close">✕</div>
+      <div class="mid">${head(t)}
+        <div class="arcwrap a" style="--d:.25s"><svg class="arc" width="350" height="190" viewBox="0 0 350 190">
+          <defs><linearGradient id="g${id}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="var(--w1)"/><stop offset="1" stop-color="var(--w2)"/></linearGradient></defs>
+          <path class="seg" d="${arcPath}" fill="none" stroke="var(--dot-off)" stroke-width="${SW}" stroke-linecap="round" stroke-dasharray="${dash(c.old)}" opacity=".7"/>
+          <path class="seg neu" d="${arcPath}" fill="none" stroke="url(#g${id})" stroke-width="${SW}" stroke-linecap="round" stroke-dasharray="${dash(c.old)}"/>
+          <g class="mark sun"><text font-size="24" text-anchor="middle" y="0" dominant-baseline="central">☀️</text><text class="tw" font-size="17" text-anchor="middle" y="30" fill="var(--text)"></text></g>
+          <g class="mark moon"><text font-size="22" text-anchor="middle" y="0" dominant-baseline="central">🌙</text><text class="ts" font-size="17" text-anchor="middle" y="30" fill="var(--text)"></text></g>
+        </svg></div>${adj}</div>
+      <button class="primary a" style="--d:.42s" data-a="yes">${st.adjust ? 'Зберегти' : 'Так, змінити'}</button>${links}`;
+  },
+  paint(el, s){
+    $('.neu', el).setAttribute('stroke-dasharray', dash(s));
+    // ☀️ і 🌙 з часом — усередині дуги, біля своїх кінців смуги: там вільно, і день читається зліва направо.
+    const [sx, sy] = pt(s.wake, R - SW / 2 - 30), [mx, my] = pt(s.sleep, R - SW / 2 - 30);
+    $('.sun', el).setAttribute('transform', `translate(${sx} ${Math.min(sy, CY - 34)})`);
+    $('.moon', el).setAttribute('transform', `translate(${mx} ${Math.min(my, CY - 34)})`);
+    $('.tw', el).textContent = hm(s.wake); $('.ts', el).textContent = hm(s.sleep);
+  }
+};
+
+/* ---------- C. «Світанок» ---------- */
+const C = {
+  body(c, t, st){
+    const keys = [t.w || st.adjust ? 'wake' : null, t.s || st.adjust ? 'sleep' : null].filter(Boolean);
+    const big = st.adjust
+      ? keys.map(k => `<div class="stp"><button data-a="${k}-">–</button><span class="${k}">${hm(st.sch[k])}</span><button data-a="${k}+">+</button></div>`).join('')
+      : `<div class="time ${t.w && t.s ? 'two' : ''}">${t.w && t.s ? span(st.sch) : hm(t.w ? st.sch.wake : st.sch.sleep)}</div>
+         <div class="was">замість ${t.w && t.s ? span(c.old) : hm(t.w ? c.old.wake : c.old.sleep)}</div>`;
+    return `<div class="sky"><div class="sun ${t.w ? '' : 'moon'}"></div><div class="wave"></div><div class="wave w2"></div></div>
+      <div class="close" data-a="close">✕</div>
+      <div class="mid" style="justify-content:flex-start;padding-top:40px">${head(t)}<div class="a" style="--d:.3s">${big}</div></div>
+      <button class="primary a" style="--d:.42s" data-a="yes">${st.adjust ? 'Зберегти' : 'Так, змінити'}</button>${links}`;
+  }
+};
+
+/* ---------- кадр ---------- */
+function render(frameId, V, scnKey){
+  const c = SCN[scnKey], t = texts(c);
+  const el = document.getElementById(frameId);
+  const st = {adjust: false, sch: {...c.neu}};
+  el.innerHTML = home + `<div class="win ${V === C ? `vc ${t.w ? '' : 'night'}` : V === A ? 'va' : 'vb'}"></div>`;
+  const win = $('.win', el), toast = $('.toast', el);
+  function draw(animate){
+    win.innerHTML = V.body(c, t, st, frameId);
+    if (V.paint) V.paint(win, animate ? c.old : st.sch);
+    if (animate){
+      win.classList.remove('play'); void win.offsetWidth;
+      requestAnimationFrame(() => { win.classList.add('play'); if (V.paint) setTimeout(() => V.paint(win, st.sch), 350); });
+    } else {
+      win.classList.add('play');
+      win.querySelectorAll('.a').forEach(x => { x.style.animation = 'none'; x.style.opacity = 1; x.style.transform = 'none'; });
+    }
+  }
+  function close(withToast){
+    win.classList.add('out');
+    if (withToast){
+      toast.innerHTML = t.toast(st.sch);
+      setTimeout(() => toast.classList.add('show'), 380);
+      setTimeout(() => toast.classList.remove('show'), 3400);
+    }
+  }
+  el.addEventListener('click', e => {
+    const a = e.target.closest('[data-a]')?.dataset.a;
+    if (!a){
+      if (win.classList.contains('out') && e.target.closest('.home')){ win.classList.remove('out'); st.adjust = false; st.sch = {...c.neu}; draw(true); }
+      return;
+    }
+    if (a === 'yes') return close(true);
+    if (a === 'no' || a === 'close') return close(false);
+    if (a === 'adjust') st.adjust = true;
+    if (a === 'wake-') st.sch.wake = clamp(st.sch.wake - 15, 240, st.sch.sleep - 360);
+    if (a === 'wake+') st.sch.wake = clamp(st.sch.wake + 15, 240, st.sch.sleep - 360);
+    if (a === 'sleep-') st.sch.sleep = clamp(st.sch.sleep - 15, st.sch.wake + 360, 1440);
+    if (a === 'sleep+') st.sch.sleep = clamp(st.sch.sleep + 15, st.sch.wake + 360, 1440);
+    draw(false);
+  });
+  draw(true);
+}
+
+let current = 'wakeEarly';
+const renderAll = () => { render('fA', A, current); render('fB', B, current); render('fC', C, current); };
+document.querySelectorAll('#scn button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#scn button').forEach(x => x.classList.toggle('on', x === b));
+  current = b.dataset.s; renderAll();
+});
+$('#replay').onclick = renderAll;
+$('#dark').onclick = e => { $('#frames').querySelectorAll('.frame-wrap').forEach(f => f.classList.toggle('dark')); e.target.classList.toggle('on'); };
+$('#rm').onclick = e => { document.body.classList.toggle('reduce'); e.target.classList.toggle('on'); renderAll(); };
+renderAll();
+
+/* ===================== правило на 14 днях ===================== */
+// Дзеркало ScheduleShift.suggest з Insights: ті самі пороги й порядок рішень.
+const RULES = {minActiveDays: 8, minWeekendDays: 3, shift: 45, round: 15, minWake: 240, eveningPause: 120, minActive: 360};
+const DAYS = Array.from({length: 14}, (_, i) => {
+  const d = new Date(2026, 8, 21 + i);  // 21.09 (пн) … 04.10 (нд)
+  return {label: `${['нд','пн','вт','ср','чт','пт','сб'][d.getDay()]} ${d.getDate()}.${String(d.getMonth() + 1).padStart(2, '0')}`, weekend: d.getDay() === 0 || d.getDay() === 6};
+});
+const SETTINGS = {weekday: {wake: 480, sleep: 1320}, weekendEnabled: false, weekend: {wake: 540, sleep: 1380}};
+
+function dataset(key){
+  // [перша, остання] або null — день без порцій
+  const r = (a, b) => [a, b];
+  switch (key){
+    case 'early10': return [null, r(385,1260), r(395,1250), r(380,1270), null, r(390,1240), r(400,1255), null, r(375,1265), r(390,1245), null, r(395,1250), r(385,1260), r(390,1230)];
+    case 'late10':  return [r(590,1250), r(580,1260), null, r(600,1240), r(585,1255), r(575,1250), null, r(595,1245), r(590,1260), r(470,1250), r(585,1265), null, r(580,1255), r(600,1250)];
+    case 'noise':   return [null, r(385,1260), r(500,1250), r(510,1270), null, r(495,1240), r(390,1255), null, r(520,1265), r(505,1245), null, r(380,1250), r(515,1260), r(490,1230)];
+    case 'eveningEarly': return [r(490,1140), r(500,1130), r(495,1150), null, r(505,1135), r(490,1145), r(510,1140), r(500,1135), null, r(495,1150), r(505,1140), r(490,1260), r(500,1135), r(495,1145)];
+    case 'eveningNormal': return [r(490,1230), r(500,1200), r(495,1250), null, r(505,1215), r(490,1240), r(510,1190), r(500,1225), null, r(495,1210), r(505,1245), r(490,1205), r(500,1235), r(495,1220)];
+    case 'weekendLate': return DAYS.map((d, i) => d.weekend ? r(600 + (i % 2) * 10, 1260) : r(490 + (i % 3) * 5, 1250));
+    case 'split':   return DAYS.map((d, i) => d.weekend ? r(500 + (i % 2) * 10, 1260) : r(385 + (i % 3) * 5, 1250));
+    case 'few':     return [null, null, null, null, null, null, null, r(390,1250), r(385,1260), r(395,1240), r(380,1255), r(390,1250), r(385,1245), r(395,1260)];
+    case 'night':   return [r(30,1250), r(25,1260), null, r(40,1240), r(35,1255), null, r(20,1250), r(30,1245), null, r(45,1260), r(35,1250), null, r(25,1265), r(30,1255)];
+  }
+}
+
+function median(xs){ const s = [...xs].sort((a, b) => a - b), n = s.length; return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2; }
+const round15 = m => Math.round(m / RULES.round) * RULES.round;
+const most = (k, n) => n > 0 && k * 10 >= n * 7;   // ≥ 70 % — цілочисельно, як у Swift
+
+// Стан групи: {state:'shifted', schedule} | {state:'steady'} | {state:'unknown'}
+function groupShift(days, sch, minDays){
+  if (days.length < minDays) return {state: 'unknown'};
+  const firsts = days.map(d => d.first).filter(m => m != null), lasts = days.map(d => d.last);
+  let wake = sch.wake, sleep = sch.sleep;
+  if (most(firsts.filter(m => m <= sch.wake - RULES.shift).length, firsts.length) ||
+      most(firsts.filter(m => m >= sch.wake + RULES.shift).length, firsts.length)) wake = round15(median(firsts));
+  if (most(lasts.filter(m => m >= sch.sleep + RULES.shift).length, lasts.length)) sleep = Math.min(1440, round15(median(lasts)));
+  else if (most(lasts.filter(m => m <= sch.sleep - RULES.eveningPause - RULES.shift).length, lasts.length)) sleep = round15(median(lasts) + RULES.eveningPause);
+  // Активних годин ≥ 6: пізній підйом і ранній відбій разом не можуть стиснути день — відбій поступається.
+  if (sleep - wake < RULES.minActive) sleep = Math.min(1440, wake + RULES.minActive);
+  if (Math.abs(sleep - sch.sleep) < RULES.shift) sleep = sch.sleep;
+  if (sleep - wake < RULES.minActive) wake = sleep - RULES.minActive;
+  if (Math.abs(wake - sch.wake) < RULES.shift) wake = sch.wake;
+  return wake !== sch.wake || sleep !== sch.sleep ? {state: 'shifted', schedule: {wake, sleep}} : {state: 'steady'};
+}
+
+function suggest(raw, settings){
+  const days = raw.map((v, i) => v && {weekend: DAYS[i].weekend, first: v[0] >= RULES.minWake ? v[0] : null, last: v[1]}).filter(Boolean);
+  if (days.length < RULES.minActiveDays) return {why: `днів із порціями ${days.length} &lt; ${RULES.minActiveDays}`};
+  const wdSch = settings.weekday, weSch = settings.weekendEnabled ? settings.weekend : settings.weekday;
+  const wd = groupShift(days.filter(d => !d.weekend), wdSch, 1);
+  const we = groupShift(days.filter(d => d.weekend), weSch, RULES.minWeekendDays);
+  if (!settings.weekendEnabled){
+    if (wd.state === 'shifted') return we.state === 'steady'
+      ? {scope: 'weekdaysOnly', old: wdSch, neu: wd.schedule, keep: weSch}
+      : {scope: 'everyDay', old: wdSch, neu: wd.schedule};
+    if (we.state === 'shifted') return {scope: 'weekends', old: weSch, neu: we.schedule, keep: wdSch};
+  } else {
+    if (wd.state === 'shifted') return {scope: 'weekdays', old: wdSch, neu: wd.schedule};
+    if (we.state === 'shifted') return {scope: 'weekends', old: weSch, neu: we.schedule};
+  }
+  return {why: 'жодна група не відходить від графіка в ≥ 70 % днів'};
+}
+
+function renderDays(key){
+  const raw = dataset(key);
+  const x = m => `${(m - 240) / (1440 - 240) * 100}%`;
+  const w = m => `${m / (1440 - 240) * 100}%`;
+  const sch = SETTINGS.weekday;
+  let html = '';
+  raw.forEach((v, i) => {
+    html += `<div class="lab ${DAYS[i].weekend ? 'we' : ''}">${DAYS[i].label}</div><div class="lane">
+      <div class="band" style="left:${x(sch.wake)};width:${w(sch.sleep - sch.wake)}"></div>
+      <div class="norm" style="left:${x(sch.sleep - RULES.eveningPause)};width:${w(RULES.eveningPause)}"></div>`;
+    if (v){
+      const first = v[0] >= RULES.minWake ? v[0] : null;
+      if (first != null) html += `<div class="f ${Math.abs(first - sch.wake) >= 45 ? 'hit' : ''}" style="left:${x(first)}"></div>`;
+      const off = v[1] >= sch.sleep + 45 || v[1] <= sch.sleep - RULES.eveningPause - 45;
+      html += `<div class="l ${off ? 'hit' : ''}" style="left:${x(v[1])}"></div>`;
+    }
+    html += `</div>`;
+  });
+  html += `<div></div><div class="axis">${[240, 480, 720, 960, 1200, 1440].map(m => `<span style="left:${x(m)}">${hm(m)}</span>`).join('')}</div>`;
+  $('#days').innerHTML = html;
+  const s = suggest(raw, SETTINGS);
+  const scopeName = {everyDay: 'увесь графік', weekdays: 'графік буднів', weekdaysOnly: 'будні, а вихідні — окремо зі старим графіком', weekends: 'окремий графік вихідних'};
+  $('#verdict').innerHTML = s.scope
+    ? `<b class="ok">Пропонуємо</b> ${scopeName[s.scope]}: <b class="num">${span(s.old)} → ${span(s.neu)}</b>${s.keep ? ` · лишається <span class="num">${span(s.keep)}</span>` : ''}.`
+    : `<b class="no">Вікна немає</b> — ${s.why}.`;
+}
+document.querySelectorAll('#data button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#data button').forEach(x => x.classList.toggle('on', x === b));
+  renderDays(b.dataset.d);
+});
+renderDays('early10');
+</script>
+</body>
+</html>

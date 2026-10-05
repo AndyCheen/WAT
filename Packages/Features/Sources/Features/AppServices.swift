@@ -32,6 +32,10 @@ public final class AppServices {
     /// власні дії вони й так перечитують самі, з анімацією.
     public internal(set) var epoch: Int = 0
 
+    /// Відкриття застосунку — холодний старт чи повернення з фону. На відміну від `epoch`, не змінюється
+    /// від півночі чи дії зі сповіщення у фоні: пропозиція графіка (WAT-41) — лише на відкритті.
+    public private(set) var activation: Int = 0
+
     /// Застосунок на екрані. Порція з дії сповіщення, поки його немає, — «поза застосунком»:
     /// розблокування від неї ніхто не побачить, тож потрібне відлуння (SPEC-NOTIFICATIONS §12.1).
     public private(set) var isForeground = false
@@ -108,6 +112,7 @@ public final class AppServices {
     /// лічильник проігнорованих нагадувань (SPEC-NOTIFICATIONS §6.2, «Скидання»).
     public func handleBecameActive() {
         isForeground = true
+        activation &+= 1
         refreshIfNewDay()
         notifications.recordInteraction(at: calendar.now)
         epoch &+= 1

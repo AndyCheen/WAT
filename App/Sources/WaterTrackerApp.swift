@@ -55,7 +55,7 @@ struct WaterTrackerApp: App {
 struct LaunchConfiguration {
     let isInMemory: Bool
     let seedsDemoData: Bool
-    /// `--start-screen progress|achievements|prizes|stats|notifications|notification-plan|report` —
+    /// `--start-screen progress|achievements|prizes|stats|notifications|notification-plan|report|schedule-suggestion` —
     /// відкрити екран одразу. Використовується для дизайн-QA та e2e без ручної навігації.
     /// `report` — звіт за минулий тиждень; конкретний період — `report:day:2026-10-04`,
     /// `report:month:2026-09` (кілька — через кому, як у злитому сповіщенні).
@@ -71,6 +71,11 @@ struct LaunchConfiguration {
     /// `--notification-tap reminder|morning|evening|rescue|comeback|echo` — імітація тапу
     /// по сповіщенню: реальні сповіщення в симуляторі нестабільні (SPEC-NOTIFICATIONS §16.11).
     let notificationTap: NotificationType?
+    /// `--start-screen schedule-suggestion[:wake-early|wake-late|sleep-late|sleep-early|both|weekend|weekdays]` —
+    /// вікно «Графік дня» одразу, повз правило частоти (WAT-41). Без варіанта — ранній підйом.
+    let scheduleSuggestion: ScheduleSuggestionDemo?
+    /// `--seed-schedule-shift` — 10 днів із першою склянкою ≈ 06:30: вікно з'являється саме, як у житті.
+    let seedsScheduleShift: Bool
 
     static var current: LaunchConfiguration {
         let arguments = ProcessInfo.processInfo.arguments
@@ -81,6 +86,7 @@ struct LaunchConfiguration {
         let isUITest = arguments.contains("--uitest-empty") || arguments.contains("--uitest-demo")
 
         let route: AppRoute?
+        var scheduleSuggestion: ScheduleSuggestionDemo?
         switch value(after: "--start-screen") {
         case "progress": route = .progress
         case "achievements": route = .achievements
@@ -92,6 +98,10 @@ struct LaunchConfiguration {
             let periods = screen.dropFirst("report".count).drop { $0 == ":" }
                 .split(separator: ",").compactMap { ReportPeriod(encoded: String($0)) }
             route = .report(periods)
+        case let screen? where screen.hasPrefix("schedule-suggestion"):
+            let variant = screen.dropFirst("schedule-suggestion".count).drop { $0 == ":" }
+            scheduleSuggestion = ScheduleSuggestionDemo(rawValue: String(variant)) ?? .wakeEarly
+            route = nil
         default: route = nil
         }
 
@@ -109,7 +119,9 @@ struct LaunchConfiguration {
             isUITest: isUITest,
             notificationAuthorization: authorization,
             fixedNow: value(after: "--uitest-now").flatMap { ISO8601DateFormatter().date(from: $0) },
-            notificationTap: value(after: "--notification-tap").flatMap(NotificationType.init(key:))
+            notificationTap: value(after: "--notification-tap").flatMap(NotificationType.init(key:)),
+            scheduleSuggestion: scheduleSuggestion,
+            seedsScheduleShift: arguments.contains("--seed-schedule-shift")
         )
     }
 }

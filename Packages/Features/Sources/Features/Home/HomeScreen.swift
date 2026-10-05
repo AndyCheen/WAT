@@ -15,6 +15,8 @@ public struct HomeScreen: View {
     private let onOpenAchievements: () -> Void
     private let onOpenPrize: (String) -> Void
     private let onOpenNotifications: () -> Void
+    /// Головний — верхній екран стека. Пропозиція графіка не з'являється під іншим екраном (WAT-41).
+    private let isOnTop: () -> Bool
 
     public init(
         services: AppServices,
@@ -24,7 +26,8 @@ public struct HomeScreen: View {
         onOpenStats: @escaping () -> Void,
         onOpenAchievements: @escaping () -> Void,
         onOpenPrize: @escaping (String) -> Void = { _ in },
-        onOpenNotifications: @escaping () -> Void = {}
+        onOpenNotifications: @escaping () -> Void = {},
+        isOnTop: @escaping () -> Bool = { true }
     ) {
         self.services = services
         _model = State(initialValue: HomeViewModel(services: services))
@@ -35,6 +38,7 @@ public struct HomeScreen: View {
         self.onOpenAchievements = onOpenAchievements
         self.onOpenPrize = onOpenPrize
         self.onOpenNotifications = onOpenNotifications
+        self.isOnTop = isOnTop
     }
 
     public var body: some View {
@@ -76,6 +80,12 @@ public struct HomeScreen: View {
         // Тап по сповіщенню просить шторку «Інше» з типовою порцією чи картку досягнення.
         .onChange(of: services.router.pendingHomeIntent, initial: true) {
             if let intent = services.router.takeHomeIntent() { model.apply(intent) }
+        }
+        // Пропозиція графіка — на відкритті застосунку, коли тап по сповіщенню вже встиг дійти (WAT-41).
+        .task(id: services.activation) {
+            try? await Task.sleep(for: HomeViewModel.scheduleOfferDelay)
+            guard !Task.isCancelled else { return }
+            model.offerScheduleIfNeeded(activation: services.activation, isHomeOnTop: isOnTop())
         }
         // Одне джерело правди для вібрації на всі дії екрана.
         .wtFeedback(trigger: model.pulse) { pulse in
@@ -300,9 +310,13 @@ public struct HomeScreen: View {
 
     @ViewBuilder
     private var sheets: some View {
-        // «Склянка» — вікно на весь екран, а не шторка: виїжджає знизу цілком (§7.1).
+        // «Склянка» й «Графік дня» — вікна на весь екран, а не шторки: виїжджають знизу цілком (§7.1, §27).
         if model.sheet == .glass {
             GlassScreen(model: model)
+                .zIndex(11)
+                .transition(.move(edge: .bottom))
+        } else if model.sheet == .schedule {
+            ScheduleScreen(model: model)
                 .zIndex(11)
                 .transition(.move(edge: .bottom))
         } else if let sheet = model.sheet {
@@ -321,7 +335,7 @@ public struct HomeScreen: View {
                     WeekStatsSheet(model: model)
                 case .permission:
                     NotificationPermissionSheet(model: model)
-                case .glass:
+                case .glass, .schedule:
                     EmptyView()
                 }
             }

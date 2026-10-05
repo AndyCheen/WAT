@@ -44,7 +44,8 @@ public struct RootView: View {
                     onOpenStats: { path.append(.stats) },
                     onOpenAchievements: { path.append(.achievements) },
                     onOpenPrize: { path.append(.prizeCard($0)) },
-                    onOpenNotifications: { path.append(.notifications) }
+                    onOpenNotifications: { path.append(.notifications) },
+                    isOnTop: { path.isEmpty }
                 )
                 .wtHideNavigationBar()
                 .navigationDestination(for: AppRoute.self) { route in
