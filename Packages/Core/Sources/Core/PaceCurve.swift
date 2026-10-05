@@ -3,8 +3,8 @@ import Foundation
 /// Крива темпу `E(t)` — скільки мілілітрів «за темпом» варто випити від підйому до хвилини `t`
 /// (SPEC-NOTIFICATIONS §4).
 ///
-/// Ваги — ті самі `DayPart.idealShare`, що дають ризки «ціль» у «Рівномірності» на 4a: тоді
-/// «відстав від темпу» в сповіщенні означає те саме, що на графіку. Частина доби, обрізана
+/// Ваги — `DayPart.idealShare`. Ризки «ціль» на графіках 4a беруться з цієї ж кривої
+/// (`partTargetsMl`), тож «відстав від темпу» в сповіщенні означає те саме, що на графіку. Частина доби, обрізана
 /// активними годинами `[W, S]`, отримує частку своєї ваги пропорційно годинам, що лишились;
 /// ваги нормуються до 1, усередині частини крива лінійна.
 ///
@@ -93,6 +93,35 @@ public struct PaceCurve: Sendable, Equatable {
     /// Ціль на відрізок `[from, to)` — для чекпоінтів частин доби (етап B, §9).
     public func target(fromMinute: Double, toMinute: Double) -> Double {
         expected(atMinute: toMinute) - expected(atMinute: fromMinute)
+    }
+
+    /// Ціль на відрізок у цілих мілілітрах — різниця округлених `E`, а не округлена різниця:
+    /// так цілі сусідніх відрізків складаються точно в норму (649 + 780 + 571 = 2000), і «ранок
+    /// 130 + полудень 519» на графіку дорівнює 649 у звіті (WAT-39).
+    public func roundedTarget(fromMinute: Int, toMinute: Int) -> Int {
+        Int(expected(atMinute: Double(toMinute)).rounded()) - Int(expected(atMinute: Double(fromMinute)).rounded())
+    }
+
+    /// Цілі п'яти частин доби в мл, індекс — `DayPart.rawValue`: шматок кривої в межах активних
+    /// годин. Частина поза ними (зазвичай ніч) отримує 0 — вночі пити не очікуємо (§13.6).
+    /// Це ризки «ціль» на графіках 4a — та сама модель, що в чекпоінта, XP і звіту.
+    public func partTargetsMl() -> [Int] {
+        var result = Array(repeating: 0, count: DayPart.allCases.count)
+        for segment in segments {
+            result[segment.part.rawValue] += roundedTarget(fromMinute: segment.fromMinute, toMinute: segment.toMinute)
+        }
+        return result
+    }
+
+    /// Частки норми по частинах доби (сума = 1, якщо є активні години) — для балу рівномірності
+    /// й «Типової доби». Без округлення: бал не має стрибати від мілілітра.
+    public func partShares() -> [Double] {
+        var result = Array(repeating: 0.0, count: DayPart.allCases.count)
+        guard goalMl > 0 else { return result }
+        for segment in segments {
+            result[segment.part.rawValue] += segment.ml / Double(goalMl)
+        }
+        return result
     }
 
     /// Ніч 22:00–05:00 перетинає північ — у хвилинах доби це два шматки.
