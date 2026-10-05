@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WaterTracker — пропозиція графіка дня (WAT-41)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Токени — DESIGN-TOKENS.md §2, як у Notifications.html. Кадр 402×874, 1px = 1pt.
+   Нових кольорів немає: активні години — градієнт кільця прогресу, старі — dotOff. */
+:root{
+  --screen:#f7fbff; --card:#fff; --chip:#eaf4ff; --button:#eaf4ff;
+  --text:#1f4a72; --muted:#8aa1bd; --btn-text:#3d8fd6; --accent:#5aa9f0;
+  --line:rgba(31,74,114,.10); --track:#e4f0fb; --dot-off:#dce8f3;
+  --orange:#ff8a3d; --success:#3ea86b; --w1:#bfe3ff; --w2:#6bb6f2;
+  --r-chip:12px; --r-control:14px; --r-card:24px; --r-pill:999px;
+}
+.dark{
+  --screen:#0c1524; --card:#161f33; --chip:#17233a; --button:#17233a;
+  --text:#eaf2ff; --muted:#8ba0bd; --btn-text:#bcd8ff; --accent:#7cc4ff;
+  --line:rgba(255,255,255,.08); --track:rgba(255,255,255,.08); --dot-off:rgba(255,255,255,.14);
+  --w1:#8fd0ff; --w2:#3b6ef5;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#e9eef5;font-family:Nunito,system-ui,sans-serif;color:#1f4a72;padding:40px 28px 80px}
+h1{font-size:20px;font-weight:800;margin-bottom:6px}
+h2{font-size:16px;font-weight:800;margin:44px 0 6px}
+.lead{font-size:13px;font-weight:700;color:#5c7291;margin-bottom:18px;max-width:940px;line-height:1.5}
+.lead b{color:#1f4a72}
+code{font-size:12px}
+.row{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+.frame-wrap{width:402px}
+.frame-cap{font-size:12px;font-weight:800;letter-spacing:.3px;color:#5c7291;margin-bottom:8px;text-transform:uppercase}
+.frame-note{font-size:12px;font-weight:700;color:#5c7291;margin-top:10px;line-height:1.45}
+.frame{width:402px;height:874px;background:var(--screen);border-radius:38px;position:relative;overflow:hidden;
+       box-shadow:0 18px 50px rgba(31,74,114,.18);color:var(--text);user-select:none}
+.num{font-family:Fredoka,Nunito,sans-serif}
+
+/* ---------- панель ---------- */
+.ctl{background:#fff;border-radius:18px;padding:16px 18px;max-width:1262px;display:flex;gap:14px 28px;flex-wrap:wrap;box-shadow:0 6px 20px rgba(31,74,114,.08)}
+.ctl label{font-size:12px;font-weight:900;color:#5c7291;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:6px}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+.btns button{height:30px;padding:0 12px;border-radius:999px;border:0;background:#dbe6f3;color:#1f4a72;font:800 13px Nunito;cursor:pointer}
+.btns button.on{background:#5aa9f0;color:#fff}
+
+/* ---------- вікно «Графік дня» ---------- */
+.win{position:absolute;inset:0;display:flex;flex-direction:column;padding:60px 26px 40px;transition:transform .45s cubic-bezier(.22,1,.36,1)}
+.win.out{transform:translateY(100%)}
+.bubbles{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.bubbles i{position:absolute;bottom:-20px;border-radius:50%;background:var(--accent);opacity:.10;animation:rise linear infinite}
+@keyframes rise{to{transform:translateY(-920px)}}
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;position:relative}
+.circle-btn{width:38px;height:38px;border-radius:var(--r-pill);background:var(--chip);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:16px;font-weight:900;cursor:pointer}
+.tag{font-size:12px;font-weight:900;letter-spacing:.4px;color:var(--muted)}
+.title{font-family:Nunito;font-size:28px;font-weight:800;text-align:center;line-height:1.15;position:relative}
+.sub{font-size:15px;font-weight:700;color:var(--muted);text-align:center;margin:8px auto 0;max-width:330px;line-height:1.38;position:relative}
+.sub b{color:var(--text);font-weight:800}
+.arcbox{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.arc{overflow:visible}
+.arc .seg{transition:stroke-dasharray .9s cubic-bezier(.22,1,.36,1),stroke-dashoffset .9s cubic-bezier(.22,1,.36,1)}
+.arc .glyph{transition:transform .9s cubic-bezier(.22,1,.36,1)}
+.arc .ev{opacity:0;transform-box:fill-box;transform-origin:center}
+.play .arc .ev{animation:pop .4s cubic-bezier(.22,1.6,.36,1) forwards}
+@keyframes pop{0%{opacity:0;transform:scale(.2)}100%{opacity:1;transform:scale(1)}}
+.center{text-align:center;margin-top:10px}
+.center .new{font-family:Fredoka;font-size:36px;font-weight:600;line-height:1}
+.center .new em{font-style:normal;color:var(--btn-text)}
+.center .old{font-size:13px;font-weight:800;color:var(--muted);margin-top:6px}
+.center .old s{text-decoration-thickness:2px;text-decoration-color:var(--muted)}
+.legend{display:flex;gap:14px;justify-content:center;font-size:12px;font-weight:800;color:var(--muted);margin-top:4px}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-right:5px;vertical-align:1px}
+.legend i.o{background:transparent;border:2px solid var(--accent);width:9px;height:9px}
+.keep{margin-top:12px;height:30px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border-radius:var(--r-pill);background:var(--chip);
+      font-size:13px;font-weight:800;color:var(--text)}
+.keep span{color:var(--muted)}
+/* «Налаштувати…» — кроки часу прямо у вікні */
+.adjust{background:var(--card);border-radius:var(--r-card);padding:4px 16px;margin-bottom:12px;box-shadow:0 4px 14px rgba(31,74,114,.06);position:relative}
+.dark .adjust{box-shadow:none}
+.adjust .r{display:flex;align-items:center;justify-content:space-between;height:56px}
+.adjust .r+.r{border-top:1px solid var(--line)}
+.adjust .r b{font-size:16px;font-weight:800}
+.stp{display:flex;align-items:center;gap:10px}
+.stp button{width:34px;height:34px;border-radius:50%;border:0;background:var(--chip);color:var(--btn-text);font:900 18px Nunito;cursor:pointer}
+.stp span{font-family:Fredoka;font-size:18px;font-weight:600;min-width:62px;text-align:center}
+.primary{width:100%;height:56px;border-radius:var(--r-control);background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;
+         font-size:17px;font-weight:800;cursor:pointer;border:0;font-family:inherit;position:relative}
+.primary .num{font-weight:600;margin-left:5px}
+.secondary{width:100%;height:50px;border-radius:var(--r-control);background:var(--button);color:var(--btn-text);display:flex;align-items:center;justify-content:center;
+           font-size:16px;font-weight:800;cursor:pointer;border:0;font-family:inherit;margin-top:10px;position:relative}
+.textbtn{display:block;margin:14px auto 0;font-size:15px;font-weight:800;color:var(--muted);cursor:pointer;background:none;border:0;font-family:inherit;position:relative}
+
+/* ---------- головний із тостом ---------- */
+.home{position:absolute;inset:0;padding:64px 26px 0}
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
+.gear{width:42px;height:42px;border-radius:50%;background:var(--chip);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:20px}
+.dots{display:flex;gap:4px}.dots i{width:10px;height:10px;border-radius:50%;background:var(--accent)}.dots i.off{background:var(--dot-off)}
+.ring{position:relative;width:242px;height:242px;margin:14px auto 0}
+.ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.rin{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.rin .pct{font-family:Fredoka;font-size:64px;font-weight:600;line-height:1}
+.rin .vol{font-size:17px;font-weight:700;color:var(--muted)}
+.dpill{display:flex;width:max-content;margin:14px auto 24px;align-items:center;gap:8px;height:38px;padding:0 14px;border-radius:var(--r-pill);background:var(--chip);font-size:14px;font-weight:800}
+.dpill b{font-weight:900}.dpill .xp{color:var(--btn-text);font-weight:900}.dpill .m{color:var(--muted)}
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:28px}
+.quick div{height:50px;border-radius:var(--r-control);background:var(--button);color:var(--btn-text);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px}
+.quick div.acc{background:var(--accent);color:#fff}
+.sec{font-size:15px;font-weight:900;letter-spacing:.3px;color:var(--muted);margin-bottom:14px}
+.task{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)}
+.task .c{width:26px;height:26px;border-radius:50%;background:var(--chip)}
+.task .t{flex:1;font-weight:700;font-size:15px}.task .p{font-size:12px;font-weight:900;color:var(--muted)}
+.toast{position:absolute;left:20px;right:20px;bottom:28px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-control);
+       padding:14px 16px;font-size:14px;font-weight:700;box-shadow:0 8px 24px rgba(31,74,114,.14);transform:translateY(140%);opacity:0;
+       transition:transform .4s cubic-bezier(.22,1.2,.36,1),opacity .3s}
+.toast.show{transform:none;opacity:1}
+.toast .num{font-weight:600}
+
+/* ---------- 14 днів: правило ---------- */
+.rules{background:#fff;border-radius:22px;padding:20px 22px;max-width:1262px;box-shadow:0 6px 20px rgba(31,74,114,.08)}
+.days{display:grid;grid-template-columns:86px 1fr;gap:3px 12px;font-size:12px;font-weight:800;color:#5c7291;margin-top:14px}
+.days .lab{height:22px;display:flex;align-items:center}
+.days .lab.we{color:#3d8fd6}
+.days .lane{position:relative;height:22px;border-radius:6px;background:#f2f6fb}
+.days .band{position:absolute;top:4px;bottom:4px;border-radius:5px;background:rgba(90,169,240,.18)}
+.days .f,.days .l{position:absolute;top:6px;width:10px;height:10px;border-radius:50%;transform:translateX(-50%)}
+.days .f{background:#8aa1bd}.days .f.hit{background:#5aa9f0}
+.days .l{border:2px solid #8aa1bd;background:#fff}.days .l.hit{border-color:#5aa9f0}
+.days .axis{position:relative;height:16px}
+.days .axis span{position:absolute;transform:translateX(-50%);font-size:11px;color:#8aa1bd}
+.verdict{margin-top:16px;padding:14px 16px;border-radius:14px;background:#f2f6fb;font-size:13px;font-weight:700;line-height:1.55;color:#1f4a72}
+.verdict b{font-weight:900}
+.verdict .ok{color:#3ea86b}.verdict .no{color:#ff8a3d}
+table{border-collapse:collapse;margin-top:12px;font-size:13px;font-weight:700;color:#1f4a72;max-width:1262px}
+td,th{padding:7px 12px;border-bottom:1px solid rgba(31,74,114,.10);text-align:left;vertical-align:top;line-height:1.4}
+th{font-size:12px;font-weight:900;color:#5c7291;text-transform:uppercase;letter-spacing:.3px}
+
+@media (prefers-reduced-motion: reduce){ .bubbles{display:none} }
+.reduce .bubbles{display:none}
+.reduce .arc .seg,.reduce .arc .glyph{transition:none}
+.reduce.play .arc .ev,.reduce .play .arc .ev{animation:none;opacity:1}
+</style>
+</head>
+<body>
+
+<h1>Пропозиція змінити графік дня — WAT-41</h1>
+<p class="lead">
+  Підйом і відбій задають криву темпу, цілі частин доби, ранкову склянку й межі нагадувань. Якщо людина <b>стабільно</b>
+  п'є раніше за підйом чи пізніше за відбій, застосунок один раз пропонує змінити графік — окремим вікном на весь екран,
+  у стилі вікна «Склянка». Без сповіщення: це не привід випити (§3.1, п. 1). Застосунок нічого не змінює сам.
+  Дуга — уся доба 00:00–24:00, полудень угорі. Товста дуга — новий графік, бліда — старий, крапки — перша (●) чи остання (○)
+  склянка за кожен із 14 днів: доказ, а не здогадка. Обери сценарій і тисни кнопки у вікні.
+</p>
+
+<div class="ctl">
+  <div>
+    <label>Сценарій</label>
+    <div class="btns" id="scn">
+      <button data-s="wake" class="on">Ранній підйом</button>
+      <button data-s="sleep">Пізній відбій</button>
+      <button data-s="both">Обидва</button>
+      <button data-s="weekend">Лише вихідні</button>
+      <button data-s="split">Будні раніше, вихідні як є</button>
+    </div>
+  </div>
+  <div>
+    <label>Рух</label>
+    <div class="btns">
+      <button id="replay">▶ Програти ще раз</button>
+      <button id="rm">Reduce Motion</button>
+    </div>
+  </div>
+</div>
+
+<h2>1. Вікно «Графік дня»</h2>
+<div class="row">
+  <div class="frame-wrap">
+    <div class="frame-cap">1 · Пропозиція (інтерактив)</div>
+    <div class="frame" id="fA"></div>
+    <div class="frame-note">«Так» — графік змінено, вікно закривається, на головному тост. «Налаштувати…» — кроки по 15 хв прямо тут,
+      дуга йде за ними. «Ні» — не питати 60 днів. ✕ — без відповіді: спитаємо не раніше ніж через 7 днів.</div>
+  </div>
+  <div class="frame-wrap">
+    <div class="frame-cap">2 · «Налаштувати…»</div>
+    <div class="frame" id="fB"></div>
+    <div class="frame-note">Межі ті самі, що на екрані «Сповіщення»: підйом від 04:00, відбій до 24:00, активних годин ≥ 6.
+      Кнопка підписується тим, що буде збережено.</div>
+  </div>
+  <div class="frame-wrap">
+    <div class="frame-cap">3 · Після «Так»</div>
+    <div class="frame" id="fC"></div>
+    <div class="frame-note">Тост на 3 с і одразу перепланування сповіщень (<code>services.touch()</code>). Сьогоднішні цілі частин доби
+      беруть новий графік, минулі дні й звіти — ні: розклад дня зберігається в <code>DayLog</code>.</div>
+  </div>
+  <div class="frame-wrap dark">
+    <div class="frame-cap">4 · Темна тема</div>
+    <div class="frame" id="fD"></div>
+    <div class="frame-note">Активні години — градієнт кільця темної теми, старий графік — напівпрозорий білий.</div>
+  </div>
+</div>
+
+<h2>2. Коли пропонувати — 14 днів до сьогодні (5 жовтня, пн)</h2>
+<p class="lead">Рядок — день, смуга — графік цього дня, ● — перша склянка (не раніше 04:00: порція о 00:30 — це ще вчорашній вечір),
+  ○ — остання. Синім — день «за межею» ≥ 45 хв. Той самий алгоритм піде в <code>Insights</code>.</p>
+<div class="rules">
+  <div class="btns" id="data">
+    <button data-d="early10" class="on">10 днів ≈ 06:30</button>
+    <button data-d="noise">3 ранні з 10</button>
+    <button data-d="weekendLate">Пізно лише у вихідні</button>
+    <button data-d="split">Будні раніше, вихідні пізніше</button>
+    <button data-d="few">7 днів із порціями</button>
+    <button data-d="night">Порції після півночі</button>
+  </div>
+  <div class="days" id="days"></div>
+  <div class="verdict" id="verdict"></div>
+</div>
+
+<table>
+  <tr><th>Правило</th><th>Значення</th><th>Чому</th></tr>
+  <tr><td>Дані</td><td>14 повних днів до сьогодні, ≥ 8 із порціями</td><td>сьогодні ще не закінчився; 8 активних днів самі по собі виключають перший тиждень користування</td></tr>
+  <tr><td>Ранній підйом</td><td>перша склянка ≥ 45 хв раніше за підйом у ≥ 70 % днів</td><td>70 % більше за половину, тож і медіана тоді раніша на ≥ 45 хв</td></tr>
+  <tr><td>Пізній відбій</td><td>остання склянка ≥ 45 хв пізніше за відбій у ≥ 70 % днів</td><td>раннє завершення — не зсув: перестати пити за 1–2 год до сну нормально (§13.6)</td></tr>
+  <tr><td>Пізня перша склянка</td><td>не зсув</td><td>людина могла просто забути випити — саме для цього ранкова склянка й нагадування</td></tr>
+  <tr><td>Нове значення</td><td>медіана, до найближчих 15 хв</td><td>крок налаштувань — 15 хв</td></tr>
+  <tr><td>Будні й вихідні</td><td>кожна група — проти свого розкладу; вихідним треба ≥ 3 активні дні з 4</td><td>вихідні з даними, але без зсуву, лишаються як були — щоб не будити о 06:30 у суботу</td></tr>
+  <tr><td>Частота</td><td>«Так» — 30 днів; «Ні» — 60 днів, раніше лише якщо зсув виріс на ≥ 60 хв (але не раніше 30); ✕ — 7 днів</td><td>з ТЗ задачі</td></tr>
+  <tr><td>Коли показати</td><td>відкриття застосунку, головний без шторки, тоста, картки й переходу зі сповіщення</td><td>не поверх «Склянки», звіту, дозволу</td></tr>
+</table>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const hm = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const span = s => `${hm(s.wake)}–${hm(s.sleep)}`;
+
+/* ===================== сценарії вікна ===================== */
+// Доказ — хвилини першої (first) чи останньої (last) склянки за 14 днів, як їх дасть Insights.
+const jitter = (base, list) => list.map(d => base + d);
+const SCN = {
+  wake:   {scope:'everyDay', old:{wake:480,sleep:1320}, neu:{wake:390,sleep:1320}, first:jitter(390,[-10,5,0,-5,15,-15,10,0,5,-5,20,0]), last:[]},
+  sleep:  {scope:'everyDay', old:{wake:480,sleep:1320}, neu:{wake:480,sleep:1395}, first:[], last:jitter(1395,[-10,5,15,0,-5,10,-15,5,0,20,-10])},
+  both:   {scope:'everyDay', old:{wake:480,sleep:1320}, neu:{wake:390,sleep:1395}, first:jitter(390,[-10,5,0,-5,15,10,0,5,-5]), last:jitter(1395,[-10,5,15,0,-5,10,0,5,20])},
+  weekend:{scope:'weekends', old:{wake:480,sleep:1320}, neu:{wake:480,sleep:1410}, first:[], last:jitter(1410,[-10,5,15,0]), keep:{label:'Будні — як і було', s:{wake:480,sleep:1320}}},
+  split:  {scope:'weekdaysOnly', old:{wake:480,sleep:1320}, neu:{wake:390,sleep:1320}, first:jitter(390,[-10,5,0,-5,15,-15,10,0,5,-5]), last:[], keep:{label:'Вихідні — як і було', s:{wake:480,sleep:1320}}},
+};
+
+// Тексти — так їх складе ScheduleSuggestionPresenter: на «ти», без роду (§14.1).
+function texts(c, adj){
+  const w = c.neu.wake !== c.old.wake, s = c.neu.sleep !== c.old.sleep;
+  const where = c.scope === 'weekends' ? 'У вихідні твій день' : c.scope === 'weekdaysOnly' ? 'У будні твій день' : 'Твій день';
+  const title = `${where} ${w && s ? 'довший, ніж у графіку' : w ? 'починається раніше' : 'закінчується пізніше'}`;
+  const period = c.scope === 'weekends' ? 'У суботу й неділю' : c.scope === 'weekdaysOnly' ? 'У будні' : 'Останні 2 тижні';
+  let sub;
+  if (w && s) sub = `${period} перша склянка — близько <b>${hm(c.neu.wake)}</b>, остання — близько <b>${hm(c.neu.sleep)}</b>`;
+  else if (w) sub = `${period} перша склянка — близько <b>${hm(c.neu.wake)}</b>, а підйом у графіку — о ${hm(c.old.wake)}`;
+  else sub = `${period} остання склянка — близько <b>${hm(c.neu.sleep)}</b>, а відбій у графіку — о ${hm(c.old.sleep)}`;
+  const changed = w && s ? span(c.neu) : w ? hm(c.neu.wake) : hm(c.neu.sleep);
+  const primary = adj ? `Зберегти <span class="num">${span(adj)}</span>` : `Так, змінити на <span class="num">${changed}</span>`;
+  const toastWho = c.scope === 'weekends' ? 'Графік вихідних оновлено' : c.scope === 'weekdaysOnly' ? 'Графік буднів оновлено' : 'Графік оновлено';
+  return {title, sub, primary, toast: (sch) => `${toastWho}: <span class="num">${span(sch)}</span>`};
+}
+
+/* дуга: 00:00 — лівий край, 12:00 — угорі, 24:00 — правий */
+const CX = 175, CY = 178, R = 140, SW = 22;
+const pt = (m, r = R) => { const a = Math.PI - m / 1440 * Math.PI; return [CX + r * Math.cos(a), CY - r * Math.sin(a)]; };
+const LEN = Math.PI * R;
+const arcPath = `M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`;
+const dash = s => `0 ${s.wake / 1440 * LEN} ${(s.sleep - s.wake) / 1440 * LEN} ${LEN}`;
+
+function evidence(list, hollow){
+  // однакові 5-хвилинні кошики — у три ряди під смугою, щоб крапки не зливались і не тягнулись хвостом
+  const seen = {};
+  return list.map((m, i) => {
+    const k = Math.round(m / 5); seen[k] = (seen[k] || 0) + 1;
+    const [x, y] = pt(m, R - SW / 2 - 10 - ((seen[k] - 1) % 3) * 10);
+    return hollow
+      ? `<circle class="ev" style="animation-delay:${0.9 + i * 0.05}s" cx="${x}" cy="${y}" r="4" fill="var(--screen)" stroke="var(--accent)" stroke-width="2"/>`
+      : `<circle class="ev" style="animation-delay:${0.9 + i * 0.05}s" cx="${x}" cy="${y}" r="4.5" fill="var(--accent)"/>`;
+  }).join('');
+}
+
+function arcSVG(c, id){
+  // Позначки годин — глибоко всередині: зовні сонце й місяць («06:00» тіснився б біля підйому о 06:30),
+  // а одразу під смугою — крапки-докази.
+  const ticks = [360, 720, 1080].map(m => { const [x, y] = pt(m, R - SW / 2 - 46); return `<text x="${x}" y="${y + 4}" text-anchor="middle" font-size="11" font-weight="800" fill="var(--muted)" font-family="Nunito">${hm(m)}</text>`; }).join('');
+  return `<svg class="arc" width="350" height="200" viewBox="0 0 350 200">
+    <defs><linearGradient id="g${id}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="var(--w1)"/><stop offset="1" stop-color="var(--w2)"/></linearGradient></defs>
+    <path d="${arcPath}" fill="none" stroke="var(--track)" stroke-width="${SW}" stroke-linecap="round"/>
+    <path class="seg old" d="${arcPath}" fill="none" stroke="var(--dot-off)" stroke-width="${SW}" stroke-linecap="round" stroke-dasharray="${dash(c.old)}"/>
+    <path class="seg neu" d="${arcPath}" fill="none" stroke="url(#g${id})" stroke-width="${SW}" stroke-linecap="round" stroke-dasharray="${dash(c.old)}"/>
+    ${ticks}
+    ${evidence(c.first, false)}${evidence(c.last, true)}
+    <text class="glyph sun" font-size="22" text-anchor="middle" dominant-baseline="central">☀️</text>
+    <text class="glyph moon" font-size="20" text-anchor="middle" dominant-baseline="central">🌙</text>
+  </svg>`;
+}
+
+function placeGlyphs(el, s){
+  const [sx, sy] = pt(s.wake, R + SW / 2 + 16), [mx, my] = pt(s.sleep, R + SW / 2 + 16);
+  $('.sun', el).setAttribute('transform', `translate(${sx} ${sy})`);
+  $('.moon', el).setAttribute('transform', `translate(${mx} ${my})`);
+  $('.neu', el).setAttribute('stroke-dasharray', dash(s));
+}
+
+const bubbles = `<div class="bubbles">${Array.from({length: 9}, (_, i) => `<i style="left:${8 + i * 11}%;width:${8 + (i % 3) * 6}px;height:${8 + (i % 3) * 6}px;animation-duration:${9 + (i % 4) * 3}s;animation-delay:-${i * 1.7}s"></i>`).join('')}</div>`;
+
+function homeHTML(){
+  return `<div class="home">
+    <div class="hdr"><div class="gear">⚙︎</div><div class="dots"><i></i><i></i><i class="off"></i><i></i><i></i><i></i><i class="off"></i></div></div>
+    <div class="ring"><svg width="242" height="242"><circle cx="121" cy="121" r="104" fill="none" stroke="var(--track)" stroke-width="26"/>
+      <circle cx="121" cy="121" r="104" fill="none" stroke="var(--accent)" stroke-width="26" stroke-linecap="round" stroke-dasharray="653" stroke-dashoffset="490"/></svg>
+      <div class="rin"><div class="pct">25%</div><div class="vol">0.50 / 2.0 л</div></div></div>
+    <div class="dpill"><b>До 09:00 — ще 150 мл</b><span class="m">·</span><span class="xp">+10 XP</span><span class="m">·</span><span class="m">20 хв</span></div>
+    <div class="quick"><div>200 мл</div><div>0.5 л</div><div>1 л</div><div class="acc">Інше</div></div>
+    <div class="sec">ЗАВДАННЯ НА СЬОГОДНІ</div>
+    <div class="task"><div class="c"></div><div class="t">Випий 500 мл до 12:00</div><div class="p">250/500</div></div>
+    <div class="task"><div class="c"></div><div class="t">4 записи за день</div><div class="p">1/4</div></div>
+  </div><div class="toast"></div>`;
+}
+
+/* стан кадру: 'ask' | 'adjust' | 'done' */
+function render(frame, scnKey, stateArg){
+  const c = SCN[scnKey];
+  const el = document.getElementById(frame);
+  const st = {mode: stateArg || 'ask', sch: {...c.neu}};
+  const id = frame;
+  el.innerHTML = homeHTML() + `<div class="win" style="background:var(--screen)">${bubbles}
+    <div class="top"><div class="circle-btn" data-a="close">✕</div><div class="tag">ГРАФІК ДНЯ</div><div style="width:38px"></div></div>
+    <div class="title"></div><div class="sub"></div>
+    <div class="arcbox">${arcSVG(c, id)}
+      <div class="center"><div class="new num"></div><div class="old">було <s>${span(c.old)}</s></div></div>
+      <div class="legend">${c.first.length ? '<span><i></i>перша склянка</span>' : ''}${c.last.length ? '<span><i class="o"></i>остання склянка</span>' : ''}<span>· 14 днів</span></div>
+      ${c.keep ? `<div class="keep">${c.keep.label}: <span class="num">${span(c.keep.s)}</span></div>` : ''}
+    </div>
+    <div class="adjust" style="display:none">
+      <div class="r"><b>Підйом</b><div class="stp"><button data-a="w-">–</button><span class="w"></span><button data-a="w+">+</button></div></div>
+      <div class="r"><b>Відбій</b><div class="stp"><button data-a="s-">–</button><span class="s"></span><button data-a="s+">+</button></div></div>
+    </div>
+    <button class="primary" data-a="yes"></button>
+    <button class="secondary" data-a="adjust">Налаштувати…</button>
+    <button class="textbtn" data-a="no">Ні, графік правильний</button>
+  </div>`;
+  const win = $('.win', el), toast = $('.toast', el);
+
+  function paint(){
+    const adj = st.mode === 'adjust' ? st.sch : null;
+    const t = texts(c, adj);
+    $('.title', el).textContent = t.title;
+    $('.sub', el).innerHTML = t.sub;
+    $('.primary', el).innerHTML = t.primary;
+    $('.new', el).innerHTML = span(st.sch);
+    $('.adjust', el).style.display = st.mode === 'adjust' ? '' : 'none';
+    $('.secondary', el).style.display = st.mode === 'adjust' ? 'none' : '';
+    $('.w', el).textContent = hm(st.sch.wake);
+    $('.s', el).textContent = hm(st.sch.sleep);
+    placeGlyphs(el, st.sch);
+  }
+  function play(){
+    win.classList.remove('play');
+    placeGlyphs(el, c.old);
+    void win.offsetWidth;
+    requestAnimationFrame(() => setTimeout(() => { win.classList.add('play'); paint(); }, 250));
+  }
+  function close(withToast){
+    win.classList.add('out');
+    if (withToast){
+      toast.innerHTML = texts(c).toast(st.sch);
+      setTimeout(() => toast.classList.add('show'), 380);
+      setTimeout(() => toast.classList.remove('show'), 3400);
+    }
+  }
+  const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), Math.max(lo, hi));
+  el.addEventListener('click', e => {
+    const a = e.target.closest('[data-a]')?.dataset.a;
+    if (!a) {
+      if (win.classList.contains('out')) { win.classList.remove('out'); st.mode = 'ask'; st.sch = {...c.neu}; play(); }
+      return;
+    }
+    if (a === 'yes') close(true);
+    if (a === 'no' || a === 'close') close(false);
+    if (a === 'adjust') { st.mode = 'adjust'; paint(); }
+    if (a === 'w-') st.sch.wake = clamp(st.sch.wake - 15, 240, st.sch.sleep - 360);
+    if (a === 'w+') st.sch.wake = clamp(st.sch.wake + 15, 240, st.sch.sleep - 360);
+    if (a === 's-') st.sch.sleep = clamp(st.sch.sleep - 15, st.sch.wake + 360, 1440);
+    if (a === 's+') st.sch.sleep = clamp(st.sch.sleep + 15, st.sch.wake + 360, 1440);
+    if (a.length === 2) paint();
+  });
+
+  if (stateArg === 'done'){
+    win.classList.add('out');
+    toast.innerHTML = texts(c).toast(st.sch);
+    toast.classList.add('show');
+    return;
+  }
+  if (stateArg === 'adjust') st.sch = {...c.neu, wake: c.neu.wake === c.old.wake ? c.neu.wake : c.neu.wake + 15};
+  play();
+}
+
+let current = 'wake';
+function renderAll(){
+  render('fA', current);
+  render('fB', current, 'adjust');
+  render('fC', current, 'done');
+  render('fD', current);
+}
+document.querySelectorAll('#scn button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#scn button').forEach(x => x.classList.toggle('on', x === b));
+  current = b.dataset.s; renderAll();
+});
+$('#replay').onclick = renderAll;
+$('#rm').onclick = e => { document.body.classList.toggle('reduce'); e.target.classList.toggle('on'); renderAll(); };
+renderAll();
+
+/* ===================== правило на 14 днях ===================== */
+// Дзеркало ScheduleShift.suggest з Insights: ті самі пороги й порядок рішень.
+const RULES = {windowDays: 14, minActiveDays: 8, minWeekendDays: 3, shiftMin: 45, share: 0.7, round: 15, minWake: 240};
+const DAYS = Array.from({length: 14}, (_, i) => {
+  const d = new Date(2026, 8, 21 + i);  // 21.09 (пн) … 04.10 (нд)
+  return {label: `${['нд','пн','вт','ср','чт','пт','сб'][d.getDay()]} ${d.getDate()}.${String(d.getMonth() + 1).padStart(2, '0')}`, weekend: d.getDay() === 0 || d.getDay() === 6};
+});
+const SETTINGS = {weekday: {wake: 480, sleep: 1320}, weekendEnabled: false, weekend: {wake: 540, sleep: 1380}};
+
+function dataset(key){
+  // [перша, остання] або null — день без порцій
+  const r = (a, b) => [a, b];
+  switch (key){
+    case 'early10': return [null, r(385,1260), r(395,1250), r(380,1270), null, r(390,1240), r(400,1255), null, r(375,1265), r(390,1245), null, r(395,1250), r(385,1260), r(390,1230)];
+    case 'noise':   return [null, r(385,1260), r(500,1250), r(510,1270), null, r(495,1240), r(390,1255), null, r(520,1265), r(505,1245), null, r(380,1250), r(515,1260), r(490,1230)];
+    case 'weekendLate': return [r(500,1250), r(490,1260), r(510,1240), r(495,1255), r(505,1250), r(560,1410), r(570,1395), r(500,1245), r(495,1260), r(505,1250), r(490,1265), r(500,1255), r(580,1420), r(565,1405)];
+    case 'split':   return [r(390,1250), r(385,1260), r(395,1240), r(380,1255), r(390,1250), r(560,1300), r(590,1290), r(395,1245), r(385,1260), r(390,1250), r(380,1265), r(395,1255), r(575,1310), r(600,1295)];
+    case 'few':     return [null, null, null, null, null, null, null, r(390,1250), r(385,1260), r(395,1240), r(380,1255), r(390,1250), r(385,1245), r(395,1260)];
+    case 'night':   return [r(30,1250), r(25,1260), null, r(40,1240), r(35,1255), null, r(20,1250), r(30,1245), null, r(45,1260), r(35,1250), null, r(25,1265), r(30,1255)];
+  }
+}
+
+function median(xs){ const s = [...xs].sort((a, b) => a - b), n = s.length; return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2; }
+const round15 = m => Math.round(m / RULES.round) * RULES.round;
+
+// Стан групи: {state:'shifted', schedule, wakeShift, sleepShift} | {state:'steady'} | {state:'unknown'}
+function groupShift(days, sch, minDays){
+  if (days.length < minDays) return {state: 'unknown'};
+  const firsts = days.map(d => d.first).filter(m => m != null);
+  const lasts = days.map(d => d.last);
+  const out = {...sch}; let any = false;
+  const early = firsts.filter(m => m <= sch.wake - RULES.shiftMin).length;
+  if (firsts.length && early >= RULES.share * firsts.length) { out.wake = round15(median(firsts)); any = true; }
+  const late = lasts.filter(m => m >= sch.sleep + RULES.shiftMin).length;
+  if (late >= RULES.share * lasts.length) { out.sleep = Math.min(1440, round15(median(lasts))); any = true; }
+  return any ? {state: 'shifted', schedule: out} : {state: 'steady'};
+}
+
+function suggest(raw, settings){
+  const days = raw.map((v, i) => v && {weekend: DAYS[i].weekend, first: v[0] >= RULES.minWake ? v[0] : null, last: v[1]}).filter(Boolean);
+  if (days.length < RULES.minActiveDays) return {why: `днів із порціями ${days.length} &lt; ${RULES.minActiveDays}`};
+  const wdSch = settings.weekday, weSch = settings.weekendEnabled ? settings.weekend : settings.weekday;
+  const wd = groupShift(days.filter(d => !d.weekend), wdSch, 1);
+  const we = groupShift(days.filter(d => d.weekend), weSch, RULES.minWeekendDays);
+  if (!settings.weekendEnabled){
+    if (wd.state === 'shifted') return we.state === 'steady'
+      ? {scope: 'weekdaysOnly', old: wdSch, neu: wd.schedule, keep: weSch}
+      : {scope: 'everyDay', old: wdSch, neu: wd.schedule};
+    if (we.state === 'shifted') return {scope: 'weekends', old: weSch, neu: we.schedule, keep: wdSch};
+  } else {
+    if (wd.state === 'shifted') return {scope: 'weekdays', old: wdSch, neu: wd.schedule};
+    if (we.state === 'shifted') return {scope: 'weekends', old: weSch, neu: we.schedule};
+  }
+  return {why: 'жодна група не має зсуву в ≥ 70 % днів'};
+}
+
+function renderDays(key){
+  const raw = dataset(key);
+  const x = m => `${(m - 240) / (1440 - 240) * 100}%`;
+  const w = m => `${m / (1440 - 240) * 100}%`;
+  let html = '';
+  raw.forEach((v, i) => {
+    const sch = SETTINGS.weekday;
+    html += `<div class="lab ${DAYS[i].weekend ? 'we' : ''}">${DAYS[i].label}</div><div class="lane"><div class="band" style="left:${x(sch.wake)};width:${w(sch.sleep - sch.wake)}"></div>`;
+    if (v){
+      const first = v[0] >= RULES.minWake ? v[0] : null;
+      if (first != null) html += `<div class="f ${first <= sch.wake - 45 ? 'hit' : ''}" style="left:${x(first)}"></div>`;
+      html += `<div class="l ${v[1] >= sch.sleep + 45 ? 'hit' : ''}" style="left:${x(v[1])}"></div>`;
+    }
+    html += `</div>`;
+  });
+  html += `<div></div><div class="axis">${[240, 480, 720, 960, 1200, 1440].map(m => `<span style="left:${x(m)}">${hm(m)}</span>`).join('')}</div>`;
+  $('#days').innerHTML = html;
+  const s = suggest(raw, SETTINGS);
+  const scopeName = {everyDay: 'увесь графік', weekdays: 'графік буднів', weekdaysOnly: 'будні, а вихідні — окремо зі старим графіком', weekends: 'окремий графік вихідних'};
+  $('#verdict').innerHTML = s.scope
+    ? `<b class="ok">Пропонуємо</b> ${scopeName[s.scope]}: <b class="num">${span(s.old)} → ${span(s.neu)}</b>${s.keep ? ` · лишається <span class="num">${span(s.keep)}</span>` : ''}.`
+    : `<b class="no">Вікна немає</b> — ${s.why}.`;
+}
+document.querySelectorAll('#data button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#data button').forEach(x => x.classList.toggle('on', x === b));
+  renderDays(b.dataset.d);
+});
+renderDays('early10');
+</script>
+</body>
+</html>
