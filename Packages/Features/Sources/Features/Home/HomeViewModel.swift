@@ -523,6 +523,33 @@ public final class HomeViewModel {
         return services.notifications.authorization == .denied ? "Без дозволу" : "Увімк."
     }
 
+    // MARK: - Ритм дня (WAT-42, SPEC-NOTIFICATIONS §28)
+
+    public var dayRhythmEnabled: Bool { services.profile.dayRhythmEnabled }
+
+    /// Пропозиція «Рівні інтервали» — лише щойно після вимикання ритму: нагадування «за темпом»
+    /// теж спираються на частини доби, але змінювати їх мовчки не можна, а питати щоразу — набридливо.
+    public private(set) var offersIntervalReminders = false
+
+    /// Вимкнено — режим «просто норма за день»: без чекпоінтів, XP і завдань частин доби, капсули
+    /// й частин у звітах. Нарахований XP лишається; увімкнення повертає все з наступної порції.
+    public func setDayRhythm(_ enabled: Bool) {
+        services.profile.dayRhythmEnabled = enabled
+        services.profiles.save()
+        let settings = services.notifications.settings
+        offersIntervalReminders = !enabled && services.profile.notificationsEnabled
+            && settings.remindersEnabled && settings.reminderMode == .pace
+        // Перепланування — чекпоінти зникають чи повертаються одразу, а не з наступною порцією.
+        services.touch()
+    }
+
+    public func switchRemindersToInterval() {
+        services.notifications.settings.reminderMode = .interval
+        services.profiles.save()
+        offersIntervalReminders = false
+        services.touch()
+    }
+
     // MARK: - Шторки
 
     /// Присвоєння `sheet` напряму не анімувалося — `WTSheet` має перехід,
@@ -532,6 +559,7 @@ public final class HomeViewModel {
     }
 
     public func dismissSheet() {
+        offersIntervalReminders = false
         withAnimation(WTAnimation.sheet) { sheet = nil }
     }
 
@@ -582,6 +610,8 @@ public final class HomeViewModel {
     /// Капсула частини доби на цю хвилину. Екран викликає її з `TimelineView` раз на хвилину;
     /// час — від `Clock`, а не з `TimelineView`, інакше `--uitest-now` не діяв би.
     func dayPartLine() -> DayPartLine? {
+        // Режим «просто норма» (WAT-42): частин доби на головному немає.
+        guard services.profile.dayRhythmEnabled else { return nil }
         let now = services.calendar.now
         let progress = dayCurve?.dayPartProgress(atMinute: services.calendar.minuteOfDay(now), portions: dayPortions)
         // XP — як нарахує `GamificationService`: серія на ціль частини не множить, буст — так.

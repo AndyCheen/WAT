@@ -72,6 +72,38 @@ final class SmokeUITests: XCTestCase {
         XCTAssertEqual(pill.label, "Ранок і полудень закрито", "порція, що закриває частину, одразу дає ✓")
     }
 
+    /// «Ритм дня» (WAT-42): вимикання прибирає капсулу частини доби, разово пропонує «Рівні інтервали»,
+    /// а на екрані «Сповіщення» зникає перемикач чекпоінтів — їх без ритму немає зовсім.
+    func testDayRhythmToggleSwitchesToPlainDailyGoal() {
+        let app = launch(["--uitest-empty", "--uitest-now", "2026-10-01T11:25:00+03:00"])
+        XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
+        let pill = app.descendants(matching: .any)["home.dayPart"]
+        XCTAssertTrue(pill.waitForExistence(timeout: 5))
+
+        app.buttons["home.settings"].tap()
+        let toggle = app.buttons["settings.dayRhythm"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        toggle.tap()
+        XCTAssertTrue(app.staticTexts["Просто норма за день"].waitForExistence(timeout: 5))
+
+        let offer = app.buttons["settings.intervalOffer.action"]
+        XCTAssertTrue(offer.waitForExistence(timeout: 5), "«За темпом» теж спирається на частини доби")
+        XCTAssertTrue(offer.isHittable)
+        offer.tap()
+        XCTAssertTrue(offer.waitForNonExistence(timeout: 5))
+
+        app.buttons["Готово"].tap()
+        XCTAssertTrue(pill.waitForNonExistence(timeout: 5), "капсули частини доби немає")
+
+        app.buttons["home.settings"].tap()
+        let row = app.buttons["settings.notifications"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        XCTAssertTrue(app.buttons["notifications.master"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["notifications.checkpoints"].exists)
+        XCTAssertFalse(app.buttons["Частіше"].exists, "нагадування перейшли на рівні інтервали")
+    }
+
     func testCompletedQuestsHideBehindToggle() {
         let app = launch(["--uitest-empty"])
         XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))

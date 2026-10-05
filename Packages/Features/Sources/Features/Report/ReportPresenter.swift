@@ -115,7 +115,7 @@ struct ReportPresenter {
 
     private var daySlides: [ReportSlide] {
         guard case .day(let day) = report.period else { return [] }
-        var result: [ReportSlide] = [dayCover(day), dayTimeline]
+        var result: [ReportSlide] = [dayCover(day), report.showsDayParts ? dayTimeline : dayPortions]
         if streak.current > 0 {
             result.append(.streak(
                 kicker: "Серія", value: streak.current,
@@ -138,9 +138,12 @@ struct ReportPresenter {
                    caption: "води за \(ReportFormat.daysWord(report.elapsedDays.count, withNumber: true)) — це \(glassesText)",
                    visual: .drops(count: min(report.glasses, 63)), pill: nil, foot: nil, waveLevel: 0.48),
             weekGoals,
-            bestDaySlide,
-            rhythmSlide(kicker: "Ритм доби", foot: "Медіана за тиждень, у межах твоїх активних годин.")
+            bestDaySlide
         ]
+        // Без ритму дня тиждень — це норма й середнє: їх уже несуть «Норма» й «Найкращий день» (WAT-42).
+        if report.showsDayParts {
+            result.append(rhythmSlide(kicker: "Ритм доби", foot: "Медіана за тиждень, у межах твоїх активних годин."))
+        }
         if let game = gameSlide { result.append(game) }
         result.append(thoughtSlide(kicker: "Думка тижня", emoji: "💡", extra: nil))
         return result
@@ -170,7 +173,9 @@ struct ReportPresenter {
                 chain: chainLabels(run), badges: [], foot: recordFoot(run.length)
             ))
         }
-        result.append(rhythmSlide(kicker: "Що змінилось", foot: "Медіана частини доби від потрібного."))
+        if report.showsDayParts {
+            result.append(rhythmSlide(kicker: "Що змінилось", foot: "Медіана частини доби від потрібного."))
+        }
         if let game = gameSlide { result.append(game) }
         result.append(thoughtSlide(kicker: "Думка місяця", emoji: "💡", extra: nil))
         return result
@@ -198,10 +203,13 @@ struct ReportPresenter {
                       pill: pill, foot: nil, waveLevel: 0.62)
     }
 
-    private var dayTimeline: ReportSlide {
+    /// Частка шкали дня від підйому (0) до відбою (1).
+    private func position(_ minute: Int) -> Double {
         let wake = Double(schedule.wakeMinutes), span = Double(max(1, schedule.sleepMinutes - schedule.wakeMinutes))
-        func position(_ minute: Int) -> Double { max(0, min(1, (Double(minute) - wake) / span)) }
+        return max(0, min(1, (Double(minute) - wake) / span))
+    }
 
+    private var dayTimeline: ReportSlide {
         let blocks = report.blocks.map { block in
             WTDayTimeline.Block(
                 from: position(block.fromMinute), to: position(block.toMinute), reached: block.isReached,
@@ -233,6 +241,25 @@ struct ReportPresenter {
             "Найслабше — \($0.title): \(ReportFormat.percent($0.ratio)) % від потрібного"
         } ?? (nowMinute == nil ? "Усі частини дня — у темпі" : nil)
         return .timeline(kicker: "Як минув день", title: title, blocks: blocks, drops: drops, ticks: ticks, rows: rows, foot: foot)
+    }
+
+    /// Режим «просто норма» (WAT-42, §28): та сама шкала дня з порціями, але без частин і ✓ —
+    /// скільки разів і коли пив, без оцінки.
+    private var dayPortions: ReportSlide {
+        let portions = report.portions
+        let count = report.days.first?.entries ?? portions.count
+        let ticks = [(position: 0.0, label: ReportFormat.clock(schedule.wakeMinutes)),
+                     (position: 1.0, label: ReportFormat.clock(schedule.sleepMinutes))]
+        var foot: String?
+        if let first = portions.first, let last = portions.last {
+            foot = portions.count == 1
+                ? "О \(ReportFormat.clock(first.minute))."
+                : "Перша — о \(ReportFormat.clock(first.minute)), остання — о \(ReportFormat.clock(last.minute)). "
+                    + "У середньому \(ReportFormat.volume(report.totalMl / portions.count)) за раз."
+        }
+        return .timeline(kicker: "Випито за день",
+                         title: "\(count) \(Plural.uk(count, one: "порція", few: "порції", many: "порцій")) за день",
+                         blocks: [], drops: portions.map { position($0.minute) }, ticks: ticks, rows: [], foot: foot)
     }
 
     /// Найслабша незакрита частина — серед тих, що вже минули: посеред сьогоднішнього дня
