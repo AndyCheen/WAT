@@ -200,3 +200,85 @@ public struct WTProgressBar: View {
         .frame(height: height)
     }
 }
+
+/// Капсула поточної частини доби під кільцем головного (WAT-40, `Design/DayPart.html`, варіант A).
+///
+/// Кільце — доба, капсула — її частина; міні-кільце всередині — частка цілі частини. Рядок лише
+/// інформує: тапу немає, бо порцію додають кнопки під ним. Усі тексти готує екран.
+public struct WTDayPartPill: View {
+    public enum Content: Equatable, Sendable {
+        /// «До 12:00 — ще 100 мл» · «+10 XP» · «35 хв».
+        case pending(fraction: Double, title: String, xp: String, timeLeft: String)
+        /// «Ранок і полудень закрито».
+        case closed(title: String)
+    }
+
+    @Environment(\.wtTheme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private let content: Content
+    private let accessibilityLabel: String
+
+    public init(_ content: Content, accessibilityLabel: String) {
+        self.content = content
+        self.accessibilityLabel = accessibilityLabel
+    }
+
+    public var body: some View {
+        HStack(spacing: 8) {
+            switch content {
+            case let .pending(fraction, title, xp, timeLeft):
+                miniRing(fraction)
+                Text(title)
+                    .foregroundStyle(theme.textPrimary)
+                separator
+                Text(xp)
+                    .font(WTFont.text(14, .black))
+                    .foregroundStyle(theme.textButton)
+                separator
+                Text(timeLeft)
+                    .foregroundStyle(theme.textMuted)
+            case let .closed(title):
+                ZStack {
+                    Circle().fill(WTColor.success)
+                    WTIcons.check(color: .white, size: 12)
+                }
+                .frame(width: 24, height: 24)
+                .transition(reduceMotion ? .opacity : .scale(scale: 0.3).combined(with: .opacity))
+                Text(title)
+                    .foregroundStyle(WTColor.successText)
+            }
+        }
+        .font(WTFont.text(14, .heavy))
+        .lineLimit(1)
+        .minimumScaleFactor(0.85)
+        .padding(.leading, 7)
+        .padding(.trailing, 14)
+        .frame(height: 38)
+        .background(isClosed ? WTColor.successText.opacity(0.12) : theme.chip, in: Capsule())
+        .animation(reduceMotion ? WTAnimation.fade : WTAnimation.toast, value: isClosed)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var isClosed: Bool {
+        if case .closed = content { return true }
+        return false
+    }
+
+    private var separator: some View {
+        Text("·").foregroundStyle(theme.textMuted)
+    }
+
+    private func miniRing(_ fraction: Double) -> some View {
+        ZStack {
+            Circle().stroke(theme.dotOff, lineWidth: 4)
+            Circle()
+                .trim(from: 0, to: max(0.001, min(1, fraction)))
+                .stroke(theme.accent, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .animation(reduceMotion ? WTAnimation.fade : WTAnimation.ring, value: fraction)
+        }
+        .padding(2)
+        .frame(width: 24, height: 24)
+    }
+}
