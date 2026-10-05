@@ -34,6 +34,12 @@ enum AppContainer {
         if launch.seedsDemoData {
             FixtureSeeder.seed(into: services)
         }
+        if launch.seedsScheduleShift {
+            FixtureSeeder.seedScheduleShift(into: services)
+        }
+        if let demo = launch.scheduleSuggestion {
+            services.showScheduleSuggestion(demo)
+        }
         if let tap = launch.notificationTap {
             services.simulateNotificationTap(tap)
         }

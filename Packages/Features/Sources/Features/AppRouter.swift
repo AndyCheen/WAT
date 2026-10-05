@@ -2,6 +2,7 @@ import Foundation
 import Observation
 import Core
 import Gamification
+import Insights
 import Notifications
 
 /// Перехід, який просить сповіщення, — тап, дія «Інший об'єм» чи прапорець `--notification-tap`.
@@ -18,6 +19,8 @@ public final class AppRouter {
         case achievement(String)
         /// Вікно «Склянка» — тап по ранковій склянці (§7, §16.4).
         case glass
+        /// Вікно «Графік дня» повз правило частоти — `--start-screen schedule-suggestion` (WAT-41).
+        case schedule(ScheduleSuggestion)
     }
 
     /// Новий стек навігації; порожній — повернутися на головний.
@@ -48,6 +51,11 @@ public final class AppRouter {
         case .report(let periods):
             pendingPath = [.report(periods)]
         }
+    }
+
+    public func openScheduleSuggestion(_ suggestion: ScheduleSuggestion) {
+        pendingPath = []
+        pendingHomeIntent = .schedule(suggestion)
     }
 
     public func takePath() -> [AppRoute]? {

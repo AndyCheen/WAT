@@ -65,6 +65,29 @@ public enum FixtureSeeder {
 
         services.gamification.refresh(at: calendar.now)
         topUpPrizes(services)
+        // Патерн дня залежить від дати, а e2e біжать на справжньому годиннику: у якийсь із днів 14-денне вікно
+        // могло б скластися в зсув, і вікно «Графік дня» перекрило б чужий сценарій. Демо-історія вважається
+        // такою, що вже відповіла «Так»; саме вікно — `--start-screen schedule-suggestion` (WAT-41).
+        services.profile.scheduleOfferShownAt = calendar.now
+        services.profile.scheduleOfferOutcome = .accepted
+        services.profiles.save()
+        services.touch()
+    }
+
+    /// `--seed-schedule-shift` — критерій приймання WAT-41 для e2e: 10 із 14 днів перша склянка ≈ 06:30 при
+    /// підйомі 08:00, і вікно «Графік дня» з'являється на відкритті саме. Окремо від демо-історії: там
+    /// зсуву свідомо немає, інакше вікно перекривало б інші сценарії.
+    public static func seedScheduleShift(into services: AppServices) {
+        let calendar = services.calendar
+        for offset in 1...14 where ![3, 6, 10, 13].contains(offset) {
+            let day = calendar.dayKey(offsetDays: -offset, from: calendar.today)
+            for (hour, minute, ml) in [(6, 20 + offset % 4 * 5, 250), (13, 0, 500), (20, 30, 300)] {
+                let parts = DateComponents(year: day.year, month: day.month, day: day.day, hour: hour, minute: minute)
+                guard let stamp = calendar.calendar.date(from: parts) else { continue }
+                services.hydration.addIntake(amountMl: ml, source: .seed, at: stamp)
+            }
+        }
+        services.gamification.refresh(at: calendar.now)
         services.touch()
     }
 
