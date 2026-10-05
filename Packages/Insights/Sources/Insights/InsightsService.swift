@@ -6,10 +6,10 @@ import Metrics
 /// Постачає готові до рендера звіти для екрана 4a та шторки статистики 1a.
 @MainActor
 public final class InsightsService {
-    private let dayLogs: DayLogRepositoryProtocol
-    private let profiles: ProfileRepositoryProtocol
+    let dayLogs: DayLogRepositoryProtocol
+    let profiles: ProfileRepositoryProtocol
     private let metrics: MetricsService
-    private let calendar: CalendarService
+    let calendar: CalendarService
 
     public init(
         dayLogs: DayLogRepositoryProtocol,

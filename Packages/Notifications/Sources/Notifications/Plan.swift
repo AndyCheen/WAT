@@ -13,6 +13,10 @@ public enum NotificationTapRoute: Sendable, Equatable {
     case boostCard
     case achievement(key: String)
     case progress
+    /// Вікно «Склянка» — лише з ранкової склянки (§7, §16.4).
+    case glass
+    /// Звіт-історія; кілька періодів — злите «Підсумки тижня й місяця» грає їх підряд (§11.1).
+    case report([ReportPeriod])
 
     /// Рядок для `userInfo` — запит переживає перезапуск процесу.
     public var encoded: String {
@@ -23,6 +27,8 @@ public enum NotificationTapRoute: Sendable, Equatable {
         case .boostCard: return "boost"
         case .achievement(let key): return "achievement:\(key)"
         case .progress: return "progress"
+        case .glass: return "glass"
+        case .report(let periods): return "report:" + periods.map(\.encoded).joined(separator: ",")
         }
     }
 
@@ -34,6 +40,10 @@ public enum NotificationTapRoute: Sendable, Equatable {
         case "boost": self = .boostCard
         case "achievement" where parts.count == 2: self = .achievement(key: parts[1])
         case "progress": self = .progress
+        case "glass": self = .glass
+        case "report" where parts.count == 2:
+            let periods = parts[1].split(separator: ",").compactMap { ReportPeriod(encoded: String($0)) }
+            self = periods.isEmpty ? .home : .report(periods)
         default: self = .home
         }
     }
@@ -49,6 +59,8 @@ public enum NotificationPriority: Int, Comparable, Sendable {
     case checkpoint = 5
     case reminderPrimary = 6
     case reminderFollowUp = 7
+    /// Звіти за увагу не змагаються, але зсуваються, щоб між ними й активним було ≥ 30 хв (§13.3).
+    case report = 8
 
     public static func < (lhs: Self, rhs: Self) -> Bool { lhs.rawValue < rhs.rawValue }
 }
@@ -60,6 +72,13 @@ public enum NotificationCategory: String, Sendable, CaseIterable {
     case reminder = "REMINDER"
     /// Лише «+склянка» — ранкова склянка, «можна закрити», ранковий порятунок, повернення.
     case glass = "GLASS"
+}
+
+/// Наскільки сповіщення перериває (§11.1): тихий звіт за день — `.passive`, без звуку й без
+/// засвічення екрана, лише в Центрі сповіщень. `timeSensitive` не використовується ніде (§13.2).
+public enum NotificationInterruption: String, Sendable, Equatable {
+    case active
+    case passive
 }
 
 /// Ідентифікатори дій — однакові в запиті й у відповіді.
@@ -89,10 +108,14 @@ public struct PlannedNotification: Sendable, Equatable, Identifiable {
     public var body: String
     public var variant: Int
     public var tapRoute: NotificationTapRoute
+    public var interruption: NotificationInterruption
+    /// Без звуку незалежно від вибору в налаштуваннях — звіти (§11.1).
+    public var isSilent: Bool
 
     public init(id: String, type: NotificationType, slot: String, dayKey: DayKey, fireAt: Date,
                 isFloating: Bool, priority: NotificationPriority, category: NotificationCategory?,
-                title: String = "", body: String = "", variant: Int = 0, tapRoute: NotificationTapRoute) {
+                title: String = "", body: String = "", variant: Int = 0, tapRoute: NotificationTapRoute,
+                interruption: NotificationInterruption = .active, isSilent: Bool = false) {
         self.id = id
         self.type = type
         self.slot = slot
@@ -105,6 +128,8 @@ public struct PlannedNotification: Sendable, Equatable, Identifiable {
         self.body = body
         self.variant = variant
         self.tapRoute = tapRoute
+        self.interruption = interruption
+        self.isSilent = isSilent
     }
 
     public static func identifier(_ type: NotificationType, day: DayKey, slot: String) -> String {

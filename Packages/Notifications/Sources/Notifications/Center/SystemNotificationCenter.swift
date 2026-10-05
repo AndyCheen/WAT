@@ -41,7 +41,7 @@ public final class SystemNotificationCenter: NotificationCenterProtocol {
         content.userInfo = request.userInfo
         // `timeSensitive` не використовується: вода — не термінова справа, і цей рівень
         // пробивав би Focus користувача (§13.2).
-        content.interruptionLevel = .active
+        content.interruptionLevel = request.interruption == .passive ? .passive : .active
         switch request.sound {
         case .none: content.sound = nil
         case .systemDefault: content.sound = .default

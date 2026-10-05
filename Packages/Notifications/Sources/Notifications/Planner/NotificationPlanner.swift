@@ -20,6 +20,29 @@ public enum NotificationPlanner {
     ) -> NotificationPlan {
         PlanBuilder(context: context, preferences: preferences, journal: journal, rules: rules).build()
     }
+
+    /// Звіти, що можуть потрапити в горизонт плану: композиційний корінь рахує для них
+    /// `ReportDigest` до виклику `plan`. Тижневий — за тиждень, що містить учорашній день
+    /// (у понеділок — щойно завершений), місячний — так само за місяць (рішення від 05.10.2026).
+    public static func reportPeriods(now: Date, timeZone: TimeZone, preferences: NotificationPreferences,
+                                     rules: NotificationRules = .default) -> [ReportPeriod] {
+        guard preferences.isEnabled else { return [] }
+        let service = CalendarService(clock: FixedClock(now: now, timeZone: timeZone))
+        let today = service.today
+        var periods: [ReportPeriod] = []
+        if preferences.dailyReportEnabled { periods.append(.day(today)) }
+        for rel in 0...rules.horizonDays {
+            let day = service.dayKey(offsetDays: rel, from: today)
+            let yesterday = service.dayKey(offsetDays: -1, from: day)
+            if preferences.weeklyReportEnabled, service.weekdayIndex(of: day) == preferences.weeklyReportWeekday {
+                periods.append(service.period(.week, containing: yesterday))
+            }
+            if preferences.monthlyReportEnabled, day.day == 1 {
+                periods.append(service.period(.month, containing: yesterday))
+            }
+        }
+        return periods
+    }
 }
 
 /// Кандидат до тексту: що це, коли, і з чого потім складеться текст.
@@ -40,6 +63,10 @@ enum CopyKind: Equatable {
     case rescueMorning(streak: Int)
     case comeback(number: Int, giftAvailable: Bool)
     case checkpoint(leftMl: Int, deadline: Date, part: DayPart, xp: Int)
+    case reportDay(ReportDigest, streak: Int)
+    case reportWeek(ReportDigest)
+    case reportMonth(ReportDigest)
+    case reportWeekMonth(week: ReportDigest, month: ReportDigest)
 }
 
 /// День горизонту: `rel` — від сьогодні, `sinceAction` — від дня останньої дії (§13.5).
@@ -91,8 +118,9 @@ struct PlanBuilder {
             let chain = reminderChain(for: day, checkpoints: checkpoints)
             let shown = journal.shown(on: day.day, before: now)
             let resolved = ConflictResolver(spacing: TimeInterval(rules.minSpacingMinutes * 60), frame: day.frame)
-                .resolve(fixed + checkpoints + chain, shown: shown.map(\.fireAt))
-            accepted += DailyCap.apply(resolved, shownCount: shown.count, cap: rules.dailyCap)
+                .resolve(fixed + checkpoints + chain + reports(for: day), shown: shown.map(\.fireAt))
+            // Тихі звіти в денний ліміт не рахуються (§13.1).
+            accepted += DailyCap.apply(resolved, shownCount: shown.filter { $0.type != .report }.count, cap: rules.dailyCap)
         }
 
         // Бюджет iOS — 64 запити; найближчі важливіші за далекі (§16.2).
@@ -291,6 +319,65 @@ struct PlanBuilder {
             return primary >= at.addingTimeInterval(-TimeInterval(rules.checkpointMergeBeforeMinutes * 60))
                 && primary <= at.addingTimeInterval(TimeInterval(rules.checkpointMergeAfterMinutes * 60))
         }
+    }
+
+    // MARK: - Звіти (§11)
+
+    /// Денний — о відбої, тихо (`.passive`); тижневий і місячний — у свій час, без звуку.
+    /// Лише в дні повного набору (§13.5: на +2 — тільки ранкова склянка) і лише за період, де
+    /// була хоч одна порція. Тиждень і місяць в один день зливаються в одне сповіщення.
+    func reports(for day: PlanningDay) -> [Candidate] {
+        guard day.sinceAction <= 1 else { return [] }
+        let frame = day.frame
+        let yesterday = service.dayKey(offsetDays: -1, from: day.day)
+        func digest(_ period: ReportPeriod) -> ReportDigest? {
+            context.reports.first { $0.period == period && $0.hasIntakes }
+        }
+        func item(slot: String, at: Date, interruption: NotificationInterruption, route: [ReportPeriod]) -> PlannedNotification {
+            PlannedNotification(
+                id: "wt.report.\(day.day.rawValue).\(slot)", type: .report, slot: slot, dayKey: day.day, fireAt: at,
+                isFloating: true, priority: .report, category: nil, tapRoute: .report(route),
+                interruption: interruption, isSilent: true
+            )
+        }
+
+        var result: [Candidate] = []
+        // Денний: рівно о відбої — і лише сьогодні: на майбутні дні план припускає, що порцій не буде.
+        if preferences.dailyReportEnabled, day.rel == 0, frame.sleep > earliest, let today = digest(.day(day.day)) {
+            let streak = context.streak.countedToday ? context.streak.lengthEndingToday : context.streak.lengthEndingYesterday
+            result.append(Candidate(item: item(slot: "day", at: frame.sleep, interruption: .passive, route: [.day(day.day)]),
+                                    copy: .reportDay(today, streak: streak), rel: day.rel))
+        }
+
+        let week = preferences.weeklyReportEnabled && service.weekdayIndex(of: day.day) == preferences.weeklyReportWeekday
+            ? digest(service.period(.week, containing: yesterday)) : nil
+        let month = preferences.monthlyReportEnabled && day.day.day == 1
+            ? digest(service.period(.month, containing: yesterday)) : nil
+        func at(_ minutes: Int) -> Date? {
+            let minute = min(max(minutes, frame.curve.wakeMinutes), frame.curve.sleepMinutes - 1)
+            return frame.place(frame.date(minute: Double(minute)), limit: frame.sleep).flatMap { $0 > earliest ? $0 : nil }
+        }
+        switch (week, month) {
+        case let (week?, month?):
+            if let fire = at(preferences.weeklyReportMinutes) {
+                result.append(Candidate(item: item(slot: "weekmonth", at: fire, interruption: .active,
+                                                   route: [week.period, month.period]),
+                                        copy: .reportWeekMonth(week: week, month: month), rel: day.rel))
+            }
+        case let (week?, nil):
+            if let fire = at(preferences.weeklyReportMinutes) {
+                result.append(Candidate(item: item(slot: "week", at: fire, interruption: .active, route: [week.period]),
+                                        copy: .reportWeek(week), rel: day.rel))
+            }
+        case let (nil, month?):
+            if let fire = at(preferences.monthlyReportMinutes) {
+                result.append(Candidate(item: item(slot: "month", at: fire, interruption: .active, route: [month.period]),
+                                        copy: .reportMonth(month), rel: day.rel))
+            }
+        case (nil, nil):
+            break
+        }
+        return result
     }
 
     // MARK: - Нагадування (§6.2)

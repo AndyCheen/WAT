@@ -22,6 +22,14 @@ let package = Package(
                 .product(name: "Metrics", package: "Metrics"),
             ]
         ),
-        .testTarget(name: "InsightsTests", dependencies: ["Insights"])
+        .testTarget(
+            name: "InsightsTests",
+            dependencies: [
+                "Insights",
+                .product(name: "Core", package: "Core"),
+                .product(name: "Persistence", package: "Persistence"),
+                .product(name: "Metrics", package: "Metrics")
+            ]
+        )
     ]
 )

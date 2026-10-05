@@ -9,11 +9,11 @@ import Metrics
 /// Модуль обліку води про нього не знає — звʼязок односторонній через `MetricsService`.
 @MainActor
 public final class GamificationService: MetricsSubscriber {
-    private let store: GamificationStoreProtocol
+    let store: GamificationStoreProtocol
     private let dayLogs: DayLogRepositoryProtocol
     private let profiles: ProfileRepositoryProtocol
     private let metrics: MetricsService
-    private let calendar: CalendarService
+    let calendar: CalendarService
 
     public let xp: XPEngine
     public let streaks: StreakEngine

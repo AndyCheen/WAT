@@ -50,6 +50,10 @@ struct TextComposer {
         case .rescueEvening: all = NotificationCopy.rescueEvening
         case .rescueMorning: all = NotificationCopy.rescueMorning
         case .checkpoint: all = NotificationCopy.checkpoint
+        case .reportDay: all = [NotificationCopy.reportDay]
+        case .reportWeek: all = [NotificationCopy.reportWeek]
+        case .reportMonth: all = [NotificationCopy.reportMonth]
+        case .reportWeekMonth: all = [NotificationCopy.reportWeekMonth]
         case .comeback(let number, let gift):
             if number == 1 { all = NotificationCopy.comebackFirst }
             else { all = [gift ? NotificationCopy.comebackLastWithGift : NotificationCopy.comebackLast] }
@@ -102,6 +106,18 @@ struct TextComposer {
             text = text.replacingOccurrences(of: "{deadline}", with: clockLabel(deadline))
             text = text.replacingOccurrences(of: "{part}", with: part.title.lowercased())
             text = text.replacingOccurrences(of: "{xp}", with: "\(xp)")
+        case .reportDay(let digest, let streak):
+            text = text.replacingOccurrences(of: "{report}", with: ReportText.day(digest, streak: streak))
+        case .reportWeek(let digest):
+            text = text.replacingOccurrences(of: "{goalDays}", with: "\(digest.goalDays)")
+                .replacingOccurrences(of: "{dayCount}", with: "\(digest.dayCount)")
+                .replacingOccurrences(of: "{report}", with: ReportText.week(digest))
+        case .reportMonth(let digest):
+            text = text.replacingOccurrences(of: "{month}", with: ReportText.monthName(digest.period))
+                .replacingOccurrences(of: "{goalDaysPlural}", with: Plural.days(digest.goalDays))
+                .replacingOccurrences(of: "{report}", with: ReportText.month(digest))
+        case .reportWeekMonth(let week, let month):
+            text = text.replacingOccurrences(of: "{report}", with: ReportText.weekMonth(week: week, month: month))
         case .morning, .comeback:
             break
         }

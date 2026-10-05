@@ -26,11 +26,13 @@ public enum NotificationScheduler {
                 UserInfoKey.glassMl: String(plan.glassMl),
                 UserInfoKey.portionMl: String(plan.typicalPortionMl)
             ]
-            let fingerprint = Self.fingerprint(item: item, sound: sound, trigger: trigger, userInfo: userInfo)
+            let itemSound = item.isSilent ? NotificationSoundSpec.none : sound
+            let fingerprint = Self.fingerprint(item: item, sound: itemSound, trigger: trigger, userInfo: userInfo)
             userInfo[UserInfoKey.fingerprint] = fingerprint
             return ScheduledRequest(
                 identifier: item.id, title: item.title, body: item.body, categoryId: item.category?.rawValue,
-                sound: sound, trigger: trigger, fireAt: item.fireAt, userInfo: userInfo, fingerprint: fingerprint
+                sound: itemSound, interruption: item.interruption, trigger: trigger, fireAt: item.fireAt,
+                userInfo: userInfo, fingerprint: fingerprint
             )
         }
     }
@@ -65,7 +67,8 @@ public enum NotificationScheduler {
     private static func fingerprint(item: PlannedNotification, sound: NotificationSoundSpec,
                                     trigger: ScheduledRequest.Trigger, userInfo: [String: String]) -> String {
         let info = userInfo.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: "&")
-        let raw = [item.id, item.title, item.body, item.category?.rawValue ?? "-", "\(sound)", "\(trigger)", info]
+        let raw = [item.id, item.title, item.body, item.category?.rawValue ?? "-", "\(sound)",
+                   item.interruption.rawValue, "\(trigger)", info]
             .joined(separator: "|")
         return String(StableHash.fnv1a(raw), radix: 16)
     }
