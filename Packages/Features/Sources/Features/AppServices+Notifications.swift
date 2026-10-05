@@ -33,12 +33,14 @@ extension AppServices {
 
         let facts = gamification.streakFacts(at: now)
         let rules = gamification.xp.rules
+        let todayIntakes = dayLogs.activeIntakes(for: today)
         return NotificationContext(
             now: now,
             timeZone: calendar.calendar.timeZone,
             goalMl: hydration.currentGoal(),
             countedMl: hydration.todaySnapshot().countedMl,
-            intakesToday: dayLogs.activeIntakes(for: today).map(\.createdAt),
+            intakesToday: todayIntakes.map(\.createdAt),
+            portionsToday: todayIntakes.map { Portion(at: $0.createdAt, ml: $0.amountMl) },
             lastIntakeAt: active.compactMap(\.lastIntakeAt).max(),
             lastInteractionAt: notifications.settings.lastInteractionAt,
             portionHistoryMl: portions,
@@ -54,6 +56,7 @@ extension AppServices {
             lastBounceBackDay: gamification.lastBounceBackDay(),
             quests: questHints(at: now),
             bounceBackXp: rules.perBounceBack,
+            dayPartXp: rules.perDayPartGoal,
             bounceBackMinStreak: rules.bounceBackMinStreak,
             bounceBackCooldownDays: rules.bounceBackCooldownDays,
             comebackCooldownDays: rules.comebackCooldownDays

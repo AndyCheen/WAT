@@ -49,6 +49,7 @@ struct TextComposer {
         case .eveningSoothing: all = NotificationCopy.eveningSoothing
         case .rescueEvening: all = NotificationCopy.rescueEvening
         case .rescueMorning: all = NotificationCopy.rescueMorning
+        case .checkpoint: all = NotificationCopy.checkpoint
         case .comeback(let number, let gift):
             if number == 1 { all = NotificationCopy.comebackFirst }
             else { all = [gift ? NotificationCopy.comebackLastWithGift : NotificationCopy.comebackLast] }
@@ -96,6 +97,11 @@ struct TextComposer {
             text = text.replacingOccurrences(of: "{total}", with: NotificationFormat.volume(total))
         case .rescueEvening(let streak), .rescueMorning(let streak):
             text = text.replacingOccurrences(of: "{streak}", with: NotificationFormat.days(streak))
+        case .checkpoint(let left, let deadline, let part, let xp):
+            text = text.replacingOccurrences(of: "{left}", with: NotificationFormat.left(left))
+            text = text.replacingOccurrences(of: "{deadline}", with: clockLabel(deadline))
+            text = text.replacingOccurrences(of: "{part}", with: part.title.lowercased())
+            text = text.replacingOccurrences(of: "{xp}", with: "\(xp)")
         case .morning, .comeback:
             break
         }
@@ -155,6 +161,12 @@ struct TextComposer {
             ? [(sentences.dropLast() + [insert]).joined(separator: ". "), insert]
             : [body + ". " + insert, insert]
         return options.first { $0.count <= Self.bodyLimit } ?? body
+    }
+
+    /// «12:00» — дедлайн чекпоінта.
+    private func clockLabel(_ date: Date) -> String {
+        let parts = builder.service.calendar.dateComponents([.hour, .minute], from: date)
+        return String(format: "%02d:%02d", parts.hour ?? 0, parts.minute ?? 0)
     }
 
     private func clockSlot(_ date: Date) -> String {

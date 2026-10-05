@@ -28,9 +28,12 @@ final class AntiSpamTests: XCTestCase {
                     XCTAssertGreaterThanOrEqual(b.fireAt.timeIntervalSince(a.fireAt), 30 * 60,
                                                 "\(Fixture.clock(a.fireAt)) → \(Fixture.clock(b.fireAt))")
                 }
-                // «Ніколи раніше» за +30; тихий період може відсунути повторне пізніше.
+                // «Ніколи раніше» за +30; тихий період може відсунути повторне пізніше. Основним
+                // блоку може бути й чекпоінт, що забрав собі нагадування (§9).
                 for follow in delivered where follow.slot == "followUp" {
-                    let primary = delivered.last { $0.slot == "primary" && $0.fireAt < follow.fireAt }!
+                    let primary = delivered.last {
+                        ($0.slot == "primary" || $0.type == .checkpoint) && $0.fireAt < follow.fireAt
+                    }!
                     let gap = follow.fireAt.timeIntervalSince(primary.fireAt)
                     if quiet.isEmpty { XCTAssertEqual(gap, 30 * 60) } else { XCTAssertGreaterThanOrEqual(gap, 30 * 60) }
                 }

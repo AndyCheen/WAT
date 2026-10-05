@@ -42,6 +42,8 @@ public struct NotificationPreferences: Sendable, Equatable {
     public var cadence = ReminderCadence.pace(.normal)
     public var followUpEnabled = true
     public var morningEnabled = true
+    /// Чекпоінти частин доби (§9, етап B).
+    public var checkpointsEnabled = true
     /// `nil` — о підйомі.
     public var morningMinutes: Int?
     public var eveningEnabled = true
@@ -83,6 +85,7 @@ extension NotificationPreferences {
             QuietWindow(weekdayMask: $0.weekdayMask, fromMinutes: $0.fromMinutes, toMinutes: $0.toMinutes)
         }
         remindersEnabled = settings.remindersEnabled
+        checkpointsEnabled = settings.checkpointsEnabled
         cadence = settings.reminderMode == .pace
             ? .pace(settings.reminderFrequency)
             : .interval(minutes: settings.reminderIntervalMinutes)
@@ -145,6 +148,17 @@ public struct QuestHints: Sendable, Equatable {
     }
 }
 
+/// Порція: момент і об'єм.
+public struct Portion: Sendable, Equatable {
+    public var at: Date
+    public var ml: Int
+
+    public init(at: Date, ml: Int) {
+        self.at = at
+        self.ml = ml
+    }
+}
+
 /// Усе, що планувальнику треба знати про стан користувача (§16.10). Збирає `AppServices`.
 public struct NotificationContext: Sendable, Equatable {
     public var now: Date
@@ -155,6 +169,8 @@ public struct NotificationContext: Sendable, Equatable {
     public var countedMl: Int
     /// Моменти сьогоднішніх порцій.
     public var intakesToday: [Date]
+    /// Сьогоднішні порції з об'ємами — для цілей частин доби (§9): `countedMl` один на весь день.
+    public var portionsToday: [Portion]
     /// Остання порція взагалі — для дня останньої дії й деградації (§13.5).
     public var lastIntakeAt: Date?
     /// Відкриття застосунку чи дія в ньому (§6.2, «Скидання»).
@@ -171,16 +187,19 @@ public struct NotificationContext: Sendable, Equatable {
     public var quests: QuestHints
     /// Що дає «Знову в ритмі» (§12.5 Б) — для вставки «+25 XP».
     public var bounceBackXp: Int
+    /// XP за ціль частини доби — для тексту чекпоінта (§9).
+    public var dayPartXp: Int
     public var bounceBackMinStreak: Int
     public var bounceBackCooldownDays: Int
     public var comebackCooldownDays: Int
 
     public init(
         now: Date, timeZone: TimeZone, goalMl: Int = 2000, countedMl: Int = 0, intakesToday: [Date] = [],
+        portionsToday: [Portion] = [],
         lastIntakeAt: Date? = nil, lastInteractionAt: Date? = nil, portionHistoryMl: [Int] = [],
         firstIntakeMinutes: [Int] = [], streak: StreakInput = StreakInput(), readyFreezes: Int = 0,
         boostExpiresAt: Date? = nil, lastComebackGiftAt: Date? = nil, lastBounceBackDay: DayKey? = nil,
-        quests: QuestHints = QuestHints(), bounceBackXp: Int = 25, bounceBackMinStreak: Int = 3,
+        quests: QuestHints = QuestHints(), bounceBackXp: Int = 25, dayPartXp: Int = 10, bounceBackMinStreak: Int = 3,
         bounceBackCooldownDays: Int = 7, comebackCooldownDays: Int = 30
     ) {
         self.now = now
@@ -188,6 +207,7 @@ public struct NotificationContext: Sendable, Equatable {
         self.goalMl = goalMl
         self.countedMl = countedMl
         self.intakesToday = intakesToday
+        self.portionsToday = portionsToday
         self.lastIntakeAt = lastIntakeAt
         self.lastInteractionAt = lastInteractionAt
         self.portionHistoryMl = portionHistoryMl
@@ -199,6 +219,7 @@ public struct NotificationContext: Sendable, Equatable {
         self.lastBounceBackDay = lastBounceBackDay
         self.quests = quests
         self.bounceBackXp = bounceBackXp
+        self.dayPartXp = dayPartXp
         self.bounceBackMinStreak = bounceBackMinStreak
         self.bounceBackCooldownDays = bounceBackCooldownDays
         self.comebackCooldownDays = comebackCooldownDays

@@ -4,7 +4,7 @@ import Persistence
 /// Внутрішні константи сповіщень — те, що не виноситься в UI (SPEC-NOTIFICATIONS §15.2).
 ///
 /// За зразком `XPRules`: усі числа зібрані тут, щоб перебалансувати, не чіпаючи логіку.
-/// Константи етапів B і C (чекпоінти, несподівані завдання) додадуться разом із ними.
+/// Константи етапу C (несподівані завдання) додадуться разом із ним.
 public struct NotificationRules: Sendable {
     /// Параметри нагадування за темпом: нагадуємо, коли `E(t) − R ≥ k·P`, але не раніше
     /// `minGap` і не пізніше `maxGap` від якоря (§6.2).
@@ -47,6 +47,18 @@ public struct NotificationRules: Sendable {
     /// Відсічка нагадувань, якщо вечірній підсумок вимкнений (§6.2).
     public var cutoffWithoutEveningMinutes = 60
     public var rescueMinStreak = 3
+
+    /// Чекпоінт частини доби — за 45 хв до її кінця (§9).
+    public var checkpointLeadMinutes = 45
+    /// Частина доби, коротша за 2 год у межах активних годин, зливається з сусідньою (§9).
+    public var minSegmentMinutes = 120
+    /// Відставання всередині частини — щонайменше ½ порції: хто п'є рівномірно, закриє її сам.
+    public var checkpointLagShare = 0.5
+    /// Бракує щонайменше 50 мл (мінімум порції) і не більше `closableMultiplier · P`.
+    public var checkpointMinLeftMl = 50
+    /// Основне нагадування у вікні `[чекпоінт − 45, чекпоінт + 30]` зливається з чекпоінтом (§9, §13.3).
+    public var checkpointMergeBeforeMinutes = 45
+    public var checkpointMergeAfterMinutes = 30
 
     /// Типова порція: медіана за 14 днів, обмежена й округлена (§3.3).
     public var portionClamp = 150...500

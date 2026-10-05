@@ -27,7 +27,8 @@ struct CopyVariant: Equatable {
 /// ≤ 30 символів, текст ≤ 100. Тест `CopyCatalogTests` перевіряє все це на найгірших значеннях.
 ///
 /// Плейсхолдери: `{left}` — скільки бракує, `{glass}` — моя склянка, `{streak}` — серія з
-/// узгодженим словом («12 днів»), `{since}` — від останньої порції, `{total}` — випито за день.
+/// узгодженим словом («12 днів»), `{since}` — від останньої порції, `{total}` — випито за день,
+/// `{deadline}` — кінець частини доби («12:00»), `{part}` — її назва («полудень»), `{xp}` — нагорода.
 enum NotificationCopy {
     static let reminderPrimary: [CopyVariant] = [
         CopyVariant(id: 0, title: "💧 Час на воду",
@@ -81,6 +82,14 @@ enum NotificationCopy {
                     body: "Учора норму не закрито. Заморозь учорашній день — і почни ранок зі склянки")
     ]
 
+    /// Чекпоінт частини доби (§9). Третій варіант — правка від 05.10.2026: §14.1 вимагає 3–5
+    /// формулювань на тип, а §14.2 давав два. «{part} закрито» — безособовий зворот, без роду.
+    static let checkpoint: [CopyVariant] = [
+        CopyVariant(id: 0, title: "До {deadline} — {left}", body: "Встигнеш — і {part} закрито (+{xp} XP)"),
+        CopyVariant(id: 1, title: "Частина дня на фініші", body: "Ще {left} до {deadline}, і ця частина зарахована"),
+        CopyVariant(id: 2, title: "🎯 Ще {left} до {deadline}", body: "Невеликий ривок — і {part} зараховано, +{xp} XP")
+    ]
+
     static let comebackFirst: [CopyVariant] = [
         CopyVariant(id: 0, title: "💧 Почнімо знову", body: "Перерва звичку не ламає. Одна склянка — і новий початок"),
         CopyVariant(id: 1, title: "Склянка на старт",
@@ -101,7 +110,7 @@ enum NotificationCopy {
     /// Усе, що може потрапити в план, — для тесту каталогу.
     static var all: [CopyVariant] {
         reminderPrimary + reminderFollowUp + morning + eveningClosable + eveningStreak + eveningSoothing
-            + rescueEvening + rescueMorning + comebackFirst + [comebackLastWithGift, comebackLast]
+            + rescueEvening + rescueMorning + checkpoint + comebackFirst + [comebackLastWithGift, comebackLast]
     }
 
     // MARK: - Вставки контексту (§12.2, §14.3)
