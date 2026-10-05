@@ -150,3 +150,15 @@ public enum PermissionPromptState: Int, Codable, Sendable {
     /// Відповідь отримано або вдруге відкладено — далі лише з налаштувань.
     case finished
 }
+
+/// Чим закінчився показ вікна «Графік дня» (WAT-41, SPEC-NOTIFICATIONS §27).
+public enum ScheduleOfferOutcome: Int, Codable, Sendable {
+    /// Ще не показували.
+    case none = 0
+    /// «Так» чи «Зберегти» — наступна пропозиція не раніше ніж за 30 днів.
+    case accepted
+    /// «Ні, залишити» — 60 днів, якщо зсув не виріс на ≥ 60 хв.
+    case declined
+    /// Закрили ✕ або застосунок закрили з відкритим вікном — спитаємо через 7 днів.
+    case dismissed
+}

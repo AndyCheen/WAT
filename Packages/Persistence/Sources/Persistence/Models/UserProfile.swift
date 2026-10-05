@@ -35,6 +35,13 @@ public final class UserProfile {
     /// один раз. Зміна склянки на екрані «Сповіщення» — теж відповідь.
     public var glassConfirmed: Bool = false
 
+    // Пропозиція змінити графік (WAT-41, SPEC-NOTIFICATIONS §27): коли вікно показали востаннє, чим
+    // закінчилось і наскільки великий був зсув — для правила «Ні — не питати 60 днів, якщо зсув не виріс».
+    // Показ одразу пишеться як «закрили без відповіді»: застосунок могли вбити з відкритим вікном.
+    public var scheduleOfferShownAt: Date?
+    public var scheduleOfferOutcomeRaw: Int = ScheduleOfferOutcome.none.rawValue
+    public var scheduleOfferShiftMinutes: Int = 0
+
     public init(createdAt: Date = Date()) {
         self.createdAt = createdAt
     }
@@ -59,11 +66,32 @@ public final class UserProfile {
         set { themeModeRaw = newValue.rawValue }
     }
 
+    public var scheduleOfferOutcome: ScheduleOfferOutcome {
+        get { ScheduleOfferOutcome(rawValue: scheduleOfferOutcomeRaw) ?? .none }
+        set { scheduleOfferOutcomeRaw = newValue.rawValue }
+    }
+
+    /// Розклад тижня одним значенням — для пропозиції графіка й її застосування.
+    public var weekSchedule: WeekSchedule {
+        get {
+            WeekSchedule(
+                weekday: DaySchedule(wakeMinutes: wakeMinutes, sleepMinutes: sleepMinutes),
+                weekendEnabled: weekendScheduleEnabled,
+                weekend: DaySchedule(wakeMinutes: weekendWakeMinutes, sleepMinutes: weekendSleepMinutes)
+            )
+        }
+        set {
+            wakeMinutes = newValue.weekday.wakeMinutes
+            sleepMinutes = newValue.weekday.sleepMinutes
+            weekendScheduleEnabled = newValue.weekendEnabled
+            weekendWakeMinutes = newValue.weekend.wakeMinutes
+            weekendSleepMinutes = newValue.weekend.sleepMinutes
+        }
+    }
+
     /// Розклад дня: у суботу й неділю — окремий, якщо його увімкнено.
     public func schedule(isWeekend: Bool) -> DaySchedule {
-        isWeekend && weekendScheduleEnabled
-            ? DaySchedule(wakeMinutes: weekendWakeMinutes, sleepMinutes: weekendSleepMinutes)
-            : DaySchedule(wakeMinutes: wakeMinutes, sleepMinutes: sleepMinutes)
+        weekSchedule.schedule(isWeekend: isWeekend)
     }
 
     /// Розклад конкретного дня: знімок із запису дня, а для днів без нього — поточний профіль.
