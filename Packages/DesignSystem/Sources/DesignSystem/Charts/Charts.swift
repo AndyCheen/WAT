@@ -98,15 +98,16 @@ struct Line: Shape {
     }
 }
 
-/// Рядок «Рівномірність за день»: смуга випитого + ризка цілі.
+/// Рядок «Рівномірність за день»: смуга випитого + ризка цілі. `tickFraction == nil` — цілі
+/// в частини немає (поза активними годинами), ризка не малюється.
 public struct WTEvennessRowView: View {
     @Environment(\.wtTheme) private var theme
     private let label: String
     private let valueLabel: String
     private let fraction: Double
-    private let tickFraction: Double
+    private let tickFraction: Double?
 
-    public init(label: String, valueLabel: String, fraction: Double, tickFraction: Double) {
+    public init(label: String, valueLabel: String, fraction: Double, tickFraction: Double?) {
         self.label = label
         self.valueLabel = valueLabel
         self.fraction = fraction
@@ -127,11 +128,13 @@ public struct WTEvennessRowView: View {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(theme.accent)
                         .frame(width: proxy.size.width * max(0, min(1, fraction)))
-                    Rectangle()
-                        .fill(WTColor.textTertiary)
-                        .frame(width: 2)
-                        .padding(.vertical, -3)
-                        .offset(x: proxy.size.width * max(0, min(1, tickFraction)) - 1)
+                    if let tickFraction {
+                        Rectangle()
+                            .fill(WTColor.textTertiary)
+                            .frame(width: 2)
+                            .padding(.vertical, -3)
+                            .offset(x: proxy.size.width * max(0, min(1, tickFraction)) - 1)
+                    }
                 }
             }
             .frame(height: 16)
@@ -144,7 +147,7 @@ public struct WTEvennessRowView: View {
     }
 }
 
-/// Рядок «Типова доба»: медіана + міжквартильний розкид + ризка цілі.
+/// Рядок «Типова доба»: медіана + міжквартильний розкид + ризка цілі (`nil` — без ризки).
 public struct WTMedianSpreadRow: View {
     @Environment(\.wtTheme) private var theme
     private let label: String
@@ -152,11 +155,11 @@ public struct WTMedianSpreadRow: View {
     private let median: Double
     private let low: Double
     private let high: Double
-    private let ideal: Double
+    private let ideal: Double?
 
     public init(
         label: String, percentLabel: String,
-        median: Double, low: Double, high: Double, ideal: Double
+        median: Double, low: Double, high: Double, ideal: Double?
     ) {
         self.label = label
         self.percentLabel = percentLabel
@@ -190,11 +193,13 @@ public struct WTMedianSpreadRow: View {
                         .fill(Color(hex: "#2D5493").opacity(0.8))
                         .frame(width: max(2, width * (clamp(high) - clamp(low))), height: 4)
                         .offset(x: width * clamp(low))
-                    Rectangle()
-                        .fill(WTColor.textTertiary)
-                        .frame(width: 2)
-                        .padding(.vertical, -3)
-                        .offset(x: width * clamp(ideal) - 1)
+                    if let ideal {
+                        Rectangle()
+                            .fill(WTColor.textTertiary)
+                            .frame(width: 2)
+                            .padding(.vertical, -3)
+                            .offset(x: width * clamp(ideal) - 1)
+                    }
                 }
             }
             .frame(height: 16)

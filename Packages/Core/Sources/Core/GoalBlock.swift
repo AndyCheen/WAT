@@ -18,17 +18,35 @@ public struct TimedPortion: Sendable, Equatable {
 /// Межі — ті самі `DayPart`, обрізані активними годинами. Частина, що після обрізання коротша
 /// за `minSegmentMinutes`, зливається з наступною (остання — з попередньою): при 08:00–22:00
 /// «ранок» 08–09 іде разом із «полуднем», і цілі виходять до 12:00, 12–17 і 17–22.
+///
+/// Порції поза активними годинами не губляться: до підйому — у першому блоці, після відбою —
+/// в останньому (рішення від 05.10.2026, WAT-39). Хто почав пити о 06:30 при підйомі о 08:00,
+/// той пив уранці, і ранкову ціль закрито, хоча графік каже інакше.
 public struct GoalBlock: Sendable, Equatable {
     public let parts: [DayPart]
+    /// Межі за розкладом — від них рахується ціль і дедлайн чекпоінта.
     public let fromMinute: Int
     public let toMinute: Int
-    /// `E(кінець) − E(початок)`, округлено до мілілітра.
+    /// `E(кінець) − E(початок)` в округлених значеннях — цілі блоків складаються точно в норму.
     public let targetMl: Int
+    /// Межі зарахування порцій: у першого блоку від 00:00, в останнього — до 24:00.
+    let countsFromMinute: Int
+    let countsToMinute: Int
+
+    init(parts: [DayPart], fromMinute: Int, toMinute: Int, targetMl: Int, opensDay: Bool, closesDay: Bool) {
+        self.parts = parts
+        self.fromMinute = fromMinute
+        self.toMinute = toMinute
+        self.targetMl = targetMl
+        countsFromMinute = opensDay ? 0 : fromMinute
+        countsToMinute = closesDay ? 24 * 60 : toMinute
+    }
 
     /// Частина, якою блок закінчується: її кінець — дедлайн чекпоінта, її назва — у тексті.
     public var deadlinePart: DayPart { parts[parts.count - 1] }
 
-    public func contains(minute: Int) -> Bool { minute >= fromMinute && minute < toMinute }
+    /// Чи зараховується блоку порція цієї хвилини — з урахуванням країв дня.
+    public func contains(minute: Int) -> Bool { minute >= countsFromMinute && minute < countsToMinute }
 
     /// Скільки випито в межах блоку. Рахується за часом порцій, а не за `DayLog.partTotals`:
     /// ніч при підйомі до 05:00 і відбої після 22:00 дає два відрізки на обох кінцях доби, а в
@@ -65,13 +83,15 @@ extension PaceCurve {
             blocks[first] = (blocks[first].parts + blocks[second].parts, blocks[first].from, blocks[second].to)
             blocks.remove(at: second)
         }
-        return blocks.map {
-            GoalBlock(parts: $0.parts, fromMinute: $0.from, toMinute: $0.to,
-                      targetMl: Int(target(fromMinute: Double($0.from), toMinute: Double($0.to)).rounded()))
+        return blocks.enumerated().map { index, block in
+            GoalBlock(parts: block.parts, fromMinute: block.from, toMinute: block.to,
+                      targetMl: roundedTarget(fromMinute: block.from, toMinute: block.to),
+                      opensDay: index == 0, closesDay: index == blocks.count - 1)
         }
     }
 
-    /// Блок, у межі якого потрапляє хвилина; `nil` поза активними годинами.
+    /// Блок, якому зараховується порція цієї хвилини: до підйому — перший, після відбою —
+    /// останній. `nil` лише тоді, коли блоків немає зовсім (нульові активні години).
     public func goalBlock(containing minute: Int) -> GoalBlock? {
         goalBlocks().first { $0.contains(minute: minute) }
     }

@@ -1,11 +1,17 @@
 import Foundation
 import SwiftData
+import Core
 
 /// Денний агрегат. Графіки та правила читають його, а не сирі порції.
 @Model
 public final class DayLog {
     @Attribute(.unique) public var dayKey: String = ""
     public var goalMlSnapshot: Int = 2000
+    /// Підйом і відбій цього дня (WAT-39) — як `goalMlSnapshot`: оновлюються лише для поточного
+    /// дня, тож зміна розкладу не переписує цілі частин доби, за які XP уже нараховано.
+    /// `nil` — історія до WAT-39; для неї розклад береться з профілю.
+    public var wakeMinutesSnapshot: Int?
+    public var sleepMinutesSnapshot: Int?
     public var totalMl: Int = 0
     public var countedMl: Int = 0
     public var entriesCount: Int = 0
@@ -34,5 +40,16 @@ public final class DayLog {
         return Int((Double(countedMl) / Double(goalMlSnapshot) * 100).rounded())
     }
     public var goalMet: Bool { countedMl >= goalMlSnapshot }
+
+    public var scheduleSnapshot: DaySchedule? {
+        get {
+            guard let wake = wakeMinutesSnapshot, let sleep = sleepMinutesSnapshot else { return nil }
+            return DaySchedule(wakeMinutes: wake, sleepMinutes: sleep)
+        }
+        set {
+            wakeMinutesSnapshot = newValue?.wakeMinutes
+            sleepMinutesSnapshot = newValue?.sleepMinutes
+        }
+    }
     public var isCapped: Bool { totalMl > capMl }
 }

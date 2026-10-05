@@ -50,7 +50,7 @@ public final class NotificationsSettingsModel {
 
     var weekendSchedule: Binding<Bool> {
         Binding(get: { self.profile.weekendScheduleEnabled },
-                set: { self.profile.weekendScheduleEnabled = $0; self.changed() })
+                set: { self.profile.weekendScheduleEnabled = $0; self.scheduleChanged() })
     }
 
     /// Збереження + перепланування. Увімкнення будь-якого перемикача, поки системний запит
@@ -63,6 +63,14 @@ public final class NotificationsSettingsModel {
         }
     }
 
+    /// Розклад сьогодні — у запис дня, щоб цілі частин доби, XP і звіт бачили нові межі;
+    /// минулі дні лишаються зі своїми (WAT-39).
+    private func scheduleChanged() {
+        services.profiles.save()
+        services.hydration.scheduleDidChange()
+        changed()
+    }
+
     // MARK: - Режим дня (крок 15 хв, відбій ≤ 24:00, не менше 6 год активних)
 
     static let timeStep = 15
@@ -73,7 +81,7 @@ public final class NotificationsSettingsModel {
         let current = weekend ? profile.weekendWakeMinutes : profile.wakeMinutes
         let value = clamp(current + direction * Self.timeStep, 4 * 60, sleep - Self.minActiveMinutes)
         if weekend { profile.weekendWakeMinutes = value } else { profile.wakeMinutes = value }
-        changed()
+        scheduleChanged()
     }
 
     func stepSleep(_ direction: Int, weekend: Bool = false) {
@@ -81,7 +89,7 @@ public final class NotificationsSettingsModel {
         let current = weekend ? profile.weekendSleepMinutes : profile.sleepMinutes
         let value = clamp(current + direction * Self.timeStep, wake + Self.minActiveMinutes, 24 * 60)
         if weekend { profile.weekendSleepMinutes = value } else { profile.sleepMinutes = value }
-        changed()
+        scheduleChanged()
     }
 
     func stepGlass(_ direction: Int) {

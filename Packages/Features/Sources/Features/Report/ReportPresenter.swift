@@ -208,9 +208,9 @@ struct ReportPresenter {
                 label: block.isReached ? "✓ +\(dayPartXp) XP" : "\(block.drunkMl ?? 0) / \(block.targetMl)"
             )
         }
-        let drops = report.portions
-            .filter { $0.minute >= schedule.wakeMinutes && $0.minute < schedule.sleepMinutes }
-            .map { position($0.minute) }
+        // Порції до підйому й після відбою — на краях шкали: вони зараховані першій і останній
+        // частині (WAT-39), і зникнути зі шкали, яка показує ✓ за них, не можуть.
+        let drops = report.portions.map { position($0.minute) }
         var ticks = [(position: 0.0, label: ReportFormat.clock(schedule.wakeMinutes))]
         ticks += report.blocks.dropLast().map { (position($0.toMinute), ReportFormat.clock($0.toMinute)) }
         ticks.append((1, ReportFormat.clock(schedule.sleepMinutes)))

@@ -27,19 +27,21 @@ public final class InsightsService {
 
     public func evenness(for day: DayKey? = nil) -> EvennessReport {
         let key = day ?? calendar.today
-        let goal = profiles.currentGoalMl(on: key)
-        guard let log = dayLogs.existingDayLog(for: key) else {
-            return EvennessReport(
-                score: 0,
-                rows: InsightsCalculators.evennessRows(partTotals: [0, 0, 0, 0, 0], goalMl: goal),
-                totalMl: 0
-            )
-        }
+        let log = dayLogs.existingDayLog(for: key)
+        let curve = dayCurve(log, day: key, profile: profiles.profile())
+        let totals = log?.partTotals ?? [0, 0, 0, 0, 0]
         return EvennessReport(
-            score: InsightsCalculators.evennessScore(partTotals: log.partTotals),
-            rows: InsightsCalculators.evennessRows(partTotals: log.partTotals, goalMl: log.goalMlSnapshot),
-            totalMl: log.totalMl
+            score: InsightsCalculators.evennessScore(partTotals: totals, shares: curve.partShares()),
+            rows: InsightsCalculators.evennessRows(partTotals: totals, targetsMl: curve.partTargetsMl()),
+            totalMl: log?.totalMl ?? 0
         )
+    }
+
+    /// Крива темпу дня — одна модель для графіків 4a, звіту, XP і чекпоінта (WAT-39). Розклад і
+    /// норма — зі знімків запису дня: зміна підйому чи норми не переписує оцінку минулих днів.
+    func dayCurve(_ log: DayLog?, day: DayKey, profile: UserProfile) -> PaceCurve {
+        let goal = log?.goalMlSnapshot ?? profiles.currentGoalMl(on: day)
+        return profile.schedule(for: log, isWeekend: calendar.isWeekend(day)).curve(goalMl: goal)
     }
 
     // MARK: - Обʼєм по днях / тижнях
@@ -151,7 +153,10 @@ public final class InsightsService {
             totalMl: log.totalMl,
             goalMl: log.goalMlSnapshot,
             completionPct: log.completionPct,
-            rhythm: InsightsCalculators.evennessRows(partTotals: log.partTotals, goalMl: log.goalMlSnapshot),
+            rhythm: InsightsCalculators.evennessRows(
+                partTotals: log.partTotals,
+                targetsMl: dayCurve(log, day: day, profile: profiles.profile()).partTargetsMl()
+            ),
             entries: entries
         )
     }
@@ -161,8 +166,14 @@ public final class InsightsService {
     public func typicalDay(period: StatsPeriod) -> TypicalDayReport {
         let keys = calendar.recentDays(period.days)
         guard let first = keys.first, let last = keys.last else { return .empty }
-        let totals = dayLogs.dayLogs(from: first, to: last).map(\.partTotals)
-        return InsightsCalculators.typicalDay(dailyPartTotals: totals)
+        let profile = profiles.profile()
+        let days = dayLogs.dayLogs(from: first, to: last).map { log in
+            InsightsCalculators.DayParts(
+                partTotals: log.partTotals,
+                shares: dayCurve(log, day: DayKey(rawValue: log.dayKey), profile: profile).partShares()
+            )
+        }
+        return InsightsCalculators.typicalDay(days: days)
     }
 
     // MARK: - Теплокарта «Коли ти пʼєш»

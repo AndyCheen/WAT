@@ -164,6 +164,34 @@ final class HydrationServiceTests: XCTestCase {
         XCTAssertTrue(past.goalMet)
     }
 
+    // MARK: - Розклад дня (WAT-39)
+
+    /// Порція пише в запис дня підйом і відбій; зміна розкладу оновлює лише сьогоднішній день.
+    /// 18 липня 2026 — субота: без окремого розкладу вихідних діє будній.
+    func testScheduleSnapshotUpdatesOnlyToday() {
+        let env = TestEnv()
+        env.hydration.addIntake(amountMl: 300, at: env.at(day: 17, hour: 10))
+        env.hydration.addIntake(amountMl: 300, at: env.at(hour: 10))
+        let weekday = DaySchedule(wakeMinutes: 8 * 60, sleepMinutes: 22 * 60)
+        XCTAssertEqual(env.dayLogs.existingDayLog(for: DayKey(rawValue: "2026-07-18"))?.scheduleSnapshot, weekday)
+
+        env.profiles.profile().wakeMinutes = 6 * 60
+        env.hydration.scheduleDidChange()
+
+        XCTAssertEqual(env.dayLogs.existingDayLog(for: DayKey(rawValue: "2026-07-17"))?.scheduleSnapshot, weekday,
+                       "минулий день лишається зі своїм розкладом")
+        XCTAssertEqual(env.dayLogs.existingDayLog(for: DayKey(rawValue: "2026-07-18"))?.scheduleSnapshot?.wakeMinutes, 6 * 60)
+    }
+
+    func testScheduleSnapshotUsesWeekendSchedule() {
+        let env = TestEnv()
+        let profile = env.profiles.profile()
+        profile.weekendScheduleEnabled = true
+        profile.weekendWakeMinutes = 10 * 60
+        env.hydration.addIntake(amountMl: 300, at: env.at(hour: 11))
+        XCTAssertEqual(env.dayLogs.existingDayLog(for: env.calendar.today)?.scheduleSnapshot?.wakeMinutes, 10 * 60)
+    }
+
     func testHistoryIsNewestFirstWithTimeLabels() {
         let env = TestEnv()
         env.hydration.addIntake(amountMl: 250, at: env.at(hour: 8, minute: 15))

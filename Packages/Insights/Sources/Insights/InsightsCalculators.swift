@@ -8,53 +8,71 @@ public enum InsightsCalculators {
 
     /// Бал рівномірності 0…100.
     ///
-    /// Рахуємо відстань фактичного розподілу по частинах доби від ідеального
-    /// (`DayPart.idealShare`): `score = 100 × (1 − ½·Σ|факт − ідеал|)`.
-    /// 100 — розподіл точно за планом, 0 — уся вода в одній «неправильній» частині доби.
-    public static func evennessScore(partTotals: [Int]) -> Int {
+    /// Рахуємо відстань фактичного розподілу по частинах доби від цільового: `score = 100 × (1 −
+    /// ½·Σ|факт − ціль|)`. Цільові частки — з кривої темпу дня (`PaceCurve.partShares`), а не
+    /// фіксовані 20/20/30/22/8 %: ніч поза активними годинами має частку 0, і вода там знижує бал
+    /// (§13.6), а обрізаний підйомом ранок не вимагає повних 20 % (WAT-39).
+    /// 100 — розподіл точно за кривою, 0 — уся вода в частині, де її не чекали.
+    public static func evennessScore(partTotals: [Int], shares: [Double]) -> Int {
         let total = partTotals.reduce(0, +)
         guard total > 0 else { return 0 }
         let distance = DayPart.allCases.reduce(0.0) { sum, part in
             let actual = Double(partTotals[part.rawValue]) / Double(total)
-            return sum + abs(actual - part.idealShare)
+            return sum + abs(actual - shares[part.rawValue])
         }
         return Int(((1 - distance / 2) * 100).rounded())
     }
 
-    public static func evennessRows(partTotals: [Int], goalMl: Int) -> [EvennessRow] {
-        let ideals = DayPart.allCases.map { Int((Double(goalMl) * $0.idealShare).rounded()) }
-        let maxValue = max(partTotals.max() ?? 0, ideals.max() ?? 0, 1)
+    /// `targetsMl` — `PaceCurve.partTargetsMl()`: ті самі мілілітри, що в цілях частин доби звіту.
+    public static func evennessRows(partTotals: [Int], targetsMl: [Int]) -> [EvennessRow] {
+        let maxValue = max(partTotals.max() ?? 0, targetsMl.max() ?? 0, 1)
         return DayPart.allCases.map { part in
-            EvennessRow(
+            let target = targetsMl[part.rawValue]
+            return EvennessRow(
                 part: part,
                 ml: partTotals[part.rawValue],
-                idealMl: ideals[part.rawValue],
+                idealMl: target,
                 fraction: Double(partTotals[part.rawValue]) / Double(maxValue),
-                tickFraction: Double(ideals[part.rawValue]) / Double(maxValue)
+                tickFraction: target > 0 ? Double(target) / Double(maxValue) : nil
             )
         }
     }
 
     // MARK: - Типова доба
 
+    /// Один день для «Типової доби»: випите по частинах і цільові частки з кривої цього дня.
+    public struct DayParts: Equatable, Sendable {
+        public let partTotals: [Int]
+        public let shares: [Double]
+
+        public init(partTotals: [Int], shares: [Double]) {
+            self.partTotals = partTotals
+            self.shares = shares
+        }
+    }
+
     /// Медіана й міжквартильний розкид часток по частинах доби за кілька днів.
     /// Дні без води ігноруються — інакше медіана «прилипає» до нуля.
-    public static func typicalDay(dailyPartTotals: [[Int]]) -> TypicalDayReport {
-        let days = dailyPartTotals.filter { $0.reduce(0, +) > 0 }
+    ///
+    /// Ціль — середня частка з кривих урахованих днів: у будні й вихідні розклад може бути різний,
+    /// і ризка лягає туди, куди в середньому вела крива. Нуль (ніч поза активними годинами) — без ризки.
+    public static func typicalDay(days input: [DayParts]) -> TypicalDayReport {
+        let days = input.filter { $0.partTotals.reduce(0, +) > 0 }
         guard !days.isEmpty else { return .empty }
 
         let rows = DayPart.allCases.map { part -> TypicalDayRow in
-            let shares = days.map { totals -> Double in
-                let sum = Double(totals.reduce(0, +))
-                return sum > 0 ? Double(totals[part.rawValue]) / sum : 0
+            let shares = days.map { day -> Double in
+                let sum = Double(day.partTotals.reduce(0, +))
+                return sum > 0 ? Double(day.partTotals[part.rawValue]) / sum : 0
             }.sorted()
+            let ideal = days.reduce(0.0) { $0 + $1.shares[part.rawValue] } / Double(days.count)
 
             return TypicalDayRow(
                 part: part,
                 median: percentile(shares, 0.5),
                 low: percentile(shares, 0.25),
                 high: percentile(shares, 0.75),
-                ideal: part.idealShare
+                ideal: ideal > 0 ? ideal : nil
             )
         }
         return TypicalDayReport(rows: rows, daysCounted: days.count)

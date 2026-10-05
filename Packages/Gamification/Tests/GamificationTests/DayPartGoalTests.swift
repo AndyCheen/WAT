@@ -27,10 +27,51 @@ final class DayPartGoalTests: XCTestCase {
     /// Порції з різних частин доби одну ціль не закривають.
     func testPortionsOutsideBlockDoNotCount() {
         let env = GameEnv()
-        env.addIntake(700, hour: 7)              // до підйому
         env.addIntake(400, hour: 11)
         env.addIntake(500, hour: 12, minute: 30)  // уже наступний блок
         XCTAssertTrue(activeAwards(env).isEmpty)
+    }
+
+    /// Склянка о 06:30 при підйомі о 08:00 зараховується ранку (WAT-39): разом із порціями до
+    /// 12:00 закриває «до 12:00».
+    func testPortionBeforeWakeCountsToFirstBlock() {
+        let env = GameEnv()
+        env.addIntake(250, hour: 6, minute: 30)
+        env.addIntake(200, hour: 9)
+        XCTAssertTrue(activeAwards(env).isEmpty, "450 із 649 — ще ні")
+        env.addIntake(200, hour: 11)
+        XCTAssertEqual(activeAwards(env).count, 1)
+    }
+
+    /// Порція до підйому сама може закрити ранок — XP нараховується в її момент.
+    func testEarlyPortionAloneClosesFirstBlock() {
+        let env = GameEnv()
+        env.addIntake(700, hour: 7)
+        XCTAssertEqual(activeAwards(env).count, 1)
+    }
+
+    /// Пізня склянка після відбою добирає вечір.
+    func testPortionAfterSleepCountsToLastBlock() {
+        let env = GameEnv(hour: 23)
+        env.addIntake(300, hour: 18)
+        env.addIntake(300, hour: 22, minute: 30)
+        XCTAssertEqual(activeAwards(env).count, 1, "600 ≥ 571 — вечір закрито")
+    }
+
+    /// Розклад дня — зі знімка в записі дня: підйом, змінений після, межі вже оціненого дня не
+    /// пересуває. При 08:00 «до 12:00» — 649 мл; при 06:00 полудень 09–12 мав би ціль 460, і
+    /// без знімка видалення порції 11:00 лишило б XP.
+    func testScheduleSnapshotKeepsPastDayBlocks() {
+        let env = GameEnv()
+        env.addIntake(500, hour: 9, day: 17)
+        let closing = env.addIntake(200, hour: 11, day: 17)
+        XCTAssertEqual(activeAwards(env).count, 1)
+
+        env.profiles.profile().wakeMinutes = 6 * 60
+        env.profiles.save()
+
+        env.removeIntake(closing)
+        XCTAssertTrue(activeAwards(env).isEmpty, "500 < 649 за розкладом того дня")
     }
 
     func testUndoRevertsAndRestoreAwardsAgain() {
