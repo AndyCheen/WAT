@@ -120,4 +120,76 @@ final class NotificationsUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["plan.row.wt.morning.2026-10-01"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["plan.row.wt.reminder.2026-10-01.0942"].exists)
     }
+
+    // MARK: - Етап B (WAT-37)
+
+    /// Тап по ранковій склянці — окреме вікно «Склянка»: спершу один раз «скільки в твоїй
+    /// склянці?», далі частка й запис; вікно закривається само, порція — на головному (§7.1).
+    func testMorningTapOpensGlassWindow() {
+        let app = launch(["--uitest-empty", "--notification-tap", "morning"])
+        let calibrate = app.buttons["glass.calibrate.300"]
+        XCTAssertTrue(calibrate.waitForExistence(timeout: 15))
+        XCTAssertTrue(calibrate.isHittable, "вікно на весь екран, а не лише в дереві")
+        calibrate.tap()
+        app.buttons["glass.calibrate.done"].tap()
+
+        let value = app.staticTexts["glass.value"]
+        XCTAssertTrue(value.waitForExistence(timeout: 5))
+        XCTAssertEqual(value.label, "300", "за замовчуванням — повна склянка")
+
+        app.buttons["glass.chip.50"].tap()
+        XCTAssertEqual(value.label, "150")
+        let control = app.otherElements["glass.control"]
+        XCTAssertEqual(control.value as? String, "150 мл, пів склянки", "VoiceOver: об'єм і частка")
+
+        app.buttons["glass.record"].tap()
+        waitForDisappearance(app.buttons["glass.record"])
+        let percent = app.staticTexts["home.percent"]
+        XCTAssertTrue(percent.waitForExistence(timeout: 5))
+        XCTAssertTrue(percent.label.hasPrefix("8"), "150 мл з 2000 — 8 %: \(percent.label)")
+    }
+
+    /// Тап по звіту — історія: гортається тапом праворуч, на останньому слайді — «Готово» (§11.3).
+    func testReportTapOpensStory() {
+        let app = launch(["--uitest-demo", "--notification-tap", "report"])
+        let close = app.buttons["report.close"]
+        XCTAssertTrue(close.waitForExistence(timeout: 20))
+        XCTAssertTrue(close.isHittable)
+        let headline = app.staticTexts["report.headline"].firstMatch
+        XCTAssertTrue(headline.waitForExistence(timeout: 5))
+        let first = headline.label
+
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.6)).tap()
+        XCTAssertTrue(app.staticTexts["report.headline"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertNotEqual(app.staticTexts["report.headline"].firstMatch.label, first, "тап праворуч — наступний слайд")
+
+        let done = app.buttons["report.done"]
+        for _ in 0..<8 where !done.exists {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.6)).tap()
+        }
+        XCTAssertTrue(done.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["report.previous"].isHittable)
+        done.tap()
+        waitForDisappearance(close)
+    }
+
+    /// Рядки етапу B на екрані «Сповіщення»: чекпоінти й звіти з днем тижня (§15.1).
+    func testNotificationsScreenHasStageBRows() {
+        let app = launch(["--uitest-empty", "--start-screen", "notifications"])
+        XCTAssertTrue(app.buttons["notifications.checkpoints"].waitForExistence(timeout: 15))
+
+        let weekday = app.buttons["notifications.reportWeekday.0"]
+        for _ in 0..<6 where !weekday.isHittable { app.swipeUp() }
+        XCTAssertTrue(weekday.isHittable)
+        XCTAssertTrue(weekday.isSelected, "типово — понеділок")
+        app.buttons["notifications.reportWeekday.6"].tap()
+        XCTAssertTrue(app.buttons["notifications.reportWeekday.6"].isSelected)
+        XCTAssertFalse(weekday.isSelected, "день тижня — один")
+
+        XCTAssertEqual(app.staticTexts["notifications.reportWeekTime"].label, "10:00")
+        app.buttons["notifications.reportWeek"].tap()
+        waitForDisappearance(app.staticTexts["notifications.reportWeekTime"])
+        XCTAssertTrue(app.buttons["notifications.reportDay"].exists)
+        XCTAssertTrue(app.buttons["notifications.reportMonth"].exists)
+    }
 }

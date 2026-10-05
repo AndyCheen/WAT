@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Core
 import Gamification
 import Notifications
 
@@ -15,6 +16,8 @@ public final class AppRouter {
         case customAmount(Int)
         /// Картка досягнення поверх головного — відлуння розблокування (§12.1).
         case achievement(String)
+        /// Вікно «Склянка» — тап по ранковій склянці (§7, §16.4).
+        case glass
     }
 
     /// Новий стек навігації; порожній — повернутися на головний.
@@ -39,6 +42,11 @@ public final class AppRouter {
             pendingHomeIntent = .achievement(key)
         case .progress:
             pendingPath = [.progress]
+        case .glass:
+            pendingPath = []
+            pendingHomeIntent = .glass
+        case .report(let periods):
+            pendingPath = [.report(periods)]
         }
     }
 

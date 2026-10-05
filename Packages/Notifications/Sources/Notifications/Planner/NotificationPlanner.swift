@@ -9,8 +9,8 @@ import Persistence
 /// зміна стану його перебудовує. Між двома діями стан не змінюється, тому зміст, порахований
 /// заздалегідь, у момент доставки правильний.
 ///
-/// Порядок: горизонт → фіксовані типи (ранок, вечір, порятунок, повернення) → ланцюги
-/// нагадувань → конфлікти (≥ 30 хв, пріоритети §13.3) → денний ліміт → бюджет 64 → тексти.
+/// Порядок: горизонт → фіксовані типи (ранок, вечір, порятунок, повернення) → чекпоінти
+/// частин доби → ланцюги нагадувань (зливаються з чекпоінтами) → конфлікти (≥ 30 хв, пріоритети §13.3) → денний ліміт → бюджет 64 → тексти.
 public enum NotificationPlanner {
     public static func plan(
         context: NotificationContext,
@@ -19,6 +19,29 @@ public enum NotificationPlanner {
         rules: NotificationRules = .default
     ) -> NotificationPlan {
         PlanBuilder(context: context, preferences: preferences, journal: journal, rules: rules).build()
+    }
+
+    /// Звіти, що можуть потрапити в горизонт плану: композиційний корінь рахує для них
+    /// `ReportDigest` до виклику `plan`. Тижневий — за тиждень, що містить учорашній день
+    /// (у понеділок — щойно завершений), місячний — так само за місяць (рішення від 05.10.2026).
+    public static func reportPeriods(now: Date, timeZone: TimeZone, preferences: NotificationPreferences,
+                                     rules: NotificationRules = .default) -> [ReportPeriod] {
+        guard preferences.isEnabled else { return [] }
+        let service = CalendarService(clock: FixedClock(now: now, timeZone: timeZone))
+        let today = service.today
+        var periods: [ReportPeriod] = []
+        if preferences.dailyReportEnabled { periods.append(.day(today)) }
+        for rel in 0...rules.horizonDays {
+            let day = service.dayKey(offsetDays: rel, from: today)
+            let yesterday = service.dayKey(offsetDays: -1, from: day)
+            if preferences.weeklyReportEnabled, service.weekdayIndex(of: day) == preferences.weeklyReportWeekday {
+                periods.append(service.period(.week, containing: yesterday))
+            }
+            if preferences.monthlyReportEnabled, day.day == 1 {
+                periods.append(service.period(.month, containing: yesterday))
+            }
+        }
+        return periods
     }
 }
 
@@ -39,6 +62,11 @@ enum CopyKind: Equatable {
     case rescueEvening(streak: Int)
     case rescueMorning(streak: Int)
     case comeback(number: Int, giftAvailable: Bool)
+    case checkpoint(leftMl: Int, deadline: Date, part: DayPart, xp: Int)
+    case reportDay(ReportDigest, streak: Int)
+    case reportWeek(ReportDigest)
+    case reportMonth(ReportDigest)
+    case reportWeekMonth(week: ReportDigest, month: ReportDigest)
 }
 
 /// День горизонту: `rel` — від сьогодні, `sinceAction` — від дня останньої дії (§13.5).
@@ -86,11 +114,13 @@ struct PlanBuilder {
         var accepted: [Candidate] = []
         for day in planningDays() {
             let fixed = fixedCandidates(for: day)
-            let chain = reminderChain(for: day)
+            let checkpoints = checkpoints(for: day)
+            let chain = reminderChain(for: day, checkpoints: checkpoints)
             let shown = journal.shown(on: day.day, before: now)
             let resolved = ConflictResolver(spacing: TimeInterval(rules.minSpacingMinutes * 60), frame: day.frame)
-                .resolve(fixed + chain, shown: shown.map(\.fireAt))
-            accepted += DailyCap.apply(resolved, shownCount: shown.count, cap: rules.dailyCap)
+                .resolve(fixed + checkpoints + chain + reports(for: day), shown: shown.map(\.fireAt))
+            // Тихі звіти в денний ліміт не рахуються (§13.1).
+            accepted += DailyCap.apply(resolved, shownCount: shown.filter { $0.type != .report }.count, cap: rules.dailyCap)
         }
 
         // Бюджет iOS — 64 запити; найближчі важливіші за далекі (§16.2).
@@ -135,6 +165,15 @@ struct PlanBuilder {
 
     func counted(on day: PlanningDay) -> Int { day.rel == 0 ? context.countedMl : 0 }
 
+    /// Порції дня в хвилинах доби — для цілей частин доби. Майбутні дні — порожні: план
+    /// припускає, що користувач більше нічого не робить.
+    func portions(on day: PlanningDay) -> [TimedPortion] {
+        guard day.rel == 0 else { return [] }
+        return context.portionsToday
+            .filter { service.dayKey(for: $0.at) == day.day }
+            .map { TimedPortion(minute: Int(day.frame.minute(of: $0.at)), ml: $0.ml) }
+    }
+
     // MARK: - Фіксовані типи
 
     func fixedCandidates(for day: PlanningDay) -> [Candidate] {
@@ -166,9 +205,7 @@ struct PlanBuilder {
         guard preferences.morningEnabled, intakes(on: day).isEmpty else { return nil }
         let item = PlannedNotification(
             id: "wt.morning.\(day.day.rawValue)", type: .morning, slot: "morning", dayKey: day.day, fireAt: at,
-            isFloating: true, priority: .morning, category: .glass,
-            // Етап A: шторки «Склянка» ще немає — тап веде в «Інше» з типовою порцією (§17).
-            tapRoute: .customAmount(ml: portion)
+            isFloating: true, priority: .morning, category: .glass, tapRoute: .glass
         )
         return Candidate(item: item, copy: .morning, rel: day.rel)
     }
@@ -233,12 +270,123 @@ struct PlanBuilder {
         return Candidate(item: item, copy: .comeback(number: number, giftAvailable: giftAvailable), rel: day.rel)
     }
 
+    // MARK: - Чекпоінти частин доби (§9)
+
+    /// «До 12:00 — ще 150 мл» за 45 хв до кінця частини доби, якщо її ціль ще не закрита, але
+    /// закрити реально. Вечір чекпоінта не має: його кінець — відбій, цю роль виконує вечірній
+    /// підсумок; тому й чекпоінт пізніше за відсічку нагадувань не планується.
+    func checkpoints(for day: PlanningDay) -> [Candidate] {
+        guard preferences.checkpointsEnabled, day.sinceAction <= 1, !isPaused(day),
+              counted(on: day) < context.goalMl else { return [] }
+        let frame = day.frame
+        let portions = portions(on: day)
+        let lag = Double(portion) * rules.checkpointLagShare
+        let closable = rules.closableMultiplier * Double(portion)
+
+        return frame.curve.goalBlocks(minSegmentMinutes: rules.minSegmentMinutes).dropLast().compactMap { block in
+            let deadline = frame.date(minute: Double(block.toMinute))
+            let nominal = frame.date(minute: Double(block.toMinute - rules.checkpointLeadMinutes))
+            guard let at = frame.place(nominal, limit: min(deadline, frame.cutoff)), at > earliest else { return nil }
+
+            let drunk = block.drunkMl(of: portions)
+            let left = block.targetMl - drunk
+            // 1. Відставання всередині частини ≥ ½P: хто п'є рівномірно, закриє її сам.
+            // 2. Бракує 50 мл … 2·P: недосяжний чекпоінт лише фіксує невдачу, а загальне
+            //    відставання й так веде нагадування.
+            let behind = frame.curve.target(fromMinute: Double(block.fromMinute), toMinute: frame.minute(of: at)) - Double(drunk)
+            guard behind >= lag, left >= rules.checkpointMinLeftMl, Double(left) <= closable else { return nil }
+
+            let boosted = context.boostExpiresAt.map { $0 > at } ?? false
+            let part = block.deadlinePart
+            let item = PlannedNotification(
+                id: "wt.checkpoint.\(day.day.rawValue).\(part.key)", type: .checkpoint, slot: part.key, dayKey: day.day,
+                fireAt: at, isFloating: true, priority: .checkpoint, category: .reminder,
+                tapRoute: .customAmount(ml: portion)
+            )
+            let copy = CopyKind.checkpoint(leftMl: left, deadline: deadline, part: part,
+                                           xp: context.dayPartXp * (boosted ? 2 : 1))
+            return Candidate(item: item, copy: copy, rel: day.rel)
+        }
+    }
+
+    /// Чекпоінт, що забирає собі основне нагадування: основне у вікні `[чекпоінт − 45, чекпоінт + 30]`
+    /// не надсилається, бо в чекпоінті конкретніший текст — дедлайн і об'єм (§9).
+    private func checkpoint(absorbing primary: Date, in checkpoints: [Candidate]) -> Candidate? {
+        checkpoints.first {
+            let at = $0.item.fireAt
+            return primary >= at.addingTimeInterval(-TimeInterval(rules.checkpointMergeBeforeMinutes * 60))
+                && primary <= at.addingTimeInterval(TimeInterval(rules.checkpointMergeAfterMinutes * 60))
+        }
+    }
+
+    // MARK: - Звіти (§11)
+
+    /// Денний — о відбої, тихо (`.passive`); тижневий і місячний — у свій час, без звуку.
+    /// Лише в дні повного набору (§13.5: на +2 — тільки ранкова склянка) і лише за період, де
+    /// була хоч одна порція. Тиждень і місяць в один день зливаються в одне сповіщення.
+    func reports(for day: PlanningDay) -> [Candidate] {
+        guard day.sinceAction <= 1 else { return [] }
+        let frame = day.frame
+        let yesterday = service.dayKey(offsetDays: -1, from: day.day)
+        func digest(_ period: ReportPeriod) -> ReportDigest? {
+            context.reports.first { $0.period == period && $0.hasIntakes }
+        }
+        func item(slot: String, at: Date, interruption: NotificationInterruption, route: [ReportPeriod]) -> PlannedNotification {
+            PlannedNotification(
+                id: "wt.report.\(day.day.rawValue).\(slot)", type: .report, slot: slot, dayKey: day.day, fireAt: at,
+                isFloating: true, priority: .report, category: nil, tapRoute: .report(route),
+                interruption: interruption, isSilent: true
+            )
+        }
+
+        var result: [Candidate] = []
+        // Денний: рівно о відбої — і лише сьогодні: на майбутні дні план припускає, що порцій не буде.
+        if preferences.dailyReportEnabled, day.rel == 0, frame.sleep > earliest, let today = digest(.day(day.day)) {
+            let streak = context.streak.countedToday ? context.streak.lengthEndingToday : context.streak.lengthEndingYesterday
+            result.append(Candidate(item: item(slot: "day", at: frame.sleep, interruption: .passive, route: [.day(day.day)]),
+                                    copy: .reportDay(today, streak: streak), rel: day.rel))
+        }
+
+        let week = preferences.weeklyReportEnabled && service.weekdayIndex(of: day.day) == preferences.weeklyReportWeekday
+            ? digest(service.period(.week, containing: yesterday)) : nil
+        let month = preferences.monthlyReportEnabled && day.day.day == 1
+            ? digest(service.period(.month, containing: yesterday)) : nil
+        func at(_ minutes: Int) -> Date? {
+            let minute = min(max(minutes, frame.curve.wakeMinutes), frame.curve.sleepMinutes - 1)
+            return frame.place(frame.date(minute: Double(minute)), limit: frame.sleep).flatMap { $0 > earliest ? $0 : nil }
+        }
+        switch (week, month) {
+        case let (week?, month?):
+            if let fire = at(preferences.weeklyReportMinutes) {
+                result.append(Candidate(item: item(slot: "weekmonth", at: fire, interruption: .active,
+                                                   route: [week.period, month.period]),
+                                        copy: .reportWeekMonth(week: week, month: month), rel: day.rel))
+            }
+        case let (week?, nil):
+            if let fire = at(preferences.weeklyReportMinutes) {
+                result.append(Candidate(item: item(slot: "week", at: fire, interruption: .active, route: [week.period]),
+                                        copy: .reportWeek(week), rel: day.rel))
+            }
+        case let (nil, month?):
+            if let fire = at(preferences.monthlyReportMinutes) {
+                result.append(Candidate(item: item(slot: "month", at: fire, interruption: .active, route: [month.period]),
+                                        copy: .reportMonth(month), rel: day.rel))
+            }
+        case (nil, nil):
+            break
+        }
+        return result
+    }
+
     // MARK: - Нагадування (§6.2)
 
     /// Ланцюг: основне → повторне (+30) → основне (+120) → повторне (+30), далі пауза до порції
     /// або відкриття застосунку. Простими словами — нагадуємо, коли від останньої порції минуло
     /// стільки, що за темпом уже настав час наступної.
-    func reminderChain(for day: PlanningDay) -> [Candidate] {
+    ///
+    /// Основне, що збігається з чекпоінтом, зливається з ним: чекпоінт займає місце основного в
+    /// ланцюгу, повторне й наступний блок рахуються від чекпоінта (§9).
+    func reminderChain(for day: PlanningDay, checkpoints: [Candidate] = []) -> [Candidate] {
         guard preferences.remindersEnabled, day.sinceAction <= 1, !isPaused(day) else { return [] }
         let frame = day.frame
         let drank = counted(on: day)
@@ -282,30 +430,37 @@ struct PlanBuilder {
         }
         guard start < frame.cutoff else { return [] }
 
-        let followUp = rules.followUpMinutes
-        let block = followUp + rules.blockBackoffMinutes
-        var steps: [(minutes: Int, primary: Bool)] = []
-        for index in 0..<rules.maxUnansweredBlocks {
-            steps.append((index * block, true))
-            if preferences.followUpEnabled { steps.append((index * block + followUp, false)) }
-        }
-
+        let followUp = TimeInterval(rules.followUpMinutes * 60)
+        let backoff = TimeInterval(rules.blockBackoffMinutes * 60)
         let lastIntake = todayIntakes.max()
         var chain: [Candidate] = []
-        for step in steps {
-            let nominal = start.addingTimeInterval(TimeInterval(step.minutes * 60))
+
+        func append(_ nominal: Date, primary: Bool) {
             // Тихий період зсуває момент на свій кінець; кілька зсунутих в одну точку зливаються.
             guard let at = frame.place(nominal, limit: frame.cutoff),
-                  !chain.contains(where: { $0.item.fireAt == at }) else { continue }
-            guard at > earliest else { continue }
+                  !chain.contains(where: { $0.item.fireAt == at }), at > earliest else { return }
             let item = PlannedNotification(
-                id: "", type: .reminder, slot: step.primary ? "primary" : "followUp", dayKey: day.day,
+                id: "", type: .reminder, slot: primary ? "primary" : "followUp", dayKey: day.day,
                 fireAt: at, isFloating: false,
-                priority: step.primary ? .reminderPrimary : .reminderFollowUp,
+                priority: primary ? .reminderPrimary : .reminderFollowUp,
                 category: .reminder, tapRoute: .customAmount(ml: portion)
             )
-            let copy = CopyKind.reminder(followUp: !step.primary, leftMl: context.goalMl - drank, lastIntake: lastIntake)
+            let copy = CopyKind.reminder(followUp: !primary, leftMl: context.goalMl - drank, lastIntake: lastIntake)
             chain.append(Candidate(item: item, copy: copy, rel: day.rel))
+        }
+
+        var next = start
+        for _ in 0..<rules.maxUnansweredBlocks {
+            // Блок: основне → повторне (+30) → наступне основне (+120 від повторного).
+            var blockStart = next
+            if let placed = frame.place(next, limit: frame.cutoff),
+               let checkpoint = checkpoint(absorbing: placed, in: checkpoints) {
+                blockStart = checkpoint.item.fireAt
+            } else {
+                append(next, primary: true)
+            }
+            if preferences.followUpEnabled { append(blockStart.addingTimeInterval(followUp), primary: false) }
+            next = blockStart.addingTimeInterval(followUp + backoff)
         }
         return chain
     }

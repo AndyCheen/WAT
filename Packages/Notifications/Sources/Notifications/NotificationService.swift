@@ -149,7 +149,7 @@ public final class NotificationService: MetricsSubscriber {
     /// «Давно не пив» після того, як людина випила, лише заважає (§6.4).
     private func clearDeliveredDrinkPrompts(now: Date) {
         let today = calendar.dayKey(for: now).rawValue
-        let drinkTypes: Set<NotificationType> = [.reminder, .morning, .evening, .comeback]
+        let drinkTypes: Set<NotificationType> = [.reminder, .checkpoint, .morning, .evening, .comeback]
         let identifiers = store.logs(firingFrom: calendar.startOfDay(now), to: now.addingTimeInterval(1))
             .filter { $0.dayKey == today && drinkTypes.contains($0.type) && $0.cancelledAt == nil }
             .map(\.identifier)
@@ -294,7 +294,7 @@ public final class NotificationService: MetricsSubscriber {
         } else {
             // Одна порція — одному сповіщенню, найсвіжішому з доставлених за останню годину.
             let window = TimeInterval(rules.responseWindowMinutes * 60)
-            let respondable: Set<NotificationType> = [.reminder, .morning, .evening, .rescue, .comeback]
+            let respondable: Set<NotificationType> = [.reminder, .checkpoint, .morning, .evening, .rescue, .comeback]
             target = store.logs(firingFrom: at.addingTimeInterval(-window), to: at.addingTimeInterval(1))
                 .filter { respondable.contains($0.type) && $0.cancelledAt == nil && $0.suppressedAt == nil }
                 .last

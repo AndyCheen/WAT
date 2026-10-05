@@ -5,19 +5,6 @@ import Persistence
 // Вхідні дані планувальника — прості значення без SwiftData й без доменних сервісів:
 // планувальник лишається чистою функцією, яку тестують на `FixedClock` (SPEC-NOTIFICATIONS §16.2).
 
-/// Активні години `[W, S]` одного дня, у хвилинах від 00:00.
-public struct DaySchedule: Sendable, Equatable {
-    public var wakeMinutes: Int
-    public var sleepMinutes: Int
-
-    public init(wakeMinutes: Int, sleepMinutes: Int) {
-        self.wakeMinutes = wakeMinutes
-        self.sleepMinutes = sleepMinutes
-    }
-
-    public static let weekdayDefault = DaySchedule(wakeMinutes: 8 * 60, sleepMinutes: 22 * 60)
-}
-
 /// Тихий період: дні тижня + від–до (§13.2).
 public struct QuietWindow: Sendable, Equatable {
     /// Біт 0 — понеділок … біт 6 — неділя.
@@ -55,6 +42,16 @@ public struct NotificationPreferences: Sendable, Equatable {
     public var cadence = ReminderCadence.pace(.normal)
     public var followUpEnabled = true
     public var morningEnabled = true
+    /// Чекпоінти частин доби (§9, етап B).
+    public var checkpointsEnabled = true
+    /// Звіти (§11.1): денний — о відбої, тижневий — у вибраний день, місячний — 1-го числа.
+    public var dailyReportEnabled = true
+    public var weeklyReportEnabled = true
+    /// 0 — понеділок … 6 — неділя.
+    public var weeklyReportWeekday = 0
+    public var weeklyReportMinutes = 10 * 60
+    public var monthlyReportEnabled = true
+    public var monthlyReportMinutes = 10 * 60
     /// `nil` — о підйомі.
     public var morningMinutes: Int?
     public var eveningEnabled = true
@@ -96,6 +93,13 @@ extension NotificationPreferences {
             QuietWindow(weekdayMask: $0.weekdayMask, fromMinutes: $0.fromMinutes, toMinutes: $0.toMinutes)
         }
         remindersEnabled = settings.remindersEnabled
+        checkpointsEnabled = settings.checkpointsEnabled
+        dailyReportEnabled = settings.dailyReportEnabled
+        weeklyReportEnabled = settings.weeklyReportEnabled
+        weeklyReportWeekday = settings.weeklyReportWeekday
+        weeklyReportMinutes = settings.weeklyReportMinutes
+        monthlyReportEnabled = settings.monthlyReportEnabled
+        monthlyReportMinutes = settings.monthlyReportMinutes
         cadence = settings.reminderMode == .pace
             ? .pace(settings.reminderFrequency)
             : .interval(minutes: settings.reminderIntervalMinutes)
@@ -158,6 +162,53 @@ public struct QuestHints: Sendable, Equatable {
     }
 }
 
+/// Числа звіту для тексту сповіщення (§11.2). Рахує `Insights`, приносить композиційний корінь:
+/// пакет `Notifications` його не імпортує (§16.10).
+public struct ReportDigest: Sendable, Equatable {
+    public var period: ReportPeriod
+    /// За період була хоч одна порція — інакше звіт не надсилається: «ти випив 0 л» — докір (§11.1).
+    public var hasIntakes: Bool
+    public var totalMl: Int
+    /// Норма дня — для денного звіту.
+    public var goalMl: Int
+    public var goalDays: Int
+    public var dayCount: Int
+    public var averageMl: Int
+    /// Зміна середнього проти попереднього періоду, %.
+    public var averageChangePercent: Int?
+    /// Найслабша незакрита частина дня — «найслабше — вечір».
+    public var weakestPart: String?
+    public var longestStreak: Int
+    public var glasses: Int
+
+    public init(period: ReportPeriod, hasIntakes: Bool, totalMl: Int = 0, goalMl: Int = 0, goalDays: Int = 0,
+                dayCount: Int = 0, averageMl: Int = 0, averageChangePercent: Int? = nil, weakestPart: String? = nil,
+                longestStreak: Int = 0, glasses: Int = 0) {
+        self.period = period
+        self.hasIntakes = hasIntakes
+        self.totalMl = totalMl
+        self.goalMl = goalMl
+        self.goalDays = goalDays
+        self.dayCount = dayCount
+        self.averageMl = averageMl
+        self.averageChangePercent = averageChangePercent
+        self.weakestPart = weakestPart
+        self.longestStreak = longestStreak
+        self.glasses = glasses
+    }
+}
+
+/// Порція: момент і об'єм.
+public struct Portion: Sendable, Equatable {
+    public var at: Date
+    public var ml: Int
+
+    public init(at: Date, ml: Int) {
+        self.at = at
+        self.ml = ml
+    }
+}
+
 /// Усе, що планувальнику треба знати про стан користувача (§16.10). Збирає `AppServices`.
 public struct NotificationContext: Sendable, Equatable {
     public var now: Date
@@ -168,6 +219,8 @@ public struct NotificationContext: Sendable, Equatable {
     public var countedMl: Int
     /// Моменти сьогоднішніх порцій.
     public var intakesToday: [Date]
+    /// Сьогоднішні порції з об'ємами — для цілей частин доби (§9): `countedMl` один на весь день.
+    public var portionsToday: [Portion]
     /// Остання порція взагалі — для дня останньої дії й деградації (§13.5).
     public var lastIntakeAt: Date?
     /// Відкриття застосунку чи дія в ньому (§6.2, «Скидання»).
@@ -184,16 +237,22 @@ public struct NotificationContext: Sendable, Equatable {
     public var quests: QuestHints
     /// Що дає «Знову в ритмі» (§12.5 Б) — для вставки «+25 XP».
     public var bounceBackXp: Int
+    /// XP за ціль частини доби — для тексту чекпоінта (§9).
+    public var dayPartXp: Int
+    /// Звіти, що можуть потрапити в горизонт (`NotificationPlanner.reportPeriods`).
+    public var reports: [ReportDigest]
     public var bounceBackMinStreak: Int
     public var bounceBackCooldownDays: Int
     public var comebackCooldownDays: Int
 
     public init(
         now: Date, timeZone: TimeZone, goalMl: Int = 2000, countedMl: Int = 0, intakesToday: [Date] = [],
+        portionsToday: [Portion] = [],
         lastIntakeAt: Date? = nil, lastInteractionAt: Date? = nil, portionHistoryMl: [Int] = [],
         firstIntakeMinutes: [Int] = [], streak: StreakInput = StreakInput(), readyFreezes: Int = 0,
         boostExpiresAt: Date? = nil, lastComebackGiftAt: Date? = nil, lastBounceBackDay: DayKey? = nil,
-        quests: QuestHints = QuestHints(), bounceBackXp: Int = 25, bounceBackMinStreak: Int = 3,
+        quests: QuestHints = QuestHints(), bounceBackXp: Int = 25, dayPartXp: Int = 10, reports: [ReportDigest] = [],
+        bounceBackMinStreak: Int = 3,
         bounceBackCooldownDays: Int = 7, comebackCooldownDays: Int = 30
     ) {
         self.now = now
@@ -201,6 +260,7 @@ public struct NotificationContext: Sendable, Equatable {
         self.goalMl = goalMl
         self.countedMl = countedMl
         self.intakesToday = intakesToday
+        self.portionsToday = portionsToday
         self.lastIntakeAt = lastIntakeAt
         self.lastInteractionAt = lastInteractionAt
         self.portionHistoryMl = portionHistoryMl
@@ -212,6 +272,8 @@ public struct NotificationContext: Sendable, Equatable {
         self.lastBounceBackDay = lastBounceBackDay
         self.quests = quests
         self.bounceBackXp = bounceBackXp
+        self.dayPartXp = dayPartXp
+        self.reports = reports
         self.bounceBackMinStreak = bounceBackMinStreak
         self.bounceBackCooldownDays = bounceBackCooldownDays
         self.comebackCooldownDays = comebackCooldownDays

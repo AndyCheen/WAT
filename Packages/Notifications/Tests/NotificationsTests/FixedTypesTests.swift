@@ -19,7 +19,7 @@ final class FixedTypesTests: XCTestCase {
         let morning = items(plan(Fixture.context(at: Fixture.date(7))), .morning)
         XCTAssertEqual(morning.map { Fixture.clock($0.fireAt) }, ["08:00"])
         XCTAssertEqual(morning.first?.category, .glass, "дія «+склянка»")
-        XCTAssertEqual(morning.first?.tapRoute, .customAmount(ml: 250), "етап A — тап веде в «Інше» з P")
+        XCTAssertEqual(morning.first?.tapRoute, .glass, "тап відкриває вікно «Склянка» (§7.1)")
         XCTAssertTrue(morning.first?.isFloating == true, "о 08:00 місцевого і після перельоту")
     }
 

@@ -8,7 +8,7 @@ import Core
 import Persistence
 import Notifications
 
-/// Екран «Сповіщення» — мінімальна версія етапу A (SPEC-NOTIFICATIONS §15.1).
+/// Екран «Сповіщення» — рядки етапів A і B (SPEC-NOTIFICATIONS §15.1).
 ///
 /// Профіль і налаштування — моделі SwiftData, тож екран спостерігає їх напряму; модель лише
 /// пише зміни, зберігає й просить перепланування (`touch()` — одна дія, одне перепланування).
@@ -87,6 +87,8 @@ public final class NotificationsSettingsModel {
     func stepGlass(_ direction: Int) {
         profile.glassMl = clamp(profile.glassMl + direction * UserProfile.glassStep,
                                 UserProfile.glassRange.lowerBound, UserProfile.glassRange.upperBound)
+        // Склянку задали тут — вікно «Склянка» вже не питатиме «скільки в твоїй склянці?» (§7.1).
+        profile.glassConfirmed = true
         changed()
     }
 
@@ -138,6 +140,20 @@ public final class NotificationsSettingsModel {
     var soundIndex: Int { NotificationSound.allCases.firstIndex(of: settings.sound) ?? 0 }
     func selectSound(_ index: Int) {
         settings.sound = NotificationSound.allCases[index]
+        changed()
+    }
+
+    // MARK: - Звіти (§11.1): один день тижня, час — крок 15 хв у межах доби
+
+    func selectReportWeekday(_ index: Int) {
+        settings.weeklyReportWeekday = index
+        changed()
+    }
+
+    func stepReportTime(weekly: Bool, _ direction: Int) {
+        let current = weekly ? settings.weeklyReportMinutes : settings.monthlyReportMinutes
+        let value = clamp(current + direction * Self.timeStep, 0, 24 * 60 - Self.timeStep)
+        if weekly { settings.weeklyReportMinutes = value } else { settings.monthlyReportMinutes = value }
         changed()
     }
 

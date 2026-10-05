@@ -17,4 +17,17 @@ final class PerformanceTests: XCTestCase {
         print("⏱ 200 порцій за \(String(format: "%.2f", elapsed)) с")
         XCTAssertLessThan(elapsed, 4, "200 записів мають опрацьовуватись швидше за 4 с")
     }
+
+    /// Те саме зі справжніми порціями в денних логах: XP за частину доби (§9) на кожну порцію
+    /// читає порції дня — цей шлях не має повертати складність, яку прибрали кеші.
+    func testBulkIntakeWithDayLogs() {
+        let env = GameEnv()
+        let start = Date()
+        for index in 0..<200 {
+            env.addIntake(200, hour: 8 + index % 12, day: 1 + index % 18)
+        }
+        let elapsed = Date().timeIntervalSince(start)
+        print("⏱ 200 порцій із логами за \(String(format: "%.2f", elapsed)) с")
+        XCTAssertLessThan(elapsed, 4, "200 записів мають опрацьовуватись швидше за 4 с")
+    }
 }

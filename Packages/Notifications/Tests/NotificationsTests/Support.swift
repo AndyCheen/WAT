@@ -26,6 +26,13 @@ enum Fixture {
         NotificationContext(now: now, timeZone: kyiv, goalMl: 2000, countedMl: countedMl,
                             intakesToday: intakes, lastIntakeAt: intakes.max())
     }
+
+    /// Порції з об'ємами — для цілей частин доби (§9); випите й моменти рахуються з них.
+    static func context(at now: Date, portions: [Portion]) -> NotificationContext {
+        var context = context(at: now, countedMl: portions.reduce(0) { $0 + $1.ml }, intakes: portions.map(\.at))
+        context.portionsToday = portions
+        return context
+    }
 }
 
 /// Проганяє день подія за подією: на кожній порції план перебудовується, а між подіями
@@ -43,6 +50,7 @@ struct DaySimulator {
         var delivered: [PlannedNotification] = []
         var drank = 0
         var times: [Date] = []
+        var portions: [Portion] = []
         var now = start
         let events = intakes.sorted { $0.date < $1.date }
 
@@ -50,6 +58,7 @@ struct DaySimulator {
             var context = base(now)
             context.countedMl = min(drank, Int(Double(context.goalMl) * 1.2))
             context.intakesToday = times
+            context.portionsToday = portions
             context.lastIntakeAt = times.max() ?? context.lastIntakeAt
             let plan = NotificationPlanner.plan(context: context, preferences: preferences, journal: journal, rules: rules)
 
@@ -64,9 +73,16 @@ struct DaySimulator {
             guard index < events.count else { break }
             drank += events[index].ml
             times.append(events[index].date)
+            portions.append(Portion(at: events[index].date, ml: events[index].ml))
             now = events[index].date
         }
         return delivered
+    }
+
+    /// Усе доставлене за день як «08:00 morning», «11:15 checkpoint»… — для днів з кількома типами.
+    func timeline(intakes: [(date: Date, ml: Int)], from start: Date = Fixture.date(7),
+                  until end: Date = Fixture.date(23, 59)) -> [String] {
+        run(intakes: intakes, from: start, until: end).map { "\(Fixture.clock($0.fireAt)) \($0.type.key)" }
     }
 
     func reminders(intakes: [(date: Date, ml: Int)], from start: Date = Fixture.date(7),

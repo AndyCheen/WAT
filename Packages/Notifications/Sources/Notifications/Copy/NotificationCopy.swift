@@ -27,7 +27,8 @@ struct CopyVariant: Equatable {
 /// ≤ 30 символів, текст ≤ 100. Тест `CopyCatalogTests` перевіряє все це на найгірших значеннях.
 ///
 /// Плейсхолдери: `{left}` — скільки бракує, `{glass}` — моя склянка, `{streak}` — серія з
-/// узгодженим словом («12 днів»), `{since}` — від останньої порції, `{total}` — випито за день.
+/// узгодженим словом («12 днів»), `{since}` — від останньої порції, `{total}` — випито за день,
+/// `{deadline}` — кінець частини доби («12:00»), `{part}` — її назва («полудень»), `{xp}` — нагорода.
 enum NotificationCopy {
     static let reminderPrimary: [CopyVariant] = [
         CopyVariant(id: 0, title: "💧 Час на воду",
@@ -81,6 +82,21 @@ enum NotificationCopy {
                     body: "Учора норму не закрито. Заморозь учорашній день — і почни ранок зі склянки")
     ]
 
+    /// Чекпоінт частини доби (§9). Третій варіант — правка від 05.10.2026: §14.1 вимагає 3–5
+    /// формулювань на тип, а §14.2 давав два. «{part} закрито» — безособовий зворот, без роду.
+    static let checkpoint: [CopyVariant] = [
+        CopyVariant(id: 0, title: "До {deadline} — {left}", body: "Встигнеш — і {part} закрито (+{xp} XP)"),
+        CopyVariant(id: 1, title: "Частина дня на фініші", body: "Ще {left} до {deadline}, і ця частина зарахована"),
+        CopyVariant(id: 2, title: "🎯 Ще {left} до {deadline}", body: "Невеликий ривок — і {part} зараховано, +{xp} XP")
+    ]
+
+    /// Звіти (§11.2, §14.2) — одне формулювання: зміст і так щоразу інший, бо це числа
+    /// (рішення від 05.10.2026). Тіло складає `ReportText`: частини додаються, лише коли є дані.
+    static let reportDay = CopyVariant(id: 0, title: "Підсумок дня", body: "{report}")
+    static let reportWeek = CopyVariant(id: 1, title: "Тиждень: {goalDays} з {dayCount} днів норми", body: "{report}")
+    static let reportMonth = CopyVariant(id: 2, title: "{month}: {goalDaysPlural} норми", body: "{report}")
+    static let reportWeekMonth = CopyVariant(id: 3, title: "Підсумки тижня й місяця", body: "{report}")
+
     static let comebackFirst: [CopyVariant] = [
         CopyVariant(id: 0, title: "💧 Почнімо знову", body: "Перерва звичку не ламає. Одна склянка — і новий початок"),
         CopyVariant(id: 1, title: "Склянка на старт",
@@ -101,7 +117,8 @@ enum NotificationCopy {
     /// Усе, що може потрапити в план, — для тесту каталогу.
     static var all: [CopyVariant] {
         reminderPrimary + reminderFollowUp + morning + eveningClosable + eveningStreak + eveningSoothing
-            + rescueEvening + rescueMorning + comebackFirst + [comebackLastWithGift, comebackLast]
+            + rescueEvening + rescueMorning + checkpoint + comebackFirst + [comebackLastWithGift, comebackLast]
+            + [reportDay, reportWeek, reportMonth, reportWeekMonth]
     }
 
     // MARK: - Вставки контексту (§12.2, §14.3)
@@ -150,6 +167,57 @@ public enum EchoText {
 
     public static func bounceBack(xp: Int) -> (title: String, body: String) {
         ("🔁 Знову в ритмі: +\(xp) XP", "Норму закрито — ритм повернувся")
+    }
+}
+
+/// Тіла звітів «головне число + динаміка + одна деталь» (§11.2). Кожна частина додається, лише
+/// поки текст вміщується в 100 символів: деталь краще втратити, ніж обрізати рядок на екрані блокування.
+enum ReportText {
+    static let limit = 100
+
+    /// «1,8 л з 2 л (90 %) · серія 12 днів · найслабше — вечір»
+    static func day(_ digest: ReportDigest, streak: Int) -> String {
+        let percent = digest.goalMl > 0 ? Int((Double(digest.totalMl) / Double(digest.goalMl) * 100).rounded()) : 0
+        var parts = ["\(NotificationFormat.volume(digest.totalMl)) з \(NotificationFormat.volume(digest.goalMl)) (\(percent) %)"]
+        if streak > 0 { parts.append("серія \(Plural.days(streak))") }
+        if let weakest = digest.weakestPart { parts.append("найслабше — \(weakest)") }
+        return joined(parts)
+    }
+
+    /// «У середньому 1,9 л на день — на 8 % більше, ніж минулого тижня»
+    static func week(_ digest: ReportDigest) -> String {
+        let average = "У середньому \(NotificationFormat.volume(digest.averageMl)) на день"
+        guard let change = digest.averageChangePercent, change != 0 else {
+            return joined([average, "усього \(NotificationFormat.volume(digest.totalMl))"])
+        }
+        return "\(average) — на \(abs(change)) % \(change > 0 ? "більше" : "менше"), ніж минулого тижня"
+    }
+
+    /// «52 л за місяць — це 208 склянок · найдовша серія 9 днів»
+    static func month(_ digest: ReportDigest) -> String {
+        let glasses = Plural.uk(digest.glasses, one: "склянка", few: "склянки", many: "склянок")
+        var parts = ["\(NotificationFormat.volume(digest.totalMl)) за місяць — це \(digest.glasses) \(glasses)"]
+        if digest.longestStreak >= 2 { parts.append("найдовша серія \(Plural.days(digest.longestStreak))") }
+        return joined(parts)
+    }
+
+    /// «Тиждень: 5 з 7 днів норми · вересень: 22 дні норми»
+    static func weekMonth(week: ReportDigest, month: ReportDigest) -> String {
+        joined(["Тиждень: \(week.goalDays) з \(week.dayCount) днів норми",
+                "\(monthName(month.period).lowercased()): \(Plural.days(month.goalDays)) норми"])
+    }
+
+    static func monthName(_ period: ReportPeriod) -> String {
+        guard case .month(let month) = period else { return "" }
+        return CalendarService.monthNames[max(1, min(12, month.month)) - 1]
+    }
+
+    private static func joined(_ parts: [String]) -> String {
+        var text = parts[0]
+        for part in parts.dropFirst() where (text + " · " + part).count <= limit {
+            text += " · " + part
+        }
+        return text
     }
 }
 

@@ -47,7 +47,7 @@ public final class QuietPeriod {
     public static let allDays = 0b1111111
 }
 
-/// Налаштування сповіщень за типами — один рядок (SPEC-NOTIFICATIONS §15.1, етап A).
+/// Налаштування сповіщень за типами — один рядок (SPEC-NOTIFICATIONS §15.1, етапи A і B).
 ///
 /// Головний вимикач, режим дня й склянка живуть у `UserProfile`; тут — лише те, що
 /// стосується самих сповіщень, і службовий стан (пауза, запит дозволу, остання взаємодія).
@@ -66,6 +66,18 @@ public final class NotificationSettings {
     public var eveningEnabled: Bool = true
     /// `nil` — «за 2 год до відбою».
     public var eveningCustomMinutes: Int?
+
+    /// Чекпоінти частин доби (§9, етап B).
+    public var checkpointsEnabled: Bool = true
+
+    // Звіти (§11.1, етап B). Денний — о відбої, тихо; тижневий і місячний — о заданій годині.
+    public var dailyReportEnabled: Bool = true
+    public var weeklyReportEnabled: Bool = true
+    /// 0 — понеділок … 6 — неділя.
+    public var weeklyReportWeekday: Int = 0
+    public var weeklyReportMinutes: Int = 10 * 60
+    public var monthlyReportEnabled: Bool = true
+    public var monthlyReportMinutes: Int = 10 * 60
 
     public var rescueEnabled: Bool = true
     public var echoEnabled: Bool = true

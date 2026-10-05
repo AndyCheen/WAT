@@ -33,9 +33,9 @@ struct GameEnv {
         game.bootstrap()
     }
 
-    static func date(day: Int, hour: Int, month: Int = 7, year: Int = 2026) -> Date {
+    static func date(day: Int, hour: Int, minute: Int = 0, month: Int = 7, year: Int = 2026) -> Date {
         var c = DateComponents()
-        c.year = year; c.month = month; c.day = day; c.hour = hour
+        c.year = year; c.month = month; c.day = day; c.hour = hour; c.minute = minute
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = TimeZone(identifier: "Europe/Kyiv")!
         return cal.date(from: c)!
@@ -55,6 +55,40 @@ struct GameEnv {
             name: .dayGoalMet, value: 1, occurredAt: date,
             sourceRef: DeterministicID.uuid(from: "day.goalMet:\(key)")
         ))
+    }
+
+    /// Справжня порція в денному лозі + події — як у `HydrationService`, але без нього:
+    /// XP за частину доби рахує порції за часом, тож однієї події тут замало.
+    @discardableResult
+    func addIntake(_ ml: Int, hour: Int, minute: Int = 0, day: Int = 18) -> UUID {
+        let date = Self.date(day: day, hour: hour, minute: minute)
+        let log = dayLogs.dayLog(for: calendar.dayKey(for: date), goalMl: 2000, timeZoneId: "Europe/Kyiv")
+        let intake = Intake(amountMl: ml, createdAt: date)
+        dayLogs.insert(intake, into: log)
+        dayLogs.save()
+        publishIntake(intake)
+        return intake.id
+    }
+
+    func removeIntake(_ id: UUID) {
+        guard let intake = dayLogs.intake(id: id) else { return }
+        intake.deletedAt = clock.now
+        dayLogs.save()
+        metrics.revert(sourceRef: id, at: clock.now)
+        metrics.commit()
+    }
+
+    func restoreIntake(_ id: UUID) {
+        guard let intake = dayLogs.intake(id: id) else { return }
+        intake.deletedAt = nil
+        dayLogs.save()
+        publishIntake(intake)
+    }
+
+    private func publishIntake(_ intake: Intake) {
+        metrics.record(MetricEvent(name: .intakeAdded, value: Double(intake.amountMl), occurredAt: intake.createdAt, sourceRef: intake.id))
+        metrics.record(MetricEvent(name: .intakeCount, value: 1, occurredAt: intake.createdAt, sourceRef: intake.id))
+        metrics.commit()
     }
 
     func addIntakeEvent(_ ml: Int, hour: Int = 10, day: Int = 18) -> UUID {

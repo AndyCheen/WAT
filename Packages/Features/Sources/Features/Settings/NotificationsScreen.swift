@@ -4,9 +4,9 @@ import Persistence
 import DesignSystem
 import Notifications
 
-/// Екран «Сповіщення» — рядки етапу A з SPEC-NOTIFICATIONS §15.1. Повна верстка — WAT-18
-/// разом з окремим вікном налаштувань (WAT-15); макету ще немає, тож екран зібраний із
-/// компонентів шторки налаштувань.
+/// Екран «Сповіщення» — рядки етапів A і B з SPEC-NOTIFICATIONS §15.1. Повна верстка — WAT-18
+/// разом з окремим вікном налаштувань (WAT-15); рядки етапу B — за макетом
+/// Design/Notifications.html (кадр 7), тими самими компонентами.
 public struct NotificationsScreen: View {
     @Environment(\.wtTheme) private var theme
     @State private var model: NotificationsSettingsModel
@@ -36,6 +36,7 @@ public struct NotificationsScreen: View {
                     quietPeriods
                     duringDay
                     evening
+                    reports
                     other
                     #if DEBUG
                     WTCard {
@@ -175,6 +176,10 @@ public struct NotificationsScreen: View {
                 }
             }
             WTDivider()
+            WTSettingRow("Частини доби", subtitle: "«До 12:00 — ще 150 мл», якщо можна встигнути") {
+                WTToggle(isOn: model.toggle(\.checkpointsEnabled)).accessibilityIdentifier("notifications.checkpoints")
+            }
+            WTDivider()
             WTSettingRow("Ранкова склянка", subtitle: "Якщо зранку ще немає порцій") {
                 WTToggle(isOn: model.toggle(\.morningEnabled)).accessibilityIdentifier("notifications.morning")
             }
@@ -211,6 +216,49 @@ public struct NotificationsScreen: View {
             WTDivider()
             WTSettingRow("Порятунок серії", subtitle: "Коли заморозка ще може врятувати серію") {
                 WTToggle(isOn: model.toggle(\.rescueEnabled)).accessibilityIdentifier("notifications.rescue")
+            }
+        }
+    }
+
+    // MARK: - Звіти (§11.1)
+
+    private var reports: some View {
+        section("ЗВІТИ") {
+            WTSettingRow("Денний", subtitle: "Тихо, о відбої") {
+                WTToggle(isOn: model.toggle(\.dailyReportEnabled)).accessibilityIdentifier("notifications.reportDay")
+            }
+            WTDivider()
+            WTSettingRow("Тижневий", subtitle: "Підсумки минулого тижня") {
+                WTToggle(isOn: model.toggle(\.weeklyReportEnabled)).accessibilityIdentifier("notifications.reportWeek")
+            }
+            if model.settings.weeklyReportEnabled {
+                HStack {
+                    WTWeekdayPicker(
+                        titles: CalendarService.weekdayLabels,
+                        isSelected: { $0 == model.settings.weeklyReportWeekday },
+                        identifierPrefix: "notifications.reportWeekday",
+                        onToggle: model.selectReportWeekday
+                    )
+                    Spacer(minLength: 0)
+                }
+                WTSettingRow("Час") {
+                    WTValueStepper(NotificationsSettingsModel.time(model.settings.weeklyReportMinutes),
+                                   identifier: "notifications.reportWeekTime",
+                                   onDecrement: { model.stepReportTime(weekly: true, -1) },
+                                   onIncrement: { model.stepReportTime(weekly: true, 1) })
+                }
+            }
+            WTDivider()
+            WTSettingRow("Місячний", subtitle: "1-го числа") {
+                WTToggle(isOn: model.toggle(\.monthlyReportEnabled)).accessibilityIdentifier("notifications.reportMonth")
+            }
+            if model.settings.monthlyReportEnabled {
+                WTSettingRow("Час") {
+                    WTValueStepper(NotificationsSettingsModel.time(model.settings.monthlyReportMinutes),
+                                   identifier: "notifications.reportMonthTime",
+                                   onDecrement: { model.stepReportTime(weekly: false, -1) },
+                                   onIncrement: { model.stepReportTime(weekly: false, 1) })
+                }
             }
         }
     }

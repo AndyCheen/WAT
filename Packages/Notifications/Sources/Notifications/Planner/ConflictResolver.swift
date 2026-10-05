@@ -7,7 +7,9 @@ import Foundation
 /// - основне нагадування зсувається на +30 хв від сильнішого (якщо ще встигає до відсічки);
 /// - повторне скасовується;
 /// - фіксовані типи (ранок, вечір, повернення) поступаються сильнішому, а показаному —
-///   зсуваються; порятунок не скасовується ніколи.
+///   зсуваються; порятунок не скасовується ніколи;
+/// - звіт зсувається на +30 хв від будь-якого — і після відбою теж: денний звіт і так стоїть
+///   рівно о відбої, а тихий звіт уночі нікого не будить.
 struct ConflictResolver {
     let spacing: TimeInterval
     let frame: DayFrame
@@ -30,6 +32,12 @@ struct ConflictResolver {
                     placed = true
                     break
                 }
+                if current.item.type == .report {
+                    let moved = blocker.addingTimeInterval(spacing)
+                    guard moved < frame.date(minute: 24 * 60) else { break }
+                    current.item.fireAt = moved
+                    continue
+                }
                 let canMove: Bool
                 switch current.item.priority {
                 case .reminderFollowUp: canMove = false
@@ -51,7 +59,9 @@ struct ConflictResolver {
 /// потім ранок і повернення, останнім — вечірній підсумок.
 enum DailyCap {
     static func apply(_ candidates: [Candidate], shownCount: Int, cap: Int) -> [Candidate] {
-        var kept = candidates
+        // Тихі звіти в ліміт не входять і не скорочуються (§13.1).
+        let reports = candidates.filter { $0.item.type == .report }
+        var kept = candidates.filter { $0.item.type != .report }
         let order: [NotificationPriority] = [.reminderFollowUp, .reminderPrimary, .checkpoint, .challenge, .morning, .evening]
         for priority in order {
             while shownCount + kept.count > cap,
@@ -59,6 +69,6 @@ enum DailyCap {
                 kept.remove(at: index)
             }
         }
-        return kept
+        return (kept + reports).sorted { $0.item.fireAt < $1.item.fireAt }
     }
 }

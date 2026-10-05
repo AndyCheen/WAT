@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WaterTracker — сповіщення, етап B (WAT-37)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Токени — DESIGN-TOKENS.md §2. Кадр 402×874, 1px = 1pt. Нових кольорів немає:
+   «вода» — градієнт кільця прогресу (#bfe3ff → #6bb6f2, темна — #8fd0ff → #3b6ef5). */
+:root{
+  --screen:#f7fbff; --card:#fff; --chip:#eaf4ff; --button:#eaf4ff;
+  --text:#1f4a72; --muted:#8aa1bd; --btn-text:#3d8fd6; --accent:#5aa9f0;
+  --line:rgba(31,74,114,.10); --track:#e4f0fb; --dot-off:#dce8f3;
+  --orange:#ff8a3d; --success:#3ea86b; --gold-bg:#fff2e2; --sec-text:#5c7291;
+  --w1:#bfe3ff; --w2:#6bb6f2; --deep:#3d8fd6; --glass:rgba(31,74,114,.20);
+  --r-chip:12px; --r-control:14px; --r-panel:22px; --r-card:24px; --r-pill:999px;
+}
+.dark{
+  --screen:#0c1524; --card:#161f33; --chip:#17233a; --button:#17233a;
+  --text:#eaf2ff; --muted:#8ba0bd; --btn-text:#bcd8ff; --accent:#7cc4ff;
+  --line:rgba(255,255,255,.08); --track:rgba(255,255,255,.08); --dot-off:rgba(255,255,255,.14);
+  --w1:#8fd0ff; --w2:#3b6ef5; --deep:#2a55c9; --glass:rgba(255,255,255,.25); --sec-text:#8ba0bd; --gold-bg:#2a2a2a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#e9eef5;font-family:Nunito,system-ui,sans-serif;color:#1f4a72;padding:40px 28px 80px}
+h1{font-size:20px;font-weight:800;margin-bottom:6px}
+h2{font-size:16px;font-weight:800;margin:48px 0 6px}
+.lead{font-size:13px;font-weight:700;color:#5c7291;margin-bottom:24px;max-width:860px;line-height:1.5}
+.lead code,.frame-note code{font-size:12px}
+.row{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+.frame-wrap{width:402px}
+.frame-cap{font-size:12px;font-weight:800;letter-spacing:.3px;color:#5c7291;margin-bottom:8px;text-transform:uppercase}
+.frame-note{font-size:12px;font-weight:700;color:#5c7291;margin-top:10px;line-height:1.45}
+.frame{width:402px;height:874px;background:var(--screen);border-radius:38px;position:relative;overflow:hidden;
+       box-shadow:0 18px 50px rgba(31,74,114,.18);color:var(--text);user-select:none}
+.num{font-family:Fredoka,Nunito,sans-serif}
+.circle-btn{width:38px;height:38px;border-radius:var(--r-pill);background:var(--chip);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:16px;font-weight:900;flex:0 0 auto;cursor:pointer}
+.primary{width:100%;height:56px;border-radius:var(--r-control);background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;cursor:pointer;border:0;font-family:inherit}
+.primary .num{font-weight:600;margin:0 5px}
+.jump{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.jump button{height:28px;min-width:28px;padding:0 9px;border-radius:var(--r-pill);border:0;background:#dbe6f3;color:#1f4a72;font:800 12px Nunito;cursor:pointer}
+.jump button.on{background:#5aa9f0;color:#fff}
+
+/* =================== 1. СКЛЯНКА — окреме вікно =================== */
+.gscr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;padding:60px 26px 40px}
+.gtop{width:100%;display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.gtop .tag{font-size:12px;font-weight:900;letter-spacing:.4px;color:var(--muted)}
+.gtitle{font-size:28px;font-weight:700;text-align:center;line-height:1.15}
+.gsub{font-size:15px;font-weight:700;color:var(--muted);text-align:center;margin-top:6px;max-width:300px;line-height:1.35}
+.gval{margin-top:18px;display:flex;align-items:baseline;gap:6px}
+.gval b{font-family:Fredoka;font-size:64px;font-weight:600;line-height:1}
+.gval span{font-size:17px;font-weight:800;color:var(--muted)}
+.gfrac{height:20px;font-size:14px;font-weight:900;color:var(--btn-text);margin-top:2px}
+.gstage{position:relative;margin:10px 0 0;display:flex;align-items:flex-end;gap:10px;flex:1;min-height:0;justify-content:center}
+.glass-svg{cursor:ns-resize;touch-action:none;overflow:visible}
+.gticks{position:relative;width:46px;height:290px}
+.gticks i{position:absolute;left:0;font-style:normal;font-size:12px;font-weight:900;color:var(--muted);display:flex;align-items:center;gap:5px;transition:color .2s}
+.gticks i::before{content:"";width:10px;height:2px;border-radius:2px;background:var(--dot-off);transition:background .2s}
+.gticks i.on{color:var(--btn-text)} .gticks i.on::before{background:var(--accent)}
+.gchips{display:flex;gap:8px;width:100%;margin:18px 0 14px}
+.gchip{flex:1;height:52px;border-radius:var(--r-chip);background:var(--chip);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:background .2s}
+.gchip b{font-size:17px;font-weight:800;color:var(--btn-text);line-height:1.1}
+.gchip small{font-size:11px;font-weight:800;color:var(--muted)}
+.gchip.on{background:var(--accent)} .gchip.on b,.gchip.on small{color:#fff}
+.gchip.fred b{font-family:Fredoka;font-weight:600}
+.gmine{margin-top:14px;font-size:13px;font-weight:700;color:var(--muted)}
+.gmine a{color:var(--btn-text);font-weight:900;cursor:pointer}
+/* бульбашки — фоновий рух; під Reduce Motion їх немає */
+.bubbles{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.bubbles i{position:absolute;bottom:-20px;border-radius:50%;background:var(--accent);opacity:.10;animation:rise linear infinite}
+@keyframes rise{to{transform:translateY(-920px)}}
+/* стан «записано» */
+.done{position:absolute;inset:0;background:linear-gradient(180deg,var(--w1),var(--w2));display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;
+      opacity:0;pointer-events:none;transition:opacity .35s}
+.done.show{opacity:1}
+.done .plus{font-family:Fredoka;font-size:72px;font-weight:600;line-height:1;transform:scale(.6);transition:transform .5s cubic-bezier(.22,1.4,.36,1)}
+.done.show .plus{transform:scale(1)}
+.done p{font-size:18px;font-weight:800;margin-top:8px;opacity:.95}
+.done .ringmini{margin-top:26px;width:120px;height:120px}
+
+/* =================== 2. ЗВІТ — історія =================== */
+.lock{width:402px;border-radius:24px;background:linear-gradient(160deg,#4f6b8f,#26364d);padding:18px 14px;display:flex;flex-direction:column;gap:10px}
+.note{background:rgba(255,255,255,.84);border-radius:20px;padding:12px 14px;display:flex;gap:10px;color:#111;cursor:pointer}
+.note .app{width:34px;height:34px;border-radius:9px;background:linear-gradient(160deg,#8fd0ff,#3b6ef5);flex:0 0 auto}
+.note .nb{flex:1;min-width:0}
+.note .nh{display:flex;font-size:13px;font-weight:800;gap:8px}
+.note .nh small{margin-left:auto;font-size:12px;font-weight:600;color:#666}
+.note .nh em{font-style:normal;font-size:10px;font-weight:900;color:#888;letter-spacing:.3px;text-transform:uppercase;align-self:center}
+.note .nt{font-size:14px;font-weight:600;line-height:1.3}
+
+.story{position:absolute;inset:0;overflow:hidden;cursor:pointer}
+.bars{position:absolute;top:56px;left:16px;right:16px;display:flex;gap:4px;z-index:5}
+.bars i{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.35);overflow:hidden}
+.bars i b{display:block;height:100%;width:0;background:#fff}
+.bars i.seen b{width:100%}
+.bars.ink i{background:rgba(31,74,114,.15)} .bars.ink i b{background:var(--text)}
+.sclose{position:absolute;top:70px;right:16px;z-index:6;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.25);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900}
+.shead{position:absolute;top:76px;left:22px;z-index:6;font-size:12px;font-weight:900;letter-spacing:.5px;opacity:.85}
+.slide{position:absolute;inset:0;padding:130px 28px 48px;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .35s}
+.slide.active{opacity:1;pointer-events:auto}
+.slide.water{background:linear-gradient(180deg,var(--w1) 0%,var(--w2) 70%,var(--deep) 100%);color:#fff}
+.slide.plain{background:var(--screen);color:var(--text)}
+.kicker{font-size:13px;font-weight:900;letter-spacing:.6px;opacity:.8;text-transform:uppercase}
+.big{font-family:Fredoka;font-weight:600;line-height:.95}
+.h{font-size:30px;font-weight:800;line-height:1.12}
+.p{font-size:17px;font-weight:700;line-height:1.4;opacity:.92}
+.muted{color:var(--muted)}
+.foot{margin-top:auto}
+.pill{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;border-radius:var(--r-pill);font-size:14px;font-weight:900}
+.pill.up{background:rgba(62,168,107,.14);color:var(--success)}
+.pill.down{background:rgba(255,138,61,.14);color:var(--orange)}
+.water .pill{background:rgba(255,255,255,.22);color:#fff}
+/* поява елементів слайда: .a — з'являється з затримкою --d */
+.slide .a,.slide .pop{opacity:0}
+.slide .a{transform:translateY(14px)}
+.slide.active .a{animation:up .55s cubic-bezier(.22,1,.36,1) forwards;animation-delay:var(--d,0s)}
+@keyframes up{to{opacity:1;transform:none}}
+.slide.active .pop{animation:pop .5s cubic-bezier(.22,1.5,.36,1) forwards;animation-delay:var(--d,0s)}
+@keyframes pop{0%{opacity:0;transform:scale(.3)}100%{opacity:1;transform:scale(1)}}
+/* хвиля внизу обкладинки */
+.wave{position:absolute;left:-50%;right:-50%;bottom:0;height:var(--lvl,40%);background:rgba(255,255,255,.16);border-radius:45% 45% 0 0;transform:translateY(100%)}
+.slide.active .wave{animation:fill 1.6s cubic-bezier(.22,1,.36,1) forwards, sway 6s ease-in-out 1.6s infinite}
+.wave.w2{background:rgba(255,255,255,.10);border-radius:40% 48% 0 0}
+.slide.active .wave.w2{animation:fill 1.9s cubic-bezier(.22,1,.36,1) forwards, sway 7s ease-in-out 1.9s infinite reverse}
+@keyframes fill{to{transform:translateY(0)}}
+@keyframes sway{0%,100%{transform:translateX(0)}50%{transform:translateX(6%)}}
+/* сітка склянок / крапель */
+.grid{display:grid;gap:7px}
+.grid i{opacity:0}
+.slide.active .grid i{animation:pop .35s cubic-bezier(.22,1.5,.36,1) forwards}
+.drop{width:22px;height:28px}
+/* краплі днів тижня */
+.days{display:flex;justify-content:space-between;margin-top:26px}
+.days div{display:flex;flex-direction:column;align-items:center;gap:8px}
+.days small{font-size:12px;font-weight:900;color:var(--muted)}
+.dsvg{width:40px;height:52px;overflow:visible}
+.dsvg .fill{transform:translateY(100%);transform-box:fill-box}
+.slide.active .dsvg .fill{animation:fill .7s cubic-bezier(.22,1,.36,1) forwards;animation-delay:var(--d)}
+/* стовпці */
+.cols{display:flex;align-items:flex-end;gap:10px;height:250px;position:relative;margin-top:26px;padding-bottom:26px}
+.cols .goal{position:absolute;left:0;right:0;border-top:2px dashed rgba(31,74,114,.3)}
+.cols .goal span{position:absolute;right:0;top:-18px;font-size:11px;font-weight:900;color:var(--muted)}
+.cols p{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative}
+.cols p i{width:100%;max-width:34px;border-radius:10px;background:var(--dot-off);height:0}
+.cols p i.ok{background:var(--accent)}
+.cols p i.best{background:linear-gradient(180deg,var(--orange),#ffb27a)}
+.slide.active .cols p i{animation:grow .8s cubic-bezier(.22,1,.36,1) forwards;animation-delay:var(--d)}
+@keyframes grow{to{height:var(--h)}}
+.cols p small{position:absolute;bottom:-24px;font-size:12px;font-weight:900;color:var(--muted)}
+.cols p em{position:absolute;font-style:normal;font-size:22px;opacity:0;bottom:calc(var(--h) + 8px)}
+.slide.active .cols p em{animation:pop .5s cubic-bezier(.22,1.5,.36,1) forwards;animation-delay:1.3s}
+/* дуга доби */
+.arc{width:346px;height:210px;overflow:visible;margin:22px auto 0;display:block}
+.arc path.seg{fill:none;stroke-linecap:round;stroke-dasharray:var(--len);stroke-dashoffset:var(--len)}
+.slide.active .arc path.seg{animation:draw .8s ease-out forwards;animation-delay:var(--d)}
+@keyframes draw{to{stroke-dashoffset:0}}
+.arc text{font:800 12px Nunito;fill:var(--muted)}
+.arc .sun{opacity:0}
+.slide.active .arc .sun{animation:pop .5s forwards 1.8s}
+.legend2{display:flex;gap:10px;margin-top:14px}
+.legend2 > div{flex:1;border-radius:var(--r-panel);padding:12px 14px;background:var(--chip)}
+.legend2 small{font-size:11px;font-weight:900;letter-spacing:.3px;color:var(--muted)}
+.legend2 b{display:block;font-size:18px;font-weight:800;margin-top:2px}
+.legend2 span{font-size:14px;font-weight:900}
+/* таймлайн дня */
+.tl{position:relative;height:150px;margin-top:30px}
+.tl .axis{position:absolute;left:0;right:0;top:92px;height:4px;border-radius:2px;background:var(--track)}
+.tl .blk{position:absolute;top:84px;height:20px;border-radius:10px}
+.tl .blk.ok{background:rgba(62,168,107,.16);border:2px solid rgba(62,168,107,.55)}
+.tl .blk.no{background:transparent;border:2px dashed var(--dot-off)}
+.tl .d{position:absolute;top:0;width:22px;height:28px;margin-left:-11px;opacity:0}
+.slide.active .tl .d{animation:fall .6s cubic-bezier(.3,1.4,.5,1) forwards;animation-delay:var(--d)}
+@keyframes fall{0%{opacity:0;transform:translateY(-40px)}100%{opacity:1;transform:translateY(58px)}}
+.tl .t{position:absolute;top:116px;font-size:11px;font-weight:900;color:var(--muted);transform:translateX(-50%)}
+.tl .mark{position:absolute;top:44px;font-size:12px;font-weight:900;transform:translateX(-50%);opacity:0;white-space:nowrap}
+.slide.active .tl .mark{animation:up .5s forwards 1.6s}
+.chk{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.chk div{display:flex;align-items:center;gap:12px;font-size:16px;font-weight:700}
+.chk i{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:13px;font-weight:900;flex:0 0 auto}
+.chk i.ok{background:var(--success);color:#fff} .chk i.no{border:2px solid var(--dot-off);color:var(--muted)}
+.chk span{margin-left:auto;font-size:14px;font-weight:900;color:var(--muted)}
+/* велика склянка (день) */
+.bigglass{display:block;margin:16px auto 0}
+.bigglass .lv{transform:translateY(0)}
+.slide.active .bigglass .lv{animation:lvl 1.6s cubic-bezier(.22,1,.36,1) forwards}
+@keyframes lvl{to{transform:translateY(var(--y))}}
+/* серія */
+.chain{display:flex;align-items:center;justify-content:center;margin-top:24px}
+.chain i{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.95);color:var(--deep);display:flex;align-items:center;justify-content:center;font-style:normal;font-size:12px;font-weight:900;opacity:0}
+.chain u{width:8px;height:3px;background:rgba(255,255,255,.6);opacity:0}
+.slide.active .chain i,.slide.active .chain u{animation:pop .4s forwards;animation-delay:var(--d)}
+.flame{font-size:84px;line-height:1;text-align:center;margin-top:12px}
+.slide.active .flame{animation:pop .6s cubic-bezier(.22,1.5,.36,1) forwards, flick 1.6s ease-in-out .6s infinite}
+@keyframes flick{0%,100%{opacity:1;transform:scale(1) rotate(-2deg)}50%{opacity:1;transform:scale(1.06) rotate(2deg)}}
+/* XP / рівень */
+.lvl{width:170px;height:170px;margin:22px auto 0;position:relative}
+.lvl svg{width:100%;height:100%;transform:rotate(-90deg)}
+.lvl circle.p{stroke-dasharray:440;stroke-dashoffset:440}
+.slide.active .lvl circle.p{animation:ring 1.4s cubic-bezier(.22,1,.36,1) forwards .3s}
+@keyframes ring{to{stroke-dashoffset:var(--off)}}
+.lvl .in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.lvl .in small{font-size:12px;font-weight:900;letter-spacing:.4px;opacity:.8}
+.lvl .in b{font-family:Fredoka;font-size:52px;font-weight:600;line-height:1}
+.badges{display:flex;gap:10px;justify-content:center;margin-top:20px;flex-wrap:wrap}
+.badges span{height:40px;padding:0 14px;border-radius:var(--r-pill);background:rgba(255,255,255,.22);display:flex;align-items:center;gap:6px;font-size:14px;font-weight:900}
+/* календар-мозаїка */
+.mosaic{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:22px}
+.mosaic b{font-size:11px;font-weight:900;color:var(--muted);text-align:center}
+.mosaic i{width:40px;height:40px;margin:0 auto;border-radius:12px;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:12px;font-weight:900;color:#fff;opacity:0}
+.mosaic i.g{background:var(--accent)} .mosaic i.h{background:rgba(90,169,240,.45)} .mosaic i.z{background:var(--dot-off);color:var(--muted)}
+.mosaic i.s{box-shadow:0 0 0 3px var(--orange)}
+.mosaic i.x{visibility:hidden}
+.slide.active .mosaic i{animation:pop .35s cubic-bezier(.22,1.5,.36,1) forwards;animation-delay:var(--d)}
+/* відра */
+.buckets{display:flex;gap:10px;justify-content:center;margin-top:30px}
+.bk{width:50px;height:62px}
+.bk svg{width:100%;height:100%;overflow:visible}
+.slide.active .bk .bf{animation:lvl .9s cubic-bezier(.22,1,.36,1) forwards;animation-delay:var(--d)}
+/* будні / вихідні */
+.vs{display:flex;gap:18px;align-items:flex-end;height:220px;margin-top:28px;justify-content:center}
+.vs div{display:flex;flex-direction:column;align-items:center;gap:8px;width:120px}
+.vs div i{width:84px;border-radius:18px 18px 10px 10px;height:0;background:var(--accent)}
+.vs div:last-child i{background:var(--orange)}
+.slide.active .vs div i{animation:grow 1s cubic-bezier(.22,1,.36,1) forwards;animation-delay:var(--d)}
+.vs b{font-family:Fredoka;font-size:26px;font-weight:600}
+.vs small{font-size:13px;font-weight:900;color:var(--muted)}
+.cta{display:flex;flex-direction:column;gap:10px}
+.ghost{height:50px;border-radius:var(--r-control);background:var(--chip);color:var(--btn-text);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800}
+/* Reduce Motion — ті самі слайди в кінцевому стані */
+.reduce .slide.active *{animation:none!important}
+.reduce .slide.active .a,.reduce .slide.active .pop,.reduce .slide.active .grid i,.reduce .slide.active .mosaic i,.reduce .slide.active .tl .mark,
+.reduce .slide.active .arc .sun,.reduce .slide.active .chain i,.reduce .slide.active .chain u,.reduce .slide.active .cols p em{opacity:1;transform:none}
+.reduce .slide.active .tl .d{opacity:1;transform:translateY(58px)}
+.reduce .slide.active .wave,.reduce .slide.active .dsvg .fill{transform:none}
+.reduce .slide.active .bigglass .lv,.reduce .slide.active .bk .bf{transform:translateY(var(--y))}
+.reduce .slide.active .cols p i,.reduce .slide.active .vs div i{height:var(--h)}
+.reduce .slide.active .arc path.seg{stroke-dashoffset:0}
+.reduce .slide.active .lvl circle.p{stroke-dashoffset:var(--off)}
+.reduce .bubbles{display:none}
+.toggle-rm{margin:0 0 14px;font:800 12px Nunito;color:#1f4a72;display:flex;gap:8px;align-items:center}
+
+/* =================== 3. НАЛАШТУВАННЯ =================== */
+.scr{padding:64px 24px 44px}
+.navbar{display:flex;align-items:center;height:38px;margin-bottom:16px}
+.navbar .title{flex:1;text-align:center;font-size:20px;font-weight:600}
+.navbar .pad{width:38px}
+.card{background:var(--card);border-radius:var(--r-card);padding:10px 18px;box-shadow:0 8px 24px rgba(30,60,120,.06)}
+.sec-label{font-size:13px;font-weight:800;letter-spacing:.3px;color:var(--muted);margin:4px 0 8px 4px}
+.srow{display:flex;align-items:center;gap:12px;padding:8px 0}
+.srow .st{flex:1}
+.srow .st b{display:block;font-size:16px;font-weight:700}
+.srow .st small{font-size:13px;font-weight:600;color:var(--muted)}
+.toggle{width:52px;height:31px;border-radius:var(--r-pill);background:var(--accent);position:relative;flex:0 0 auto}
+.toggle::after{content:"";position:absolute;left:24px;top:3px;width:25px;height:25px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.15)}
+.divider{height:1px;background:var(--line)}
+.stepper{display:flex;align-items:center;gap:10px}
+.stepper i{width:34px;height:34px;border-radius:50%;background:var(--button);color:var(--btn-text);display:flex;align-items:center;justify-content:center;font-style:normal;font-size:18px;font-weight:800}
+.stepper b{min-width:62px;text-align:center;font-family:Fredoka;font-size:18px;font-weight:600}
+.wd{display:flex;gap:6px;padding:4px 0 8px}
+.wd i{width:36px;height:36px;border-radius:50%;background:var(--chip);display:flex;align-items:center;justify-content:center;font-style:normal;font-size:13px;font-weight:900}
+.wd i.on{background:var(--accent);color:#fff}
+.new-badge{display:inline-block;margin-left:6px;font-size:10px;font-weight:900;color:#fff;background:var(--orange);border-radius:var(--r-pill);padding:1px 7px;vertical-align:2px}
+.hl{outline:2px dashed rgba(255,138,61,.7);outline-offset:6px;border-radius:12px}
+</style>
+</head>
+<body>
+
+<h1>Сповіщення, етап B — дизайн (WAT-37), версія 2</h1>
+<p class="lead">Після першого показу: шторка «Склянка» стала <b>окремим вікном</b> на весь екран, а «Звіт» — <b>історією-інфографікою</b>
+замість таблиці статистики (вона вже є на 4a). Макет інтерактивний: склянку можна тягнути, чипи й «Записати» працюють,
+звіти гортаються тапом (праворуч — далі, ліворуч — назад). Кольори — лише наявні токени; «вода» — градієнт кільця прогресу.
+Джерела вимог — <code>SPEC-NOTIFICATIONS.md</code> §7.1, §11, §15.1.</p>
+
+<!-- ============================ 1 ============================ -->
+<h2>1. «Склянка» — окреме вікно (§7.1)</h2>
+<p class="lead">Відкривається <b>лише</b> тапом по ранковій склянці. Найчастіший сценарій — два тапи: сповіщення → «Записати 250 мл».
+Частки — чипи (людина думає «пів склянки», а не «125 мл»); точно — тягнути рівень води в самій склянці, крок 25 мл,
+легкий «тік» вібрації на кожному кроці. Після запису — екран «+250 мл» з кільцем дня (≈ 1 с), і вікно закривається само.
+Фонові бульбашки й хвиля — лише без Reduce Motion. VoiceOver: склянка — регульований елемент ±25 мл, «Склянка, 175 мл, три чверті».</p>
+
+<div class="row">
+  <div class="frame-wrap">
+    <div class="frame-cap">1 · Відкрито зі сповіщення (інтерактив)</div>
+    <div class="frame" id="glassA"></div>
+    <div class="frame-note">Тягни воду в склянці або тисни чипи; «Записати» показує стан після запису.
+    Заголовок — з тексту сповіщення, яке відкрило вікно. Біла рисочка на поверхні — «ручка».
+    Чип, що дав би менше 50 мл, прихований (при склянці &lt; 200 мл немає «¼»).</div>
+  </div>
+
+  <div class="frame-wrap">
+    <div class="frame-cap">2 · Перше відкриття — яка в тебе склянка</div>
+    <div class="frame" id="calib"></div>
+    <div class="frame-note">Один раз — до першого «Готово» (або якщо склянку вже змінили на екрані «Сповіщення»).
+    «змінити» з кадру 1 повертає цей крок. Склянка росте під вибраний об'єм.</div>
+  </div>
+
+  <div class="frame-wrap dark">
+    <div class="frame-cap">3 · Темна тема (інтерактив)</div>
+    <div class="frame" id="glassB"></div>
+    <div class="frame-note">Вода — градієнт кільця темної теми, контур — напівпрозорий білий.
+    Підпис частки («пів склянки», «три чверті») — коли значення точно дорівнює частці.</div>
+  </div>
+</div>
+
+<!-- ============================ 2 ============================ -->
+<h2>2. «Звіт» — історія з інфографіки (§11)</h2>
+<p class="lead">Не дублює 4a: кожен слайд — <b>одна думка, одна картинка, одне-два речення</b>. Цифри «наростають», вода наливається,
+краплі падають у свій час доби. Гортання — тапом, без автоперемикання: людина читає у своєму темпі. Злите сповіщення
+«Підсумки тижня й місяця» грає тиждень, а з останнього слайда — «Далі: вересень ›». Попередній період — кнопкою на останньому
+слайді. Під Reduce Motion — ті самі слайди без руху (перемикач нижче). Звіт не зберігається — рахується з історії на льоту;
+набір слайдів залежить від даних (немає нових рівнів і досягнень — немає слайда «Гра»).</p>
+
+<label class="toggle-rm"><input type="checkbox" id="rm"> Reduce Motion — показати слайди без анімацій</label>
+
+<div class="row" style="margin-bottom:26px">
+  <div class="frame-wrap">
+    <div class="frame-cap">Сповіщення, що ведуть сюди (тап — відкрити)</div>
+    <div class="lock">
+      <div class="note" data-open="day"><div class="app"></div><div class="nb"><div class="nh">Підсумок дня<em>тихо</em><small>22:00</small></div>
+        <div class="nt">1,8 л з 2 л (90 %) · серія 12 днів · найслабше — день</div></div></div>
+      <div class="note" data-open="week"><div class="app"></div><div class="nb"><div class="nh">Тиждень: 5 з 7 днів норми<small>пн 10:00</small></div>
+        <div class="nt">У середньому 1,9 л на день — на 8 % більше, ніж минулого тижня</div></div></div>
+      <div class="note" data-open="month"><div class="app"></div><div class="nb"><div class="nh">Вересень: 22 дні норми<small>1 жовт 10:00</small></div>
+        <div class="nt">52 л за місяць — це 208 склянок · найдовша серія 9 днів</div></div></div>
+    </div>
+    <div class="frame-note">Денний — тихий (без звуку й засвічення, лише в Центрі сповіщень). Тижневий і місячний — без звуку.
+    Звіт за період без жодної порції не надсилається.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="frame-wrap"><div class="frame-cap">4 · День — 4 слайди</div><div class="frame" id="day"></div><div class="jump" data-for="day"></div>
+    <div class="frame-note">Приходить о відбої, тож закінчується на «Добраніч» і завтрашній ранковій склянці.
+    Цілі частин доби — ті самі, за які +10 XP і чекпоінти (§9): при 08:00–22:00 «ранок» іде разом із «полуднем».</div></div>
+  <div class="frame-wrap"><div class="frame-cap">5 · Тиждень — 6 слайдів</div><div class="frame" id="week"></div><div class="jump" data-for="week"></div>
+    <div class="frame-note">Дуга доби — від підйому до відбою; товщина й колір частини — скільки від потрібного, сонце сідає
+    на найслабшу частину. Думка — перше правило §11.4, що спрацювало; під нею — одна дія, яка її виправляє.</div></div>
+  <div class="frame-wrap"><div class="frame-cap">6 · Місяць — 6 слайдів</div><div class="frame" id="month"></div><div class="jump" data-for="month"></div>
+    <div class="frame-note">Об'єм — у відрах по 10 л і склянках «моєї склянки». Мозаїка — дні місяця по черзі (1 вересня — вівторок);
+    помаранчева рамка — найдовша серія.</div></div>
+</div>
+
+<!-- ============================ 3 ============================ -->
+<h2>3. Екран «Сповіщення» — нові рядки (§15.1, етап B)</h2>
+<p class="lead">Повна верстка екрана — WAT-18 разом з окремим вікном налаштувань (WAT-15). Тут — лише рядки етапу B у наявному
+екрані, тими самими компонентами. Під вимкненим перемикачем параметри ховаються, як у «Ранкової склянки».</p>
+
+<div class="row">
+  <div class="frame-wrap">
+    <div class="frame-cap">7 · Протягом дня + звіти</div>
+    <div class="frame"><div class="scr">
+      <div class="navbar"><div class="circle-btn">‹</div><div class="title">Сповіщення</div><div class="pad"></div></div>
+      <div class="sec-label">ПРОТЯГОМ ДНЯ</div>
+      <div class="card">
+        <div class="srow"><div class="st"><b>Нагадування пити</b><small>Коли відстаєш від свого темпу</small></div><div class="toggle"></div></div>
+        <div class="divider"></div>
+        <div class="srow"><div class="st"><b>Ранкова склянка</b><small>Якщо зранку ще немає порцій</small></div><div class="toggle"></div></div>
+        <div class="divider"></div>
+        <div class="srow hl"><div class="st"><b>Частини доби<span class="new-badge">B</span></b><small>«До 12:00 — ще 150 мл», якщо можна встигнути</small></div><div class="toggle"></div></div>
+      </div>
+      <div class="sec-label" style="margin-top:18px">ЗВІТИ <span class="new-badge">B</span></div>
+      <div class="card hl">
+        <div class="srow"><div class="st"><b>Денний</b><small>Тихо, о відбої</small></div><div class="toggle"></div></div>
+        <div class="divider"></div>
+        <div class="srow"><div class="st"><b>Тижневий</b><small>Підсумки минулого тижня</small></div><div class="toggle"></div></div>
+        <div class="wd"><i class="on">Пн</i><i>Вт</i><i>Ср</i><i>Чт</i><i>Пт</i><i>Сб</i><i>Нд</i></div>
+        <div class="srow"><div class="st"><b>Час</b></div><div class="stepper"><i>–</i><b>10:00</b><i>+</i></div></div>
+        <div class="divider"></div>
+        <div class="srow"><div class="st"><b>Місячний</b><small>1-го числа</small></div><div class="toggle"></div></div>
+        <div class="srow"><div class="st"><b>Час</b></div><div class="stepper"><i>–</i><b>10:00</b><i>+</i></div></div>
+      </div>
+    </div></div>
+    <div class="frame-note">Секція «ЗВІТИ» — між «УВЕЧЕРІ» та «ІНШЕ». День тижня — один. Час — крок 15 хв.</div>
+  </div>
+</div>
+
+<script>
+/* ---------------- склянка ---------------- */
+const GLASS = 'M14 14 H206 L184 266 Q182 280 168 280 H52 Q38 280 36 266 Z';  // 220×290
+const TOP = 30, BOT = 278;          // рівень повної й порожньої склянки
+const FR = [['Повна',1],['¾',.75],['½',.5],['¼',.25]];
+const FRWORD = {1:'повна склянка', .75:'три чверті', .5:'пів склянки', .25:'чверть склянки'};
+const DROP = 'M12 2s7 8 7 13a7 7 0 0 1-14 0c0-5 7-13 7-13z';
+const drop = fill => `<svg class="drop" viewBox="0 0 24 24"><path d="${DROP}" fill="${fill}"/></svg>`;
+
+function glassScreen(el, startMl){
+  const cap = 250, uid = el.id; let ml = cap;
+  el.innerHTML = `
+    <div class="bubbles">${Array.from({length:9},(_,i)=>`<i style="left:${8+i*11}%;width:${8+(i%3)*6}px;height:${8+(i%3)*6}px;animation-duration:${9+(i%4)*3}s;animation-delay:-${i*1.7}s"></i>`).join('')}</div>
+    <div class="gscr">
+      <div class="gtop"><div class="circle-btn">✕</div><div class="tag">РАНКОВА СКЛЯНКА</div><div style="width:38px"></div></div>
+      <div class="gtitle">Доброго ранку ☀️</div>
+      <div class="gsub">Склянка води після сну — найпростіший старт дня</div>
+      <div class="gval"><b class="v">250</b><span>мл</span></div>
+      <div class="gfrac f">повна склянка</div>
+      <div class="gstage">
+        <div style="width:46px"></div>
+        <svg class="glass-svg" width="220" height="290" viewBox="0 0 220 290">
+          <defs>
+            <clipPath id="c-${uid}"><path d="${GLASS}"/></clipPath>
+            <linearGradient id="g-${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--w1)"/><stop offset="1" stop-color="var(--w2)"/></linearGradient>
+          </defs>
+          <g clip-path="url(#c-${uid})"><path class="water" fill="url(#g-${uid})"/></g>
+          <path d="${GLASS}" fill="none" stroke="var(--glass)" stroke-width="5" stroke-linejoin="round"/>
+          <rect class="knob" x="88" width="44" height="6" rx="3" fill="#fff" opacity=".95"/>
+        </svg>
+        <div class="gticks">${FR.map(([n,f])=>`<i data-f="${f}" style="top:${TOP+(1-f)*(BOT-TOP)-9}px">${n}</i>`).join('')}</div>
+      </div>
+      <div class="gchips">${FR.slice().reverse().map(([n,f])=>`<div class="gchip" data-f="${f}"><b>${n}</b><small>${Math.round(cap*f/5)*5} мл</small></div>`).join('')}</div>
+      <button class="primary rec">Записати <span class="num v2">250</span> мл</button>
+      <div class="gmine">Моя склянка: ${cap} мл · <a>змінити</a></div>
+    </div>
+    <div class="done"><div class="plus">+<span class="v3">250</span></div><p>мл · 13 % норми</p>
+      <svg class="ringmini" viewBox="0 0 120 120"><circle cx="60" cy="60" r="50" stroke="rgba(255,255,255,.3)" stroke-width="12" fill="none"/>
+      <circle cx="60" cy="60" r="50" stroke="#fff" stroke-width="12" fill="none" stroke-linecap="round" stroke-dasharray="314" stroke-dashoffset="273" transform="rotate(-90 60 60)"/></svg></div>`;
+  const water = el.querySelector('.water'), knob = el.querySelector('.knob'), svg = el.querySelector('.glass-svg');
+  let t = 0;
+  const level = () => BOT - (ml/cap)*(BOT-TOP);
+  function draw(){
+    const yy = level(); let d = `M-10 ${yy}`;
+    for(let x=-10;x<=230;x+=10){ d += ` L${x} ${(yy + Math.sin(x/22+t)*4).toFixed(1)}`; }
+    water.setAttribute('d', d + ' V300 H-10 Z');
+    knob.setAttribute('y', yy - 3);
+  }
+  function set(v){
+    ml = Math.max(50, Math.min(cap, Math.round(v/25)*25));
+    const f = ml/cap;
+    ['.v','.v2','.v3'].forEach(s=>el.querySelector(s).textContent = ml);
+    el.querySelector('.f').textContent = FRWORD[f] || '';
+    el.querySelectorAll('.gticks i').forEach(i=>i.classList.toggle('on', +i.dataset.f <= f + 1e-6));
+    el.querySelectorAll('.gchip').forEach(c=>c.classList.toggle('on', Math.abs(+c.dataset.f - f) < 1e-6));
+    draw();
+  }
+  el.querySelectorAll('.gchip').forEach(c=>c.onclick=()=>set(Math.round(cap*(+c.dataset.f)/5)*5));
+  let drag=false;
+  const at = e => { const r = svg.getBoundingClientRect(); const yy=(e.clientY-r.top)*290/r.height; set((BOT-yy)/(BOT-TOP)*cap); };
+  svg.addEventListener('pointerdown', e=>{drag=true; svg.setPointerCapture(e.pointerId); at(e);});
+  svg.addEventListener('pointermove', e=>{ if(drag) at(e); });
+  svg.addEventListener('pointerup', ()=>drag=false);
+  el.querySelector('.rec').onclick = ()=>{ const d = el.querySelector('.done'); d.classList.add('show'); setTimeout(()=>d.classList.remove('show'), 1800); };
+  (function loop(){ if(!document.body.classList.contains('reduce')) t += .05; draw(); requestAnimationFrame(loop); })();
+  set(startMl || cap);
+}
+glassScreen(document.getElementById('glassA'));
+glassScreen(document.getElementById('glassB'), 125);
+
+/* калібрування */
+(function(){
+  const el = document.getElementById('calib');
+  const sizes = [200,250,300,350,400];
+  el.innerHTML = `<div class="gscr">
+      <div class="gtop"><div class="circle-btn">✕</div><div class="tag">МОЯ СКЛЯНКА</div><div style="width:38px"></div></div>
+      <div class="gtitle">Скільки в твоїй склянці?</div>
+      <div class="gsub">Задаєш один раз — далі «склянка» в кнопках і сповіщеннях означатиме саме її</div>
+      <div class="gval" style="margin-top:26px"><b class="v">250</b><span>мл</span></div>
+      <div class="gfrac f"></div>
+      <div class="gstage" style="align-items:flex-end;padding-bottom:10px">
+        <svg width="220" height="290" viewBox="0 0 220 290" style="overflow:visible">
+          <defs><clipPath id="cc"><path d="${GLASS}"/></clipPath>
+          <linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--w1)"/><stop offset="1" stop-color="var(--w2)"/></linearGradient></defs>
+          <g class="sc" style="transform-origin:110px 280px;transition:transform .45s cubic-bezier(.22,1.3,.36,1)">
+            <g clip-path="url(#cc)"><rect x="0" y="30" width="220" height="260" fill="url(#gc)"/></g>
+            <path d="${GLASS}" fill="none" stroke="var(--glass)" stroke-width="5"/>
+          </g>
+        </svg>
+      </div>
+      <div class="gchips">${sizes.map(s=>`<div class="gchip fred" data-s="${s}"><b>${s}</b></div>`).join('')}</div>
+      <button class="primary">Готово</button>
+      <div class="gmine">Інший об'єм — у налаштуваннях сповіщень</div>
+    </div>`;
+  function set(s){
+    el.querySelector('.v').textContent = s;
+    el.querySelector('.f').textContent = `≈ ${(2000/s).toFixed(0)} таких склянок на день — твоя норма`;
+    el.querySelector('.sc').style.transform = `scale(${0.62 + (s-200)/200*0.38})`;
+    el.querySelectorAll('.gchip').forEach(c=>c.classList.toggle('on', +c.dataset.s===s));
+  }
+  el.querySelectorAll('.gchip').forEach(c=>c.onclick=()=>set(+c.dataset.s));
+  set(250);
+})();
+
+/* ---------------- історії ---------------- */
+const W = 'rgba(255,255,255,.95)', A = 'var(--accent)';
+const counter = (to, dec, d) => `<em class="cnt" style="font-style:normal" data-to="${to}" data-dec="${dec||0}" data-d="${d||0}">0</em>`;
+const daysW = ['Пн','Вт','Ср','Чт','Пт','Сб','Нд'];
+
+/* дуга доби: частини по дузі від підйому до відбою, товщина й колір — частка від потрібного */
+function arc(parts, sunIndex){
+  const cx=173, cy=185, r=150, span=Math.PI/parts.length; let out='';
+  const pt = a => `${(cx+r*Math.cos(a)).toFixed(1)} ${(cy+r*Math.sin(a)).toFixed(1)}`;
+  parts.forEach(([n,v],i)=>{
+    const s=Math.PI+i*span+0.05, e=Math.PI+(i+1)*span-0.05, len=(r*(e-s)).toFixed(0);
+    const w=8+Math.min(v,1.2)*20, col=v>=.9?'var(--accent)':v>=.6?'rgba(90,169,240,.55)':'var(--orange)';
+    out+=`<path class="seg" style="--len:${len};--d:${.2+i*.25}s" d="M${pt(s)} A${r} ${r} 0 0 1 ${pt(e)}" stroke="${col}" stroke-width="${w.toFixed(0)}"/>`;
+    const m=(s+e)/2;
+    out+=`<text x="${(cx+(r+32)*Math.cos(m)).toFixed(0)}" y="${(cy+(r+32)*Math.sin(m)).toFixed(0)}" text-anchor="middle">${n}</text>`;
+  });
+  const sa=Math.PI+(sunIndex+.5)*span;
+  out+=`<text class="sun" x="${(cx+(r-44)*Math.cos(sa)).toFixed(0)}" y="${(cy+(r-44)*Math.sin(sa)+9).toFixed(0)}" text-anchor="middle" style="font-size:26px">🌇</text>`;
+  out+=`<text x="${cx-r}" y="${cy+26}" text-anchor="middle">08:00</text><text x="${cx+r}" y="${cy+26}" text-anchor="middle">22:00</text>`;
+  return `<svg class="arc" viewBox="0 0 346 210">${out}</svg>`;
+}
+
+const STORIES = {
+day: {title:'4 ЖОВТНЯ · НЕДІЛЯ', slides:[
+  `<div class="slide water">
+      <div class="wave" style="--lvl:62%"></div><div class="wave w2" style="--lvl:55%"></div>
+      <div class="kicker a">Сьогодні</div>
+      <div class="big a" style="--d:.1s;font-size:104px;margin-top:10px">${counter(1.8,1,.2)}<span style="font-size:40px"> л</span></div>
+      <div class="p a" style="--d:.3s">з 2 л — це 90 % норми</div>
+      <svg class="bigglass a" style="--d:.2s" width="150" height="198" viewBox="0 0 220 290">
+        <defs><clipPath id="dg"><path d="${GLASS}"/></clipPath></defs>
+        <g clip-path="url(#dg)"><rect class="lv" style="--y:-223px" x="0" y="278" width="220" height="260" fill="rgba(255,255,255,.9)"/></g>
+        <path d="${GLASS}" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="6"/>
+        <line x1="20" x2="200" y1="30" y2="30" stroke="#fff" stroke-width="3" stroke-dasharray="8 7" opacity=".9"/>
+      </svg>
+      <div class="foot a" style="--d:1.4s"><span class="pill">Ще одна склянка — і була б норма</span></div>
+    </div>`,
+  `<div class="slide plain">
+      <div class="kicker a muted">Як минув день</div>
+      <div class="h a" style="--d:.1s;margin-top:8px">7 склянок — і дві частини дня закрито</div>
+      <div class="tl">
+        <div class="axis"></div>
+        <div class="blk ok" style="left:0;width:28%"></div><div class="blk no" style="left:29.5%;width:34.5%"></div><div class="blk ok" style="left:65.5%;width:34.5%"></div>
+        ${[[5,.2],[18,.35],[26,.5],[44,.65],[70,.8],[81,.95],[93,1.1]].map(([x,d])=>`<div class="d" style="left:${x}%;--d:${d}s">${drop(A)}</div>`).join('')}
+        <div class="mark" style="left:14%;color:var(--success)">✓ +10 XP</div><div class="mark" style="left:47%;color:var(--muted)">520 / 780</div><div class="mark" style="left:83%;color:var(--success)">✓ +10 XP</div>
+        <div class="t" style="left:0;transform:none">08:00</div><div class="t" style="left:28.5%">12:00</div><div class="t" style="left:64%">17:00</div><div class="t" style="left:auto;right:0;transform:none">22:00</div>
+      </div>
+      <div class="chk a" style="--d:1.8s">
+        <div><i class="ok">✓</i>До 12:00<span>720 / 650 мл</span></div>
+        <div><i class="no">✕</i>12:00–17:00<span>520 / 780 мл</span></div>
+        <div><i class="ok">✓</i>17:00–22:00<span>560 / 570 мл</span></div>
+      </div>
+      <div class="foot p a muted" style="--d:2s">Найслабше — день: 67 % від потрібного</div>
+    </div>`,
+  `<div class="slide water">
+      <div class="kicker a">Серія</div>
+      <div class="flame pop">🔥</div>
+      <div class="big a" style="--d:.3s;font-size:88px;text-align:center">${counter(12,0,.3)}</div>
+      <div class="p a" style="--d:.4s;text-align:center">днів поспіль із закритою нормою</div>
+      <div class="chain">${Array.from({length:7},(_,i)=>`${i?`<u style="--d:${.6+i*.08}s"></u>`:''}<i style="--d:${.6+i*.08}s">${i<6?'✓':'·'}</i>`).join('')}</div>
+      <div class="badges a" style="--d:1.4s"><span>+${counter(165,0,1.4)} XP</span><span>🏅 Ранкова пташка</span></div>
+      <div class="foot p a" style="--d:1.6s;text-align:center">Сьогодні серія не зросла — але й не обірвалась: є заморозка</div>
+    </div>`,
+  `<div class="slide plain">
+      <div class="kicker a muted">Думка дня</div>
+      <div style="font-size:64px;margin-top:20px" class="pop">🌙</div>
+      <div class="h a" style="--d:.2s;margin-top:14px">Вечір — найсильніша частина: 98 % від потрібного</div>
+      <div class="p a muted" style="--d:.4s;margin-top:12px">Добраніч. Завтра ранкова склянка — о 08:00.</div>
+      <div class="foot cta a" style="--d:.6s"><button class="primary">Готово</button><div class="ghost">‹ Учора</div></div>
+    </div>`
+]},
+week: {title:'21–27 ВЕРЕСНЯ', slides:[
+  `<div class="slide water">
+      <div class="wave" style="--lvl:48%"></div><div class="wave w2" style="--lvl:40%"></div>
+      <div class="kicker a">Твій тиждень</div>
+      <div class="big a" style="--d:.1s;font-size:104px;margin-top:10px">${counter(13.3,1,.2)}<span style="font-size:40px"> л</span></div>
+      <div class="p a" style="--d:.3s">води за 7 днів — це 53 склянки</div>
+      <div class="grid" style="grid-template-columns:repeat(9,1fr);margin-top:24px">${Array.from({length:53},(_,i)=>`<i style="animation-delay:${(.5+i*.025).toFixed(3)}s">${drop(W)}</i>`).join('')}</div>
+    </div>`,
+  `<div class="slide plain">
+      <div class="kicker a muted">Норма</div>
+      <div class="h a" style="--d:.1s;margin-top:8px"><span class="num" style="font-size:44px">5</span> з 7 днів — норму закрито</div>
+      <div class="days">${[1,1,0,1,1,0,1].map((ok,i)=>`<div><svg class="dsvg" viewBox="0 0 24 24"><defs><clipPath id="wd${i}"><path d="${DROP}"/></clipPath></defs>
+          <path d="${DROP}" fill="var(--track)"/>
+          <g clip-path="url(#wd${i})"><rect class="fill" style="--d:${(.3+i*.15).toFixed(2)}s" x="0" y="${ok?2:13}" width="24" height="24" fill="${ok?A:'var(--dot-off)'}"/></g></svg><small>${daysW[i]}</small></div>`).join('')}</div>
+      <div class="a" style="--d:1.5s;margin-top:30px"><span class="pill up">▲ на 1 день більше, ніж минулого тижня</span></div>
+      <div class="foot p a muted" style="--d:1.7s">Середа й субота — без норми.</div>
+    </div>`,
+  `<div class="slide plain">
+      <div class="kicker a muted">Найкращий день</div>
+      <div class="h a" style="--d:.1s;margin-top:8px">Четвер — 2,4 л</div>
+      <div class="p a muted" style="--d:.2s">У середньому 1,9 л на день</div>
+      <div class="cols">
+        <div class="goal" style="bottom:calc(26px + 166px)"><span>норма 2 л</span></div>
+        ${[[176,1],[192,1],[112,0],[200,2],[166,1],[94,0],[180,1]].map(([h,k],i)=>`<p style="--h:${h}px;--d:${(.2+i*.1).toFixed(1)}s"><i class="${k==2?'best':k?'ok':''}"></i>${k==2?'<em>👑</em>':''}<small>${daysW[i]}</small></p>`).join('')}
+      </div>
+      <div class="foot a" style="--d:1.5s"><span class="pill up">▲ 8 % проти минулого тижня</span></div>
+    </div>`,
+  `<div class="slide plain">
+      <div class="kicker a muted">Ритм доби</div>
+      <div class="h a" style="--d:.1s;margin-top:8px">Ранок — твоя суперсила, вечір просідає</div>
+      ${arc([['Ранок',1.10],['Полудень',.95],['День',.82],['Вечір',.40]], 3)}
+      <div class="legend2 a" style="--d:1.6s">
+        <div><small>НАЙСИЛЬНІША</small><b>Ранок</b><span style="color:var(--success)">110 % від потрібного</span></div>
+        <div><small>НАЙСЛАБША</small><b>Вечір</b><span style="color:var(--orange)">40 % від потрібного</span></div>
+      </div>
+      <div class="foot p a muted" style="--d:1.8s">Медіана за тиждень, у межах твоїх активних годин.</div>
+    </div>`,
+  `<div class="slide water">
+      <div class="kicker a">Гра</div>
+      <div class="big a" style="--d:.1s;font-size:76px;margin-top:10px">+${counter(1140,0,.2)}<span style="font-size:30px"> XP</span></div>
+      <div class="lvl"><svg viewBox="0 0 170 170"><circle cx="85" cy="85" r="70" stroke="rgba(255,255,255,.25)" stroke-width="14" fill="none"/>
+        <circle class="p" style="--off:132" cx="85" cy="85" r="70" stroke="#fff" stroke-width="14" fill="none" stroke-linecap="round"/></svg>
+        <div class="in pop" style="--d:1.2s"><small>РІВЕНЬ</small><b>8</b></div></div>
+      <div class="badges"><span class="pop" style="--d:1.5s">🎉 Новий рівень</span><span class="pop" style="--d:1.65s">🏅 2 досягнення</span><span class="pop" style="--d:1.8s">✓ 9 завдань</span></div>
+      <div class="foot p a" style="--d:2s;text-align:center">До рівня 9 — 150 XP: приблизно 3 дні з нормою</div>
+    </div>`,
+  `<div class="slide plain">
+      <div class="kicker a muted">Думка тижня</div>
+      <div style="font-size:58px;margin-top:18px" class="pop">💡</div>
+      <div class="h a" style="--d:.2s;margin-top:12px">Вечір — найслабше місце: у середньому 40 % від потрібного</div>
+      <div class="p a muted" style="--d:.4s;margin-top:12px">Одна склянка до 18:00 — і вечір закрито. Чекпоінт «До 17:00» підкаже вчасно.</div>
+      <div class="foot cta a" style="--d:.6s"><button class="primary">Готово</button><div class="ghost">‹ Попередній тиждень</div></div>
+    </div>`
+]},
+month: {title:'ВЕРЕСЕНЬ 2026', slides:[
+  `<div class="slide water">
+      <div class="wave" style="--lvl:70%"></div><div class="wave w2" style="--lvl:60%"></div>
+      <div class="kicker a">Твій вересень</div>
+      <div class="big a" style="--d:.1s;font-size:118px;margin-top:10px">${counter(52,0,.2)}<span style="font-size:44px"> л</span></div>
+      <div class="p a" style="--d:.3s">води — це 208 склянок, або понад 5 відер</div>
+      <div class="buckets">${[1,1,1,1,1,.2].map((f,i)=>`<div class="bk"><svg viewBox="0 0 50 62"><defs><clipPath id="bk${i}"><path d="M4 8 H46 L41 58 H9 Z"/></clipPath></defs>
+        <g clip-path="url(#bk${i})"><rect class="bf" style="--d:${(.6+i*.2).toFixed(1)}s;--y:${-(50*f)}px" x="0" y="58" width="50" height="60" fill="rgba(255,255,255,.95)"/></g>
+        <path d="M4 8 H46 L41 58 H9 Z" fill="none" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/><path d="M8 8 Q25 -6 42 8" fill="none" stroke="#fff" stroke-width="2"/></svg></div>`).join('')}</div>
+      <div class="foot p a" style="--d:1.9s">У середньому 1,7 л на день</div>
+    </div>`,
+  `<div class="slide plain">
+      <div class="kicker a muted">Норма</div>
+      <div class="h a" style="--d:.1s;margin-top:8px"><span class="num" style="font-size:44px">22</span> дні норми з 30</div>
+      <div class="mosaic">${daysW.map(d=>`<b>${d}</b>`).join('')}${(()=>{
+        // 1 вересня 2026 — вівторок. g — норма, h — частково, z — без порцій
+        const st='gghggghggggggggghzgggghhgghghg';
+        let o='<i class="x"></i>';
+        for(let i=0;i<30;i++){ const s=(i>=7&&i<=15)?' s':''; o+=`<i class="${st[i]}${s}" style="--d:${(.2+i*.045).toFixed(3)}s">${i+1}</i>`; }
+        for(let i=0;i<4;i++) o+='<i class="x"></i>'; return o; })()}</div>
+      <div class="a" style="--d:1.8s;margin-top:22px"><span class="pill up">▲ на 4 дні більше, ніж у серпні</span></div>
+    </div>`,
+  `<div class="slide water">
+      <div class="kicker a">Найдовша серія</div>
+      <div class="flame pop">🔥</div>
+      <div class="big a" style="--d:.3s;font-size:96px;text-align:center">${counter(9,0,.3)}</div>
+      <div class="p a" style="--d:.4s;text-align:center">днів поспіль — з 8 по 16 вересня</div>
+      <div class="chain">${Array.from({length:9},(_,i)=>`${i?`<u style="--d:${(.6+i*.07).toFixed(2)}s"></u>`:''}<i style="--d:${(.6+i*.07).toFixed(2)}s">${8+i}</i>`).join('')}</div>
+      <div class="foot p a" style="--d:1.6s;text-align:center">Рекорд — 11 днів, у серпні. До нього — 3 дні.</div>
+    </div>`,
+  `<div class="slide plain">
+      <div class="kicker a muted">Що змінилось</div>
+      <div class="h a" style="--d:.1s;margin-top:8px">Вечір підтягнувся на 12 %</div>
+      ${arc([['Ранок',1.04],['Полудень',1.04],['День',.83],['Вечір',.61]], 3)}
+      <div class="legend2 a" style="--d:1.6s">
+        <div><small>ВЕЧІР</small><b>61 %</b><span style="color:var(--success)">▲ 12 % проти серпня</span></div>
+        <div><small>ДЕНЬ</small><b>83 %</b><span style="color:var(--orange)">▼ 4 % проти серпня</span></div>
+      </div>
+      <div class="foot p a muted" style="--d:1.8s">Медіана частини доби від потрібного.</div>
+    </div>`,
+  `<div class="slide water">
+      <div class="kicker a">Гра</div>
+      <div class="big a" style="--d:.1s;font-size:76px;margin-top:10px">+${counter(4380,0,.2)}<span style="font-size:30px"> XP</span></div>
+      <div class="lvl"><svg viewBox="0 0 170 170"><circle cx="85" cy="85" r="70" stroke="rgba(255,255,255,.25)" stroke-width="14" fill="none"/>
+        <circle class="p" style="--off:132" cx="85" cy="85" r="70" stroke="#fff" stroke-width="14" fill="none" stroke-linecap="round"/></svg>
+        <div class="in pop" style="--d:1.2s"><small>РІВЕНЬ</small><b>6→8</b></div></div>
+      <div class="badges"><span class="pop" style="--d:1.5s">🎉 2 нові рівні</span><span class="pop" style="--d:1.65s">🏅 5 досягнень</span><span class="pop" style="--d:1.8s">✓ 31 завдання</span></div>
+    </div>`,
+  `<div class="slide plain">
+      <div class="kicker a muted">Думка місяця</div>
+      <div class="h a" style="--d:.1s;margin-top:8px">У вихідні — на 30 % менше води, ніж у будні</div>
+      <div class="vs">
+        <div><b>1,9 л</b><i style="--h:150px;--d:.3s"></i><small>БУДНІ</small></div>
+        <div><b>1,3 л</b><i style="--h:105px;--d:.5s"></i><small>ВИХІДНІ</small></div>
+      </div>
+      <div class="p a muted" style="--d:1s;margin-top:18px">Ранкова склянка у вихідні — о 09:00, якщо ввімкнути окремий розклад.</div>
+      <div class="foot cta a" style="--d:.8s"><button class="primary">Готово</button><div class="ghost">‹ Серпень</div></div>
+    </div>`
+]}
+};
+
+function mountStory(id){
+  const st = STORIES[id], el = document.getElementById(id);
+  el.innerHTML = `<div class="story"><div class="bars">${st.slides.map(()=>'<i><b></b></i>').join('')}</div>
+    <div class="shead">${st.title}</div><div class="sclose">✕</div>${st.slides.join('')}</div>`;
+  const slides=[...el.querySelectorAll('.slide')], bars=[...el.querySelectorAll('.bars i')];
+  const head=el.querySelector('.shead'), close=el.querySelector('.sclose'), barsBox=el.querySelector('.bars');
+  const jump=document.querySelector(`.jump[data-for="${id}"]`);
+  jump.innerHTML = st.slides.map((_,i)=>`<button>${i+1}</button>`).join('');
+  let cur=0;
+  function show(i){
+    cur=Math.max(0,Math.min(slides.length-1,i));
+    slides.forEach((s,k)=>{ s.classList.remove('active'); void s.offsetWidth; if(k===cur) s.classList.add('active'); });
+    bars.forEach((b,k)=>b.classList.toggle('seen',k<=cur));
+    const light = slides[cur].classList.contains('plain');
+    barsBox.classList.toggle('ink', light); head.style.color = light?'var(--muted)':'#fff';
+    close.style.background = light?'var(--chip)':'rgba(255,255,255,.25)'; close.style.color = light?'var(--accent)':'#fff';
+    [...jump.children].forEach((b,k)=>b.classList.toggle('on',k===cur));
+    const rm=document.body.classList.contains('reduce');
+    slides[cur].querySelectorAll('.cnt').forEach(c=>{
+      const to=+c.dataset.to, dec=+c.dataset.dec, delay=(+c.dataset.d)*1000, dur=1100;
+      const fmt=v=>v.toFixed(dec).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,' ');
+      if(rm){ c.textContent=fmt(to); return; }
+      c.textContent=fmt(0); const t0=performance.now()+delay;
+      (function step(now){ const p=Math.min(1,Math.max(0,(now-t0)/dur)); c.textContent=fmt(to*(1-Math.pow(1-p,3))); if(p<1) requestAnimationFrame(step); })(performance.now());
+    });
+  }
+  el.querySelector('.story').addEventListener('click',e=>{
+    if(e.target.closest('.sclose')) return;
+    const r=el.getBoundingClientRect(); (e.clientX-r.left < r.width/3) ? show(cur-1) : show(cur+1);
+  });
+  [...jump.children].forEach((b,k)=>b.onclick=()=>show(k));
+  el.showSlide = show;
+  show(0);
+}
+['day','week','month'].forEach(mountStory);
+document.querySelectorAll('.note[data-open]').forEach(n=>n.onclick=()=>{ const f=document.getElementById(n.dataset.open); f.showSlide(0); f.scrollIntoView({behavior:'smooth',block:'center'}); });
+document.getElementById('rm').onchange=e=>{ document.body.classList.toggle('reduce',e.target.checked); ['day','week','month'].forEach(id=>document.getElementById(id).showSlide(0)); };
+</script>
+</body>
+</html>

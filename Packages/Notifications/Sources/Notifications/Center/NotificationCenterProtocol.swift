@@ -27,6 +27,7 @@ public struct ScheduledRequest: Sendable, Equatable {
     public var body: String
     public var categoryId: String?
     public var sound: NotificationSoundSpec
+    public var interruption: NotificationInterruption
     public var trigger: Trigger
     /// Момент спрацювання — для in-memory центру й DEBUG-екрана.
     public var fireAt: Date?
@@ -35,12 +36,14 @@ public struct ScheduledRequest: Sendable, Equatable {
     public var fingerprint: String
 
     public init(identifier: String, title: String, body: String, categoryId: String?, sound: NotificationSoundSpec,
+                interruption: NotificationInterruption = .active,
                 trigger: Trigger, fireAt: Date?, userInfo: [String: String], fingerprint: String) {
         self.identifier = identifier
         self.title = title
         self.body = body
         self.categoryId = categoryId
         self.sound = sound
+        self.interruption = interruption
         self.trigger = trigger
         self.fireAt = fireAt
         self.userInfo = userInfo

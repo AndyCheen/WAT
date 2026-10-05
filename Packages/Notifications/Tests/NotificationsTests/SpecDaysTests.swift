@@ -5,8 +5,15 @@ import Persistence
 
 /// Чотири дні з SPEC-NOTIFICATIONS §6.1 — дослівно, з очікуваними часами (§16.11).
 /// Норма 2000 мл, 08:00–22:00, порція 250 мл; рахуються лише сповіщення типу 1.
+///
+/// Чекпоінти частин доби (етап B) тут вимкнені: аналіз §6.1 порівнює алгоритми нагадувань
+/// самі по собі. Той самий день «забудька» з усіма типами — §6.3, `CheckpointTests`.
 final class SpecDaysTests: XCTestCase {
-    private let simulator = DaySimulator()
+    private let simulator: DaySimulator = {
+        var simulator = DaySimulator()
+        simulator.preferences.checkpointsEnabled = false
+        return simulator
+    }()
 
     /// «На темпі»: 250 мл кожні 1 год 45 хв, норму закрито → жодного нагадування (критерій §19.3).
     func testOnPaceDayHasNoReminders() {

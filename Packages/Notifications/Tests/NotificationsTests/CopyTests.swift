@@ -19,6 +19,15 @@ final class CopyCatalogTests: XCTestCase {
             .replacingOccurrences(of: "{streak}", with: Plural.days(365))
             .replacingOccurrences(of: "{since}", with: "11 год 55 хв")
             .replacingOccurrences(of: "{total}", with: "1,95 л")
+            .replacingOccurrences(of: "{deadline}", with: "12:00")
+            .replacingOccurrences(of: "{part}", with: "полудень")
+            .replacingOccurrences(of: "{xp}", with: "20")
+            .replacingOccurrences(of: "{goalDays}", with: "7")
+            .replacingOccurrences(of: "{dayCount}", with: "7")
+            .replacingOccurrences(of: "{month}", with: "Листопад")
+            .replacingOccurrences(of: "{goalDaysPlural}", with: Plural.days(30))
+            // Тіла звітів складає `ReportText` — їх перевіряє `ReportPlanTests` на найгірших числах.
+            .replacingOccurrences(of: "{report}", with: "")
     }
 
     private func words(_ text: String) -> [String] {

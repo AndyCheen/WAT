@@ -289,7 +289,12 @@ public struct HomeScreen: View {
 
     @ViewBuilder
     private var sheets: some View {
-        if let sheet = model.sheet {
+        // «Склянка» — вікно на весь екран, а не шторка: виїжджає знизу цілком (§7.1).
+        if model.sheet == .glass {
+            GlassScreen(model: model)
+                .zIndex(11)
+                .transition(.move(edge: .bottom))
+        } else if let sheet = model.sheet {
             Group {
                 switch sheet {
                 case .custom:
@@ -305,6 +310,8 @@ public struct HomeScreen: View {
                     WeekStatsSheet(model: model)
                 case .permission:
                     NotificationPermissionSheet(model: model)
+                case .glass:
+                    EmptyView()
                 }
             }
             .zIndex(10)

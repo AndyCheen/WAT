@@ -9,11 +9,11 @@ import Metrics
 /// Модуль обліку води про нього не знає — звʼязок односторонній через `MetricsService`.
 @MainActor
 public final class GamificationService: MetricsSubscriber {
-    private let store: GamificationStoreProtocol
+    let store: GamificationStoreProtocol
     private let dayLogs: DayLogRepositoryProtocol
     private let profiles: ProfileRepositoryProtocol
     private let metrics: MetricsService
-    private let calendar: CalendarService
+    let calendar: CalendarService
 
     public let xp: XPEngine
     public let streaks: StreakEngine
@@ -95,6 +95,7 @@ public final class GamificationService: MetricsSubscriber {
                 refId: event.sourceRef, at: date, streak: streak
             )
             grantComebackGiftIfDue(event)
+            awardDayPartGoalIfDue(event)
         }
         if event.name == .dayGoalMet {
             xp.award(amount: xp.rules.perDailyGoal, reason: .dailyGoal, refId: event.sourceRef, at: date)
@@ -167,6 +168,10 @@ public final class GamificationService: MetricsSubscriber {
             if xp.revert(refId: Self.bounceBackRef(DayKey(rawValue: event.dayKey)), at: date) > 0 {
                 pendingBounceBackXp = nil
             }
+        }
+        // 5. Ціль частини доби: порцію прибрали — блок міг опуститися нижче цілі.
+        for event in events where event.name == .intakeAdded {
+            revertDayPartGoalIfLost(event, at: date)
         }
     }
 
@@ -418,6 +423,59 @@ public final class GamificationService: MetricsSubscriber {
 
     static func bounceBackRef(_ day: DayKey) -> UUID {
         DeterministicID.uuid(from: "bounceBack:\(day.rawValue)")
+    }
+
+    // MARK: - Ціль частини доби (SPEC-NOTIFICATIONS §9)
+
+    /// +10 XP, коли порції в межах частини доби набрали її ціль за кривою темпу.
+    ///
+    /// Перевіряється лише блок, куди потрапила ця порція: решта від неї не змінилась. Ref —
+    /// день і частина, а не порція: XP тримається на блоці, і відкочується, коли блок опустився
+    /// нижче цілі, навіть якщо видалили не ту порцію, що його закрила. Повернута порція знову
+    /// публікує `intake.added` — і XP нараховується наново. Зміна норми посеред дня вже
+    /// нарахований XP не перераховує (рішення від 05.10.2026, §24).
+    private func awardDayPartGoalIfDue(_ event: RecordedMetricEvent) {
+        let day = DayKey(rawValue: event.dayKey)
+        guard let (block, portions) = dayPartState(day: day, at: event.occurredAt) else { return }
+        let ref = Self.dayPartGoalRef(day, block)
+        guard block.isReached(by: portions),
+              !store.xpEntries(refId: ref).contains(where: { $0.revertedAt == nil }) else { return }
+        xp.award(amount: xp.rules.perDayPartGoal, reason: .dayPartGoal, refId: ref, at: event.occurredAt)
+    }
+
+    private func revertDayPartGoalIfLost(_ event: RecordedMetricEvent, at date: Date) {
+        let day = DayKey(rawValue: event.dayKey)
+        guard let (block, portions) = dayPartState(day: day, at: event.occurredAt),
+              !block.isReached(by: portions) else { return }
+        xp.revert(refId: Self.dayPartGoalRef(day, block), at: date)
+    }
+
+    /// Блок частини доби, куди потрапляє момент, і всі порції цього дня. `nil` — поза
+    /// активними годинами або без денного логу (порція до підйому ціль не закриває).
+    private func dayPartState(day: DayKey, at date: Date) -> (GoalBlock, [TimedPortion])? {
+        guard let log = dayLogs.existingDayLog(for: day) else { return nil }
+        let schedule = profile.schedule(isWeekend: calendar.isWeekend(day))
+        guard let block = schedule.curve(goalMl: log.goalMlSnapshot).goalBlock(containing: minuteOfDay(date)) else {
+            return nil
+        }
+        let portions = (log.intakes ?? []).filter { !$0.isDeleted }.map {
+            TimedPortion(minute: minuteOfDay($0.createdAt), ml: $0.amountMl)
+        }
+        return (block, portions)
+    }
+
+    /// Профіль — живий об'єкт SwiftData: зміни розкладу він бачить сам, а вибірка на кожну
+    /// порцію коштувала б помітно на шляху, який міряє `PerformanceTests`.
+    private lazy var profile: UserProfile = profiles.profile()
+
+    private func minuteOfDay(_ date: Date) -> Int {
+        let parts = calendar.calendar.dateComponents([.hour, .minute], from: date)
+        return (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
+    }
+
+    /// Ключ XP за ціль частини доби — день і частина, якою блок закінчується.
+    public static func dayPartGoalRef(_ day: DayKey, _ block: GoalBlock) -> UUID {
+        DeterministicID.uuid(from: "dayPartGoal:\(day.rawValue):\(block.deadlinePart.key)")
     }
 
     private static func prizeState(_ item: RewardItem, at date: Date) -> PrizeState {
