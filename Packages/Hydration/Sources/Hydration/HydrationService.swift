@@ -185,6 +185,12 @@ public final class HydrationService {
         dayLogs.save()
     }
 
+    /// Розклад дня зі знімка в записі дня, а без запису — з профілю: той самий шлях, що в XP
+    /// частин доби, інакше рядок на головному розійшовся б із нарахованим XP (WAT-40).
+    public func schedule(for day: DayKey) -> DaySchedule {
+        profile.schedule(for: dayLogs.existingDayLog(for: day), isWeekend: calendar.isWeekend(day))
+    }
+
     private func todaySchedule(_ day: DayKey) -> DaySchedule {
         profile.schedule(isWeekend: calendar.isWeekend(day))
     }

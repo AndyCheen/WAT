@@ -114,6 +114,11 @@ public final class HomeViewModel {
     public private(set) var quickAmounts: [Int] = []
     public private(set) var hasNewAchievements = false
 
+    /// Крива темпу й порції сьогодні — для капсули частини доби (WAT-40). Сам стан рахується
+    /// на кожну хвилину в `dayPartLine()`: час іде без дії користувача, а таймера в моделі немає.
+    private var dayCurve: PaceCurve?
+    private var dayPortions: [TimedPortion] = []
+
     /// Виконані завдання сховані, доки користувач не попросить показати.
     /// Стан екранний: новий день і новий запуск починаються з активного списку.
     public private(set) var showCompletedQuests = false
@@ -155,6 +160,8 @@ public final class HomeViewModel {
     public func reload() {
         day = services.hydration.todaySnapshot()
         history = services.hydration.intakes(for: services.calendar.today)
+        dayCurve = services.hydration.schedule(for: day.dayKey).curve(goalMl: day.goalMl)
+        dayPortions = history.map { TimedPortion(minute: services.calendar.minuteOfDay($0.createdAt), ml: $0.amountMl) }
         quests = services.gamification.dailyQuests()
         level = services.gamification.levelProgress()
         streak = services.gamification.streakSummary()
@@ -494,6 +501,16 @@ public final class HomeViewModel {
         "\(Volume.litersLabel(day.countedMl)) / \(Volume.litersLabel(day.goalMl, fractionDigits: 1)) л"
     }
     public var goalLabel: String { "\(Volume.litersLabel(day.goalMl, fractionDigits: 1)) л" }
+
+    /// Капсула частини доби на цю хвилину. Екран викликає її з `TimelineView` раз на хвилину;
+    /// час — від `Clock`, а не з `TimelineView`, інакше `--uitest-now` не діяв би.
+    func dayPartLine() -> DayPartLine? {
+        let now = services.calendar.now
+        let progress = dayCurve?.dayPartProgress(atMinute: services.calendar.minuteOfDay(now), portions: dayPortions)
+        // XP — як нарахує `GamificationService`: серія на ціль частини не множить, буст — так.
+        let xp = Int(Double(services.gamification.xp.rules.perDayPartGoal) * services.gamification.xp.boostMultiplier(at: now))
+        return DayPartPresenter.line(progress, goalMet: day.goalMet, xp: xp)
+    }
 
     /// Пояснення до стелі 120 %: без нього незрозуміло, чому відсоток перестав рости.
     public var cappedNote: String? {

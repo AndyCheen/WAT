@@ -19,8 +19,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 388 unit-тестів 9 пакетів, без симулятора — швидкий цикл
-make test-ui        # 27 e2e-сценаріїв (XCUITest) у симуляторі
+make test-packages  # 401 unit-тест 9 пакетів, без симулятора — швидкий цикл
+make test-ui        # 28 e2e-сценаріїв (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
 make clean
@@ -136,6 +136,9 @@ Features → DesignSystem → Core
   `UserProfile.schedule(for:isWeekend:)`, не з профілю напряму: інакше зміна підйому переписує минулі дні.
 - **Чекпоінт** забирає собі основне нагадування у вікні `[−45, +30]` — ланцюг далі від нього.
   `SpecDaysTests` (§6.1) рахують лише тип 1, тож чекпоінти там вимкнені; повний день §6.3 — `CheckpointTests`.
+- **Капсула частини доби** під кільцем головного (WAT-40, §26) — підказка, коли чекпоінт мовчить:
+  `PaceCurve.dayPartProgress` (ті самі `GoalBlock`), тексти — `DayPartPresenter` («ще N мл» вгору до 50,
+  як у чекпоінта). Хвилина — від `Clock` у `HomeViewModel.dayPartLine()`; `TimelineView` лише будить екран.
 - **Звіти** рахує `Insights.report(for: ReportPeriod)` на льоту; для сповіщення `AppServices` кладе в
   контекст `ReportDigest` за періодами з `NotificationPlanner.reportPeriods`, текст складає `ReportText`.
   Денний — `.passive`, усі звіти без звуку й поза лімітом 8.
@@ -243,7 +246,8 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
 | `Design/Achievements.html` | макет модуля досягнень (6 кадрів 402×874) до цього ТЗ; перенесено в код у WAT-23 |
 | `SPEC-PRIZES.md` | ТЗ модуля «Призи» (WAT-26): каталог, блок на 3f, екран «Призи», картка призу, правила заморозки й буста |
 | `Design/Prizes.html` | макет модуля призів (6 кадрів 402×874) до цього ТЗ; перенесено в код у WAT-34 |
-| `SPEC-NOTIFICATIONS.md` | ТЗ модуля «Сповіщення» (WAT-17): типи, нагадування за кривою темпу, анти-спам, тексти, налаштування, локальні сповіщення й планувальник; етапи 0 і A реалізовано в WAT-36 (рішення — §23), етап B — у WAT-37 (§24), одна модель цілей частин доби — WAT-39 (§25) |
+| `SPEC-NOTIFICATIONS.md` | ТЗ модуля «Сповіщення» (WAT-17): типи, нагадування за кривою темпу, анти-спам, тексти, налаштування, локальні сповіщення й планувальник; етапи 0 і A реалізовано в WAT-36 (рішення — §23), етап B — у WAT-37 (§24), одна модель цілей частин доби — WAT-39 (§25), капсула частини доби на головному — WAT-40 (§26) |
+| `Design/DayPart.html` | макет капсули частини доби на головному (WAT-40): три варіанти, погоджено A (SPEC-NOTIFICATIONS §26) |
 | `Design/Notifications.html` | інтерактивний макет етапу B (WAT-37): вікно «Склянка», звіт-історія дня / тижня / місяця, рядки B на екрані «Сповіщення» |
 | `DESIGN-TOKENS.md` | витяг токенів з макетів |
 | `WaterTracker.html` | оригінальні макети (1a, 3f, 2e, 4a) |

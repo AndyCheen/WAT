@@ -99,6 +99,12 @@ public struct CalendarService: Sendable {
 
     public func hour(of date: Date) -> Int { calendar.component(.hour, from: date) }
 
+    /// Хвилина від локальної півночі — шкала `PaceCurve` і `GoalBlock`.
+    public func minuteOfDay(_ date: Date) -> Int {
+        let parts = calendar.dateComponents([.hour, .minute], from: date)
+        return (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
+    }
+
     public func isToday(_ key: DayKey) -> Bool { key == today }
     public func isFuture(_ key: DayKey) -> Bool { key > today }
 

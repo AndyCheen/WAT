@@ -135,4 +135,48 @@ final class GoalBlockTests: XCTestCase {
             }
         }
     }
+
+    // MARK: - Поточна частина доби на головному (WAT-40)
+
+    private let day = PaceCurve(goalMl: 2000, wakeMinutes: 8 * 60, sleepMinutes: 22 * 60)
+
+    /// Критерій приймання WAT-40: 300 + 250 мл до 11:25 — до 12:00 бракує 99 мл, лишається 35 хв.
+    func testProgressBeforeNoonCheckpoint() throws {
+        let portions = [TimedPortion(minute: 9 * 60 + 10, ml: 300), TimedPortion(minute: 10 * 60 + 40, ml: 250)]
+        let progress = try XCTUnwrap(day.dayPartProgress(atMinute: 11 * 60 + 25, portions: portions))
+        XCTAssertEqual(progress.block.toMinute, 12 * 60)
+        XCTAssertEqual(progress.drunkMl, 550)
+        XCTAssertEqual(progress.leftMl, 99)
+        XCTAssertEqual(progress.minutesLeft, 35)
+        XCTAssertFalse(progress.isReached)
+    }
+
+    func testProgressReachedOnceTargetIsDrunk() throws {
+        let portions = [TimedPortion(minute: 9 * 60, ml: 400), TimedPortion(minute: 11 * 60 + 40, ml: 250)]
+        let progress = try XCTUnwrap(day.dayPartProgress(atMinute: 11 * 60 + 40, portions: portions))
+        XCTAssertTrue(progress.isReached)
+        XCTAssertEqual(progress.leftMl, 0)
+        XCTAssertEqual(progress.fraction, 1)
+    }
+
+    /// Межа належить наступній частині: о 12:00 ранкові порції вже не рахуються.
+    func testProgressSwitchesBlockAtBoundary() throws {
+        let portions = [TimedPortion(minute: 9 * 60, ml: 700)]
+        let progress = try XCTUnwrap(day.dayPartProgress(atMinute: 12 * 60, portions: portions))
+        XCTAssertEqual(progress.block.parts, [.afternoon])
+        XCTAssertEqual(progress.drunkMl, 0)
+        XCTAssertEqual(progress.minutesLeft, 5 * 60)
+    }
+
+    func testNoProgressOutsideActiveHours() {
+        XCTAssertNil(day.dayPartProgress(atMinute: 7 * 60 + 59, portions: []))
+        XCTAssertNil(day.dayPartProgress(atMinute: 22 * 60, portions: []))
+        XCTAssertNotNil(day.dayPartProgress(atMinute: 21 * 60 + 59, portions: []))
+    }
+
+    /// Склянка до підйому вже в ранковому блоці — о 08:00 рядок її бачить, як і XP.
+    func testProgressCountsPortionBeforeWake() throws {
+        let progress = try XCTUnwrap(day.dayPartProgress(atMinute: 8 * 60, portions: [TimedPortion(minute: 6 * 60 + 30, ml: 250)]))
+        XCTAssertEqual(progress.drunkMl, 250)
+    }
 }

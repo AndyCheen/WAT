@@ -176,6 +176,17 @@ public struct HomeScreen: View {
                     .transition(.opacity)
                     .accessibilityIdentifier("home.cappedNote")
             }
+
+            // Капсула частини доби (WAT-40). З приміткою про стелю не зустрічається: стеля —
+            // лише після закритої норми, а тоді капсули вже немає. `TimelineView` лише будить
+            // екран щохвилини, час модель бере з `Clock`.
+            TimelineView(.everyMinute) { _ in
+                if let line = model.dayPartLine() {
+                    WTDayPartPill(line.content, accessibilityLabel: line.accessibilityLabel)
+                        .transition(.opacity)
+                        .accessibilityIdentifier("home.dayPart")
+                }
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 14)

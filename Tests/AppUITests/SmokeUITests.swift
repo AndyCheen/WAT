@@ -16,6 +16,13 @@ final class SmokeUITests: XCTestCase {
         return app
     }
 
+    /// Перша порція відкриває «Першу краплю», і тост лягає на перший рядок історії: з капсулою
+    /// частини доби (WAT-40) історія стоїть нижче, і тап по рядку влучав би в тост.
+    private func waitForToastToHide(_ app: XCUIApplication) {
+        let toast = app.staticTexts["toast.message"]
+        if toast.exists { XCTAssertTrue(toast.waitForNonExistence(timeout: 6)) }
+    }
+
     // MARK: - Головний екран
 
     func testLaunchesWithEmptyState() {
@@ -33,6 +40,36 @@ final class SmokeUITests: XCTestCase {
 
         XCTAssertEqual(percent.label, "25%", "500 мл від норми 2000 мл")
         XCTAssertTrue(app.staticTexts["500 мл"].exists, "порція зʼявилась в історії")
+    }
+
+    /// Капсула частини доби (WAT-40): годинник стоїть на 11:25, тож обидві порції — о 11:25.
+    /// 550 з 649 мл до 12:00 — «ще 100 мл», 35 хв; порція 200 мл закриває частину одразу.
+    func testDayPartPillCountsDownAndCloses() {
+        let app = launch(["--uitest-empty", "--uitest-now", "2026-10-01T11:25:00+03:00"])
+        XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
+
+        let pill = app.descendants(matching: .any)["home.dayPart"]
+        XCTAssertTrue(pill.waitForExistence(timeout: 5), "частина доби триває — капсула є і без порцій")
+        XCTAssertEqual(pill.label, "До 12:00 бракує 650 мл, лишилось 35 хвилин")
+
+        let confirm = app.buttons["custom.confirm"]
+        app.buttons["home.add.custom"].tap()
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()                                // 300 мл — значення за замовчуванням
+        // Шторка зникає з анімацією: тап до її кінця влучив би в неї, а не в кнопку.
+        XCTAssertTrue(confirm.waitForNonExistence(timeout: 5))
+        app.buttons["home.add.custom"].tap()
+        let chip = app.buttons["250"]
+        XCTAssertTrue(chip.waitForExistence(timeout: 5))
+        chip.tap()
+        confirm.tap()
+        XCTAssertTrue(confirm.waitForNonExistence(timeout: 5))
+
+        XCTAssertEqual(pill.label, "До 12:00 бракує 100 мл, лишилось 35 хвилин")
+        XCTAssertTrue(pill.isHittable, "капсулу справді видно, а не лише в дереві")
+
+        app.buttons["home.add.200"].tap()
+        XCTAssertEqual(pill.label, "Ранок і полудень закрито", "порція, що закриває частину, одразу дає ✓")
     }
 
     func testCompletedQuestsHideBehindToggle() {
@@ -69,6 +106,7 @@ final class SmokeUITests: XCTestCase {
         app.buttons["home.add.500"].tap()
         XCTAssertEqual(percent.label, "25%")
 
+        waitForToastToHide(app)
         app.staticTexts["500 мл"].tap()
         app.buttons["history.delete"].firstMatch.tap()
 
@@ -81,6 +119,7 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(percent.waitForExistence(timeout: 15))
 
         app.buttons["home.add.500"].tap()
+        waitForToastToHide(app)
         app.staticTexts["500 мл"].tap()
         app.buttons["history.delete"].firstMatch.tap()
         XCTAssertEqual(percent.label, "0%")
