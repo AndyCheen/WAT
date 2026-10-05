@@ -5,19 +5,6 @@ import Persistence
 // Вхідні дані планувальника — прості значення без SwiftData й без доменних сервісів:
 // планувальник лишається чистою функцією, яку тестують на `FixedClock` (SPEC-NOTIFICATIONS §16.2).
 
-/// Активні години `[W, S]` одного дня, у хвилинах від 00:00.
-public struct DaySchedule: Sendable, Equatable {
-    public var wakeMinutes: Int
-    public var sleepMinutes: Int
-
-    public init(wakeMinutes: Int, sleepMinutes: Int) {
-        self.wakeMinutes = wakeMinutes
-        self.sleepMinutes = sleepMinutes
-    }
-
-    public static let weekdayDefault = DaySchedule(wakeMinutes: 8 * 60, sleepMinutes: 22 * 60)
-}
-
 /// Тихий період: дні тижня + від–до (§13.2).
 public struct QuietWindow: Sendable, Equatable {
     /// Біт 0 — понеділок … біт 6 — неділя.

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import Core
 
 /// Єдиний рядок з налаштуваннями користувача.
 @Model
@@ -30,6 +31,9 @@ public final class UserProfile {
     public var weekendSleepMinutes: Int = 23 * 60
     /// «Моя склянка» — об'єм для дії «+склянка» й ранкової склянки (§7.1, п. 5).
     public var glassMl: Int = 250
+    /// Чи вже відповіли на «Скільки в твоїй склянці?» (§7.1, п. 5): вікно «Склянка» питає
+    /// один раз. Зміна склянки на екрані «Сповіщення» — теж відповідь.
+    public var glassConfirmed: Bool = false
 
     public init(createdAt: Date = Date()) {
         self.createdAt = createdAt
@@ -53,6 +57,13 @@ public final class UserProfile {
     public var themeMode: ThemeMode {
         get { ThemeMode(rawValue: themeModeRaw) ?? .system }
         set { themeModeRaw = newValue.rawValue }
+    }
+
+    /// Розклад дня: у суботу й неділю — окремий, якщо його увімкнено.
+    public func schedule(isWeekend: Bool) -> DaySchedule {
+        isWeekend && weekendScheduleEnabled
+            ? DaySchedule(wakeMinutes: weekendWakeMinutes, sleepMinutes: weekendSleepMinutes)
+            : DaySchedule(wakeMinutes: wakeMinutes, sleepMinutes: sleepMinutes)
     }
 
     public static let glassRange = 100...500

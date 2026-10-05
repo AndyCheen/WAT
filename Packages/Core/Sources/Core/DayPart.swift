@@ -13,6 +13,17 @@ public enum DayPart: Int, CaseIterable, Codable, Sendable, Identifiable {
 
     public var id: Int { rawValue }
 
+    /// Стабільний латинський ключ — для ідентифікаторів сповіщень і `refId` XP.
+    public var key: String {
+        switch self {
+        case .morning: return "morning"
+        case .noon: return "noon"
+        case .afternoon: return "afternoon"
+        case .evening: return "evening"
+        case .night: return "night"
+        }
+    }
+
     public var title: String {
         switch self {
         case .morning: return "Ранок"
