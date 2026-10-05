@@ -16,6 +16,13 @@ final class SmokeUITests: XCTestCase {
         return app
     }
 
+    /// Перша порція відкриває «Першу краплю», і тост лягає на перший рядок історії: з капсулою
+    /// частини доби (WAT-40) історія стоїть нижче, і тап по рядку влучав би в тост.
+    private func waitForToastToHide(_ app: XCUIApplication) {
+        let toast = app.staticTexts["toast.message"]
+        if toast.exists { XCTAssertTrue(toast.waitForNonExistence(timeout: 6)) }
+    }
+
     // MARK: - Головний екран
 
     func testLaunchesWithEmptyState() {
@@ -99,6 +106,7 @@ final class SmokeUITests: XCTestCase {
         app.buttons["home.add.500"].tap()
         XCTAssertEqual(percent.label, "25%")
 
+        waitForToastToHide(app)
         app.staticTexts["500 мл"].tap()
         app.buttons["history.delete"].firstMatch.tap()
 
@@ -111,6 +119,7 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(percent.waitForExistence(timeout: 15))
 
         app.buttons["home.add.500"].tap()
+        waitForToastToHide(app)
         app.staticTexts["500 мл"].tap()
         app.buttons["history.delete"].firstMatch.tap()
         XCTAssertEqual(percent.label, "0%")
