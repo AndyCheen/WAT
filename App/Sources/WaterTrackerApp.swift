@@ -55,8 +55,10 @@ struct WaterTrackerApp: App {
 struct LaunchConfiguration {
     let isInMemory: Bool
     let seedsDemoData: Bool
-    /// `--start-screen progress|achievements|prizes|stats|notifications|notification-plan` —
+    /// `--start-screen progress|achievements|prizes|stats|notifications|notification-plan|report` —
     /// відкрити екран одразу. Використовується для дизайн-QA та e2e без ручної навігації.
+    /// `report` — звіт за минулий тиждень; конкретний період — `report:day:2026-10-04`,
+    /// `report:month:2026-09` (кілька — через кому, як у злитому сповіщенні).
     let startRoute: AppRoute?
     /// `--uitest-empty` / `--uitest-demo`: in-memory база й центр сповіщень у пам'яті.
     let isUITest: Bool
@@ -86,6 +88,10 @@ struct LaunchConfiguration {
         case "stats": route = .stats
         case "notifications": route = .notifications
         case "notification-plan": route = .notificationPlan
+        case let screen? where screen.hasPrefix("report"):
+            let periods = screen.dropFirst("report".count).drop { $0 == ":" }
+                .split(separator: ",").compactMap { ReportPeriod(encoded: String($0)) }
+            route = .report(periods)
         default: route = nil
         }
 

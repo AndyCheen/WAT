@@ -3,6 +3,7 @@ import Core
 import Persistence
 import Metrics
 import Hydration
+import Insights
 import Gamification
 import Notifications
 
@@ -34,6 +35,9 @@ extension AppServices {
         let facts = gamification.streakFacts(at: now)
         let rules = gamification.xp.rules
         let todayIntakes = dayLogs.activeIntakes(for: today)
+        let reports = NotificationPlanner.reportPeriods(
+            now: now, timeZone: calendar.calendar.timeZone, preferences: notifications.preferences(), rules: notifications.rules
+        ).map(reportDigest)
         return NotificationContext(
             now: now,
             timeZone: calendar.calendar.timeZone,
@@ -57,9 +61,21 @@ extension AppServices {
             quests: questHints(at: now),
             bounceBackXp: rules.perBounceBack,
             dayPartXp: rules.perDayPartGoal,
+            reports: reports,
             bounceBackMinStreak: rules.bounceBackMinStreak,
             bounceBackCooldownDays: rules.bounceBackCooldownDays,
             comebackCooldownDays: rules.comebackCooldownDays
+        )
+    }
+
+    /// Числа звіту для тексту сповіщення (§11.2): рахує `Insights`, формулює `Notifications`.
+    private func reportDigest(_ period: ReportPeriod) -> ReportDigest {
+        let report = insights.report(for: period, withThought: false)
+        return ReportDigest(
+            period: period, hasIntakes: report.hasData, totalMl: report.totalMl, goalMl: report.goalMl,
+            goalDays: report.goalDays, dayCount: report.days.count, averageMl: report.averageMl,
+            averageChangePercent: report.averageChangePercent, weakestPart: report.weakestBlock?.title,
+            longestStreak: report.longestStreak?.length ?? 0, glasses: report.glasses
         )
     }
 
@@ -138,9 +154,12 @@ extension AppServices {
         // План рахується асинхронно — на старті його ще немає, тож `P` береться з контексту.
         let portion = TypicalPortion.compute(makeNotificationContext().portionHistoryMl, glassMl: profile.glassMl)
         switch type {
-        case .reminder, .morning: router.open(.customAmount(ml: portion))
+        case .reminder, .checkpoint: router.open(.customAmount(ml: portion))
+        case .morning: router.open(.glass)
         case .rescue: router.open(.freezeCard)
         case .echo: router.open(.progress)
+        // Звіт — за минулий тиждень: у демо-історії він повний (§11.3).
+        case .report: router.open(.report([calendar.period(.week, containing: calendar.dayKey(offsetDays: -7, from: calendar.today))]))
         default: router.open(.home)
         }
     }

@@ -205,9 +205,7 @@ struct PlanBuilder {
         guard preferences.morningEnabled, intakes(on: day).isEmpty else { return nil }
         let item = PlannedNotification(
             id: "wt.morning.\(day.day.rawValue)", type: .morning, slot: "morning", dayKey: day.day, fireAt: at,
-            isFloating: true, priority: .morning, category: .glass,
-            // Етап A: шторки «Склянка» ще немає — тап веде в «Інше» з типовою порцією (§17).
-            tapRoute: .customAmount(ml: portion)
+            isFloating: true, priority: .morning, category: .glass, tapRoute: .glass
         )
         return Candidate(item: item, copy: .morning, rel: day.rel)
     }

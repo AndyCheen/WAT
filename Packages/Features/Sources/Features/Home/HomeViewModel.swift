@@ -14,6 +14,8 @@ public enum HomeSheet: Identifiable {
     case custom, calendar, settings, stats
     /// «Нагадувати, коли забудеш про воду?» — після першої порції (SPEC-NOTIFICATIONS §16.5).
     case permission
+    /// Вікно «Склянка» на весь екран — лише з ранкової склянки (§7.1, рішення від 05.10.2026).
+    case glass
     public var id: Int {
         switch self {
         case .custom: return 0
@@ -21,8 +23,15 @@ public enum HomeSheet: Identifiable {
         case .settings: return 2
         case .stats: return 3
         case .permission: return 4
+        case .glass: return 5
         }
     }
+}
+
+/// Крок вікна «Склянка»: спершу — один раз — яка в тебе склянка, далі — скільки з неї.
+public enum GlassStage: Equatable {
+    case calibrate
+    case pour
 }
 
 /// Подія, на яку екран відповідає вібрацією.
@@ -125,6 +134,13 @@ public final class HomeViewModel {
     private var permissionOfferPending = false
     public var openHistoryId: UUID?
     public var customAmount: Int = 300
+
+    // Вікно «Склянка» (§7.1).
+    public var glassStage: GlassStage = .pour
+    public var glassAmount: Int = 250
+    public var calibrationChoice: Int = 250
+    /// Записаний об'єм — поки показується «+250»; потім вікно закривається само.
+    public var glassRecorded: Int?
 
     public init(services: AppServices) {
         self.services = services
@@ -310,8 +326,81 @@ public final class HomeViewModel {
             present(.custom)
         case .achievement(let key):
             showAchievement(key: key)
+        case .glass:
+            openGlass()
         }
     }
+
+    // MARK: - Вікно «Склянка» (§7.1)
+
+    public static let calibrationChoices = [200, 250, 300, 350, 400]
+    private static let fractionMarks: [(title: String, fraction: Double)] = [("Повна", 1), ("¾", 0.75), ("½", 0.5), ("¼", 0.25)]
+    private static let fractionWords: [Double: String] = [1: "повна склянка", 0.75: "три чверті", 0.5: "пів склянки",
+                                                          0.25: "чверть склянки"]
+
+    public var glassCapacity: Int { services.profile.glassMl }
+
+    /// Частки, що дають щонайменше мінімум порції: при склянці < 200 мл «¼» зникає (§7.1, п. 2).
+    public var glassFractions: [(title: String, fraction: Double)] {
+        Self.fractionMarks.filter { glassMl(for: $0.fraction) >= Intake.minAmountMl }
+    }
+
+    /// Частка → мілілітри, округлено до 5: «¼» від 250 — 60, а не 62,5.
+    public func glassMl(for fraction: Double) -> Int {
+        Int((Double(glassCapacity) * fraction / 5).rounded()) * 5
+    }
+
+    /// «пів склянки» — коли об'єм точно дорівнює частці.
+    public var glassFractionWord: String? {
+        glassFractions.first { glassMl(for: $0.fraction) == glassAmount }.flatMap { Self.fractionWords[$0.fraction] }
+    }
+
+    public var glassAccessibilityValue: String {
+        ["\(glassAmount) мл", glassFractionWord].compactMap { $0 }.joined(separator: ", ")
+    }
+
+    func openGlass() {
+        glassRecorded = nil
+        glassAmount = glassCapacity
+        calibrationChoice = Self.calibrationChoices.contains(glassCapacity) ? glassCapacity : 250
+        glassStage = services.profile.glassConfirmed ? .pour : .calibrate
+        present(.glass)
+    }
+
+    public func selectGlassFraction(_ fraction: Double) {
+        glassAmount = glassMl(for: fraction)
+    }
+
+    public func recalibrateGlass() {
+        calibrationChoice = Self.calibrationChoices.contains(glassCapacity) ? glassCapacity : 250
+        withAnimation(WTAnimation.fade) { glassStage = .calibrate }
+    }
+
+    /// «Готово» калібрування: склянку задано — вона ж і в сповіщеннях, і на екрані «Сповіщення».
+    public func confirmCalibration() {
+        services.profile.glassMl = calibrationChoice
+        services.profile.glassConfirmed = true
+        services.profiles.save()
+        services.touch()
+        glassAmount = calibrationChoice
+        withAnimation(WTAnimation.fade) { glassStage = .pour }
+    }
+
+    /// Запис — той самий шлях, що в «Іншому», потім «+250» на мить, і вікно закривається само.
+    public func confirmGlass() {
+        let amount = glassAmount
+        add(amount)
+        withAnimation(WTAnimation.fade) { glassRecorded = amount }
+        Task { [weak self] in
+            try? await Task.sleep(for: Self.recordedHold)
+            guard let self, self.sheet == .glass else { return }
+            self.dismissSheet()
+            self.glassRecorded = nil
+            self.presentPendingPermissionOffer()
+        }
+    }
+
+    static let recordedHold: Duration = .milliseconds(1100)
 
     /// На першому запуску системного запиту немає — шторка з поясненням після першої порції,
     /// а «Не зараз» відкладає її на 3 дні (§16.5).

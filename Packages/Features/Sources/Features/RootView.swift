@@ -1,4 +1,5 @@
 import SwiftUI
+import Core
 import Persistence
 import DesignSystem
 
@@ -14,6 +15,8 @@ public enum AppRoute: Hashable {
     case notifications
     /// DEBUG: «План сповіщень» — заплановане з часами (§16.11).
     case notificationPlan
+    /// Звіт-історія (§11.3). Кілька періодів — злите «Підсумки тижня й місяця» грає їх підряд.
+    case report([ReportPeriod])
 }
 
 /// Кореневий екран: стек навігації 1a → 3f → 2e, 1a → 3f → «Призи», 1a → 4a (PLAN.md §8).
@@ -82,6 +85,8 @@ public struct RootView: View {
             )
         case .notificationPlan:
             NotificationPlanScreen(services: services, onBack: { path.removeLast() })
+        case .report(let periods):
+            ReportScreen(services: services, periods: periods, onClose: { path.removeLast() })
         }
     }
 }
