@@ -66,6 +66,12 @@ public final class UserProfile {
             : DaySchedule(wakeMinutes: wakeMinutes, sleepMinutes: sleepMinutes)
     }
 
+    /// Розклад конкретного дня: знімок із запису дня, а для днів без нього — поточний профіль.
+    /// Єдиний шлях для XP частин доби, звіту й графіків, інакше вони розійдуться на старих днях.
+    public func schedule(for log: DayLog?, isWeekend: Bool) -> DaySchedule {
+        log?.scheduleSnapshot ?? schedule(isWeekend: isWeekend)
+    }
+
     public static let glassRange = 100...500
     public static let glassStep = 25
 }

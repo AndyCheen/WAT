@@ -62,7 +62,10 @@ struct GameEnv {
     @discardableResult
     func addIntake(_ ml: Int, hour: Int, minute: Int = 0, day: Int = 18) -> UUID {
         let date = Self.date(day: day, hour: hour, minute: minute)
-        let log = dayLogs.dayLog(for: calendar.dayKey(for: date), goalMl: 2000, timeZoneId: "Europe/Kyiv")
+        let key = calendar.dayKey(for: date)
+        let log = dayLogs.dayLog(for: key, goalMl: 2000, timeZoneId: "Europe/Kyiv")
+        // Як `HydrationService`: розклад дня — знімок профілю в момент порції.
+        log.scheduleSnapshot = profiles.profile().schedule(isWeekend: calendar.isWeekend(key))
         let intake = Intake(amountMl: ml, createdAt: date)
         dayLogs.insert(intake, into: log)
         dayLogs.save()

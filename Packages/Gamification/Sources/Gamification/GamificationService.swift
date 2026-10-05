@@ -450,11 +450,12 @@ public final class GamificationService: MetricsSubscriber {
         xp.revert(refId: Self.dayPartGoalRef(day, block), at: date)
     }
 
-    /// Блок частини доби, куди потрапляє момент, і всі порції цього дня. `nil` — поза
-    /// активними годинами або без денного логу (порція до підйому ціль не закриває).
+    /// Блок частини доби, куди потрапляє момент, і всі порції цього дня. Порція до підйому
+    /// належить першому блоку, після відбою — останньому. `nil` — без денного логу.
     private func dayPartState(day: DayKey, at date: Date) -> (GoalBlock, [TimedPortion])? {
         guard let log = dayLogs.existingDayLog(for: day) else { return nil }
-        let schedule = profile.schedule(isWeekend: calendar.isWeekend(day))
+        // Розклад — із запису дня: зміна підйому пізніше не переносить уже оцінені межі (WAT-39).
+        let schedule = profile.schedule(for: log, isWeekend: calendar.isWeekend(day))
         guard let block = schedule.curve(goalMl: log.goalMlSnapshot).goalBlock(containing: minuteOfDay(date)) else {
             return nil
         }

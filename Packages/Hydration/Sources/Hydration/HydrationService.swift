@@ -71,6 +71,7 @@ public final class HydrationService {
         let log = dayLogs.dayLog(for: day, goalMl: goal, timeZoneId: calendar.calendar.timeZone.identifier)
         // Норму могли змінити протягом дня — поточний день підлаштовується (ТЗ §14).
         log.goalMlSnapshot = goal
+        log.scheduleSnapshot = todaySchedule(day)
 
         let wasGoalMet = log.goalMet
         let intake = Intake(amountMl: amountMl, createdAt: now, source: source)
@@ -172,6 +173,25 @@ public final class HydrationService {
         }
         return .empty(dayKey: day, goalMl: goal)
     }
+
+    // MARK: - Розклад дня
+
+    /// Записує поточний підйом і відбій у запис сьогоднішнього дня — після зміни розкладу.
+    /// Минулі дні не чіпаються, як і з нормою: їхні цілі частин доби вже оцінені й з XP (WAT-39).
+    public func scheduleDidChange(at date: Date? = nil) {
+        let day = calendar.dayKey(for: date ?? calendar.now)
+        guard let log = dayLogs.existingDayLog(for: day) else { return }
+        log.scheduleSnapshot = todaySchedule(day)
+        dayLogs.save()
+    }
+
+    private func todaySchedule(_ day: DayKey) -> DaySchedule {
+        profile.schedule(isWeekend: calendar.isWeekend(day))
+    }
+
+    /// Живий об'єкт SwiftData, як у `GamificationService`: зайва вибірка на кожну порцію
+    /// коштувала б на шляху, який міряє `PerformanceTests`.
+    private lazy var profile: UserProfile = profiles.profile()
 
     public func calculateGoal(inputs: GoalInputs, formula: GoalFormula = GoalFormulaRegistry.current) -> Int {
         formula.dailyGoalMl(for: inputs, currentYear: calendar.calendar.component(.year, from: calendar.now))
