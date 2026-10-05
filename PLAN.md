@@ -244,6 +244,7 @@ metrics.record(.init(name: .intakeAdded, value: 300, at: now, payload: ["source"
 | Хедер: 7 крапок | розмітка в `HomeScreen` | `DayLog` за вікно `slidingWindow(7)` | (тап → шторка стріку/календаря); від серії 7 — `WTStreakDrop` замість крапок |
 | Хедер: крапля з рівнем | `LevelDropIcon` + бейдж | `LevelState`, `hasNewAch` | перехід на **3f** |
 | Кільце 242 pt | `ProgressRing` | `DayLog.countedMl / goal` | — |
+| Капсула частини доби | `WTDayPartPill` | `PaceCurve.dayPartProgress` за розкладом дня, порції сьогодні (WAT-40, SPEC-NOTIFICATIONS §26) | — |
 | 4 кнопки | `QuickAddGrid` | `QuickAddPreset` | +200 / +500 / +1000 / шторка «Інше» |
 | Завдання на сьогодні | `TaskRow` × N | `QuestInstance(scope: .daily)` | — |
 | Історія | `HistoryTimelineRow` × N | `Intake` за день | тап → розкрити «Видалити» |
