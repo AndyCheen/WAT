@@ -32,6 +32,12 @@ public struct QuestDefinition: Sendable, Identifiable {
 
     public var id: String { key }
 
+    /// Завдання на частину доби («Випити воду зранку»): у режимі «просто норма» не видається (WAT-42, §28).
+    public var isDayPartQuest: Bool {
+        guard case .metric(let key, _, _) = rule.source else { return false }
+        return MetricKey.dayParts.contains(key)
+    }
+
     public init(
         key: String,
         scope: QuestScope,

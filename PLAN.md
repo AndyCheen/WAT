@@ -102,7 +102,8 @@ erDiagram
 `id, createdAt, gender?, birthYear?, weightKg?, activityLevel, climate, unitSystem (ml|oz),
 onboardingCompleted, themeMode (system|light|dark), hapticsEnabled, soundEnabled, locale`
 · пропозиція графіка (WAT-41): `scheduleOfferShownAt?, scheduleOfferOutcome (none|accepted|declined|dismissed),
-scheduleOfferShiftMinutes` — для правила частоти (SPEC-NOTIFICATIONS §27).
+scheduleOfferShiftMinutes` — для правила частоти (SPEC-NOTIFICATIONS §27)
+· `dayRhythmEnabled` — «Ритм дня»; вимкнено — режим «просто норма за день» (WAT-42, SPEC-NOTIFICATIONS §28).
 
 **`GoalRevision`** — норма змінюється з часом, статистика має рахуватись за нормою, що діяла тоді
 `id, effectiveFrom (date), goalMl, source (calculated|manual), inputsSnapshot (JSON: вага/активність/клімат), createdAt`
@@ -246,13 +247,13 @@ metrics.record(.init(name: .intakeAdded, value: 300, at: now, payload: ["source"
 | Хедер: 7 крапок | розмітка в `HomeScreen` | `DayLog` за вікно `slidingWindow(7)` | (тап → шторка стріку/календаря); від серії 7 — `WTStreakDrop` замість крапок |
 | Хедер: крапля з рівнем | `LevelDropIcon` + бейдж | `LevelState`, `hasNewAch` | перехід на **3f** |
 | Кільце 242 pt | `ProgressRing` | `DayLog.countedMl / goal` | — |
-| Капсула частини доби | `WTDayPartPill` | `PaceCurve.dayPartProgress` за розкладом дня, порції сьогодні (WAT-40, SPEC-NOTIFICATIONS §26) | — |
+| Капсула частини доби | `WTDayPartPill` | `PaceCurve.dayPartProgress` за розкладом дня, порції сьогодні (WAT-40, SPEC-NOTIFICATIONS §26); у режимі «просто норма» — немає | — |
 | 4 кнопки | `QuickAddGrid` | `QuickAddPreset` | +200 / +500 / +1000 / шторка «Інше» |
 | Завдання на сьогодні | `TaskRow` × N | `QuestInstance(scope: .daily)` | — |
 | Історія | `HistoryTimelineRow` × N | `Intake` за день | тап → розкрити «Видалити» |
 | Шторка «Інше» | `WTSheet` | крок 50, чіпи 150/250/350/500 | додати порцію |
 | Шторка календаря | `WTSheet` | `DayLog` місяця, `streak` | — |
-| Шторка налаштувань | `WTSheet` | ціль (крок 250), нагадування, темна тема | зберегти |
+| Шторка налаштувань | `WTSheet` | ціль (крок 250), нагадування, «Ритм дня» (WAT-42, тимчасово — до WAT-15), вібрація, темна тема | зберегти; вимикання ритму разово пропонує «Рівні інтервали» |
 | Шторка статистики | `WTSheet` | 7 днів + середнє/найкращий/разом | — |
 | Вікно «Графік дня» | `ScheduleScreen` на весь екран: `WTGlyphBadge`, `WTTimeChange`, `WTTimeStepper` | `Insights.scheduleSuggestion()` за 14 днів + `ScheduleOfferPolicy` (WAT-41, SPEC-NOTIFICATIONS §27) | змінити розклад / підправити кроками / «Ні» |
 
@@ -381,8 +382,9 @@ Home (1a)
 | **12** | Сповіщення, етап B | ✅ | цілі частин доби (`GoalBlock`) і XP за них; тип 4 — чекпоінти, злиті з нагадуванням; тип 6 — звіти дня, тижня й місяця (тихий денний, злиття тижня й місяця); вікно «Склянка»; екран «Звіт» — історія-інфографіка; рядки B на екрані «Сповіщення»; макет `Design/Notifications.html` (WAT-37). Етап C — WAT-38 |
 
 | **13** | Пропозиція графіка дня | ✅ | `Insights.ScheduleShift` — зсув за 14 днів в обидва боки, будні й вихідні окремо; правило частоти; вікно «Графік дня» на чистому відкритті головного; макет `Design/Schedule.html` (WAT-41, SPEC-NOTIFICATIONS §27) |
+| **14** | Перемикач «Ритм дня» | ✅ | режим «просто норма за день»: без чекпоінтів, XP `dayPartGoal`, завдань на частини доби, капсули й частин у звітах; рядок у шторці налаштувань (WAT-42, SPEC-NOTIFICATIONS §28) |
 
-**Тести:** 431 unit (9 пакетів) + 33 e2e у симуляторі — усі зелені.
+**Тести:** 442 unit (9 пакетів) + 34 e2e у симуляторі — усі зелені.
 `make test-packages` — швидкий цикл без симулятора, `make test-ui` — e2e.
 
 ### Що з'ясувалося під час реалізації
@@ -484,6 +486,10 @@ Home (1a)
     вікно — `--start-screen schedule-suggestion`, справжній шлях — `--seed-schedule-shift`.
 22. **«→» у Nunito немає.** Система підставляла тонку стрілку з іншого шрифту — у вікні «Графік дня» стрілка
     тепер SF Symbol `arrow.right`.
+23. **«Випити воду зранку» ніколи не видається (виявлено в WAT-42).** Завдання третє в `QuestCatalog.daily`, а
+    `dailySlots = 2` бере перші два — «норму» й «4 записи». Через це й вставка «ранкове завдання» в тексті
+    ранкової склянки (`QuestHints.morningQuestActive`) не спрацьовує. Чи ротувати пул — окреме продуктове
+    рішення; правило «без ритму дня — без завдань на частини доби» вже стоїть у `QuestEngine.ensureInstances`.
 
 ### Свідомі відхилення від макета
 

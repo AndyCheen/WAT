@@ -175,9 +175,12 @@ public struct NotificationsScreen: View {
                     WTToggle(isOn: model.toggle(\.followUpEnabled)).accessibilityIdentifier("notifications.followUp")
                 }
             }
-            WTDivider()
-            WTSettingRow("Частини доби", subtitle: "«До 12:00 — ще 150 мл», якщо можна встигнути") {
-                WTToggle(isOn: model.toggle(\.checkpointsEnabled)).accessibilityIdentifier("notifications.checkpoints")
+            // Без ритму дня чекпоінтів немає зовсім (WAT-42) — перемикач, що нічого не змінює, не показуємо.
+            if model.profile.dayRhythmEnabled {
+                WTDivider()
+                WTSettingRow("Частини доби", subtitle: "«До 12:00 — ще 150 мл», якщо можна встигнути") {
+                    WTToggle(isOn: model.toggle(\.checkpointsEnabled)).accessibilityIdentifier("notifications.checkpoints")
+                }
             }
             WTDivider()
             WTSettingRow("Ранкова склянка", subtitle: "Якщо зранку ще немає порцій") {

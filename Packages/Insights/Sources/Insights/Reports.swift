@@ -93,6 +93,7 @@ public struct PeriodReport: Equatable, Sendable {
     public let glassMl: Int
     /// Порції дня в хвилинах доби — для слайда «як минув день».
     public let portions: [TimedPortion]
+    /// Порожньо в режимі «просто норма» (WAT-42, §28): звіт тоді не судить частини доби.
     public let blocks: [ReportBlock]
     /// Розклад, з якого побудовано `blocks` — першого дня періоду, зі знімка його запису.
     public let schedule: DaySchedule
@@ -103,6 +104,8 @@ public struct PeriodReport: Equatable, Sendable {
     public let thought: ReportThought?
 
     public var elapsedDays: [ReportDay] { days.filter { !$0.isFuture } }
+    /// Звіт із цілями частин доби — увімкнено «Ритм дня».
+    public var showsDayParts: Bool { !blocks.isEmpty }
     public var hasData: Bool { days.contains(where: \.hasData) }
     public var bestDay: ReportDay? { elapsedDays.filter(\.hasData).max { $0.totalMl < $1.totalMl } }
     public var glasses: Int { glassMl > 0 ? Int((Double(totalMl) / Double(glassMl)).rounded()) : 0 }
@@ -134,13 +137,17 @@ extension InsightsService {
 
     /// `withThought: false` — для тексту сповіщення: думка там не потрібна, а правило «рекорд»
     /// читає всю історію, а контекст планувальника збирається на кожне перепланування.
+    ///
+    /// Режим «просто норма» (WAT-42, §28) — за поточним перемикачем, а не за днем звіту: звіт не
+    /// зберігається, а частини доби людина бачити не хоче, хоч би за який період дивилась.
     public func report(for period: ReportPeriod, withThought: Bool = true) -> PeriodReport {
         let snapshot = periodSnapshot(period)
         let previous = periodSnapshot(calendar.shifted(period, by: -1))
         let profile = profiles.profile()
 
         let curve = templateCurve(for: period)
-        let blocks: [ReportBlock] = curve.goalBlocks().map { block in
+        let goalBlocks = profile.dayRhythmEnabled ? curve.goalBlocks() : []
+        let blocks: [ReportBlock] = goalBlocks.map { block in
             let ratios = snapshot.blockRatios[block.deadlinePart.key] ?? []
             let previousRatios = previous.blockRatios[block.deadlinePart.key] ?? []
             let drunk: Int? = period.kind == .day ? block.drunkMl(of: snapshot.portions) : nil
@@ -308,15 +315,17 @@ extension InsightsService {
     private func thought(for report: PeriodReport) -> ReportThought? {
         guard report.hasData else { return nil }
         if report.period.kind == .day {
+            // Без ритму дня думки дня немає — слайд бере загальну фразу (WAT-42).
             guard let strongest = report.strongestBlock else { return nil }
             return .strongestPart(title: strongest.title, percent: Int((strongest.ratio * 100).rounded()))
         }
 
         // 1. Системна прогалина — за 14 днів, що закінчуються останнім днем періоду (§10.1).
+        // У режимі «просто норма» не береться: це порада про частину доби (WAT-42).
         let days = calendar.days(in: report.period)
         let end = min(days.last ?? calendar.today, calendar.today)
         let window = report.period.kind == .week ? calendar.recentDays(14, endingAt: end) : days.filter { $0 <= end }
-        if let weak = weakDayPart(days: window) { return .weakPart(weak) }
+        if report.showsDayParts, let weak = weakDayPart(days: window) { return .weakPart(weak) }
 
         // 2. Покращення ≥ 10 %.
         if let change = report.averageChangePercent, change >= ReportRules.improvementPercent {

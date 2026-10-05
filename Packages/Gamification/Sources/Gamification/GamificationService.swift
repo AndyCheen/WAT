@@ -67,7 +67,7 @@ public final class GamificationService: MetricsSubscriber {
         grantLevelRewards(at: date)
         recomputeStreaks(at: date)
         let context = makeContext(at: date)
-        quests.ensureInstances(context: context, level: xp.progress().level)
+        quests.ensureInstances(context: context, level: xp.progress().level, dayRhythm: profile.dayRhythmEnabled)
         let completed = quests.evaluate(context: context, triggerRef: nil)
         awardQuestXP(completed, at: date)
         let unlocked = achievements.evaluate(context: makeContext(at: date), triggerRef: nil)
@@ -103,7 +103,7 @@ public final class GamificationService: MetricsSubscriber {
         }
 
         let context = makeContext(at: date)
-        quests.ensureInstances(context: context, level: xp.progress().level)
+        quests.ensureInstances(context: context, level: xp.progress().level, dayRhythm: profile.dayRhythmEnabled)
         let completed = quests.evaluate(context: context, triggerRef: event.sourceRef)
         awardQuestXP(completed, at: date)
 
@@ -434,7 +434,11 @@ public final class GamificationService: MetricsSubscriber {
     /// нижче цілі, навіть якщо видалили не ту порцію, що його закрила. Повернута порція знову
     /// публікує `intake.added` — і XP нараховується наново. Зміна норми посеред дня вже
     /// нарахований XP не перераховує (рішення від 05.10.2026, §24).
+    ///
+    /// Режим «просто норма» (WAT-42, §28) XP не дає, але й нарахованого раніше не забирає: відкат
+    /// нижче лишається, бо він про порцію, а не про режим.
     private func awardDayPartGoalIfDue(_ event: RecordedMetricEvent) {
+        guard profile.dayRhythmEnabled else { return }
         let day = DayKey(rawValue: event.dayKey)
         guard let (block, portions) = dayPartState(day: day, at: event.occurredAt) else { return }
         let ref = Self.dayPartGoalRef(day, block)

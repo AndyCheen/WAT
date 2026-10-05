@@ -199,6 +199,26 @@ final class ReportsTests: XCTestCase {
         XCTAssertEqual(weak.key, "evening")
     }
 
+    /// Режим «просто норма» (WAT-42, §28): та сама прогалина, але звіт частин доби не має, а думка
+    /// переходить до наступного правила.
+    func testPlainModeDropsDayPartsAndWeakPart() {
+        for day in 21...30 { forgetfulEvening("2026-09-\(day)") }
+        profiles.profile().dayRhythmEnabled = false
+        profiles.save()
+
+        let week = insights.report(for: .week(start: DayKey(rawValue: "2026-09-28")))
+        XCTAssertFalse(week.showsDayParts)
+        XCTAssertNil(week.weakestBlock, "звідси «найслабше — …» у тексті сповіщення")
+        guard case .bestDay = week.thought else { return XCTFail("\(String(describing: week.thought))") }
+        XCTAssertEqual(week.goalDays, 0)
+        XCTAssertEqual(week.totalMl, 3 * 1530, "числа води — ті самі")
+
+        let day = insights.report(for: .day(DayKey(rawValue: "2026-09-30")))
+        XCTAssertTrue(day.blocks.isEmpty)
+        XCTAssertNil(day.thought, "думка дня — про найсильнішу частину, без ритму її немає")
+        XCTAssertEqual(day.portions.count, 3, "порції лишаються — для слайда «випито за день»")
+    }
+
     private func forgetfulEvening(_ day: String) {
         drink(day, 9, 0, 650)
         drink(day, 14, 0, 780)

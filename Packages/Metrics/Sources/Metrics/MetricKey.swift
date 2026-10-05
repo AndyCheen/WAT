@@ -46,6 +46,8 @@ public struct MetricKey: RawRepresentable, Hashable, Codable, Sendable, Expressi
     public static let notificationPaused: MetricKey = "notification.paused"
 
     public static func part(_ index: Int) -> MetricKey {
-        [partMorning, partNoon, partAfternoon, partEvening, partNight][max(0, min(4, index))]
+        dayParts[max(0, min(4, index))]
     }
+
+    public static let dayParts: [MetricKey] = [partMorning, partNoon, partAfternoon, partEvening, partNight]
 }

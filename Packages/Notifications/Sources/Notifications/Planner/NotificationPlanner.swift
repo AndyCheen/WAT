@@ -276,7 +276,7 @@ struct PlanBuilder {
     /// закрити реально. Вечір чекпоінта не має: його кінець — відбій, цю роль виконує вечірній
     /// підсумок; тому й чекпоінт пізніше за відсічку нагадувань не планується.
     func checkpoints(for day: PlanningDay) -> [Candidate] {
-        guard preferences.checkpointsEnabled, day.sinceAction <= 1, !isPaused(day),
+        guard preferences.dayRhythmEnabled, preferences.checkpointsEnabled, day.sinceAction <= 1, !isPaused(day),
               counted(on: day) < context.goalMl else { return [] }
         let frame = day.frame
         let portions = portions(on: day)

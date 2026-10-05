@@ -15,11 +15,15 @@ public final class QuestEngine {
     }
 
     /// Створює інстанси завдань на поточний день і тиждень, якщо їх ще немає.
-    public func ensureInstances(context: RuleContext, level: Int) {
+    ///
+    /// `dayRhythm: false` — режим «просто норма» (WAT-42, §28): завдання на частини доби не потрапляють
+    /// у пул, і слот бере наступне. Уже видане сьогодні лишається до кінця дня — забирати його посеред
+    /// дня означало б відкочувати чесно зароблений прогрес.
+    public func ensureInstances(context: RuleContext, level: Int, dayRhythm: Bool = true) {
         let dayKey = calendar.dayKey(for: context.date).rawValue
         let weekKey = calendar.weekKey(for: context.date).rawValue
 
-        let dailyPool = QuestCatalog.daily.filter { $0.minLevel <= level }
+        let dailyPool = QuestCatalog.daily.filter { $0.minLevel <= level && (dayRhythm || !$0.isDayPartQuest) }
         for definition in dailyPool.prefix(QuestCatalog.dailySlots) {
             ensure(definition, periodKey: dayKey, context: context)
         }

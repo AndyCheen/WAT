@@ -80,7 +80,7 @@ struct StreakCalendarSheet: View {
     }
 }
 
-/// Налаштування: денна мета, нагадування, темна тема (макет 1a).
+/// Налаштування: денна мета, нагадування, ритм дня, вібрація, темна тема (макет 1a).
 struct SettingsSheet: View {
     @Environment(\.wtTheme) private var theme
     @Bindable var model: HomeViewModel
@@ -109,6 +109,11 @@ struct SettingsSheet: View {
                 services.profiles.save()
             }
         )
+    }
+
+    private var dayRhythm: Binding<Bool> {
+        Binding(get: { model.dayRhythmEnabled },
+                set: { newValue in withAnimation(WTAnimation.sheet) { model.setDayRhythm(newValue) } })
     }
 
     var body: some View {
@@ -146,6 +151,23 @@ struct SettingsSheet: View {
 
                 divider
 
+                // Тимчасово тут: місце перемикача — окреме вікно налаштувань (WAT-15). Не на екрані
+                // «Сповіщення»: він стосується й гри, і звітів (SPEC-NOTIFICATIONS §28).
+                settingRow("Ритм дня", subtitle: model.dayRhythmEnabled ? "Цілі на ранок, день і вечір" : "Просто норма за день") {
+                    WTToggle(isOn: dayRhythm)
+                        .accessibilityIdentifier("settings.dayRhythm")
+                }
+                if model.offersIntervalReminders {
+                    WTNoticeBanner("Нагадування «за темпом» теж ділять день на частини",
+                                   actionTitle: "Рівні інтервали", identifier: "settings.intervalOffer") {
+                        withAnimation(WTAnimation.sheet) { model.switchRemindersToInterval() }
+                    }
+                    .padding(.top, 4)
+                    .transition(.opacity)
+                }
+
+                divider
+
                 settingRow("Вібрація") {
                     WTToggle(isOn: haptics)
                         .accessibilityIdentifier("settings.haptics")
@@ -168,11 +190,19 @@ struct SettingsSheet: View {
         Rectangle().fill(theme.line).frame(height: 1).padding(.vertical, 8)
     }
 
-    private func settingRow<Control: View>(_ title: String, @ViewBuilder control: () -> Control) -> some View {
+    private func settingRow<Control: View>(_ title: String, subtitle: String? = nil,
+                                           @ViewBuilder control: () -> Control) -> some View {
         HStack {
-            Text(title)
-                .font(WTFont.text(17, .bold))
-                .foregroundStyle(theme.textPrimary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(WTFont.text(17, .bold))
+                    .foregroundStyle(theme.textPrimary)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(WTFont.text(13, .semibold))
+                        .foregroundStyle(theme.textMuted)
+                }
+            }
             Spacer()
             control()
         }
