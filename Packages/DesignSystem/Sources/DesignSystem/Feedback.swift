@@ -18,6 +18,8 @@ public enum WTFeedback: Equatable, Sendable {
     case remove
     /// Перемикач, вибір у сегментованому контролі.
     case toggle
+    /// Наростання очікування перед розкриттям таємного призу: крок 0…2, від легкого до сильного.
+    case anticipation(Int)
 
     var sensory: SensoryFeedback {
         switch self {
@@ -27,6 +29,9 @@ public enum WTFeedback: Equatable, Sendable {
         case .levelUp: return .success
         case .remove: return .impact(flexibility: .rigid, intensity: 0.8)
         case .toggle: return .selection
+        case .anticipation(let step):
+            let weights: [SensoryFeedback.Weight] = [.light, .medium, .heavy]
+            return .impact(weight: weights[max(0, min(2, step))], intensity: 0.6 + 0.15 * Double(max(0, min(2, step))))
         }
     }
 }

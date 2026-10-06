@@ -44,13 +44,17 @@ public struct WTLevelDonut: View {
     private let fraction: Double
     private let diameter: CGFloat
     private let boostBadge: String?
+    private let isNew: Bool
 
-    /// - Parameter boostBadge: «⚡ ×2» — діє подвійний XP (WAT-34).
-    public init(level: Int, fraction: Double, diameter: CGFloat = 112, boostBadge: String? = nil) {
+    /// - Parameters:
+    ///   - boostBadge: «⚡ ×2» — діє подвійний XP (WAT-34).
+    ///   - isNew: на шляху рівнів чекає вибір чи таємний приз (WAT-44) — крапка «нове».
+    public init(level: Int, fraction: Double, diameter: CGFloat = 112, boostBadge: String? = nil, isNew: Bool = false) {
         self.level = level
         self.fraction = fraction
         self.diameter = diameter
         self.boostBadge = boostBadge
+        self.isNew = isNew
     }
 
     public var body: some View {
@@ -93,6 +97,10 @@ public struct WTLevelDonut: View {
             }
         }
         .frame(width: diameter, height: diameter)
+        .overlay(alignment: .topTrailing) {
+            // Крапка на колі, а не в куті рамки: донат круглий, і кут рамки від нього далеко.
+            if isNew { WTNewDot().scaleEffect(1.4).offset(x: -diameter * 0.1, y: diameter * 0.1) }
+        }
         .overlay(alignment: .bottomTrailing) {
             if let boostBadge {
                 WTBoostBadge(label: boostBadge, fontSize: 13, border: theme.screen)
@@ -172,7 +180,7 @@ public struct WTStatCounter: View {
     }
 }
 
-/// Горизонтальний XP-бар (шторка «Нагороди за рівні»).
+/// Горизонтальний бар: XP у шапці шляху рівнів, час буста, ліміти.
 public struct WTProgressBar: View {
     @Environment(\.wtTheme) private var theme
     private let fraction: Double
