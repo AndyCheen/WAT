@@ -91,24 +91,26 @@ button{font-family:inherit}
 .primary{width:100%;height:50px;border-radius:var(--r-control);background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;
          font-size:16px;font-weight:800;cursor:pointer;border:0}
 .primary:disabled{background:var(--dot-off);color:var(--muted);cursor:default}
-.plate{height:50px;border-radius:var(--r-control);background:rgba(63,181,111,.14);color:var(--success-text);display:flex;align-items:center;justify-content:center;
-       gap:8px;font-size:16px;font-weight:800;animation:pop .35s cubic-bezier(.22,1.4,.36,1)}
-@keyframes pop{0%{transform:scale(.9);opacity:0}100%{transform:none;opacity:1}}
-
-/* картка вибору — спільна для обох виглядів */
-.choice-card{background:var(--card);border-radius:var(--r-panel);padding:16px;box-shadow:var(--shadow);border:2px solid var(--accent)}
-.choice-card .ch-t{font-size:17px;font-weight:800}
-.choice-card .ch-s{font-size:12px;font-weight:700;color:var(--muted);margin-top:2px}
-.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
-.tile{border:2px solid var(--line);background:var(--screen);border-radius:var(--r-control);padding:12px 10px 12px;text-align:center;cursor:pointer;
-      color:var(--text);transition:transform .2s,border-color .2s,opacity .3s}
-.tile .te{width:52px;height:52px;margin:0 auto 8px;border-radius:50%;background:var(--prize-bg);display:flex;align-items:center;justify-content:center;font-size:26px;position:relative}
-.tile .tt{font-size:14px;font-weight:800;line-height:1.2}
-.tile .ts{font-size:11px;font-weight:700;color:var(--muted);margin-top:3px;line-height:1.3}
-.tile.sel{border-color:var(--accent);transform:scale(1.03)}
-.tile.lost{opacity:.25;transform:scale(.94)}
-.tile.won .te::after{content:"✓";position:absolute;right:-3px;top:-3px;width:20px;height:20px;border-radius:50%;background:var(--success);color:#fff;
-      font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid var(--card)}
+/* вибір «один з двох» — компактно: заголовок із кнопкою і дві пігулки з «або» між ними */
+.pick{background:var(--card);border-radius:var(--r-panel);padding:12px 14px 14px;box-shadow:var(--shadow);border:2px solid var(--accent)}
+.pk-h{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.pk-s.done{color:var(--success-text)!important}
+.take{height:34px;padding:0 16px;border-radius:999px;border:0;background:var(--accent);color:#fff;font-size:14px;font-weight:800;cursor:pointer;flex:none;transition:opacity .2s}
+.take:disabled{background:var(--dot-off);color:var(--muted);cursor:default}
+.opts{display:flex;align-items:center;gap:8px}
+.or{font-size:12px;font-weight:800;color:var(--muted);flex:none}
+.opt{flex:1;min-width:0;display:flex;align-items:center;gap:7px;height:50px;padding:0 6px;border-radius:var(--r-control);border:2px solid var(--line);
+     background:var(--screen);color:var(--text);cursor:pointer;text-align:left;transition:opacity .25s,border-color .2s,background .2s}
+.oi{width:32px;height:32px;flex:none;border-radius:10px;background:var(--prize-bg);display:flex;align-items:center;justify-content:center;font-size:17px;position:relative}
+.opt .ot{font-size:12px;font-weight:800;line-height:1.15}
+.opt.sel{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--card))}
+.opt.dim{opacity:.5}
+.opt.lost,.fk.lost{opacity:.18}
+.opt.won .oi::after,.fk.won::after{content:"✓";position:absolute;right:-5px;top:-5px;width:18px;height:18px;border-radius:50%;background:var(--success);color:#fff;
+      font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid var(--card)}
+/* вибір, до якого ще не дійшов: ті самі два призи, «або» між ними, без дії */
+.pair{display:flex;align-items:center;gap:5px;flex:none}
+.pair .ic{width:38px;height:38px;font-size:19px;border-radius:11px}
 
 /* таємний приз, що чекає */
 .gift{animation:wiggle 2.4s ease-in-out infinite}
@@ -174,7 +176,19 @@ button{font-family:inherit}
 .tl.fog{filter:blur(3px);opacity:.45}
 .tbtn{position:absolute;transform:translate(-50%,0);height:36px;padding:0 18px;border-radius:999px;background:var(--accent);color:#fff;border:0;
       font-size:14px;font-weight:800;cursor:pointer;white-space:nowrap}
-.tcard{position:absolute;left:0;right:0}
+.fork{position:absolute;left:0;right:0;text-align:center}
+.fk{position:absolute;width:58px;height:58px;border-radius:50%;border:0;background:var(--locked-bg);font-size:27px;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 0 5px var(--screen);transform:translate(-50%,-50%);transition:opacity .25s,box-shadow .2s;cursor:default}
+.fork.pend .fk{background:var(--prize-bg);cursor:pointer}
+.fork.pend .fk.sel{box-shadow:0 0 0 5px var(--screen),0 0 0 8px var(--accent)}
+.fork.pend .fk.dim{opacity:.5}
+.fk-arm{position:absolute;height:4px;border-radius:2px;transform:translateY(-50%)}
+.fk-arm.up{background:repeating-linear-gradient(90deg,var(--dot-off) 0 6px,transparent 6px 12px)}
+.fk-arm.pend{background:var(--accent);opacity:.5}
+.fk-txt{position:absolute;left:0;right:0;text-align:center}
+.fk-txt .t{font-size:14px;font-weight:800}
+.fk-txt .s{font-size:12px;font-weight:700;color:var(--muted);margin-top:2px}
+.fk-txt .take{margin-top:10px}
 .marker{position:absolute;transform:translateY(-50%);height:26px;padding:0 10px;border-radius:999px;background:var(--text);color:var(--screen);
         font-size:12px;font-weight:900;display:flex;align-items:center;white-space:nowrap}
 .marker::after{content:"";position:absolute;left:-5px;top:50%;margin-top:-5px;border:5px solid transparent;border-left:0;border-right-color:var(--text)}
@@ -306,7 +320,7 @@ button{font-family:inherit}
   <div><label>Розкриття таємного</label><div class="btns" data-g="reveal">
     <button data-v="chest" class="on">1 · Скриня</button><button data-v="reel">2 · Барабан</button><button data-v="strip">3 · Стрічка</button></div></div>
   <div><label>Стан</label><div class="btns" data-g="sc">
-    <button data-v="choice" class="on">Рівень 4 · вибір</button><button data-v="mystery">Рівень 6 · скриня</button>
+    <button data-v="ahead">Рівень 2 · вибір попереду</button><button data-v="choice" class="on">Рівень 4 · вибір</button><button data-v="mystery">Рівень 6 · скриня</button>
     <button data-v="done">Рівень 9 · усе забрано</button><button data-v="late">Рівень 23</button></div></div>
   <div><label>Тема</label><div class="btns" data-g="theme"><button data-v="light" class="on">Світла</button><button data-v="dark">Темна</button></div></div>
   <div><label>Рух</label><div class="btns" data-g="motion"><button data-v="full" class="on">Повний</button><button data-v="reduce">Reduce Motion</button></div></div>
@@ -387,6 +401,7 @@ const xpToNext=L=>100+50*(L-1);
 const totalXp=L=>25*(L-1)*(L+2);
 
 const SCEN={
+  ahead:{level:2,into:60,claimed:{2:{g:[['boost',1]],via:'prize'}}},
   choice:{level:4,into:40,claimed:{2:{g:[['boost',1]],via:'prize'}}},
   mystery:{level:6,into:120,claimed:{2:{g:[['boost',1]],via:'prize'},4:{g:[['freeze',1]],via:'choice'}}},
   done:{level:9,into:300,claimed:{2:{g:[['boost',1]],via:'prize'},4:{g:[['freeze',1]],via:'choice'},6:{g:[['boost',2]],via:'mystery'},8:{g:[['freeze',1]],via:'prize'}}},
@@ -431,16 +446,24 @@ const grantTitle=(g)=>g.length>1?g.map(x=>P[x[0]].t).join(' + '):P[g[0][0]].t;
 function claimedSub(c){return c.via==='choice'?'Обрано з двох':c.via==='mystery'?'З таємного призу':'Отримано';}
 function upcomingText(n){
   if(n.k==='prize')return {e:P[n.p].e,t:P[n.p].t,s:P[n.p].d};
-  if(n.k==='choice')return {e:'🧊⚡',two:true,t:'Приз на вибір',s:'🧊 або ⚡ — на твій вибір'};
+  if(n.k==='choice')return {e:'🧊⚡',two:true,t:'Приз на вибір',s:orNames(n.o)};
   return n.big?{e:'🎁',t:'Великий таємний приз',s:'Може випасти: '+MAY_BIG}:{e:'🎁',t:'Таємний приз',s:'Може випасти: '+MAY};
 }
 
-/* ---- картки, спільні для обох виглядів ---- */
-function choiceCard(r){
-  const o=r.n.o;
-  return `<div class="choice-card" data-l="${r.L}"><div class="ch-t">Обери приз</div><div class="ch-s">Можна взяти один із двох</div>
-    <div class="tiles">${o.map(k=>`<button class="tile ${sel===k?'sel':''}" data-k="${k}"><div class="te">${P[k].e}</div><div class="tt">${P[k].t}</div><div class="ts">${P[k].d}</div></button>`).join('')}</div>
-    <button class="primary take" ${sel?'':'disabled'}>${sel?'Забрати '+P[sel].e:'Обери один'}</button></div>`;
+/* ---- вибір «один з двох» ---- */
+const pickSub=()=>sel?P[sel].d:'Можна взяти один із двох';
+// «Заморозка серії або подвійний XP»: друга назва посеред речення — з малої.
+const orNames=o=>o.map((k,i)=>i?P[k].t[0].toLowerCase()+P[k].t.slice(1):P[k].t).join(' або ');
+function optCls(k){return sel===k?'sel':sel?'dim':'';}
+function pickCard(r){
+  return `<div class="pick" data-pick="${r.L}"><div class="pk-h"><div class="tx"><div class="t">Обери один</div><div class="s pk-s">${pickSub()}</div></div>
+    <button class="take" ${sel?'':'disabled'}>Забрати</button></div>
+    <div class="opts">${r.n.o.map(k=>`<button class="opt ${optCls(k)}" data-k="${k}"><span class="oi">${P[k].e}</span><span class="ot">${P[k].t}</span></button>`).join('')}</div></div>`;
+}
+/* Ще не дійшов: картка того ж розміру, що й інші попереду, — два призи з «або». */
+function pickUpcoming(n){
+  return `<div class="card upcoming"><div class="pair">${n.o.map(k=>`<div class="ic">${P[k].e}</div>`).join('<span class="or">або</span>')}</div>
+    <div class="tx"><div class="t">Приз на вибір</div><div class="s">${orNames(n.o)}</div></div></div>`;
 }
 
 /* ---- A. Драбина ---- */
@@ -458,7 +481,8 @@ function renderLadder(snap){
     if(r.state==='claimed'){const c=st.claimed[r.L],ic=grantIcon(c.g);
       body=`<div class="card claimed"><div class="ic ${ic.two?'two':''}">${ic.e}${ic.cnt?`<span class="cnt">${ic.cnt}</span>`:''}<span class="ok">✓</span></div>
         <div class="tx"><div class="t">${grantTitle(c.g)}</div><div class="s done">${claimedSub(c)}</div></div></div>`;}
-    else if(r.state==='pending'&&r.n.k==='choice') body=choiceCard(r);
+    else if(r.state==='pending'&&r.n.k==='choice') body=pickCard(r);
+    else if(r.state==='upcoming'&&r.n.k==='choice') body=pickUpcoming(r.n);
     else if(r.state==='pending'){
       const u=upcomingText(r.n);
       body=`<div class="mys" data-l="${r.L}"><div class="r"><div class="ic"><span class="gift">🎁</span></div>
@@ -486,10 +510,23 @@ function renderTrail(snap){
   let y=24,pts=[],h='',html=[];
   const add=s=>{tr.insertAdjacentHTML('beforeend',s);return tr.lastElementChild;};
   for(const r of snap.rows){
-    const big=!!r.n,size=big?68:30,x=cx+OFF[(r.L-1)%8];
+    const fork=r.n&&r.n.k==='choice'&&(r.state==='pending'||r.state==='upcoming');
+    const big=!!r.n&&!fork,size=big?68:fork?58:30,x=fork?cx:cx+OFF[(r.L-1)%8];
     y+=size/2;pts.push({x,y,L:r.L});
     const fog=r.state.startsWith('fog');
-    if(big){
+    if(fork){
+      // Розвилка: рівень — на стежці, два призи — обабіч, як два відгалуження.
+      const pend=r.state==='pending',dx=88;
+      add(`<div class="fk-arm ${pend?'pend':'up'}" style="left:${cx-dx}px;width:${dx*2}px;top:${y}px"></div>`);
+      add(`<div class="fork ${pend?'pend':''}" data-pick="${r.L}" style="top:0;height:0">${r.n.o.map((k,i)=>
+        `<button class="fk ${pend?optCls(k):''}" data-k="${k}" ${pend?'':'disabled'} style="left:${cx+(i?dx:-dx)}px;top:${y}px">${P[k].e}</button>`).join('')}</div>`);
+      add(`<div class="tn lv ${r.L<=st.level?'done':''}" data-l="${r.L}" style="left:${x}px;top:${y}px">${r.L}</div>`);
+      const t=add(`<div class="fk-txt" data-pick="${r.L}" style="top:${y+size/2+14}px">${pend
+        ?`<div class="t">Обери один</div><div class="s pk-s">${pickSub()}</div><button class="take" ${sel?'':'disabled'}>Забрати</button>`
+        :`<div class="t">Приз на вибір</div><div class="s">${orNames(r.n.o)}</div>`}</div>`);
+      y+=t.offsetHeight+14;
+      if(r.L===st.level){add(`<div class="marker" style="left:${cx-62}px;top:${y+size/2+24}px">Ти тут · <span class="num">&nbsp;${st.into}/${xpToNext(st.level)}</span>&nbsp;XP</div>`);y+=34;}
+    } else if(big){
       let e='?',two=false,cls='',extra='',lab='',labCls='',labS='';
       if(r.state==='claimed'){const c=st.claimed[r.L],ic=grantIcon(c.g);e=ic.e;two=ic.two;cls='done';extra=`<span class="ok">✓</span>${ic.cnt?`<span class="cnt">${ic.cnt}</span>`:''}`;
         lab=grantTitle(c.g);labS=`<div class="s done">${claimedSub(c)}</div>`;}
@@ -504,13 +541,12 @@ function renderTrail(snap){
       add(`<div class="tn lv ${r.L<=st.level?'done':''}" data-l="${r.L}" style="left:${x}px;top:${y}px;${fog?'opacity:.45':''}">${r.L}</div>`);
     }
     // «Ти тут» — збоку від вузла, з боку, де більше місця; у вузла з призом цей бік зайнятий підписом.
-    if(r.L===st.level&&!big){const left=x>cx+10;
+    if(r.L===st.level&&!big&&!fork){const left=x>cx+10;
       add(`<div class="marker ${left?'left':''}" style="${left?`right:${W-x+26}px`:`left:${x+26}px`};top:${y}px">Ти тут · <span class="num">&nbsp;${st.into}/${xpToNext(st.level)}</span>&nbsp;XP</div>`);}
     if(r.L===st.level&&big) add(`<div class="marker" style="left:${x-60}px;top:${y+size/2+22}px">Ти тут · <span class="num">&nbsp;${st.into}/${xpToNext(st.level)}</span>&nbsp;XP</div>`);
     y+=size/2;
     if(r.state==='pending'&&r.n.k==='mystery'){const b=add(`<button class="tbtn open" data-l="${r.L}" style="left:${x}px;top:${y+16}px">Відкрити</button>`);y+=56;}
-    if(r.state==='pending'&&r.n.k==='choice'){y+=22;const c=add(`<div class="tcard" style="top:${y}px">${choiceCard(r)}</div>`);y+=c.offsetHeight;}
-    if(r.L===st.level&&r.n) y+=34;
+    if(r.L===st.level&&big) y+=34;
     y+=big?30:22;
   }
   tr.style.height=(y+10)+'px';
@@ -524,7 +560,7 @@ function renderTrail(snap){
     <path d="${past}" fill="none" stroke="var(--accent)" stroke-width="8" stroke-linecap="round"/>
     <path d="${part}" pathLength="1" fill="none" stroke="var(--accent)" stroke-width="8" stroke-linecap="round" stroke-dasharray="${f} 1"/></svg>`;
   tr.insertAdjacentHTML('afterbegin',svg);
-  tr.querySelectorAll('.tn,.tl,.tbtn,.marker,.tcard').forEach(e=>e.style.zIndex=1);
+  tr.querySelectorAll('.tn,.tl,.tbtn,.marker,.fork,.fk-arm,.fk-txt').forEach(e=>e.style.zIndex=1);
 }
 
 /* ---- рендер вікна ---- */
@@ -541,7 +577,7 @@ function render(keepScroll){
   const fr=snap.rows.find(r=>r.L===snap.focus);
   $('#wnote').innerHTML=`<b>Фокус на відкритті — рівень ${snap.focus}</b>: ${fr&&fr.state==='pending'?'приз, що чекає дії':'останній отриманий приз'}. `+
     (S.layout==='ladder'?'<b>A · Драбина:</b> рейка рівнів зліва, приз — картка справа; порожні рівні — маленькі кружки. Читається як список, вибір і скриня вміщаються без перекомпонування.'
-                        :'<b>B · Стежка:</b> зигзаг, як карта гри; призи — великі кола з підписом збоку. Ігровіше, але картка вибору розриває шлях.');
+                        :'<b>B · Стежка:</b> зигзаг, як карта гри; призи — великі кола з підписом збоку. Вибір — розвилка: рівень на стежці, два призи обабіч.');
 }
 function center(L){
   const sc=$('#sc'),el=S.layout==='ladder'?($(`#n${L} .body`).firstElementChild||$(`#n${L}`)):$(`#road .tn[data-l="${L}"]`);
@@ -550,12 +586,13 @@ function center(L){
 }
 
 function wire(){
-  document.querySelectorAll('#road .tile').forEach(t=>t.onclick=()=>{sel=t.dataset.k;render(true);});
+  document.querySelectorAll('#road [data-pick] [data-k]:not([disabled])').forEach(t=>t.onclick=()=>{sel=t.dataset.k;render(true);});
   document.querySelectorAll('#road .take').forEach(b=>b.onclick=()=>{
-    const card=b.closest('.choice-card'),L=+card.dataset.l;
-    card.querySelectorAll('.tile').forEach(t=>t.classList.add(t.dataset.k===sel?'won':'lost'));
-    b.outerHTML=`<div class="plate">✓ ${P[sel].e} у твоїх призах</div>`;
-    const k=sel;setTimeout(()=>{st.claimed[L]={g:[[k,1]],via:'choice'};sel=null;render(true);},S.motion==='reduce'?700:1400);
+    const L=+b.closest('[data-pick]').dataset.pick,k=sel;
+    document.querySelectorAll(`#road [data-pick="${L}"] [data-k]`).forEach(t=>{t.classList.remove('sel','dim');t.classList.add(t.dataset.k===k?'won':'lost');});
+    const sub=document.querySelector(`#road [data-pick="${L}"] .pk-s`);sub.textContent=`✓ ${P[k].e} у твоїх призах`;sub.classList.add('done');
+    b.style.visibility='hidden';
+    setTimeout(()=>{st.claimed[L]={g:[[k,1]],via:'choice'};sel=null;render(true);},S.motion==='reduce'?700:1400);
   });
   document.querySelectorAll('#road .open').forEach(b=>b.onclick=()=>{
     const L=+(b.dataset.l||b.closest('[data-l]').dataset.l);openMystery(L);
@@ -603,12 +640,14 @@ function openMystery(L){
 function render3f(snap){
   const pend=snap.rows.find(r=>r.state==='pending'),f=st.into/xpToNext(st.level);
   let block;
-  if(pend){const u=pend.n.k==='choice'?{e:'🧊⚡',t:'Приз на вибір',s:'Обери: 🧊 або ⚡'}:{e:'🎁',t:pend.n.big?'Великий таємний приз':'Таємний приз',s:'Відкрий — що всередині?'};
-    block=`<div class="lbl acc">РІВЕНЬ ${pend.L} · ЧЕКАЄ НА ТЕБЕ</div><div class="nr cta" id="nrb"><div class="e" style="${u.e.length>2?'font-size:22px;letter-spacing:-2px':''}">${u.e}</div>
+  const lead=n=>n.k==='choice'?`<div class="pair">${n.o.map(k=>`<div class="ic">${P[k].e}</div>`).join('<span class="or">або</span>')}</div>`:`<div class="e">${upcomingText(n).e}</div>`;
+  if(pend){const u=pend.n.k==='choice'?{t:'Приз на вибір',s:'Обери один із двох'}:{t:pend.n.big?'Великий таємний приз':'Таємний приз',s:'Відкрий — що всередині?'};
+    block=`<div class="lbl acc">РІВЕНЬ ${pend.L} · ЧЕКАЄ НА ТЕБЕ</div><div class="nr cta" id="nrb">${lead(pend.n)}
       <div class="tx"><div class="t">${u.t}</div><div class="s">${u.s}</div></div><span class="chev">›</span></div>`;}
   else{const nx=snap.rows.find(r=>r.L>st.level&&r.n),u=upcomingText(nx.n);
-    block=`<div class="lbl">НАГОРОДА НА РІВНІ ${nx.L}</div><div class="nr" id="nrb"><div class="e" style="${u.two?'font-size:22px;letter-spacing:-2px':''}">${u.e}</div>
-      <div class="tx"><div class="t">${u.t}</div><div class="s">${u.s}</div></div><span class="chev">›</span></div>`;}
+    const sub=nx.n.k==='choice'?orNames(nx.n.o):u.s;
+    block=`<div class="lbl">НАГОРОДА НА РІВНІ ${nx.L}</div><div class="nr" id="nrb">${lead(nx.n)}
+      <div class="tx"><div class="t">${u.t}</div><div class="s">${sub}</div></div><span class="chev">›</span></div>`;}
   const inv={};Object.values(st.claimed).forEach(c=>c.g.forEach(([k,n])=>inv[k]=(inv[k]||0)+n));
   const rows=['freeze','triple','boost'].filter(k=>inv[k]).map(k=>`<div class="pr"><div class="ic">${P[k].e}</div><div class="tx"><div class="t">${P[k].t}</div><div class="s">${P[k].d}</div></div><span class="x">×${inv[k]}</span></div>`).join('');
   $('#p3f').innerHTML=`<div class="back">‹</div><div class="donut" id="dn" style="--f:${(f*100).toFixed(0)}%"><i><small>РІВЕНЬ</small><b>${st.level}</b></i>${pend?'<span class="dot"></span>':''}</div>
