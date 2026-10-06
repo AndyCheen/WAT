@@ -45,11 +45,11 @@ final class AntiSpamTests: XCTestCase {
     /// повторне — скасовується (§13.3).
     func testWeakerPrimaryMovesBehindStronger() {
         var preferences = NotificationPreferences.default
-        preferences.morningMinutes = 9 * 60 + 30  // ранкова склянка поряд із 09:42
+        preferences.morningMinutes = 9 * 60 + 30  // ранкова склянка поряд із 09:37
         let result = plan(Fixture.context(at: Fixture.date(7)), preferences).items.filter { $0.dayKey.day == 1 }
         XCTAssertEqual(result.prefix(3).map { "\($0.type.key) \(Fixture.clock($0.fireAt))" },
-                       ["morning 09:30", "reminder 10:00", "reminder 12:12"],
-                       "основне 09:42 → 10:00, повторне 10:12 скасовано")
+                       ["morning 09:30", "reminder 10:00", "reminder 12:07"],
+                       "основне 09:37 → 10:00, повторне 10:07 скасовано")
     }
 
     /// Уже показане сповіщення — теж перешкода: план не поставить нове ближче ніж за 30 хв.

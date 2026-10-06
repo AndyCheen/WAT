@@ -156,7 +156,7 @@ final class TextComposerTests: XCTestCase {
         var context = Fixture.context(at: Fixture.date(7))
         context.boostExpiresAt = Fixture.date(day: 2, 0)
         let reminder = plan(context).items.first { $0.type == .reminder }!
-        XCTAssertTrue(reminder.body.contains("⚡ Ще 14 год 18 хв подвійного XP"), reminder.body)
+        XCTAssertTrue(reminder.body.contains("⚡ Ще 14 год 23 хв подвійного XP"), reminder.body)
     }
 
     func testQuestInsertOnlyToday() {

@@ -52,10 +52,10 @@ final class NotificationServiceTests: XCTestCase {
     func testReschedulePutsPlanIntoTheCenter() async {
         await service.rescheduleNow()
         XCTAssertTrue(scheduledIds.contains("wt.morning.2026-10-01"))
-        XCTAssertTrue(scheduledIds.contains("wt.reminder.2026-10-01.0942"))
+        XCTAssertTrue(scheduledIds.contains("wt.reminder.2026-10-01.0937"))
         XCTAssertEqual(center.categories.map(\.id), ["REMINDER", "GLASS"])
         XCTAssertEqual(center.categories.first?.actions.first?.title, "+250 мл")
-        XCTAssertNotNil(store.log(identifier: "wt.reminder.2026-10-01.0942"), "журнал знає про заплановане")
+        XCTAssertNotNil(store.log(identifier: "wt.reminder.2026-10-01.0937"), "журнал знає про заплановане")
     }
 
     /// Однаковий план не переписує запити; зміна знімає зайве й додає нове (§16.2, п. 4).
@@ -67,10 +67,10 @@ final class NotificationServiceTests: XCTestCase {
 
         intake(250, at: Fixture.date(10))
         await service.rescheduleNow()
-        XCTAssertFalse(scheduledIds.contains("wt.reminder.2026-10-01.0942"), "старий ланцюг знято")
-        XCTAssertTrue(scheduledIds.contains("wt.reminder.2026-10-01.1127"), "новий — від порції")
-        XCTAssertNotNil(store.log(identifier: "wt.reminder.2026-10-01.1157")?.fireAt)
-        XCTAssertNotNil(store.log(identifier: "wt.reminder.2026-10-01.1212")?.cancelledAt, "скасоване лишається в журналі")
+        XCTAssertFalse(scheduledIds.contains("wt.reminder.2026-10-01.0937"), "старий ланцюг знято")
+        XCTAssertTrue(scheduledIds.contains("wt.reminder.2026-10-01.1122"), "новий — від порції")
+        XCTAssertNotNil(store.log(identifier: "wt.reminder.2026-10-01.1152")?.fireAt)
+        XCTAssertNotNil(store.log(identifier: "wt.reminder.2026-10-01.1207")?.cancelledAt, "скасоване лишається в журналі")
     }
 
     /// Без дозволу нічого не планується, а заплановане знімається (критерій §19.2).
@@ -118,32 +118,32 @@ final class NotificationServiceTests: XCTestCase {
         clock.set(Fixture.date(10))
         await service.rescheduleNow()
         await service.rescheduleNow()
-        XCTAssertNotNil(store.log(identifier: "wt.reminder.2026-10-01.0942")?.deliveredAt)
-        XCTAssertEqual(metrics.events(.notificationDelivered).count, 2, "ранкова склянка 08:00 і нагадування 09:42")
+        XCTAssertNotNil(store.log(identifier: "wt.reminder.2026-10-01.0937")?.deliveredAt)
+        XCTAssertEqual(metrics.events(.notificationDelivered).count, 2, "ранкова склянка 08:00 і нагадування 09:37")
     }
 
     /// Порція протягом 60 хв зараховується найсвіжішому доставленому (§3.2).
     func testIntakeIsAttributedToFreshestDelivered() async {
         await service.rescheduleNow()
         intake(250, at: Fixture.date(10, 5))
-        let log = store.log(identifier: "wt.reminder.2026-10-01.0942")!
+        let log = store.log(identifier: "wt.reminder.2026-10-01.0937")!
         XCTAssertEqual(log.response, .intake)
-        XCTAssertEqual(metrics.events(.reminderResponded).first?.value, 23, "хвилини від доставки")
+        XCTAssertEqual(metrics.events(.reminderResponded).first?.value, 28, "хвилини від доставки")
         XCTAssertNil(store.log(identifier: "wt.morning.2026-10-01")?.respondedAt, "лише одному — найсвіжішому")
     }
 
     func testLateIntakeIsNotAttributed() async {
         await service.rescheduleNow()
-        // Останнє доставлене — повторне 10:12; 11:15 — уже за межею 60 хв.
+        // Останнє доставлене — повторне 10:07; 11:15 — уже за межею 60 хв.
         intake(250, at: Fixture.date(11, 15))
-        XCTAssertTrue(metrics.events(.reminderResponded).isEmpty, "через 63 хв — уже не відповідь")
+        XCTAssertTrue(metrics.events(.reminderResponded).isEmpty, "через 68 хв — уже не відповідь")
     }
 
     func testSuppressedIsNeverAttributed() async {
         await service.rescheduleNow()
-        service.markSuppressed(identifier: "wt.reminder.2026-10-01.0942", at: Fixture.date(9, 42))
+        service.markSuppressed(identifier: "wt.reminder.2026-10-01.0937", at: Fixture.date(9, 37))
         intake(250, at: Fixture.date(10))
-        XCTAssertNil(store.log(identifier: "wt.reminder.2026-10-01.0942")?.respondedAt)
+        XCTAssertNil(store.log(identifier: "wt.reminder.2026-10-01.0937")?.respondedAt)
     }
 
     /// Дія «+склянка» відповідає саме своєму сповіщенню; повтор порцію не дублює (критерій §19.7).
@@ -153,7 +153,7 @@ final class NotificationServiceTests: XCTestCase {
         XCTAssertFalse(service.isIntakeResponded(id))
         intake(250, at: Fixture.date(10, 5), override: id)
         XCTAssertTrue(service.isIntakeResponded(id))
-        XCTAssertNil(store.log(identifier: "wt.reminder.2026-10-01.0942")?.respondedAt)
+        XCTAssertNil(store.log(identifier: "wt.reminder.2026-10-01.0937")?.respondedAt)
     }
 
     /// Після порції доставлені нагадування прибираються з Центру сповіщень (критерій §19.6).
@@ -161,14 +161,14 @@ final class NotificationServiceTests: XCTestCase {
         await service.rescheduleNow()
         intake(250, at: Fixture.date(10, 30))
         await service.rescheduleNow()
-        XCTAssertTrue(center.removedDelivered.contains("wt.reminder.2026-10-01.0942"))
+        XCTAssertTrue(center.removedDelivered.contains("wt.reminder.2026-10-01.0937"))
         XCTAssertTrue(center.removedDelivered.contains("wt.morning.2026-10-01"))
     }
 
     func testSnoozeAndPause() async {
         await service.rescheduleNow()
         clock.set(Fixture.date(9, 43))
-        service.snooze(identifier: "wt.reminder.2026-10-01.0942", at: clock.now)
+        service.snooze(identifier: "wt.reminder.2026-10-01.0937", at: clock.now)
         await service.rescheduleNow()
         XCTAssertTrue(scheduledIds.contains("wt.reminder.2026-10-01.1043"), "одне основне через годину")
         XCTAssertEqual(metrics.events(.notificationSnoozed).count, 1)
@@ -182,7 +182,7 @@ final class NotificationServiceTests: XCTestCase {
     }
 
     func testPresentationWhileAppIsOpen() {
-        XCTAssertEqual(NotificationService.presentation(forIdentifier: "wt.reminder.2026-10-01.0942"), .suppress)
+        XCTAssertEqual(NotificationService.presentation(forIdentifier: "wt.reminder.2026-10-01.0937"), .suppress)
         XCTAssertEqual(NotificationService.presentation(forIdentifier: "wt.morning.2026-10-01"), .suppress)
         XCTAssertEqual(NotificationService.presentation(forIdentifier: "wt.evening.2026-10-01"), .suppress)
         XCTAssertEqual(NotificationService.presentation(forIdentifier: "wt.rescue.2026-10-01.pm"), .banner)
@@ -232,7 +232,7 @@ final class SchedulerTests: XCTestCase {
         let plan = NotificationPlanner.plan(context: Fixture.context(at: Fixture.date(7)), preferences: .default)
         let requests = NotificationScheduler.requests(for: plan, sound: .systemDefault, calendar: .kyiv)
         let morning = requests.first { $0.identifier == "wt.morning.2026-10-01" }!
-        let reminder = requests.first { $0.identifier == "wt.reminder.2026-10-01.0942" }!
+        let reminder = requests.first { $0.identifier == "wt.reminder.2026-10-01.0937" }!
         guard case .calendar(let floating, true) = morning.trigger, case .calendar(let absolute, false) = reminder.trigger else {
             return XCTFail("тригери")
         }

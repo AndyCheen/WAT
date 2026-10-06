@@ -11,25 +11,54 @@ final class PaceCurveTests: XCTestCase {
     }
 
     func testMatchesSpecTable() {
-        XCTAssertEqual(e(9).rounded(), 130)
-        XCTAssertEqual(e(10).rounded(), 303)
-        XCTAssertEqual(e(12).rounded(), 649)
-        XCTAssertEqual(e(14).rounded(), 961)
-        XCTAssertEqual(e(17).rounded(), 1429)
-        XCTAssertEqual(e(20).rounded(), 1771)
+        XCTAssertEqual(e(9).rounded(), 138)
+        XCTAssertEqual(e(10).rounded(), 321)
+        XCTAssertEqual(e(12).rounded(), 689)
+        XCTAssertEqual(e(14).rounded(), 1019)
+        XCTAssertEqual(e(17).rounded(), 1515)
+        XCTAssertEqual(e(20).rounded(), 1879)
         XCTAssertEqual(e(22), 2000, accuracy: 1e-9)
     }
 
-    /// Час на одну склянку 250 мл — природний інтервал між порціями (87–132 хв).
+    /// Час на одну склянку 250 мл — природний інтервал між порціями (82–124 хв), а у
+    /// вікні спаду перед сном — удвічі довший.
     func testMinutesPerGlassMatchSpec() {
-        func minutesPerGlass(in part: DayPart) -> Double {
-            let segment = curve.segments.first { $0.part == part }!
-            let rate = segment.ml / Double(segment.toMinute - segment.fromMinute)
+        func minutesPerGlass(from: Int, to: Int) -> Double {
+            let rate = (e(to) - e(from)) / Double((to - from) * 60)
             return 250 / rate
         }
-        XCTAssertEqual(minutesPerGlass(in: .noon).rounded(.up), 87)
-        XCTAssertEqual(minutesPerGlass(in: .afternoon).rounded(.up), 97)
-        XCTAssertEqual(minutesPerGlass(in: .evening).rounded(.up), 132)
+        XCTAssertEqual(minutesPerGlass(from: 9, to: 12).rounded(.up), 82)
+        XCTAssertEqual(minutesPerGlass(from: 12, to: 17).rounded(.up), 91)
+        XCTAssertEqual(minutesPerGlass(from: 17, to: 20).rounded(.up), 124)
+        XCTAssertEqual(minutesPerGlass(from: 20, to: 22).rounded(.up), 248)
+    }
+
+    /// Спад (WAT-43, §29): останні 2 год до відбою — рівно половина темпу кінця вечора.
+    func testTaperHalvesThePaceInTheLastTwoHours() {
+        let before = e(19, 59) - e(19, 58)
+        let inside = e(20, 1) - e(20, 0)
+        XCTAssertEqual(inside, before * PaceCurve.taperFactor, accuracy: 1e-9)
+        XCTAssertEqual((e(22) - e(20)).rounded(), 121, "було 229 мл без спаду")
+    }
+
+    /// Вікно спаду рахується від відбою людини: при 07:00–23:00 воно 21–23 і перетинає межу
+    /// вечора й ночі, а вечір до 21:00 іде звичайним темпом.
+    func testTaperFollowsBedtimeAcrossPartBoundary() {
+        let late = PaceCurve(goalMl: 2000, wakeMinutes: 7 * 60, sleepMinutes: 23 * 60)
+        func rate(_ minute: Int) -> Double {
+            late.expected(atMinute: Double(minute + 1)) - late.expected(atMinute: Double(minute))
+        }
+        XCTAssertEqual(rate(21 * 60), rate(20 * 60) * PaceCurve.taperFactor, accuracy: 1e-9, "вечір у вікні")
+        XCTAssertEqual(rate(22 * 60 + 30), rate(21 * 60) * (0.08 / 7) / (0.22 / 5), accuracy: 1e-9,
+                       "ніч у вікні — теж половина свого темпу")
+        XCTAssertEqual(late.expected(atMinute: 23 * 60), 2000, accuracy: 1e-9)
+    }
+
+    /// Спад не ділить частину доби: інакше вечір 20–22 став би окремою ціллю й чекпоінтом «до 20:00».
+    func testTaperDoesNotSplitSegmentsOrGoalBlocks() {
+        XCTAssertEqual(curve.segments.map(\.part), [.morning, .noon, .afternoon, .evening])
+        XCTAssertEqual(curve.segments.reduce(0) { $0 + $1.ml }, 2000, accuracy: 1e-9)
+        XCTAssertEqual(curve.goalBlocks().map(\.toMinute), [12 * 60, 17 * 60, 22 * 60])
     }
 
     func testZeroBeforeWakeAndFullAfterSleep() {
@@ -63,14 +92,14 @@ final class PaceCurveTests: XCTestCase {
         XCTAssertNil(curve.minute(reaching: 2001))
     }
 
-    /// E(14:15) = 1000 рівно в раціональних числах — похибка `Double` не має зсувати хвилину.
+    /// E(13:53) = 1000 рівно в раціональних числах — похибка `Double` не має зсувати хвилину.
     func testExactBoundaryIsNotPushedByRoundingError() {
         let minute = try! XCTUnwrap(curve.minute(reaching: 1000))
-        XCTAssertEqual(minute.rounded(.up), 14 * 60 + 15)
+        XCTAssertEqual(minute.rounded(.up), 13 * 60 + 53)
     }
 
     func testTargetOfAPart() {
-        XCTAssertEqual(curve.target(fromMinute: 8 * 60, toMinute: 12 * 60).rounded(), 649)
-        XCTAssertEqual(curve.target(fromMinute: 12 * 60, toMinute: 17 * 60).rounded(), 779)
+        XCTAssertEqual(curve.target(fromMinute: 8 * 60, toMinute: 12 * 60).rounded(), 689)
+        XCTAssertEqual(curve.target(fromMinute: 12 * 60, toMinute: 17 * 60).rounded(), 826)
     }
 }

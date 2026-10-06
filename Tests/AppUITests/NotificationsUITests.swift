@@ -112,13 +112,13 @@ final class NotificationsUITests: XCTestCase {
         XCTAssertEqual(action.label, "Заморозити вчора", "у демо вчора пропущено після закритого позавчора")
     }
 
-    /// DEBUG-екран «План сповіщень»: о 07:00 без порцій перше нагадування — 09:42, як у «подорожі» з §6.1.
+    /// DEBUG-екран «План сповіщень»: о 07:00 без порцій перше нагадування — 09:37, як у «подорожі» з §6.1.
     func testDebugPlanListsReminderChain() {
         let app = launch([
             "--uitest-empty", "--uitest-now", "2026-10-01T07:00:00+03:00", "--start-screen", "notification-plan"
         ])
         XCTAssertTrue(app.staticTexts["plan.row.wt.morning.2026-10-01"].waitForExistence(timeout: 15))
-        XCTAssertTrue(app.staticTexts["plan.row.wt.reminder.2026-10-01.0942"].exists)
+        XCTAssertTrue(app.staticTexts["plan.row.wt.reminder.2026-10-01.0937"].exists)
     }
 
     // MARK: - Етап B (WAT-37)

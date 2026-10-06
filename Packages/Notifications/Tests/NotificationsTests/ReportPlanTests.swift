@@ -59,7 +59,7 @@ final class ReportPlanTests: XCTestCase {
 
     // MARK: - Тиждень і місяць
 
-    /// Свій час 11:00 — подалі від нагадувань понеділка без порцій (09:42, 10:12, 12:12).
+    /// Свій час 11:00 — подалі від нагадувань понеділка без порцій (09:37, 10:07, 12:07).
     func testWeeklyReportOnMonday() {
         var preferences = NotificationPreferences.default
         preferences.weeklyReportMinutes = 11 * 60
@@ -83,11 +83,11 @@ final class ReportPlanTests: XCTestCase {
     }
 
     /// Звіт не конкурує за увагу, але й не стає поруч: зсувається на +30 від будь-якого.
-    /// Понеділок без порцій: нагадування 09:42 і 10:12 — звіт 10:00 переїжджає на 10:42.
+    /// Понеділок без порцій: нагадування 09:37 і 10:07 — звіт 10:00 переїжджає на 10:37.
     func testReportMovesAwayFromActiveNotifications() {
         let report = plan(at: Fixture.date(day: 5, 7), reports: [digest(.week(start: day("2026-09-28")))])
             .first { $0.dayKey == day("2026-10-05") }
-        XCTAssertEqual(report.map { Fixture.clock($0.fireAt) }, "10:42")
+        XCTAssertEqual(report.map { Fixture.clock($0.fireAt) }, "10:37")
     }
 
     /// +2 дні без дій — лише ранкова склянка, звітів теж немає (§13.5, критерій §19.15).
