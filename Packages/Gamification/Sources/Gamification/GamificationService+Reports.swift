@@ -18,9 +18,25 @@ public struct GamificationPeriodSummary: Equatable, Sendable {
     /// Скільки XP лишилось до наступного рівня зараз — «до рівня 9 — 150 XP».
     public let xpToNextLevel: Int
     public let fractionIntoLevel: Double
+    /// Скільки предметів-призів отримано за період, з усіх джерел (SPEC-PRIZES §16.16).
+    public let prizesReceived: Int
+
+    public init(
+        xp: Int, levelBefore: Int, levelAfter: Int, achievements: [Achievement], questsCompleted: Int,
+        xpToNextLevel: Int, fractionIntoLevel: Double, prizesReceived: Int = 0
+    ) {
+        self.xp = xp
+        self.levelBefore = levelBefore
+        self.levelAfter = levelAfter
+        self.achievements = achievements
+        self.questsCompleted = questsCompleted
+        self.xpToNextLevel = xpToNextLevel
+        self.fractionIntoLevel = fractionIntoLevel
+        self.prizesReceived = prizesReceived
+    }
 
     public var newLevels: Int { max(0, levelAfter - levelBefore) }
-    public var isEmpty: Bool { xp == 0 && achievements.isEmpty && questsCompleted == 0 }
+    public var isEmpty: Bool { xp == 0 && achievements.isEmpty && questsCompleted == 0 && prizesReceived == 0 }
 }
 
 extension GamificationService {
@@ -47,6 +63,9 @@ extension GamificationService {
             .compactMap { AchievementCatalog.definition($0.defKey) }
             .map { GamificationPeriodSummary.Achievement(title: $0.title, emoji: $0.emoji) }
         let quests = store.quests(scope: nil, periodKey: nil).filter { inPeriod($0.completedAt) }.count
+        // Предмети зі старими ключами каталог не показує — і звіт їх не рахує.
+        let prizes = store.rewardItems()
+            .filter { RewardCatalog.definition($0.defKey) != nil && inPeriod($0.acquiredAt) }.count
 
         let progress = xp.progress()
         return GamificationPeriodSummary(
@@ -56,7 +75,8 @@ extension GamificationService {
             achievements: achievements,
             questsCompleted: quests,
             xpToNextLevel: progress.xpLeft,
-            fractionIntoLevel: progress.fraction
+            fractionIntoLevel: progress.fraction,
+            prizesReceived: prizes
         )
     }
 }

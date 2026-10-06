@@ -239,14 +239,13 @@ final class PrizeInventoryTests: XCTestCase {
         XCTAssertFalse(env.game.hasUnseenPrizes)
     }
 
-    func testLevelGrantsOnePrizePerLevel() {
+    /// Звичайний приз видається сам, вибір і таємний — ні (SPEC-PRIZES §16.1).
+    func testLevelGrantsOnlyPlainPrizes() {
         let env = GameEnv()
-        for index in 0..<60 { env.addIntakeEvent(150, hour: 8 + index % 12) }
-        let level = env.game.levelProgress().level
-        XCTAssertGreaterThanOrEqual(level, 3)
+        env.reachLevel(10)
 
         let prizes = env.game.prizes()
-        XCTAssertEqual(prizes.count, level - 1, "рівні 2…N — по одному призу")
-        XCTAssertEqual(prizes.filter { $0.key == RewardCatalog.freezeKey }.count, level / 3)
+        XCTAssertEqual(prizes.map(\.key).sorted(), [RewardCatalog.freezeKey, RewardCatalog.boostKey].sorted(),
+                       "рівні 2 (⚡) і 8 (🧊); 4, 6 і 10 чекають дії")
     }
 }

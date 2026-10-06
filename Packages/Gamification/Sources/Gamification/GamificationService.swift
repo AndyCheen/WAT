@@ -91,7 +91,7 @@ public final class GamificationService: MetricsSubscriber {
         let streak = streaks.summary().current
         if event.name == .intakeAdded {
             xp.award(
-                amount: xp.rules.perIntake, reason: .intake,
+                amount: waterXp(for: event), reason: .intake,
                 refId: event.sourceRef, at: date, streak: streak
             )
             grantComebackGiftIfDue(event)
@@ -114,7 +114,8 @@ public final class GamificationService: MetricsSubscriber {
         grantLevelRewards(at: date)
     }
 
-    /// Кожен новий рівень кладе свій приз в інвентар (SPEC-PRIZES §3.4).
+    /// Кожен новий рівень кладе свій приз в інвентар (SPEC-PRIZES §16.1) — лише звичайний: вибір і таємний
+    /// чекають дії людини (`claimChoice`, `openMystery`).
     /// Дедуплікація — за детермінованим ключем, тому повторний виклик безпечний.
     /// Відкат рівня призу не забирає: повторна видача однаково неможлива, а витрачену
     /// заморозку не забереш — «виданий приз не відкликається» єдине несуперечливе правило.
@@ -127,15 +128,9 @@ public final class GamificationService: MetricsSubscriber {
         var granted: [RewardItem] = []
 
         for lvl in 2...level {
-            for definition in RewardCatalog.rewards(forLevel: lvl) {
-                let ref = DeterministicID.uuid(from: "level:\(lvl):\(definition.key)")
-                guard !existing.contains(ref) else { continue }
-                let item = RewardItem(
-                    defKey: definition.key, source: .level, acquiredAt: date, acquiredByRef: ref
-                )
-                store.insertReward(item)
-                granted.append(item)
-            }
+            guard case .prize(let grant)? = LevelRoadCatalog.node(forLevel: lvl),
+                  Self.levelRefs(lvl).allSatisfy({ !existing.contains($0) }) else { continue }
+            granted += insert([grant], source: .level, ref: Self.levelPrizeRef(lvl, key: grant.key), at: date)
         }
         if !granted.isEmpty { store.save() }
         return granted
@@ -319,12 +314,12 @@ public final class GamificationService: MetricsSubscriber {
         return true
     }
 
-    /// Вмикає «Подвійний XP» до найближчої півночі. Одночасно діє лише один буст:
+    /// Вмикає буст (⚡ ×2 чи 🌟 ×3) до найближчої півночі. Одночасно діє лише один буст, будь-який:
     /// черги немає, поки діє — `false`.
     @discardableResult
     public func activateBoost(prizeId: UUID, at date: Date? = nil) -> Bool {
         let now = date ?? calendar.now
-        guard let item = readyItem(id: prizeId, key: RewardCatalog.boostKey),
+        guard let item = RewardCatalog.boostKeys.lazy.compactMap({ self.readyItem(id: prizeId, key: $0) }).first,
               xp.boostMultiplier(at: now) == 1 else { return false }
 
         item.state = .active
@@ -336,28 +331,105 @@ public final class GamificationService: MetricsSubscriber {
         return true
     }
 
-    /// Нагороди за рівні — список для шторки «Нагороди за рівні» (макет 3f).
-    public func levelRewards(upTo level: Int = 12) -> [LevelRewardSnapshot] {
-        let current = xp.progress().level
-        return (1...max(level, current + 4)).flatMap { lvl in
-            RewardCatalog.rewards(forLevel: lvl).map { definition in
-                LevelRewardSnapshot(
-                    level: lvl, key: definition.key, title: definition.title,
-                    details: definition.details, emoji: definition.emoji, isUnlocked: lvl <= current
-                )
+    // MARK: - Шлях рівнів (SPEC-PRIZES §16)
+
+    /// Вікно «Шлях рівнів»: усі рівні від першого до 5-го призу наперед, стани, фокус.
+    public func levelRoad() -> LevelRoadSnapshot {
+        let claims = levelClaims()
+        return LevelRoadSnapshot.make(progress: xp.progress(), claimed: { claims[$0] })
+    }
+
+    /// Забрати один із двох призів вузла «вибір». `false` — рівня не досягнуто, вибір уже зроблено
+    /// чи такого варіанта у вузлі немає. Вибір остаточний: ref один на весь вузол.
+    @discardableResult
+    public func claimChoice(level: Int, key: String, at date: Date? = nil) -> Bool {
+        guard level <= xp.progress().level,
+              case .choice(let options)? = LevelRoadCatalog.node(forLevel: level),
+              let grant = options.first(where: { $0.key == key }),
+              levelClaims()[level] == nil else { return false }
+        insert([grant], source: .level, ref: Self.levelNodeRef(level), at: date ?? calendar.now)
+        store.save()
+        return true
+    }
+
+    /// Відкрити таємний приз: вміст — `MysteryRoll` від зерна профілю, тож повторне відкриття (чи
+    /// перевстановлення) дає те саме. `nil` — рівня не досягнуто чи вже відкрито.
+    @discardableResult
+    public func openMystery(level: Int, at date: Date? = nil) -> [RewardGrant]? {
+        guard level <= xp.progress().level,
+              case .mystery(let pool)? = LevelRoadCatalog.node(forLevel: level),
+              levelClaims()[level] == nil else { return nil }
+        let grants = MysteryRoll.outcome(level: level, seed: mysterySeed, pool: pool)
+        insert(grants, source: .level, ref: Self.levelNodeRef(level), at: date ?? calendar.now)
+        store.save()
+        return grants
+    }
+
+    /// Зерно таємних призів — мить створення профілю: стабільна для людини, різна між людьми.
+    var mysterySeed: String {
+        String(Int(profile.createdAt.timeIntervalSince1970 * 1000))
+    }
+
+    /// Ref вузла «вибір» і «таємний» — один на рівень, тож забрати двічі неможливо.
+    static func levelNodeRef(_ level: Int) -> UUID {
+        DeterministicID.uuid(from: "level:\(level)")
+    }
+
+    /// Ref звичайного призу — формат до WAT-44, щоб уже видані предмети не видались удруге.
+    static func levelPrizeRef(_ level: Int, key: String) -> UUID {
+        DeterministicID.uuid(from: "level:\(level):\(key)")
+    }
+
+    /// Усі ref, якими міг бути виданий приз рівня: вузла й `level:N:<key>` будь-якого ключа. До WAT-44 на
+    /// рівнях лежали інші призи (на 8-му — ⚡, тепер 🧊), тож рівень із будь-яким із них уже отримано —
+    /// без цього дев-дані отримали б другий приз.
+    static func levelRefs(_ level: Int) -> [UUID] {
+        [levelNodeRef(level)] + RewardCatalog.all.map { levelPrizeRef(level, key: $0.key) }
+    }
+
+    /// Що видано за кожен рівень — за будь-яким із `levelRefs`.
+    private func levelClaims() -> [Int: [RewardGrant]] {
+        let items = store.rewardItems().filter { $0.source == .level }
+        guard !items.isEmpty else { return [:] }
+        let level = xp.progress().level
+        let horizon = LevelRoadCatalog.nextRewardLevel(after: level) + 40
+        var refs: [UUID: Int] = [:]
+        for lvl in 2...max(2, horizon) {
+            for ref in Self.levelRefs(lvl) { refs[ref] = lvl }
+        }
+        var claims: [Int: [String: Int]] = [:]
+        for item in items {
+            guard let ref = item.acquiredByRef, let lvl = refs[ref] else { continue }
+            claims[lvl, default: [:]][item.defKey, default: 0] += 1
+        }
+        return claims.mapValues { counts in
+            RewardCatalog.all.compactMap { definition in
+                counts[definition.key].map { RewardGrant(definition.key, count: $0) }
             }
         }
     }
 
-    public func nextLevelRewards() -> (level: Int, rewards: [LevelRewardSnapshot]) {
-        let next = xp.progress().level + 1
-        let rewards = RewardCatalog.rewards(forLevel: next).map {
-            LevelRewardSnapshot(
-                level: next, key: $0.key, title: $0.title,
-                details: $0.details, emoji: $0.emoji, isUnlocked: false
-            )
+    @discardableResult
+    private func insert(_ grants: [RewardGrant], source: RewardSource, ref: UUID, at date: Date) -> [RewardItem] {
+        grants.flatMap { grant in
+            (0..<grant.count).map { _ in
+                let item = RewardItem(defKey: grant.key, source: source, acquiredAt: date, acquiredByRef: ref)
+                store.insertReward(item)
+                return item
+            }
         }
-        return (next, rewards)
+    }
+
+    // MARK: - XP за воду (SPEC-PRIZES §16.13)
+
+    /// XP за порцію — за зарахований об'єм, а не за порцію: приріст накопиченого за день у межах
+    /// стелі 120 %. Повернута порція публікує ту саму подію, тож рахується так само.
+    private func waterXp(for event: RecordedMetricEvent) -> Int {
+        guard let log = dayLogs.existingDayLog(for: DayKey(rawValue: event.dayKey)) else { return 0 }
+        let ml = Int(event.value)
+        let before = min(max(0, log.totalMl - ml), log.capMl)
+        let after = min(log.totalMl, log.capMl)
+        return xp.rules.waterXp(countedBefore: before, countedAfter: after)
     }
 
     // MARK: - Внутрішнє

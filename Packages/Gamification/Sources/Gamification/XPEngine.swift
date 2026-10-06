@@ -12,9 +12,9 @@ public final class XPEngine {
     public let curve: LevelCurve
     public var rules: XPRules
 
-    /// Вікна дії бустів `[activatedAt, expiresAt)`. Кеш, бо `award` викликається кілька
-    /// разів на кожну порцію (PerformanceTests); скидається в `invalidateBoosts()`.
-    private var boostWindows: [Range<Date>]?
+    /// Вікна дії бустів `[activatedAt, expiresAt)` з їхнім множником (⚡ ×2, 🌟 ×3). Кеш, бо `award`
+    /// викликається кілька разів на кожну порцію (PerformanceTests); скидається в `invalidateBoosts()`.
+    private var boostWindows: [(window: Range<Date>, factor: Double)]?
 
     public init(
         store: GamificationStoreProtocol,
@@ -56,8 +56,9 @@ public final class XPEngine {
         let levelBefore = progress().level
         // Буст множить увесь XP, а не лише порції, і перемножується з серією (SPEC-PRIZES §7).
         // Визначається за `date` нарахування, тож і демо-історія, і північ рахуються чесно.
+        // Загальний множник балансу — так само на все (§16.13).
         let streakMultiplier = reason == .intake ? rules.multiplier(streak: streak) : 1
-        let multiplier = streakMultiplier * boostMultiplier(at: date)
+        let multiplier = streakMultiplier * boostMultiplier(at: date) * rules.xpMultiplier
 
         let entry = XPEntry(
             amount: amount,
@@ -100,23 +101,24 @@ public final class XPEngine {
         return removed
     }
 
-    /// ×2, якщо на момент `date` діє «Подвійний XP».
+    /// Множник буста, що діє в момент `date`: ×2 «Подвійний», ×3 «Потрійний», без буста — 1.
     public func boostMultiplier(at date: Date) -> Double {
         if boostWindows == nil {
-            boostWindows = store.rewardItems(defKey: RewardCatalog.boostKey).compactMap { item in
-                guard let start = item.activatedAt, let end = item.expiresAt, start < end else { return nil }
-                return start..<end
+            boostWindows = RewardCatalog.boostKeys.flatMap { key in
+                let factor = Double(RewardCatalog.definition(key)?.boostFactor ?? 1)
+                return store.rewardItems(defKey: key).compactMap { item -> (window: Range<Date>, factor: Double)? in
+                    guard let start = item.activatedAt, let end = item.expiresAt, start < end else { return nil }
+                    return (start..<end, factor)
+                }
             }
         }
-        return boostWindows?.contains { $0.contains(date) } == true ? Self.boostFactor : 1
+        return boostWindows?.filter { $0.window.contains(date) }.map(\.factor).max() ?? 1
     }
 
     /// Викликати після активації буста — інакше кеш вікон його не побачить.
     public func invalidateBoosts() {
         boostWindows = nil
     }
-
-    static let boostFactor: Double = 2
 
     private func syncCache(_ progress: LevelProgress, at date: Date) {
         let state = store.levelState()
