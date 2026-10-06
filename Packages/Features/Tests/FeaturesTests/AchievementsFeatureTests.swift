@@ -42,6 +42,10 @@ final class AchievementsFeatureTests: XCTestCase {
         let model = HomeViewModel(services: services)
         var opened = false
         model.onOpenAchievements = { opened = true }
+        // XP за воду тепер за об'єм (SPEC-PRIZES §16.13): 1 л із типовим балансом разом із двома
+        // досягненнями дав би рівень, а тост рівня важливіший. Тут перевіряємо саме тост досягнень.
+        services.gamification.xp.rules = services.gamification.xp.rules
+            .applyingBalance([XPRules.BalanceKey.xpPerVolumeStep: "1"])
 
         model.add(1000) // «Перша крапля» + «Великий ковток»
 
