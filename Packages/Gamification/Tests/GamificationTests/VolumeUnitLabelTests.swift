@@ -33,7 +33,7 @@ final class VolumeUnitLabelTests: XCTestCase {
         env.addIntakeEvent(500)
         env.profiles.profile().volumeUnit = .usFluidOunces
         let gulp = env.game.achievementSnapshots().first { $0.key == "big.gulp" }!
-        XCTAssertEqual(gulp.details, "34 oz за один раз")
+        XCTAssertEqual(gulp.details, "34 унц. за один раз")
         XCTAssertEqual(gulp.valueLabel, "17 / 34")
 
         env.profiles.profile().volumeUnit = .milliliters

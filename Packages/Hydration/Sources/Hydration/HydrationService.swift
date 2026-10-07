@@ -157,7 +157,7 @@ public final class HydrationService {
         profiles.currentGoalMl(on: day ?? calendar.today)
     }
 
-    /// Крок норми на екрані «Налаштування»: 250 мл або 8 oz (`VolumeSteps.goal`).
+    /// Крок норми на екрані «Налаштування»: 250 мл або 8 унц. (`VolumeSteps.goal`).
     @discardableResult
     public func stepGoal(up: Bool) -> DaySnapshot {
         let unit = profile.volumeUnit
@@ -253,7 +253,7 @@ public final class HydrationService {
     public var volumeUnit: VolumeUnit { profile.volumeUnit }
 
     /// Перемикає систему й переводить кнопки порцій: ті, що стоять на типових старої системи, стають
-    /// типовими нової (8 · 16 · 32 oz, а не «7 · 17 · 34»); змінені вручну — на найближчий вузол нової
+    /// типовими нової (8 · 16 · 32 унц., а не «7 · 17 · 34»); змінені вручну — на найближчий вузол нової
     /// сітки. Так само «останній об'єм Інше». Норма, склянка й нараховане не чіпаються — лише показ.
     public func setVolumeUnit(_ unit: VolumeUnit) {
         let old = profile.volumeUnit

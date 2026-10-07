@@ -267,7 +267,7 @@ final class HydrationServiceTests: XCTestCase {
         XCTAssertEqual(env.hydration.quickAddAmounts().map(oz.units), [7, 16, 34], "від 32 oz — крок 2")
         XCTAssertEqual(oz.units(env.hydration.steppedCustomAmount(oz.milliliters(units: 10), up: true)), 11)
 
-        env.hydration.stepGoal(up: true)                                   // 2000 мл ≈ 68 oz → 72
+        env.hydration.stepGoal(up: true)                                   // 2000 мл ≈ 68 унц. → 72
         XCTAssertEqual(oz.units(env.hydration.currentGoal()), 72)
     }
 

@@ -122,7 +122,7 @@ struct TextComposer {
         case .morning, .comeback:
             break
         }
-        return text
+        return VolumeUnit.tidy(text)
     }
 
     // MARK: - Вставки контексту (§12.2)

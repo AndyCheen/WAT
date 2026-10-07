@@ -102,7 +102,7 @@ erDiagram
 ### 3.2 Таблиці
 
 **`UserProfile`** (один рядок)
-`id, createdAt, gender?, birthYear?, weightKg?, activityLevel, climate, volumeUnit (ml|usOz|ukOz, WAT-46), lastCustomAmountMl? (WAT-45),
+`id, createdAt, gender?, birthYear?, weightKg?, activityLevel, climate, volumeUnit (ml|usOz, WAT-46), lastCustomAmountMl? (WAT-45),
 onboardingCompleted, themeMode (system|light|dark), hapticsEnabled, soundEnabled, locale`
 · пропозиція графіка (WAT-41): `scheduleOfferShownAt?, scheduleOfferOutcome (none|accepted|declined|dismissed),
 scheduleOfferShiftMinutes` — для правила частоти (SPEC-NOTIFICATIONS §27)
@@ -410,7 +410,7 @@ Home (1a)
 
 | **20** | Розділ «Знання» | ✅ чернетка | бібліотека й 12 історій-презентацій (вода й тіло, звички, механіки застосунку) на програвачі звіту; ілюстрації й інтерактив у SwiftUI, живі значення з правил; вікторина з переворотом; вхід із шапки головного й контекстні входи; прогрес читання й 3 досягнення; макет `Design/Learn.html` (WAT-53, SPEC-LEARN). Тексти — чернетка, редактура й фактчек — окремо |
 | **21** | Онбординг | ✅ чернетка | 10 кроків у 4 розділах: одиниці, стать і вагітність / годування, вік, вага, активність, норма з розкладом і застереженням, день, ритм, склянка, дозвіл на нагадування; пропуск, повторний прохід із «Зараз» і «Що зміниться»; дизайн «Сцена», «Кроки» — за тимчасовим перемикачем; макет `Design/Onboarding.html` (WAT-56, SPEC-ONBOARDING). Фактчек, тексти, графіка й один дизайн — WAT-57 |
-| **22** | Системи об'єму | ✅ | «мл · oz США · oz UK» у налаштуваннях; усі тексти, звіти й сповіщення в системі людини, кроки редагування в її одиницях, кнопки порцій переходять на типові нової системи (WAT-46, SPEC-TEMPLATE §1.2) |
+| **22** | Системи об'єму | ✅ | «Мілілітри · Унції» (американські, «унц.») у налаштуваннях; усі тексти, звіти й сповіщення в системі людини, кроки редагування в її одиницях, кнопки порцій переходять на типові нової системи (WAT-46, SPEC-TEMPLATE §1.2) |
 
 **Тести:** 688 unit (10 пакетів) + 58 e2e у симуляторі — усі зелені.
 `make test-packages` — швидкий цикл без симулятора, `make test-ui` — e2e.
