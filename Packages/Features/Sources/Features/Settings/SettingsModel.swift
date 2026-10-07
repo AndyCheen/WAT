@@ -38,12 +38,12 @@ public final class SettingsModel {
         volumeUnit.format(goalMl) { "\(Volume.litersLabel($0, fractionDigits: 1)) л" }
     }
 
-    /// Підпис кроку мети: «Крок — 250 мл» / «Крок — 8 oz».
+    /// Підпис кроку мети: «Крок — 250 мл» / «Крок — 8 унц.».
     public var goalStepLabel: String {
         "Крок — " + volumeUnit.portion(volumeUnit.milliliters(units: VolumeSteps.goal(volumeUnit).fine))
     }
 
-    /// ±250 мл або ±8 oz (`VolumeSteps.goal`, WAT-46).
+    /// ±250 мл або ±8 унц. (`VolumeSteps.goal`, WAT-46).
     public func stepGoal(up: Bool) {
         goalMl = services.hydration.stepGoal(up: up).goalMl
         services.touch()
@@ -53,6 +53,11 @@ public final class SettingsModel {
 
     public var volumeUnit: VolumeUnit { services.profile.volumeUnit }
 
+    /// Як виглядатимуть числа: «250 мл · 2 л» / «8 унц. · 64 унц.» (64 — звична в США денна норма).
+    public var volumeUnitExample: String {
+        volumeUnit.isMetric ? "250 мл · 2 л" : [8, 64].map { volumeUnit.portion(volumeUnit.milliliters(units: $0)) }.joined(separator: " · ")
+    }
+
     /// Перемикає систему й переводить кнопки порцій; `touch()` — тексти сповіщень перескладаються одразу.
     public func setVolumeUnit(_ unit: VolumeUnit) {
         services.hydration.setVolumeUnit(unit)
@@ -61,7 +66,11 @@ public final class SettingsModel {
     }
 
     public var quickAmountsSummary: String {
-        quickAmounts.map { HomeScreen.amountTitle($0, volumeUnit) }.joined(separator: " · ")
+        // В унціях позначення одне на всіх: «8 унц. · 16 унц. · 32 унц.» не вміщалось у рядок.
+        guard volumeUnit.isMetric else {
+            return quickAmounts.map(volumeUnit.number).joined(separator: " · ") + " " + VolumeUnit.ounceSymbol
+        }
+        return quickAmounts.map { HomeScreen.amountTitle($0, volumeUnit) }.joined(separator: " · ")
     }
 
     // MARK: - Сповіщення

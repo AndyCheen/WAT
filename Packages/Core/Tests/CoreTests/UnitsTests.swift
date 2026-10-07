@@ -5,7 +5,6 @@ final class UnitsTests: XCTestCase {
     func testOuncesRoundTrip() {
         XCTAssertEqual(VolumeUnit.usFluidOunces.units(500), 17)
         XCTAssertEqual(VolumeUnit.usFluidOunces.milliliters(units: 8), 237)
-        XCTAssertEqual(VolumeUnit.imperialFluidOunces.milliliters(units: 8), 227)
         XCTAssertEqual(VolumeUnit.usFluidOunces.units(VolumeUnit.usFluidOunces.milliliters(units: 8)), 8)
     }
 
@@ -21,7 +20,13 @@ final class UnitsTests: XCTestCase {
 
     func testFormatKeepsMetricPlaceFormat() {
         XCTAssertEqual(VolumeUnit.milliliters.format(1050) { "\($0) мл" }, "1050 мл")
-        XCTAssertEqual(VolumeUnit.usFluidOunces.format(1000) { "\($0) мл" }, "34 oz")
+        XCTAssertEqual(VolumeUnit.usFluidOunces.format(1000) { "\($0) мл" }, "34 унц.")
+    }
+
+    /// Крапка позначення не подвоюється в кінці речення.
+    func testTidyDropsDoubleDot() {
+        XCTAssertEqual(VolumeUnit.tidy("До цілі ще 17 унц.. Почни"), "До цілі ще 17 унц. Почни")
+        XCTAssertEqual(VolumeUnit.tidy("До цілі ще 1,5 л. Почни"), "До цілі ще 1,5 л. Почни")
     }
 
     func testRoundUpNeverLeavesShort() {
@@ -29,7 +34,7 @@ final class UnitsTests: XCTestCase {
         XCTAssertEqual(VolumeUnit.milliliters.unitsRoundedUp(240), 240)
     }
 
-    /// Крок униз від «8 oz» (237 мл) — «7 oz», а не знову «8 oz».
+    /// Крок униз від «8 унц.» (237 мл) — «7 унц.», а не знову «8 унц.».
     func testSteppingStartsFromShownValue() {
         let unit = VolumeUnit.usFluidOunces
         let grid = VolumeGrid(fine: 1, coarse: 2, coarseFrom: 32)

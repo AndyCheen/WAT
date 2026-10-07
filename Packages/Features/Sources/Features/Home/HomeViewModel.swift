@@ -241,7 +241,7 @@ public final class HomeViewModel {
         dismissSheet()
     }
 
-    /// ±50 мл або ±1 oz (`VolumeSteps.custom`, WAT-46).
+    /// ±50 мл або ±1 унц. (`VolumeSteps.custom`, WAT-46).
     public func stepCustom(up: Bool) {
         customAmount = services.hydration.steppedCustomAmount(customAmount, up: up)
     }
@@ -388,14 +388,14 @@ public final class HomeViewModel {
 
     // MARK: - Вікно «Склянка» (§7.1)
 
-    /// В унціях — звичні там склянки 6…14 oz, а не перераховані мілілітри (WAT-46).
+    /// В унціях — звичні там склянки 6…14 унц., а не перераховані мілілітри (WAT-46).
     public static func calibrationChoices(_ unit: VolumeUnit) -> [Int] {
         unit.isMetric ? [200, 250, 300, 350, 400] : [6, 8, 10, 12, 14].map { unit.milliliters(units: $0) }
     }
 
     public var calibrationChoices: [Int] { Self.calibrationChoices(volumeUnit) }
 
-    /// Склянка, якої немає серед варіантів, — друга: 250 мл чи 8 oz.
+    /// Склянка, якої немає серед варіантів, — друга: 250 мл чи 8 унц..
     private var defaultCalibration: Int {
         calibrationChoices.contains(glassCapacity) ? glassCapacity : calibrationChoices[1]
     }

@@ -153,7 +153,7 @@ public struct NotificationsScreen: View {
 
     // MARK: - Протягом дня
 
-    /// Приклад тексту чекпоінта в системі людини (WAT-46): «150 мл» / «5 oz».
+    /// Приклад тексту чекпоінта в системі людини (WAT-46): «150 мл» / «5 унц.».
     private var dayPartExample: String {
         let unit = model.profile.volumeUnit
         return unit.portion(unit.isMetric ? 150 : unit.milliliters(units: 5))

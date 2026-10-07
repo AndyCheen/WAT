@@ -19,7 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 517 unit-тестів 9 пакетів, без симулятора — швидкий цикл
+make test-packages  # 518 unit-тестів 9 пакетів, без симулятора — швидкий цикл
 make test-ui        # 42 e2e-сценарії (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
@@ -202,10 +202,10 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
 
 ### Одиниці об'єму (WAT-46)
 
-Усе зберігається в **мілілітрах**; `UserProfile.volumeUnit` (мл / oz США / oz UK) — лише показ і тексти.
+Усе зберігається в **мілілітрах**; `UserProfile.volumeUnit` (мілілітри / унції США) — лише показ і тексти.
 Об'єм у тексті — тільки через `VolumeUnit.format(_:metric:)` / `portion` / `number` з одиницею профілю:
 метричний формат у кожного місця свій («1.25 л» на кільці, «1,05 л» у сповіщенні) і закріплений тестами,
-унції — однакові скрізь, цілі, «8 oz». Кроки редагування — `VolumeSteps` (Hydration) у одиницях системи;
+унції — однакові скрізь, цілі, «8 унц.» (крапку в кінці речення знімає `VolumeUnit.tidy`). Кроки редагування — `VolumeSteps` (Hydration) у одиницях системи;
 змінювати систему — `HydrationService.setVolumeUnit(_:)`, він переводить кнопки порцій.
 
 ### Час

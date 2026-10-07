@@ -67,8 +67,9 @@ public struct SettingsScreen: View {
                 .accessibilityIdentifier("settings.portions")
             WTDivider()
             // Система об'єму (WAT-46): сегменти, як вибори на екрані «Сповіщення».
-            WTSettingRow("Одиниці", subtitle: model.volumeUnit.title) { EmptyView() }
-            WTSegmentedTabs(titles: VolumeUnit.allCases.map(\.shortTitle),
+            // Підзаголовок — приклад чисел, а не назва: назва вже на сегменті.
+            WTSettingRow("Одиниці", subtitle: model.volumeUnitExample) { EmptyView() }
+            WTSegmentedTabs(titles: VolumeUnit.allCases.map(\.title),
                             selection: VolumeUnit.allCases.firstIndex(of: model.volumeUnit) ?? 0,
                             onSelect: { index in
                                 withAnimation(WTAnimation.fade) { model.setVolumeUnit(VolumeUnit.allCases[index]) }

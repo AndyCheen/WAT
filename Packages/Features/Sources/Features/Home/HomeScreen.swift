@@ -219,7 +219,7 @@ public struct HomeScreen: View {
     /// Підпис кнопки порції — один для головного й екрана «Кнопки порцій» (WAT-45): до 1 л — мілілітри,
     /// далі літри з тими знаками, що потрібні, — «1 л», «1.05 л», «1.5 л». Не «0.5 л» з макета 1a:
     /// з одним знаком після коми крок 50 мл двічі показував те саме число.
-    /// В унціях — «8 oz» (WAT-46).
+    /// В унціях — «8 унц.» (WAT-46).
     static func amountTitle(_ ml: Int, _ unit: VolumeUnit = .milliliters) -> String {
         guard unit.isMetric else { return unit.portion(ml) }
         guard ml >= 1000 else { return "\(ml) мл" }

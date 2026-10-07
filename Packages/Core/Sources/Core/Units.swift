@@ -3,13 +3,13 @@ import Foundation
 /// Система об'єму (WAT-46). ТЗ §1: «обидві з перемиканням».
 /// Внутрішньо все зберігається в мілілітрах — конвертація лише на межі UI й у текстах сповіщень.
 ///
-/// США й Британія різняться лише множником: позначення в обох «oz», як на пляшках (рішення від 07.10.2026).
+/// Унції — лише американські: британські для напоїв на практиці не вживають (вода й напої у Британії —
+/// у мл і л), а різниця всього ~4 % — третій варіант лише плутав би (рішення від 07.10.2026).
 /// Унції — завжди цілі, без переходу в галони; метрична система показує «мл / л», як до WAT-46.
 public enum VolumeUnit: Int, Codable, CaseIterable, Sendable {
     case milliliters = 0
     /// Колишнє `.fluidOunces` — тому raw 1.
     case usFluidOunces = 1
-    case imperialFluidOunces = 2
 
     public var isMetric: Bool { self == .milliliters }
 
@@ -17,28 +17,20 @@ public enum VolumeUnit: Int, Codable, CaseIterable, Sendable {
         switch self {
         case .milliliters: return 1
         case .usFluidOunces: return 29.5735
-        case .imperialFluidOunces: return 28.4131
         }
     }
 
-    /// Підпис сегмента в налаштуваннях.
-    public var shortTitle: String {
-        switch self {
-        case .milliliters: return "мл"
-        case .usFluidOunces: return "oz США"
-        case .imperialFluidOunces: return "oz UK"
-        }
-    }
-
+    /// Підпис сегмента в налаштуваннях — повним словом.
     public var title: String {
         switch self {
-        case .milliliters: return "Мілілітри й літри"
-        case .usFluidOunces: return "Унції США"
-        case .imperialFluidOunces: return "Британські унції"
+        case .milliliters: return "Мілілітри"
+        case .usFluidOunces: return "Унції"
         }
     }
 
-    public static let ounceSymbol = "oz"
+    /// Кирилицею, як решта інтерфейсу: «8 унц.» (так скорочує й Apple в українських форматах — «рід. унц.»;
+    /// «рідинна» для води зайве). «oz» — для майбутньої англійської локалізації.
+    public static let ounceSymbol = "унц."
 
     /// Значення в одиницях системи: мілілітри як є, унції — округлені до цілих.
     public func units(_ ml: Int) -> Int {
@@ -54,14 +46,19 @@ public enum VolumeUnit: Int, Codable, CaseIterable, Sendable {
         isMetric ? ml : Int((Double(max(0, ml)) / mlPerUnit).rounded(.up))
     }
 
-    /// Підпис об'єму: в унціях — «8 oz», у метричній — те, що скаже місце показу. Кожне місце має свій
+    /// Підпис об'єму: в унціях — «8 унц.», у метричній — те, що скаже місце показу. Кожне місце має свій
     /// метричний формат («1.25 л» на кільці, «1,05 л» у сповіщенні), і на них стоять тести й e2e.
     public func format(_ ml: Int, metric: (Int) -> String) -> String {
         isMetric ? metric(ml) : "\(units(ml)) \(Self.ounceSymbol)"
     }
 
-    /// Наступне значення на сітці в одиницях системи. Крок — від *показаного* значення: «8 oz» —
-    /// це 237 мл, і крок униз від 237 мл не має знову дати «8 oz».
+    /// Позначення «унц.» уже має крапку: «ще 17 унц.. Почни» — зайва від кінця речення.
+    public static func tidy(_ text: String) -> String {
+        text.replacingOccurrences(of: ounceSymbol + ".", with: ounceSymbol)
+    }
+
+    /// Наступне значення на сітці в одиницях системи. Крок — від *показаного* значення: «8 унц.» —
+    /// це 237 мл, і крок униз від 237 мл не має знову дати «8 унц.».
     public func stepped(_ ml: Int, up: Bool, grid: VolumeGrid) -> Int {
         milliliters(units: grid.stepped(units(ml), up: up))
     }

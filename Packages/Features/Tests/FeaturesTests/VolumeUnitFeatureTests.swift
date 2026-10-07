@@ -6,7 +6,7 @@ import Gamification
 import Notifications
 @testable import Features
 
-/// Системи об'єму (WAT-46): в унціях — цілі «oz» скрізь, кроки в унціях; назад на мілілітри — як було.
+/// Системи об'єму (WAT-46): в унціях — цілі «унц.» скрізь, кроки в унціях; назад на мілілітри — як було.
 @MainActor
 final class VolumeUnitFeatureTests: XCTestCase {
     private var services: AppServices!
@@ -27,11 +27,12 @@ final class VolumeUnitFeatureTests: XCTestCase {
     func testSettingsSwitchToOuncesAndBack() {
         let settings = SettingsModel(services: services)
         settings.setVolumeUnit(.usFluidOunces)
-        XCTAssertEqual(settings.quickAmountsSummary, "8 oz · 16 oz · 32 oz")
-        XCTAssertEqual(settings.goalLabel, "68 oz")
-        XCTAssertEqual(settings.goalStepLabel, "Крок — 8 oz")
+        XCTAssertEqual(settings.quickAmountsSummary, "8 · 16 · 32 унц.")
+        XCTAssertEqual(settings.goalLabel, "68 унц.")
+        XCTAssertEqual(settings.goalStepLabel, "Крок — 8 унц.")
+        XCTAssertEqual(settings.volumeUnitExample, "8 унц. · 64 унц.")
         settings.stepGoal(up: true)
-        XCTAssertEqual(settings.goalLabel, "72 oz")
+        XCTAssertEqual(settings.goalLabel, "72 унц.")
 
         settings.setVolumeUnit(.milliliters)
         XCTAssertEqual(settings.quickAmountsSummary, "200 мл · 500 мл · 1 л")
@@ -42,35 +43,35 @@ final class VolumeUnitFeatureTests: XCTestCase {
         SettingsModel(services: services).setVolumeUnit(.usFluidOunces)
         let home = HomeViewModel(services: services)
         home.add(home.quickAmounts[0])
-        XCTAssertEqual(home.volumeLabel, "8 / 68 oz")
-        XCTAssertEqual(HomeScreen.amountTitle(home.quickAmounts[2], home.volumeUnit), "32 oz")
+        XCTAssertEqual(home.volumeLabel, "8 / 68 унц.")
+        XCTAssertEqual(HomeScreen.amountTitle(home.quickAmounts[2], home.volumeUnit), "32 унц.")
         XCTAssertEqual(home.customChips.map(oz.units), [6, 8, 12, 16])
 
         home.openCustom()
-        XCTAssertEqual(oz.units(home.customAmount), 10, "уперше — 300 мл, показано як 10 oz")
+        XCTAssertEqual(oz.units(home.customAmount), 10, "уперше — 300 мл, показано як 10 унц.")
         home.stepCustom(up: true)
         XCTAssertEqual(oz.units(home.customAmount), 11, "крок — унція")
         XCTAssertEqual(home.calibrationChoices.map(oz.units), [6, 8, 10, 12, 14])
     }
 
-    /// Капсула частини доби: «ще N oz» — вгору до цілої, як у чекпоінта.
+    /// Капсула частини доби: «ще N унц.» — вгору до цілої, як у чекпоінта.
     func testDayPartPillInOunces() throws {
         SettingsModel(services: services).setVolumeUnit(.usFluidOunces)
         let line = try XCTUnwrap(HomeViewModel(services: services).dayPartLine())
         guard case .pending(_, let title, _, _) = line.content else { return XCTFail("капсула має бути «ще…»") }
         XCTAssertTrue(title.hasPrefix("До 12:00 — ще "), title)
-        XCTAssertTrue(title.hasSuffix(" oz"), title)
-        XCTAssertTrue(line.accessibilityLabel.contains(" oz"), line.accessibilityLabel)
+        XCTAssertTrue(title.hasSuffix(" унц."), title)
+        XCTAssertTrue(line.accessibilityLabel.contains(" унц."), line.accessibilityLabel)
     }
 
     func testPresentersUseOunces() {
-        XCTAssertEqual(ReportFormat.volume(2000, oz), "68 oz")
+        XCTAssertEqual(ReportFormat.volume(2000, oz), "68 унц.")
         XCTAssertEqual(ReportFormat.volume(2000), "2 л", "мілілітри — як були")
-        XCTAssertEqual(ReportFormat.big(52_000, oz).unit, "oz")
+        XCTAssertEqual(ReportFormat.big(52_000, oz).unit, "унц.")
         XCTAssertEqual(ReportFormat.big(52_000, oz).value, 1758)
 
         let rows = LevelRoadPresenter.guideRows(rules: .default, dayRhythm: true, unit: oz)
-        XCTAssertEqual(rows.first?.title, "Вода, кожні 8 oz")
+        XCTAssertEqual(rows.first?.title, "Вода, кожні 8 унц.")
     }
 
     func testPortionButtonsStepInOunces() {

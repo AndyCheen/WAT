@@ -42,7 +42,7 @@ public final class NotificationService: MetricsSubscriber {
     @ObservationIgnored private var needsAnotherPass = false
     @ObservationIgnored private var attributionOverride: String?
     @ObservationIgnored private var intakeSinceLastPass = false
-    /// Склянка й система об'єму, з якими зареєстровано категорії: назва дії «+250 мл» / «+8 oz».
+    /// Склянка й система об'єму, з якими зареєстровано категорії: назва дії «+250 мл» / «+8 унц.».
     @ObservationIgnored private var registeredGlass: (ml: Int, unit: VolumeUnit)?
 
     public init(

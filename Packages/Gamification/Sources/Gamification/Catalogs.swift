@@ -128,7 +128,7 @@ public struct AchievementDefinition: Sendable, Identifiable {
     public let target: Double
     public let rewardXp: Int
     public let isSecret: Bool
-    /// Опис з об'ємом у системі людини, якщо це не мілілітри: «34 oz за один раз» (WAT-46).
+    /// Опис з об'ємом у системі людини, якщо це не мілілітри: «34 унц. за один раз» (WAT-46).
     public let volumeDetails: (@Sendable (String) -> String)?
 
     public var id: String { key }
