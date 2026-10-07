@@ -119,6 +119,8 @@ public final class HomeViewModel {
     public private(set) var quickAmounts: [Int] = []
     /// Підказки шторки «Інше» — свої, з екрана «Кнопки порцій» (WAT-45).
     public private(set) var customChips: [Int] = []
+    /// Система об'єму (WAT-46); перечитується в `reload()` — зміна в налаштуваннях видна після «назад».
+    public private(set) var volumeUnit: VolumeUnit = .milliliters
     public private(set) var hasNewAchievements = false
 
     /// Крива темпу й порції сьогодні — для капсули частини доби (WAT-40). Сам стан рахується
@@ -182,6 +184,7 @@ public final class HomeViewModel {
         streak = services.gamification.streakSummary()
         quickAmounts = services.hydration.quickAddAmounts()
         customChips = services.hydration.quickAddAmounts(.customSheet)
+        volumeUnit = services.hydration.volumeUnit
         hasNewAchievements = services.gamification.hasUnseenAchievements
         // Вікно закріплене на першому закритому дні, поки їх менше семи, далі ковзає (WAT-11).
         weekDots = services.calendar
@@ -238,8 +241,9 @@ public final class HomeViewModel {
         dismissSheet()
     }
 
-    public func stepCustom(_ delta: Int) {
-        customAmount = max(Intake.minAmountMl, min(Intake.maxAmountMl, customAmount + delta))
+    /// ±50 мл або ±1 oz (`VolumeSteps.custom`, WAT-46).
+    public func stepCustom(up: Bool) {
+        customAmount = services.hydration.steppedCustomAmount(customAmount, up: up)
     }
 
     public func remove(id: UUID) {
@@ -384,7 +388,20 @@ public final class HomeViewModel {
 
     // MARK: - Вікно «Склянка» (§7.1)
 
-    public static let calibrationChoices = [200, 250, 300, 350, 400]
+    /// В унціях — звичні там склянки 6…14 oz, а не перераховані мілілітри (WAT-46).
+    public static func calibrationChoices(_ unit: VolumeUnit) -> [Int] {
+        unit.isMetric ? [200, 250, 300, 350, 400] : [6, 8, 10, 12, 14].map { unit.milliliters(units: $0) }
+    }
+
+    public var calibrationChoices: [Int] { Self.calibrationChoices(volumeUnit) }
+
+    /// Склянка, якої немає серед варіантів, — друга: 250 мл чи 8 oz.
+    private var defaultCalibration: Int {
+        calibrationChoices.contains(glassCapacity) ? glassCapacity : calibrationChoices[1]
+    }
+
+    /// Крок перетягування склянки: 25 мл чи унція.
+    public var glassDragStepMl: Int { volumeUnit.isMetric ? 25 : Int(volumeUnit.mlPerUnit.rounded()) }
     private static let fractionMarks: [(title: String, fraction: Double)] = [("Повна", 1), ("¾", 0.75), ("½", 0.5), ("¼", 0.25)]
     private static let fractionWords: [Double: String] = [1: "повна склянка", 0.75: "три чверті", 0.5: "пів склянки",
                                                           0.25: "чверть склянки"]
@@ -407,13 +424,13 @@ public final class HomeViewModel {
     }
 
     public var glassAccessibilityValue: String {
-        ["\(glassAmount) мл", glassFractionWord].compactMap { $0 }.joined(separator: ", ")
+        [volumeUnit.portion(glassAmount), glassFractionWord].compactMap { $0 }.joined(separator: ", ")
     }
 
     func openGlass() {
         glassRecorded = nil
         glassAmount = glassCapacity
-        calibrationChoice = Self.calibrationChoices.contains(glassCapacity) ? glassCapacity : 250
+        calibrationChoice = defaultCalibration
         glassStage = services.profile.glassConfirmed ? .pour : .calibrate
         present(.glass)
     }
@@ -423,7 +440,7 @@ public final class HomeViewModel {
     }
 
     public func recalibrateGlass() {
-        calibrationChoice = Self.calibrationChoices.contains(glassCapacity) ? glassCapacity : 250
+        calibrationChoice = defaultCalibration
         withAnimation(WTAnimation.fade) { glassStage = .calibrate }
     }
 
@@ -595,7 +612,10 @@ public final class HomeViewModel {
 
     public var pctLabel: String { "\(day.completionPct)%" }
     public var volumeLabel: String {
-        "\(Volume.litersLabel(day.countedMl)) / \(Volume.litersLabel(day.goalMl, fractionDigits: 1)) л"
+        guard volumeUnit.isMetric else {
+            return "\(volumeUnit.number(day.countedMl)) / \(volumeUnit.number(day.goalMl)) \(VolumeUnit.ounceSymbol)"
+        }
+        return "\(Volume.litersLabel(day.countedMl)) / \(Volume.litersLabel(day.goalMl, fractionDigits: 1)) л"
     }
 
     /// Капсула частини доби на цю хвилину. Екран викликає її з `TimelineView` раз на хвилину;
@@ -607,12 +627,13 @@ public final class HomeViewModel {
         let progress = dayCurve?.dayPartProgress(atMinute: services.calendar.minuteOfDay(now), portions: dayPortions)
         // XP — як нарахує `GamificationService`: серія на ціль частини не множить, буст — так.
         let xp = Int(Double(services.gamification.xp.rules.perDayPartGoal) * services.gamification.xp.boostMultiplier(at: now))
-        return DayPartPresenter.line(progress, goalMet: day.goalMet, xp: xp)
+        return DayPartPresenter.line(progress, goalMet: day.goalMet, xp: xp, unit: volumeUnit)
     }
 
     /// Пояснення до стелі 120 %: без нього незрозуміло, чому відсоток перестав рости.
     public var cappedNote: String? {
         guard day.isCapped else { return nil }
-        return "Випито \(Volume.litersLabel(day.totalMl, fractionDigits: 1)) л — зараховано 120 % норми"
+        let total = volumeUnit.format(day.totalMl) { "\(Volume.litersLabel($0, fractionDigits: 1)) л" }
+        return "Випито \(total) — зараховано 120 % норми"
     }
 }

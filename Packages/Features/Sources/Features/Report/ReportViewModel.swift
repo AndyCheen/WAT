@@ -78,7 +78,8 @@ final class ReportViewModel {
             today: calendar.today,
             tomorrowMorning: tomorrowMorning(after: last),
             nowMinute: period == .day(calendar.today) ? minuteNow : nil,
-            calendar: calendar
+            calendar: calendar,
+            unit: profile.volumeUnit
         )
         slides = presenter.slides
         header = presenter.header

@@ -269,12 +269,13 @@ public struct WTBubbles: View {
 public struct WTRecordedOverlay: View {
     @Environment(\.wtTheme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private let amount: Int
+    /// Готове число в системі людини: «250» чи «8» (WAT-46).
+    private let amount: String
     private let caption: String
     private let dayFraction: Double
     @State private var shown = false
 
-    public init(amount: Int, caption: String, dayFraction: Double) {
+    public init(amount: String, caption: String, dayFraction: Double) {
         self.amount = amount
         self.caption = caption
         self.dayFraction = dayFraction

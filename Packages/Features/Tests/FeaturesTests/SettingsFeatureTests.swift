@@ -24,7 +24,7 @@ final class SettingsFeatureTests: XCTestCase {
 
         let settings = SettingsModel(services: services)
         XCTAssertEqual(settings.goalLabel, "2.0 л")
-        settings.changeGoal(by: 250)
+        settings.stepGoal(up: true)
         XCTAssertEqual(settings.goalMl, 2250)
         XCTAssertEqual(settings.goalLabel, "2.2 л", "2250 мл → «2.2 л», як і було в шторці")
 

@@ -15,7 +15,7 @@ struct DayPartLine: Equatable {
 /// округлюється вгору до 50, як `NotificationFormat.left`, — 99 мл стають «ще 100 мл».
 enum DayPartPresenter {
     /// `nil` — капсули немає: поза активними годинами або норму дня вже закрито.
-    static func line(_ progress: DayPartProgress?, goalMet: Bool, xp: Int) -> DayPartLine? {
+    static func line(_ progress: DayPartProgress?, goalMet: Bool, xp: Int, unit: VolumeUnit = .milliliters) -> DayPartLine? {
         guard let progress, !goalMet else { return nil }
         let block = progress.block
 
@@ -27,14 +27,17 @@ enum DayPartPresenter {
 
         let deadline = clock(block.toMinute)
         let left = roundedUp(progress.leftMl)
+        // В унціях — вгору до цілої, як `NotificationFormat.left` (WAT-46).
+        let leftText = unit.isMetric ? volume(left) : "\(unit.unitsRoundedUp(progress.leftMl)) \(VolumeUnit.ounceSymbol)"
+        let spokenLeft = unit.isMetric ? "\(left) мл" : leftText
         return DayPartLine(
             content: .pending(
                 fraction: progress.fraction,
-                title: "До \(deadline) — ще \(volume(left))",
+                title: "До \(deadline) — ще \(leftText)",
                 xp: "+\(xp) XP",
                 timeLeft: duration(progress.minutesLeft)
             ),
-            accessibilityLabel: "До \(deadline) бракує \(left) мл, лишилось \(spokenDuration(progress.minutesLeft))"
+            accessibilityLabel: "До \(deadline) бракує \(spokenLeft), лишилось \(spokenDuration(progress.minutesLeft))"
         )
     }
 

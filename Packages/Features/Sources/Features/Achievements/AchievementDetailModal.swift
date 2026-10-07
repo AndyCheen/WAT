@@ -30,7 +30,7 @@ extension AchievementSnapshot {
 
     /// «Відкрито» / «Прогрес 5 із 7» — VoiceOver читає «5/7» як «5 слеш 7».
     var progressAccessibilityValue: String {
-        isUnlocked ? "Відкрито" : "Прогрес \(Int(min(value, target))) із \(Int(target))"
+        isUnlocked ? "Відкрито" : "Прогрес \(shownValue) із \(shownTarget)"
     }
 
     /// Опис, стан і нагорода одним рядком — картка для VoiceOver один елемент.

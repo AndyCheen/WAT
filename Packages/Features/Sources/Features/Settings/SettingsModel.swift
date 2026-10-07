@@ -3,6 +3,7 @@ import Observation
 import SwiftUI
 import Core
 import Persistence
+import Hydration
 
 /// Екран «Налаштування» (WAT-15): денна мета, ритм дня, вхід у «Сповіщення», вібрація, тема.
 ///
@@ -33,15 +34,34 @@ public final class SettingsModel {
 
     // MARK: - Денна мета
 
-    public var goalLabel: String { "\(Volume.litersLabel(goalMl, fractionDigits: 1)) л" }
+    public var goalLabel: String {
+        volumeUnit.format(goalMl) { "\(Volume.litersLabel($0, fractionDigits: 1)) л" }
+    }
 
-    public func changeGoal(by delta: Int) {
-        goalMl = services.hydration.setGoal(goalMl + delta).goalMl
+    /// Підпис кроку мети: «Крок — 250 мл» / «Крок — 8 oz».
+    public var goalStepLabel: String {
+        "Крок — " + volumeUnit.portion(volumeUnit.milliliters(units: VolumeSteps.goal(volumeUnit).fine))
+    }
+
+    /// ±250 мл або ±8 oz (`VolumeSteps.goal`, WAT-46).
+    public func stepGoal(up: Bool) {
+        goalMl = services.hydration.stepGoal(up: up).goalMl
+        services.touch()
+    }
+
+    // MARK: - Система об'єму (WAT-46)
+
+    public var volumeUnit: VolumeUnit { services.profile.volumeUnit }
+
+    /// Перемикає систему й переводить кнопки порцій; `touch()` — тексти сповіщень перескладаються одразу.
+    public func setVolumeUnit(_ unit: VolumeUnit) {
+        services.hydration.setVolumeUnit(unit)
+        quickAmounts = services.hydration.quickAddAmounts()
         services.touch()
     }
 
     public var quickAmountsSummary: String {
-        quickAmounts.map(HomeScreen.amountTitle).joined(separator: " · ")
+        quickAmounts.map { HomeScreen.amountTitle($0, volumeUnit) }.joined(separator: " · ")
     }
 
     // MARK: - Сповіщення

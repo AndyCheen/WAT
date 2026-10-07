@@ -6,6 +6,7 @@ import UIKit
 #endif
 import Core
 import Persistence
+import Hydration
 import Notifications
 
 /// Екран «Сповіщення» — рядки етапів A і B (SPEC-NOTIFICATIONS §15.1).
@@ -91,7 +92,9 @@ public final class NotificationsSettingsModel {
     }
 
     func stepGlass(_ direction: Int) {
-        profile.glassMl = clamp(profile.glassMl + direction * UserProfile.glassStep,
+        // Крок — 25 мл або унція (`VolumeSteps.glass`, WAT-46).
+        let unit = profile.volumeUnit
+        profile.glassMl = clamp(unit.stepped(profile.glassMl, up: direction > 0, grid: VolumeSteps.glass(unit)),
                                 UserProfile.glassRange.lowerBound, UserProfile.glassRange.upperBound)
         // Склянку задали тут — вікно «Склянка» вже не питатиме «скільки в твоїй склянці?» (§7.1).
         profile.glassConfirmed = true

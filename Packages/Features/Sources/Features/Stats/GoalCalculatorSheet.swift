@@ -56,7 +56,7 @@ struct GoalCalculatorSheet: View {
 
                 VStack(spacing: 6) {
                     WTSectionLabel("РЕКОМЕНДОВАНА НОРМА", size: 12)
-                    Text("\(model.calculatedGoal) мл")
+                    Text(model.volumeUnit.portion(model.calculatedGoal))
                         .font(WTFont.display(30, .bold))
                         .foregroundStyle(theme.textPrimary)
                         .accessibilityIdentifier("calculator.result")

@@ -35,8 +35,10 @@ public final class PortionButtonsModel {
 
     /// «Повернути типові» — лише коли є що повертати.
     public func isDefault(_ place: PresetPlace) -> Bool {
-        amounts(place) == place.defaults
+        amounts(place) == place.defaults(for: volumeUnit)
     }
+
+    public var volumeUnit: VolumeUnit { services.hydration.volumeUnit }
 
     public func reset(_ place: PresetPlace) {
         services.hydration.resetPresets(place)
