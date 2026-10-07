@@ -12,6 +12,8 @@ public enum AppRoute: Hashable {
     case stats
     /// Екран «Налаштування» (WAT-15).
     case settings
+    /// «Кнопки порцій» з «Налаштувань» (WAT-45).
+    case portionButtons
     /// Екран «Призи» з уже відкритою карткою — тап по порятунку серії веде в картку
     /// заморозки, бо заморожувати можна лише з неї (SPEC-NOTIFICATIONS §12.1).
     case prizeCard(String)
@@ -88,8 +90,11 @@ public struct RootView: View {
                 themeMode: $themeMode,
                 hapticsEnabled: $hapticsEnabled,
                 onBack: { path.removeLast() },
-                onOpenNotifications: { path.append(.notifications) }
+                onOpenNotifications: { path.append(.notifications) },
+                onOpenPortionButtons: { path.append(.portionButtons) }
             )
+        case .portionButtons:
+            PortionButtonsScreen(services: services, onBack: { path.removeLast() })
         case .notifications:
             NotificationsScreen(
                 services: services,

@@ -91,7 +91,7 @@ public final class AppServices {
         if profiles.goalRevisions().isEmpty {
             profiles.setGoal(2000, source: .onboarding, effectiveFrom: calendar.today, at: calendar.now)
         }
-        _ = profiles.quickAddPresets()
+        PresetPlace.allCases.forEach { _ = profiles.quickAddPresets($0) }
         gamification.bootstrap()
         notifications.bootstrap()
         notifications.contextProvider = { [unowned self] in self.makeNotificationContext() }

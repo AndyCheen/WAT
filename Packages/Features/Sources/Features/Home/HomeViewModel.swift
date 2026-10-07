@@ -117,6 +117,8 @@ public final class HomeViewModel {
     public private(set) var level: LevelProgress
     public private(set) var streak: StreakSummary = .empty
     public private(set) var quickAmounts: [Int] = []
+    /// Підказки шторки «Інше» — свої, з екрана «Кнопки порцій» (WAT-45).
+    public private(set) var customChips: [Int] = []
     public private(set) var hasNewAchievements = false
 
     /// Крива темпу й порції сьогодні — для капсули частини доби (WAT-40). Сам стан рахується
@@ -179,6 +181,7 @@ public final class HomeViewModel {
         level = services.gamification.levelProgress()
         streak = services.gamification.streakSummary()
         quickAmounts = services.hydration.quickAddAmounts()
+        customChips = services.hydration.quickAddAmounts(.customSheet)
         hasNewAchievements = services.gamification.hasUnseenAchievements
         // Вікно закріплене на першому закритому дні, поки їх менше семи, далі ковзає (WAT-11).
         weekDots = services.calendar
@@ -221,8 +224,17 @@ public final class HomeViewModel {
         }
     }
 
+    /// Кнопка «Інше» — з останнім доданим через шторку об'ємом (WAT-45). Тап по сповіщенню йде
+    /// через `apply(_:)` з типовою порцією P: текст сповіщення називає саме її (§6.4).
+    public func openCustom() {
+        customAmount = services.hydration.customAmountStart()
+        present(.custom)
+    }
+
     public func confirmCustom() {
-        add(Intake.clamp(customAmount))
+        let amount = Intake.clamp(customAmount)
+        services.hydration.rememberCustomAmount(amount)
+        add(amount)
         dismissSheet()
     }
 

@@ -208,7 +208,7 @@ public struct HomeScreen: View {
                 WTQuickButton(Self.amountTitle(amount)) { model.add(amount) }
                     .accessibilityIdentifier("home.add.\(amount)")
             }
-            WTQuickButton("Інше", isAccent: true) { model.present(.custom) }
+            WTQuickButton("Інше", isAccent: true) { model.openCustom() }
                 .accessibilityIdentifier("home.add.custom")
         }
         .padding(.bottom, 28)

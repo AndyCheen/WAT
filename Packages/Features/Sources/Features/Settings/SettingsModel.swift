@@ -12,6 +12,8 @@ import Persistence
 public final class SettingsModel {
     private let services: AppServices
     public private(set) var goalMl: Int
+    /// Кнопки головного — підписом рядка «Кнопки порцій» (WAT-45).
+    public private(set) var quickAmounts: [Int]
 
     /// Пропозиція «Рівні інтервали» — лише щойно після вимикання ритму: нагадування «за темпом»
     /// теж спираються на частини доби, але змінювати їх мовчки не можна, а питати щоразу — набридливо.
@@ -20,10 +22,12 @@ public final class SettingsModel {
     public init(services: AppServices) {
         self.services = services
         goalMl = services.hydration.currentGoal()
+        quickAmounts = services.hydration.quickAddAmounts()
     }
 
     public func refresh() {
         goalMl = services.hydration.currentGoal()
+        quickAmounts = services.hydration.quickAddAmounts()
         Task { await services.notifications.refreshAuthorization() }
     }
 
@@ -34,6 +38,10 @@ public final class SettingsModel {
     public func changeGoal(by delta: Int) {
         goalMl = services.hydration.setGoal(goalMl + delta).goalMl
         services.touch()
+    }
+
+    public var quickAmountsSummary: String {
+        quickAmounts.map(HomeScreen.amountTitle).joined(separator: " · ")
     }
 
     // MARK: - Сповіщення
