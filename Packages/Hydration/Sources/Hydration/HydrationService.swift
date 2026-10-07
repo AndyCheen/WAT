@@ -157,7 +157,7 @@ public final class HydrationService {
         profiles.currentGoalMl(on: day ?? calendar.today)
     }
 
-    /// Крок норми на екрані «Налаштування»: 250 мл або 8 унц. (`VolumeSteps.goal`).
+    /// Крок норми на екрані «Налаштування»: 100 мл або 4 унц. (`VolumeSteps.goal`).
     @discardableResult
     public func stepGoal(up: Bool) -> DaySnapshot {
         let unit = profile.volumeUnit
