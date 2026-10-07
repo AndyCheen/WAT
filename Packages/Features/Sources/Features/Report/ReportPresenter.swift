@@ -73,6 +73,8 @@ struct ReportPresenter {
     /// Хвилина доби зараз — у денному звіті за сьогодні частини, що ще попереду, не судяться.
     let nowMinute: Int?
     let calendar: CalendarService
+    /// Система об'єму людини (WAT-46); у мілілітрах звіт — як був.
+    var unit: VolumeUnit = .milliliters
 
     // MARK: - Шапка й навігація
 
@@ -133,8 +135,8 @@ struct ReportPresenter {
 
     private var weekSlides: [ReportSlide] {
         var result: [ReportSlide] = [
-            .cover(kicker: "Твій тиждень", value: ReportFormat.big(report.totalMl).value,
-                   decimals: ReportFormat.big(report.totalMl).decimals, unit: ReportFormat.big(report.totalMl).unit,
+            .cover(kicker: "Твій тиждень", value: ReportFormat.big(report.totalMl, unit).value,
+                   decimals: ReportFormat.big(report.totalMl, unit).decimals, unit: ReportFormat.big(report.totalMl, unit).unit,
                    caption: "води за \(ReportFormat.daysWord(report.elapsedDays.count, withNumber: true)) — це \(glassesText)",
                    visual: .drops(count: min(report.glasses, 63)), pill: nil, foot: nil, waveLevel: 0.48),
             weekGoals,
@@ -159,11 +161,11 @@ struct ReportPresenter {
             caption += ", або понад \(whole) \(Plural.uk(whole, one: "відро", few: "відра", many: "відер"))"
         }
         var result: [ReportSlide] = [
-            .cover(kicker: "Твій \(name.lowercased())", value: ReportFormat.big(report.totalMl).value,
-                   decimals: ReportFormat.big(report.totalMl).decimals, unit: ReportFormat.big(report.totalMl).unit,
+            .cover(kicker: "Твій \(name.lowercased())", value: ReportFormat.big(report.totalMl, unit).value,
+                   decimals: ReportFormat.big(report.totalMl, unit).decimals, unit: ReportFormat.big(report.totalMl, unit).unit,
                    caption: caption,
                    visual: .buckets(bucketFractions(buckets)), pill: nil,
-                   foot: "У середньому \(ReportFormat.volume(report.averageMl)) на день", waveLevel: 0.7),
+                   foot: "У середньому \(ReportFormat.volume(report.averageMl, unit)) на день", waveLevel: 0.7),
             mosaicSlide(month)
         ]
         if let run = report.longestStreak, run.length >= 2 {
@@ -184,7 +186,7 @@ struct ReportPresenter {
     // MARK: - День
 
     private func dayCover(_ day: DayKey) -> ReportSlide {
-        let big = ReportFormat.big(report.totalMl)
+        let big = ReportFormat.big(report.totalMl, unit)
         let goal = report.goalMl
         let percent = goal > 0 ? Int((Double(report.totalMl) / Double(goal) * 100).rounded()) : 0
         let left = goal - report.totalMl
@@ -192,13 +194,13 @@ struct ReportPresenter {
         if left <= 0 {
             pill = "Норму закрито 🎉"
         } else if day == today {
-            pill = left <= report.glassMl ? "Ще одна склянка — і норму закрито" : "Ще \(ReportFormat.volume(left)) — і норму закрито"
+            pill = left <= report.glassMl ? "Ще одна склянка — і норму закрито" : "Ще \(ReportFormat.volume(left, unit)) — і норму закрито"
         } else {
-            pill = left <= report.glassMl ? "Ще одна склянка — і була б норма" : "До норми бракувало \(ReportFormat.volume(left))"
+            pill = left <= report.glassMl ? "Ще одна склянка — і була б норма" : "До норми бракувало \(ReportFormat.volume(left, unit))"
         }
         return .cover(kicker: day == today ? "Сьогодні" : "\(day.day) \(ReportFormat.monthGenitive(day.month))",
                       value: big.value, decimals: big.decimals, unit: big.unit,
-                      caption: "з \(ReportFormat.volume(goal)) — це \(percent) % норми",
+                      caption: "з \(ReportFormat.volume(goal, unit)) — це \(percent) % норми",
                       visual: .glass(fraction: goal > 0 ? Double(report.totalMl) / Double(goal) : 0),
                       pill: pill, foot: nil, waveLevel: 0.62)
     }
@@ -213,7 +215,7 @@ struct ReportPresenter {
         let blocks = report.blocks.map { block in
             WTDayTimeline.Block(
                 from: position(block.fromMinute), to: position(block.toMinute), reached: block.isReached,
-                label: block.isReached ? "✓ +\(dayPartXp) XP" : "\(block.drunkMl ?? 0) / \(block.targetMl)"
+                label: block.isReached ? "✓ +\(dayPartXp) XP" : "\(unit.units(block.drunkMl ?? 0)) / \(unit.units(block.targetMl))"
             )
         }
         // Порції до підйому й після відбою — на краях шкали: вони зараховані першій і останній
@@ -226,7 +228,7 @@ struct ReportPresenter {
         let rows = report.blocks.map { block in
             ReportSlide.GoalRow(reached: block.isReached,
                                 title: "\(ReportFormat.clock(block.fromMinute))–\(ReportFormat.clock(block.toMinute))",
-                                value: "\(block.drunkMl ?? 0) / \(block.targetMl) мл")
+                                value: "\(unit.units(block.drunkMl ?? 0)) / \(unit.units(block.targetMl)) \(unit.symbol)")
         }
         let portions = report.days.first?.entries ?? report.portions.count
         let reached = report.blocks.filter(\.isReached).count
@@ -255,7 +257,7 @@ struct ReportPresenter {
             foot = portions.count == 1
                 ? "О \(ReportFormat.clock(first.minute))."
                 : "Перша — о \(ReportFormat.clock(first.minute)), остання — о \(ReportFormat.clock(last.minute)). "
-                    + "У середньому \(ReportFormat.volume(report.totalMl / portions.count)) за раз."
+                    + "У середньому \(ReportFormat.volume(report.totalMl / portions.count, unit)) за раз."
         }
         return .timeline(kicker: "Випито за день",
                          title: "\(count) \(Plural.uk(count, one: "порція", few: "порції", many: "порцій")) за день",
@@ -304,12 +306,12 @@ struct ReportPresenter {
             WTStoryBars.Bar(label: ReportFormat.weekdayShort(calendar.weekdayIndex(of: day.day)),
                             fraction: Double(day.totalMl) / scale, met: day.goalMet, isBest: day.day == best?.day)
         }
-        let title = best.map { "\(ReportFormat.weekday(calendar.weekdayIndex(of: $0.day)).capitalizedFirst) — \(ReportFormat.volume($0.totalMl))" }
+        let title = best.map { "\(ReportFormat.weekday(calendar.weekdayIndex(of: $0.day)).capitalizedFirst) — \(ReportFormat.volume($0.totalMl, unit))" }
             ?? "Найкращий день"
         return .bestDay(kicker: "Найкращий день", title: title,
-                        subtitle: "У середньому \(ReportFormat.volume(report.averageMl)) на день",
+                        subtitle: "У середньому \(ReportFormat.volume(report.averageMl, unit)) на день",
                         bars: bars, goalFraction: Double(report.goalMl) / scale,
-                        goalLabel: "норма \(ReportFormat.volume(report.goalMl))", pill: changePill(suffix: "проти минулого тижня"))
+                        goalLabel: "норма \(ReportFormat.volume(report.goalMl, unit))", pill: changePill(suffix: "проти минулого тижня"))
     }
 
     // MARK: - Місяць
@@ -467,14 +469,14 @@ struct ReportPresenter {
             }
             if let weekday = report.weekdayAverageMl, let weekend = report.weekendAverageMl {
                 let scale = Double(max(weekday, weekend, 1))
-                versus = [.init(value: ReportFormat.volume(weekday), label: "БУДНІ", fraction: Double(weekday) / scale),
-                          .init(value: ReportFormat.volume(weekend), label: "ВИХІДНІ", fraction: Double(weekend) / scale)]
+                versus = [.init(value: ReportFormat.volume(weekday, unit), label: "БУДНІ", fraction: Double(weekday) / scale),
+                          .init(value: ReportFormat.volume(weekend, unit), label: "ВИХІДНІ", fraction: Double(weekend) / scale)]
             }
         case .bestDay(let day):
             let name = report.period.kind == .week
                 ? ReportFormat.weekday(calendar.weekdayIndex(of: day.day))
                 : "\(day.day.day) \(ReportFormat.monthGenitive(day.day.month))"
-            headline = "Найкращий день — \(name), \(ReportFormat.volume(day.totalMl))"
+            headline = "Найкращий день — \(name), \(ReportFormat.volume(day.totalMl, unit))"
             let missed = report.elapsedDays.filter { !$0.goalMet }.count
             let span = report.period.kind == .week ? "тиждень" : "місяць"
             detail = missed == 0
@@ -511,7 +513,8 @@ struct ReportPresenter {
 /// звіт — розповідь, а не таблиця, і «1,8 л» тут читається природніше.
 enum ReportFormat {
     /// Велике число обкладинки: до літра — мілілітри, далі — літри.
-    static func big(_ ml: Int) -> (value: Double, decimals: Int, unit: String) {
+    static func big(_ ml: Int, _ system: VolumeUnit = .milliliters) -> (value: Double, decimals: Int, unit: String) {
+        guard system.isMetric else { return (Double(system.units(ml)), 0, VolumeUnit.ounceSymbol) }
         guard ml >= 1000 else { return (Double(ml), 0, "мл") }
         let value = liters(ml)
         return (value.value, value.decimals, "л")
@@ -524,7 +527,8 @@ enum ReportFormat {
     }
 
     /// «850 мл», «1,9 л», «52 л».
-    static func volume(_ ml: Int) -> String {
+    static func volume(_ ml: Int, _ system: VolumeUnit = .milliliters) -> String {
+        guard system.isMetric else { return system.portion(ml) }
         guard ml >= 1000 else { return "\(ml) мл" }
         let (value, decimals) = liters(ml)
         return String(format: "%.\(decimals)f", value).replacingOccurrences(of: ".", with: ",") + " л"

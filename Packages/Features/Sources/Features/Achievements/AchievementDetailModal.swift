@@ -46,7 +46,7 @@ extension AchievementSnapshot {
         if isUnlocked { return "Відкрито" }
         if isMasked { return "Таємне досягнення" }
         if let lockedCaption { return lockedCaption }
-        return "Прогрес \(Int(min(value, target))) із \(Int(target))"
+        return "Прогрес \(shownValue) із \(shownTarget)"
     }
 
     /// Опис, стан і нагорода одним рядком — картка для VoiceOver один елемент.

@@ -27,7 +27,7 @@ struct NotificationPlanScreen: View {
                     WTCard {
                         VStack(alignment: .leading, spacing: 6) {
                             line("Дозвіл", authorization)
-                            line("Типова порція P", "\(plan.typicalPortionMl) мл")
+                            line("Типова порція P", services.profile.volumeUnit.portion(plan.typicalPortionMl))
                             line("Остання дія", plan.lastActionDay?.rawValue ?? "—")
                             line("Пауза", services.notifications.isPaused(at: services.calendar.now) ? "до 00:00" : "ні")
                             line("Заплановано", "\(plan.items.count)")

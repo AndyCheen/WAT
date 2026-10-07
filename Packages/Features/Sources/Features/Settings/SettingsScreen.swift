@@ -67,10 +67,10 @@ public struct SettingsScreen: View {
 
     private var water: some View {
         section("ВОДА") {
-            WTSettingRow("Денна мета", subtitle: "Крок — 250 мл") {
+            WTSettingRow("Денна мета", subtitle: model.goalStepLabel) {
                 WTValueStepper(model.goalLabel, identifier: "settings.goal",
-                               onDecrement: { model.changeGoal(by: -250) },
-                               onIncrement: { model.changeGoal(by: 250) })
+                               onDecrement: { model.stepGoal(up: false) },
+                               onIncrement: { model.stepGoal(up: true) })
             }
             WTDivider()
             WTNavigationRow("Кнопки порцій", value: model.quickAmountsSummary, action: onOpenPortionButtons)
@@ -79,6 +79,15 @@ public struct SettingsScreen: View {
             // Повторний онбординг (WAT-56, SPEC-ONBOARDING §7.1): перерахувати норму, пройти пропущене.
             WTNavigationRow("Підібрати під себе", action: onOpenOnboarding)
                 .accessibilityIdentifier("settings.onboarding")
+            WTDivider()
+            // Система об'єму (WAT-46): сегменти, як вибори на екрані «Сповіщення».
+            WTSettingRow("Одиниці", subtitle: model.volumeUnit.title) { EmptyView() }
+            WTSegmentedTabs(titles: VolumeUnit.allCases.map(\.shortTitle),
+                            selection: VolumeUnit.allCases.firstIndex(of: model.volumeUnit) ?? 0,
+                            onSelect: { index in
+                                withAnimation(WTAnimation.fade) { model.setVolumeUnit(VolumeUnit.allCases[index]) }
+                            })
+                .padding(.bottom, 10)
         }
     }
 

@@ -70,8 +70,11 @@ public final class StatsViewModel {
 
     public var goalLabel: String {
         let goal = chartMode == .days7 ? services.hydration.currentGoal() : services.hydration.currentGoal() * 7
-        return "\(Volume.litersLabel(goal, fractionDigits: 1)) л"
+        return volumeUnit.format(goal) { "\(Volume.litersLabel($0, fractionDigits: 1)) л" }
     }
+
+    /// Система об'єму людини (WAT-46).
+    public var volumeUnit: VolumeUnit { services.profile.volumeUnit }
 
     // MARK: - Дії
 
