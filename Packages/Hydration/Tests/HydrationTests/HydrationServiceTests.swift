@@ -205,5 +205,40 @@ final class HydrationServiceTests: XCTestCase {
     func testQuickAddDefaultsMatchMockup() {
         let env = TestEnv()
         XCTAssertEqual(env.hydration.quickAddAmounts(), [200, 500, 1000])
+        XCTAssertEqual(env.hydration.quickAddAmounts(.customSheet), [150, 250, 350, 500])
+    }
+
+    // MARK: - Кнопки порцій (WAT-45)
+
+    func testStepPresetSkipsValueTakenByNeighbour() {
+        let env = TestEnv()
+        env.hydration.stepPreset(.customSheet, at: 0, by: 50)          // 150 → 200
+        let amounts = env.hydration.stepPreset(.customSheet, at: 0, by: 50)
+        XCTAssertEqual(amounts, [300, 250, 350, 500], "250 зайняте другою підказкою — перескок на 300")
+    }
+
+    func testStepPresetStaysWithinIntakeBounds() {
+        let env = TestEnv()
+        for _ in 0..<5 { env.hydration.stepPreset(.home, at: 0, by: -50) }
+        XCTAssertEqual(env.hydration.quickAddAmounts().first, Intake.minAmountMl)
+        for _ in 0..<30 { env.hydration.stepPreset(.home, at: 2, by: 50) }
+        XCTAssertEqual(env.hydration.quickAddAmounts().last, Intake.maxAmountMl)
+    }
+
+    func testResetPresetsBringsDefaultsBack() {
+        let env = TestEnv()
+        env.hydration.stepPreset(.home, at: 1, by: 50)
+        XCTAssertEqual(env.hydration.quickAddAmounts(), [200, 550, 1000])
+        env.hydration.resetPresets(.home)
+        XCTAssertEqual(env.hydration.quickAddAmounts(), [200, 500, 1000])
+    }
+
+    func testCustomAmountStartsFromLastConfirmed() {
+        let env = TestEnv()
+        XCTAssertEqual(env.hydration.customAmountStart(), 300, "шторкою ще не користувались")
+        env.hydration.rememberCustomAmount(450)
+        XCTAssertEqual(env.hydration.customAmountStart(), 450)
+        env.hydration.rememberCustomAmount(9000)
+        XCTAssertEqual(env.hydration.customAmountStart(), Intake.maxAmountMl)
     }
 }

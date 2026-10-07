@@ -9,8 +9,9 @@ public protocol ProfileRepositoryProtocol: AnyObject {
     func goalRevisions() -> [GoalRevision]
     @discardableResult
     func setGoal(_ ml: Int, source: GoalSource, effectiveFrom day: DayKey, at date: Date) -> GoalRevision
-    func quickAddPresets() -> [QuickAddPreset]
+    func quickAddPresets(_ place: PresetPlace) -> [QuickAddPreset]
     func updatePreset(_ preset: QuickAddPreset, amountMl: Int)
+    func resetPresets(_ place: PresetPlace)
     func save()
 }
 
@@ -74,11 +75,16 @@ public final class ProfileRepository: ProfileRepositoryProtocol {
         return revision
     }
 
-    public func quickAddPresets() -> [QuickAddPreset] {
-        let descriptor = FetchDescriptor<QuickAddPreset>(sortBy: [SortDescriptor(\.order)])
+    /// Сід окремо на кожне місце: БД, де були лише кнопки головного, отримає підказки шторки.
+    public func quickAddPresets(_ place: PresetPlace = .home) -> [QuickAddPreset] {
+        let raw = place.rawValue
+        let descriptor = FetchDescriptor<QuickAddPreset>(
+            predicate: #Predicate { $0.placeRaw == raw },
+            sortBy: [SortDescriptor(\.order)]
+        )
         let existing = (try? context.fetch(descriptor)) ?? []
         if !existing.isEmpty { return existing }
-        let created = QuickAddPreset.defaults.map { QuickAddPreset(order: $0.order, amountMl: $0.amountMl) }
+        let created = place.defaults.enumerated().map { QuickAddPreset(place: place, order: $0, amountMl: $1) }
         created.forEach { context.insert($0) }
         save()
         return created
@@ -86,6 +92,14 @@ public final class ProfileRepository: ProfileRepositoryProtocol {
 
     public func updatePreset(_ preset: QuickAddPreset, amountMl: Int) {
         preset.amountMl = Intake.clamp(amountMl)
+        save()
+    }
+
+    public func resetPresets(_ place: PresetPlace) {
+        for (preset, amount) in zip(quickAddPresets(place), place.defaults) {
+            preset.amountMl = amount
+            preset.enabled = true
+        }
         save()
     }
 
