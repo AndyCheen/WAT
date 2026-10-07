@@ -51,7 +51,7 @@ final class DayRhythmFeatureTests: XCTestCase {
     /// сповіщення — без частин доби.
     func testPlainDayHasNoDayPartsAnywhere() async {
         let model = HomeViewModel(services: services)
-        model.setDayRhythm(false)
+        SettingsModel(services: services).setDayRhythm(false)
         add(250, at: 8, 30, to: model)
         clock.set(Self.date(9))
 
@@ -81,16 +81,17 @@ final class DayRhythmFeatureTests: XCTestCase {
     /// Увімкнення назад повертає все з наступної порції; нарахованого раніше вимкнення не забирає.
     func testTurningBackOnResumesFromNextPortion() async {
         let model = HomeViewModel(services: services)
+        let settings = SettingsModel(services: services)
         add(700, at: 9, to: model)
         XCTAssertEqual(dayPartXp.count, 1)
 
-        model.setDayRhythm(false)
+        settings.setDayRhythm(false)
         XCTAssertEqual(dayPartXp.count, 1, "вимкнення XP не відкочує")
         add(500, at: 13, to: model)
         add(300, at: 14, to: model)
         XCTAssertEqual(dayPartXp.count, 1)
 
-        model.setDayRhythm(true)
+        settings.setDayRhythm(true)
         XCTAssertNotNil(model.dayPartLine())
         add(100, at: 15, to: model)
         XCTAssertEqual(dayPartXp.count, 2, "блок 12–17 закрито — XP з наступної порції")
@@ -111,7 +112,7 @@ final class DayRhythmFeatureTests: XCTestCase {
         XCTAssertTrue(hasRhythm(week))
         XCTAssertTrue(hasRhythm(month))
 
-        model.setDayRhythm(false)
+        SettingsModel(services: services).setDayRhythm(false)
         XCTAssertFalse(hasRhythm(week))
         XCTAssertFalse(hasRhythm(month))
         XCTAssertTrue(presenter(for: week).slides.contains { if case .weekGoals = $0 { true } else { false } },
@@ -121,7 +122,7 @@ final class DayRhythmFeatureTests: XCTestCase {
     // MARK: - Пропозиція «Рівні інтервали»
 
     func testTurningOffOffersIntervalRemindersOnce() {
-        let model = HomeViewModel(services: services)
+        let model = SettingsModel(services: services)
         model.setDayRhythm(false)
         XCTAssertTrue(model.offersIntervalReminders, "«За темпом» спирається на частини доби")
 
@@ -136,15 +137,15 @@ final class DayRhythmFeatureTests: XCTestCase {
 
     func testNoOfferWhenRemindersAreOff() {
         services.notifications.settings.remindersEnabled = false
-        let model = HomeViewModel(services: services)
+        let model = SettingsModel(services: services)
         model.setDayRhythm(false)
         XCTAssertFalse(model.offersIntervalReminders)
     }
 
-    func testOfferGoesAwayWithTheSheet() {
-        let model = HomeViewModel(services: services)
+    func testOfferGoesAwayWhenLeavingScreen() {
+        let model = SettingsModel(services: services)
         model.setDayRhythm(false)
-        model.dismissSheet()
+        model.dismissOffers()
         XCTAssertFalse(model.offersIntervalReminders, "пропозиція — лише щойно після вимикання")
         XCTAssertEqual(services.notifications.settings.reminderMode, .pace, "мовчки нічого не змінюємо")
     }

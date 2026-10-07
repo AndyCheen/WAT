@@ -9,9 +9,10 @@ import Insights
 import DesignSystem
 
 /// Шторки головного. Досягнень серед них немає: шторка-дубль екрана 2e з гіршим
-/// набором функцій прибрана, до досягнень веде лише екран (SPEC-ACHIEVEMENTS §1).
+/// набором функцій прибрана, до досягнень веде лише екран (SPEC-ACHIEVEMENTS §1). Налаштування —
+/// теж екран, а не шторка (WAT-15).
 public enum HomeSheet: Identifiable {
-    case custom, calendar, settings, stats
+    case custom, calendar, stats
     /// «Нагадувати, коли забудеш про воду?» — після першої порції (SPEC-NOTIFICATIONS §16.5).
     case permission
     /// Вікно «Склянка» на весь екран — лише з ранкової склянки (§7.1, рішення від 05.10.2026).
@@ -22,7 +23,6 @@ public enum HomeSheet: Identifiable {
         switch self {
         case .custom: return 0
         case .calendar: return 1
-        case .settings: return 2
         case .stats: return 3
         case .permission: return 4
         case .glass: return 5
@@ -139,7 +139,6 @@ public final class HomeViewModel {
     @ObservationIgnored public var onOpenAchievements: () -> Void = {}
     @ObservationIgnored public var onOpenPrize: (String) -> Void = { _ in }
     @ObservationIgnored public var onOpenLevelRoad: () -> Void = {}
-    @ObservationIgnored public var onOpenNotifications: () -> Void = {}
     /// Шторка дозволу чекає, поки зникне тост чи картка досягнення: першу порцію майже завжди
     /// святкує «Перша крапля», і шторка поверх тоста сховала б його.
     private var permissionOfferPending = false
@@ -280,12 +279,6 @@ public final class HomeViewModel {
 
     public func toggleHistory(id: UUID) {
         openHistoryId = openHistoryId == id ? nil : id
-    }
-
-    public func changeGoal(by delta: Int) {
-        services.hydration.setGoal(day.goalMl + delta)
-        services.touch()
-        withAnimation(WTAnimation.fade) { reload() }
     }
 
     // MARK: - Досягнення
@@ -538,44 +531,6 @@ public final class HomeViewModel {
         dismissSheet()
     }
 
-    /// Рядок «Нагадування» в налаштуваннях — вхід на екран «Сповіщення» (§15.1).
-    public func openNotificationSettings() {
-        dismissSheet()
-        onOpenNotifications()
-    }
-
-    public var notificationsSummary: String {
-        guard services.profile.notificationsEnabled else { return "Вимк." }
-        return services.notifications.authorization == .denied ? "Без дозволу" : "Увімк."
-    }
-
-    // MARK: - Ритм дня (WAT-42, SPEC-NOTIFICATIONS §28)
-
-    public var dayRhythmEnabled: Bool { services.profile.dayRhythmEnabled }
-
-    /// Пропозиція «Рівні інтервали» — лише щойно після вимикання ритму: нагадування «за темпом»
-    /// теж спираються на частини доби, але змінювати їх мовчки не можна, а питати щоразу — набридливо.
-    public private(set) var offersIntervalReminders = false
-
-    /// Вимкнено — режим «просто норма за день»: без чекпоінтів, XP і завдань частин доби, капсули
-    /// й частин у звітах. Нарахований XP лишається; увімкнення повертає все з наступної порції.
-    public func setDayRhythm(_ enabled: Bool) {
-        services.profile.dayRhythmEnabled = enabled
-        services.profiles.save()
-        let settings = services.notifications.settings
-        offersIntervalReminders = !enabled && services.profile.notificationsEnabled
-            && settings.remindersEnabled && settings.reminderMode == .pace
-        // Перепланування — чекпоінти зникають чи повертаються одразу, а не з наступною порцією.
-        services.touch()
-    }
-
-    public func switchRemindersToInterval() {
-        services.notifications.settings.reminderMode = .interval
-        services.profiles.save()
-        offersIntervalReminders = false
-        services.touch()
-    }
-
     // MARK: - Шторки
 
     /// Присвоєння `sheet` напряму не анімувалося — `WTSheet` має перехід,
@@ -585,7 +540,6 @@ public final class HomeViewModel {
     }
 
     public func dismissSheet() {
-        offersIntervalReminders = false
         withAnimation(WTAnimation.sheet) { sheet = nil }
     }
 
@@ -631,7 +585,6 @@ public final class HomeViewModel {
     public var volumeLabel: String {
         "\(Volume.litersLabel(day.countedMl)) / \(Volume.litersLabel(day.goalMl, fractionDigits: 1)) л"
     }
-    public var goalLabel: String { "\(Volume.litersLabel(day.goalMl, fractionDigits: 1)) л" }
 
     /// Капсула частини доби на цю хвилину. Екран викликає її з `TimelineView` раз на хвилину;
     /// час — від `Clock`, а не з `TimelineView`, інакше `--uitest-now` не діяв би.

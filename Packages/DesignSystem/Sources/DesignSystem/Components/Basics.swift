@@ -438,6 +438,8 @@ public struct WTNavBar: View {
                 WTCircleButton(size: 38, action: onBack) {
                     WTIcons.chevronLeft(color: theme.accent, size: 16)
                 }
+                // На самій кнопці, не на шапці: ідентифікатор контейнера перекрив би дочірні.
+                .accessibilityIdentifier("nav.back")
             } else {
                 Color.clear.frame(width: 38, height: 38)
             }

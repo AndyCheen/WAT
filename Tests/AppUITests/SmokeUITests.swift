@@ -92,7 +92,7 @@ final class SmokeUITests: XCTestCase {
         offer.tap()
         XCTAssertTrue(offer.waitForNonExistence(timeout: 5))
 
-        app.buttons["Готово"].tap()
+        app.buttons["nav.back"].tap()
         XCTAssertTrue(pill.waitForNonExistence(timeout: 5), "капсули частини доби немає")
 
         app.buttons["home.settings"].tap()
@@ -198,10 +198,10 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(goal.waitForExistence(timeout: 5))
         XCTAssertEqual(goal.label, "2.0 л")
 
-        app.buttons["+"].firstMatch.tap()
+        app.buttons["settings.goal.plus"].tap()
         XCTAssertEqual(goal.label, "2.2 л", "2000 + 250 мл = 2250 → «2.2 л»")
 
-        app.buttons["Готово"].tap()
+        app.buttons["nav.back"].tap()
         XCTAssertEqual(app.staticTexts["home.percent"].label, "22%", "прогрес перерахований під нову норму")
     }
 
@@ -398,6 +398,29 @@ final class SmokeUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["prizes.empty"].exists)
     }
 
+    /// Налаштування — екран у стеку (WAT-15): «Сповіщення» відкриваються поверх нього,
+    /// «назад» вертає в налаштування, ще раз — на головний.
+    func testSettingsIsFullScreenInNavigationStack() {
+        let app = launch(["--uitest-empty"])
+        XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
+
+        app.buttons["home.settings"].tap()
+        let row = app.buttons["settings.notifications"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        let percent = app.staticTexts["home.percent"]
+        XCTAssertFalse(percent.exists && percent.isHittable, "головного під налаштуваннями не видно")
+
+        row.tap()
+        XCTAssertTrue(app.buttons["notifications.master"].waitForExistence(timeout: 5))
+        app.buttons["nav.back"].firstMatch.tap()
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "назад — у налаштування, а не на головний")
+        XCTAssertTrue(row.isHittable)
+
+        app.buttons["nav.back"].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["home.percent"].isHittable)
+    }
+
     // MARK: - Тема
 
     func testDarkThemeToggle() {
@@ -407,7 +430,7 @@ final class SmokeUITests: XCTestCase {
         app.buttons["home.settings"].tap()
         XCTAssertTrue(app.staticTexts["Темна тема"].waitForExistence(timeout: 5))
         app.buttons["settings.theme"].tap()
-        app.buttons["Готово"].tap()
+        app.buttons["nav.back"].tap()
 
         XCTAssertTrue(app.staticTexts["home.percent"].exists, "екран лишається робочим у темній темі")
     }

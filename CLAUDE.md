@@ -19,8 +19,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 483 unit-тести 9 пакетів, без симулятора — швидкий цикл
-make test-ui        # 38 e2e-сценаріїв (XCUITest) у симуляторі
+make test-packages  # 485 unit-тестів 9 пакетів, без симулятора — швидкий цикл
+make test-ui        # 39 e2e-сценаріїв (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
 make clean
@@ -163,8 +163,8 @@ Features → DesignSystem → Core
   `GamificationService` не дає XP `dayPartGoal` і не видає завдань із метрикою `part.*` (`QuestDefinition.isDayPartQuest`),
   капсули на головному немає, `Insights.report(for:)` повертає звіт без `blocks` (`showsDayParts`) і без думки
   «системна прогалина». Звіти йдуть за поточним перемикачем, не за днем.
-- Вимкнення нарахованого не відкочує; увімкнення діє з наступної порції. Перемикач — тимчасово в шторці
-  налаштувань (до WAT-15); щойно після вимикання — разова плашка «Рівні інтервали», мовчки режим не змінюється.
+- Вимкнення нарахованого не відкочує; увімкнення діє з наступної порції. Перемикач — на екрані «Налаштування»
+  (WAT-15); щойно після вимикання — разова плашка «Рівні інтервали», мовчки режим не змінюється.
 
 ### Пропозиція графіка (WAT-41, SPEC-NOTIFICATIONS §27)
 
@@ -237,7 +237,7 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
   друге читання вже не бачить нових, і крапки «нове» не з'являються зовсім (WAT-23).
 - Прапорці запуску (`App/Sources/WaterTrackerApp.swift`, `LaunchConfiguration`):
   `--uitest-empty` (чиста in-memory БД), `--uitest-demo` (демо-історія),
-  `--seed-demo`, `--start-screen progress|level-road|achievements|prizes|stats|notifications|notification-plan|report|schedule-suggestion`
+  `--seed-demo`, `--start-screen progress|level-road|achievements|prizes|stats|settings|notifications|notification-plan|report|schedule-suggestion`
   (`report` — минулий тиждень; період явно — `report:day:2026-10-04`, `report:month:2026-09`;
   `schedule-suggestion:wake-early|wake-late|sleep-late|sleep-early|both|weekend|weekdays` — вікно «Графік дня»
   повз правило частоти). `--seed-schedule-shift` — 10 днів із першою склянкою ≈ 06:30: вікно з'являється само.
@@ -262,7 +262,7 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
 3. `HomeSheet.stats` реалізований (`WeekStatsSheet`), але недосяжний з UI.
 4. `GoalCalculatorSheet` готовий і покритий тестами, але не підключений.
 5. Сповіщення: етап C (несподівані завдання) — WAT-38; повний редизайн екрана «Сповіщення» —
-   WAT-18 разом з WAT-15; ассету звуку «булькання» (`drop.caf`) немає — грає системний.
+   WAT-18; ассету звуку «булькання» (`drop.caf`) немає — грає системний.
 
 ## Робота із задачами Linear
 
@@ -290,7 +290,7 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
 | `Design/Prizes.html` | макет модуля призів (6 кадрів 402×874) до цього ТЗ; перенесено в код у WAT-34 |
 | `Design/LevelRoad.html` | макет вікна «Шлях рівнів» (WAT-44, SPEC-PRIZES §16): погоджено «Драбину» й «Скриню», компактний вибір; інфографіка частоти призів |
 | `Config/Balance.xcconfig` | баланс XP: XP за крок об'єму води й загальний множник (SPEC-PRIZES §16.13) |
-| `SPEC-NOTIFICATIONS.md` | ТЗ модуля «Сповіщення» (WAT-17): типи, нагадування за кривою темпу, анти-спам, тексти, налаштування, локальні сповіщення й планувальник; етапи 0 і A реалізовано в WAT-36 (рішення — §23), етап B — у WAT-37 (§24), одна модель цілей частин доби — WAT-39 (§25), капсула частини доби на головному — WAT-40 (§26), пропозиція змінити графік дня — WAT-41 (§27), перемикач «Ритм дня» — WAT-42 (§28), спад кривої темпу перед сном — WAT-43 (§29) |
+| `SPEC-NOTIFICATIONS.md` | ТЗ модуля «Сповіщення» (WAT-17): типи, нагадування за кривою темпу, анти-спам, тексти, налаштування, локальні сповіщення й планувальник; етапи 0 і A реалізовано в WAT-36 (рішення — §23), етап B — у WAT-37 (§24), одна модель цілей частин доби — WAT-39 (§25), капсула частини доби на головному — WAT-40 (§26), пропозиція змінити графік дня — WAT-41 (§27), перемикач «Ритм дня» — WAT-42 (§28), спад кривої темпу перед сном — WAT-43 (§29), екран «Налаштування» на весь екран — WAT-15 (§30) |
 | `Design/DayPart.html` | макет капсули частини доби на головному (WAT-40): три варіанти, погоджено A (SPEC-NOTIFICATIONS §26) |
 | `Design/Schedule.html` | макет вікна «Графік дня» (WAT-41): три варіанти, погоджено A «Час», і правило зсуву на 14 днях (SPEC-NOTIFICATIONS §27) |
 | `Design/Notifications.html` | інтерактивний макет етапу B (WAT-37): вікно «Склянка», звіт-історія дня / тижня / місяця, рядки B на екрані «Сповіщення» |
