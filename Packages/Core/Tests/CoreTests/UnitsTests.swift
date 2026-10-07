@@ -2,15 +2,50 @@ import XCTest
 @testable import Core
 
 final class UnitsTests: XCTestCase {
-    func testRoundTripMillilitersToOunces() {
-        let oz = Volume.display(500, in: .fluidOunces)
-        XCTAssertEqual(oz, 17)
-        XCTAssertEqual(Volume.toMilliliters(oz, from: .fluidOunces), 503)
+    func testOuncesRoundTrip() {
+        XCTAssertEqual(VolumeUnit.usFluidOunces.units(500), 17)
+        XCTAssertEqual(VolumeUnit.usFluidOunces.milliliters(units: 8), 237)
+        XCTAssertEqual(VolumeUnit.imperialFluidOunces.milliliters(units: 8), 227)
+        XCTAssertEqual(VolumeUnit.usFluidOunces.units(VolumeUnit.usFluidOunces.milliliters(units: 8)), 8)
     }
 
     func testMillilitersPassThrough() {
-        XCTAssertEqual(Volume.display(1250, in: .milliliters), 1250)
-        XCTAssertEqual(Volume.toMilliliters(1250, from: .milliliters), 1250)
+        XCTAssertEqual(VolumeUnit.milliliters.units(1250), 1250)
+        XCTAssertEqual(VolumeUnit.milliliters.milliliters(units: 1250), 1250)
+    }
+
+    /// Старе значення `volumeUnitRaw = 1` — унції США.
+    func testRawValuesKeepOldOunces() {
+        XCTAssertEqual(VolumeUnit(rawValue: 1), .usFluidOunces)
+    }
+
+    func testFormatKeepsMetricPlaceFormat() {
+        XCTAssertEqual(VolumeUnit.milliliters.format(1050) { "\($0) мл" }, "1050 мл")
+        XCTAssertEqual(VolumeUnit.usFluidOunces.format(1000) { "\($0) мл" }, "34 oz")
+    }
+
+    func testRoundUpNeverLeavesShort() {
+        XCTAssertEqual(VolumeUnit.usFluidOunces.unitsRoundedUp(240), 9)
+        XCTAssertEqual(VolumeUnit.milliliters.unitsRoundedUp(240), 240)
+    }
+
+    /// Крок униз від «8 oz» (237 мл) — «7 oz», а не знову «8 oz».
+    func testSteppingStartsFromShownValue() {
+        let unit = VolumeUnit.usFluidOunces
+        let grid = VolumeGrid(fine: 1, coarse: 2, coarseFrom: 32)
+        let eight = unit.milliliters(units: 8)
+        XCTAssertEqual(unit.units(unit.stepped(eight, up: false, grid: grid)), 7)
+        XCTAssertEqual(unit.units(unit.stepped(eight, up: true, grid: grid)), 9)
+        let thirtyTwo = unit.milliliters(units: 32)
+        XCTAssertEqual(unit.units(unit.stepped(thirtyTwo, up: true, grid: grid)), 34)
+        XCTAssertEqual(unit.units(unit.stepped(thirtyTwo, up: false, grid: grid)), 31)
+    }
+
+    func testSnapToNearestGridNode() {
+        let grid = VolumeGrid(fine: 50, coarse: 100, coarseFrom: 1000)
+        XCTAssertEqual(VolumeUnit.milliliters.snapped(237, grid: grid), 250)
+        XCTAssertEqual(VolumeUnit.milliliters.snapped(1040, grid: grid), 1000)
+        XCTAssertEqual(VolumeUnit.usFluidOunces.units(VolumeUnit.usFluidOunces.snapped(300, grid: VolumeGrid(step: 1))), 10)
     }
 
     func testLitersLabelMatchesMockup() {
