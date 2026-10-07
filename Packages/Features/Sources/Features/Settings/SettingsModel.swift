@@ -38,12 +38,12 @@ public final class SettingsModel {
         volumeUnit.format(goalMl) { "\(Volume.litersLabel($0, fractionDigits: 1)) л" }
     }
 
-    /// Підпис кроку мети: «Крок — 250 мл» / «Крок — 8 унц.».
+    /// Підпис кроку мети: «Крок — 100 мл» / «Крок — 4 унц.».
     public var goalStepLabel: String {
         "Крок — " + volumeUnit.portion(volumeUnit.milliliters(units: VolumeSteps.goal(volumeUnit).fine))
     }
 
-    /// ±250 мл або ±8 унц. (`VolumeSteps.goal`, WAT-46).
+    /// ±100 мл або ±4 унц. (`VolumeSteps.goal`, WAT-46).
     public func stepGoal(up: Bool) {
         goalMl = services.hydration.stepGoal(up: up).goalMl
         services.touch()

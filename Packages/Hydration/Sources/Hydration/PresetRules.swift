@@ -26,9 +26,10 @@ public enum VolumeSteps {
         VolumeGrid(step: unit.isMetric ? 50 : 1)
     }
 
-    /// Денна мета: 250 мл або чашка 8 унц..
+    /// Денна мета: 100 мл або 4 унц. Було 250 мл / 8 унц. («склянка»), але так норму не налаштувати точно —
+    /// людина хоче 2.1 л, а не вибирати між 2 і 2.25 (рішення від 07.10.2026).
     public static func goal(_ unit: VolumeUnit) -> VolumeGrid {
-        VolumeGrid(step: unit.isMetric ? 250 : 8)
+        VolumeGrid(step: unit.isMetric ? 100 : 4)
     }
 
     /// «Моя склянка» і вікно «Склянка».

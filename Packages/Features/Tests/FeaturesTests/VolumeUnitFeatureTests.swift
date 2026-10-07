@@ -29,14 +29,16 @@ final class VolumeUnitFeatureTests: XCTestCase {
         settings.setVolumeUnit(.usFluidOunces)
         XCTAssertEqual(settings.quickAmountsSummary, "8 · 16 · 32 унц.")
         XCTAssertEqual(settings.goalLabel, "68 унц.")
-        XCTAssertEqual(settings.goalStepLabel, "Крок — 8 унц.")
+        XCTAssertEqual(settings.goalStepLabel, "Крок — 4 унц.")
         XCTAssertEqual(settings.volumeUnitExample, "8 унц. · 64 унц.")
         settings.stepGoal(up: true)
-        XCTAssertEqual(settings.goalLabel, "72 унц.")
+        XCTAssertEqual(settings.goalLabel, "72 унц.", "68 → найближче кратне 4 вгору")
+        settings.stepGoal(up: true)
+        XCTAssertEqual(settings.goalLabel, "76 унц.")
 
         settings.setVolumeUnit(.milliliters)
         XCTAssertEqual(settings.quickAmountsSummary, "200 мл · 500 мл · 1 л")
-        XCTAssertEqual(settings.goalStepLabel, "Крок — 250 мл")
+        XCTAssertEqual(settings.goalStepLabel, "Крок — 100 мл")
     }
 
     func testHomeShowsOunces() {

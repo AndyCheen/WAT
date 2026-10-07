@@ -218,10 +218,10 @@ final class SmokeUITests: XCTestCase {
         XCTAssertEqual(goal.label, "2.0 л")
 
         app.buttons["settings.goal.plus"].tap()
-        XCTAssertEqual(goal.label, "2.2 л", "2000 + 250 мл = 2250 → «2.2 л»")
+        XCTAssertEqual(goal.label, "2.1 л", "крок — 100 мл")
 
         app.buttons["nav.back"].tap()
-        XCTAssertEqual(app.staticTexts["home.percent"].label, "22%", "прогрес перерахований під нову норму")
+        XCTAssertEqual(app.staticTexts["home.percent"].label, "24%", "прогрес перерахований під нову норму")
     }
 
     // MARK: - Навігація
