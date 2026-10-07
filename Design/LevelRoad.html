@@ -1,0 +1,713 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WaterTracker — шлях рівнів (WAT-44)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Токени — DESIGN-TOKENS.md §2, як у Schedule.html. Кадр 402×874, 1px = 1pt.
+   Нових кольорів немає: prizeIconBg / unlockedIconBg / lockedIconBg — похідні теми (Tokens.swift). */
+:root{
+  --screen:#f7fbff; --card:#fff; --chip:#eaf4ff; --button:#eaf4ff;
+  --text:#1f4a72; --muted:#8aa1bd; --btn-text:#3d8fd6; --accent:#5aa9f0;
+  --line:rgba(31,74,114,.10); --track:#e4f0fb; --dot-off:#dce8f3;
+  --orange:#ff8a3d; --success:#3fb56f; --success-text:#3ea86b;
+  --prize-bg:#ffe9c8; --unlocked-bg:#fff2e2; --locked-bg:#e6e8eb; --sheet:#fff;
+  --r-chip:12px; --r-control:14px; --r-card:24px; --r-panel:22px; --r-pill:999px;
+  --shadow:0 4px 14px rgba(31,74,114,.07);
+}
+.dark{
+  --screen:#0c1524; --card:#161f33; --chip:#17233a; --button:#17233a;
+  --text:#eaf2ff; --muted:#8ba0bd; --btn-text:#bcd8ff; --accent:#7cc4ff;
+  --line:rgba(255,255,255,.08); --track:rgba(255,255,255,.08); --dot-off:rgba(255,255,255,.14);
+  --prize-bg:#17233a; --unlocked-bg:#17233a; --locked-bg:rgba(255,255,255,.14); --sheet:#131e30;
+  --shadow:0 4px 14px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#e9eef5;font-family:Nunito,system-ui,sans-serif;color:#1f4a72;padding:40px 28px 80px}
+h1{font-size:20px;font-weight:800;margin-bottom:6px}
+h2{font-size:16px;font-weight:800;margin:44px 0 6px}
+.lead{font-size:13px;font-weight:700;color:#5c7291;margin-bottom:18px;max-width:1100px;line-height:1.5}
+.lead b{color:#1f4a72}
+code{font-size:12px}
+.row{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+.frame-wrap{width:402px}
+.frame-cap{font-size:12px;font-weight:800;letter-spacing:.3px;color:#5c7291;margin-bottom:8px;text-transform:uppercase}
+.frame-note{font-size:12px;font-weight:700;color:#5c7291;margin-top:10px;line-height:1.45}
+.frame-note b{color:#1f4a72}
+.frame{width:402px;height:874px;background:var(--screen);border-radius:38px;position:relative;overflow:hidden;
+       box-shadow:0 18px 50px rgba(31,74,114,.18);color:var(--text);user-select:none}
+.num{font-family:Fredoka,Nunito,sans-serif}
+button{font-family:inherit}
+
+/* ---------- панель ---------- */
+.ctl{background:#fff;border-radius:18px;padding:16px 18px;max-width:1262px;display:flex;gap:14px 28px;flex-wrap:wrap;box-shadow:0 6px 20px rgba(31,74,114,.08)}
+.ctl label{font-size:12px;font-weight:900;color:#5c7291;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:6px}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+.btns button{height:30px;padding:0 12px;border-radius:999px;border:0;background:#dbe6f3;color:#1f4a72;font:800 13px Nunito;cursor:pointer}
+.btns button.on{background:#5aa9f0;color:#fff}
+.btns button.go{background:#1f4a72;color:#fff}
+
+/* ---------- вікно ---------- */
+.win{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--screen);z-index:5;
+     transition:transform .45s cubic-bezier(.22,1,.36,1)}
+.win.out{transform:translateY(100%)}
+.win.instant{transition:none}
+.top{display:flex;align-items:center;gap:12px;padding:58px 24px 10px;position:relative;z-index:3}
+.close{width:38px;height:38px;flex:none;border-radius:var(--r-pill);background:var(--chip);display:flex;align-items:center;justify-content:center;
+       color:var(--accent);font-size:16px;font-weight:900;cursor:pointer;border:0}
+.hd{flex:1;text-align:center;margin-right:50px}
+.hd .lvl{font-size:22px;font-weight:800;line-height:1.1}
+.hd .xp{font-size:13px;font-weight:800;color:var(--muted);margin-top:3px}
+.hd .bar{height:6px;border-radius:3px;background:var(--track);margin:8px auto 0;width:180px;overflow:hidden}
+.hd .bar i{display:block;height:100%;background:var(--accent);border-radius:3px}
+.scroll{flex:1;min-height:0;overflow-y:auto;position:relative;scrollbar-width:none;
+        -webkit-mask-image:linear-gradient(transparent 0,#000 22px,#000 calc(100% - 30px),transparent);
+        mask-image:linear-gradient(transparent 0,#000 22px,#000 calc(100% - 30px),transparent)}
+.scroll::-webkit-scrollbar{display:none}
+.road{position:relative;padding:26px 24px 60px}
+.bubbles{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.bubbles i{position:absolute;bottom:-20px;border-radius:50%;background:var(--accent);opacity:.08;animation:rise linear infinite}
+@keyframes rise{to{transform:translateY(-920px)}}
+.reduce .bubbles{display:none}
+.closed-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;
+             font-size:14px;font-weight:800;color:var(--muted);padding:40px;z-index:1}
+
+/* спільні елементи призу */
+.ic{width:48px;height:48px;flex:none;border-radius:var(--r-control);background:var(--prize-bg);display:flex;align-items:center;justify-content:center;
+    font-size:24px;position:relative}
+.ic.two{font-size:19px;letter-spacing:-2px}
+.ic .cnt{position:absolute;right:-6px;bottom:-6px;height:20px;padding:0 6px;border-radius:999px;background:var(--accent);color:#fff;
+         font-size:11px;font-weight:900;display:flex;align-items:center;border:2px solid var(--card);letter-spacing:0}
+.ic .ok{position:absolute;right:-5px;top:-5px;width:18px;height:18px;border-radius:50%;background:var(--success);color:#fff;font-size:10px;
+        font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid var(--card)}
+.tx{min-width:0;flex:1}
+.tx .t{font-size:15px;font-weight:800;line-height:1.2}
+.tx .s{font-size:12px;font-weight:700;color:var(--muted);margin-top:2px;line-height:1.3}
+.tx .s.done{color:var(--success-text)}
+.primary{width:100%;height:50px;border-radius:var(--r-control);background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;
+         font-size:16px;font-weight:800;cursor:pointer;border:0}
+.primary:disabled{background:var(--dot-off);color:var(--muted);cursor:default}
+/* вибір «один з двох» — компактно: заголовок із кнопкою і дві пігулки з «або» між ними */
+.pick{background:var(--card);border-radius:var(--r-panel);padding:12px 14px 14px;box-shadow:var(--shadow);border:2px solid var(--accent)}
+.pk-h{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.pk-s.done{color:var(--success-text)!important}
+.take{height:34px;padding:0 16px;border-radius:999px;border:0;background:var(--accent);color:#fff;font-size:14px;font-weight:800;cursor:pointer;flex:none;transition:opacity .2s}
+.take:disabled{background:var(--dot-off);color:var(--muted);cursor:default}
+.opts{display:flex;align-items:center;gap:8px}
+.or{font-size:12px;font-weight:800;color:var(--muted);flex:none}
+.opt{flex:1;min-width:0;display:flex;align-items:center;gap:7px;height:50px;padding:0 6px;border-radius:var(--r-control);border:2px solid var(--line);
+     background:var(--screen);color:var(--text);cursor:pointer;text-align:left;transition:opacity .25s,border-color .2s,background .2s}
+.oi{width:32px;height:32px;flex:none;border-radius:10px;background:var(--prize-bg);display:flex;align-items:center;justify-content:center;font-size:17px;position:relative}
+.opt .ot{font-size:12px;font-weight:800;line-height:1.15}
+.opt.sel{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--card))}
+.opt.dim{opacity:.5}
+.opt.lost,.fk.lost{opacity:.18}
+.opt.won .oi::after,.fk.won::after{content:"✓";position:absolute;right:-5px;top:-5px;width:18px;height:18px;border-radius:50%;background:var(--success);color:#fff;
+      font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid var(--card)}
+/* вибір, до якого ще не дійшов: ті самі два призи, «або» між ними, без дії */
+.pair{display:flex;align-items:center;gap:5px;flex:none}
+.pair .ic{width:38px;height:38px;font-size:19px;border-radius:11px}
+
+/* таємний приз, що чекає */
+.gift{animation:wiggle 2.4s ease-in-out infinite}
+@keyframes wiggle{0%,70%,100%{transform:rotate(0)}74%{transform:rotate(-12deg)}78%{transform:rotate(10deg)}82%{transform:rotate(-8deg)}86%{transform:rotate(5deg)}90%{transform:rotate(0)}}
+.reduce .gift{animation:none}
+.may{display:inline-flex;gap:4px;align-items:center}
+
+/* ---------- A. «Драбина» ---------- */
+.ladder .rw{display:flex;position:relative;padding-bottom:14px}
+.ladder .rail{width:40px;flex:none;display:flex;justify-content:center;position:relative;z-index:1}
+.ladder .nd{width:24px;height:24px;border-radius:50%;background:var(--screen);border:2px solid var(--dot-off);color:var(--muted);
+            font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;font-family:Fredoka,Nunito}
+.ladder .nd.done{border-color:var(--accent);background:var(--accent);color:#fff}
+.ladder .nd.big{width:32px;height:32px;font-size:13px;margin-top:20px}
+.ladder .nd.cur{width:42px;height:42px;font-size:16px;border:0;color:var(--text);margin-top:0;
+                background:radial-gradient(circle,var(--screen) 58%,transparent 60%),conic-gradient(var(--accent) 0 var(--f),var(--dot-off) var(--f) 100%)}
+.ladder .nd.cur.big{margin-top:15px}
+.ladder .nd.fog{opacity:.45}
+.ladder .body{flex:1;min-width:0;padding-left:12px}
+.ladder .empty-gap{height:10px}
+.ladder .card{display:flex;align-items:center;gap:14px;background:var(--card);border-radius:var(--r-panel);padding:12px 14px;box-shadow:var(--shadow)}
+.ladder .card.claimed{background:transparent;box-shadow:none;padding-left:4px}
+.ladder .card.claimed .ic{background:var(--unlocked-bg)}
+.ladder .card.upcoming .ic{background:var(--locked-bg)}
+.ladder .card.fog{filter:blur(3px);opacity:.5}
+.ladder .card.fog .ic{background:var(--locked-bg)}
+.ladder .card.big-m{border:2px solid var(--orange)}
+.ladder .mys{background:var(--card);border-radius:var(--r-panel);padding:14px;box-shadow:var(--shadow);border:2px solid var(--accent)}
+.ladder .mys .r{display:flex;align-items:center;gap:14px;margin-bottom:12px}
+.ladder .mys .ic{width:56px;height:56px;font-size:30px}
+.here{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;background:var(--chip);color:var(--btn-text);
+      font-size:12px;font-weight:900;margin:8px 0 0}
+.ladder .start{font-size:13px;font-weight:800;color:var(--muted);padding-top:3px}
+.rail-line{position:absolute;left:44px;width:4px;margin-left:-2px;border-radius:2px;z-index:0}
+.rail-line.past{background:var(--accent)}
+.rail-line.future{background:repeating-linear-gradient(to bottom,var(--dot-off) 0 6px,transparent 6px 12px)}
+.end{text-align:center;font-size:13px;font-weight:800;color:var(--muted);padding:18px 0 0}
+
+/* ---------- B. «Стежка» ---------- */
+.trail{position:relative}
+.trail svg{position:absolute;left:0;top:0;overflow:visible}
+.tn{position:absolute;transform:translate(-50%,-50%);border-radius:50%;display:flex;align-items:center;justify-content:center}
+.tn.lv{width:30px;height:30px;background:var(--screen);border:2px solid var(--dot-off);color:var(--muted);font:700 12px Fredoka,Nunito}
+.tn.lv.done{background:var(--accent);border-color:var(--accent);color:#fff}
+.tn.pz{width:68px;height:68px;background:var(--locked-bg);font-size:30px;box-shadow:0 0 0 5px var(--screen)}
+.tn.pz.done{background:var(--unlocked-bg)}
+.tn.pz.pend{background:var(--prize-bg);box-shadow:0 0 0 5px var(--screen),0 0 0 8px var(--accent)}
+.tn.pz.bigm{box-shadow:0 0 0 5px var(--screen),0 0 0 8px var(--orange)}
+.tn.pz.fog{filter:blur(3px);opacity:.45}
+.tn .lvn{position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);height:20px;min-width:20px;padding:0 6px;border-radius:999px;
+         background:var(--card);color:var(--muted);font:700 11px Fredoka,Nunito;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow)}
+.tn .lvn.done{background:var(--accent);color:#fff}
+.tn .ok{position:absolute;right:-2px;top:-2px;width:20px;height:20px;border-radius:50%;background:var(--success);color:#fff;font-size:11px;
+        font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid var(--screen)}
+.tn .cnt{position:absolute;left:-8px;top:-2px;height:20px;padding:0 6px;border-radius:999px;background:var(--accent);color:#fff;font-size:11px;font-weight:900;
+         display:flex;align-items:center;border:2px solid var(--screen)}
+.tn.cur{box-shadow:0 0 0 5px var(--screen)}
+.tl{position:absolute;transform:translateY(-50%);width:150px}
+.tl.left{text-align:right}
+.tl .t{font-size:14px;font-weight:800;line-height:1.2}
+.tl .s{font-size:12px;font-weight:700;color:var(--muted);margin-top:2px;line-height:1.3}
+.tl .s.done{color:var(--success-text)}
+.tl.fog{filter:blur(3px);opacity:.45}
+.tbtn{position:absolute;transform:translate(-50%,0);height:36px;padding:0 18px;border-radius:999px;background:var(--accent);color:#fff;border:0;
+      font-size:14px;font-weight:800;cursor:pointer;white-space:nowrap}
+.fork{position:absolute;left:0;right:0;text-align:center}
+.fk{position:absolute;width:58px;height:58px;border-radius:50%;border:0;background:var(--locked-bg);font-size:27px;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 0 5px var(--screen);transform:translate(-50%,-50%);transition:opacity .25s,box-shadow .2s;cursor:default}
+.fork.pend .fk{background:var(--prize-bg);cursor:pointer}
+.fork.pend .fk.sel{box-shadow:0 0 0 5px var(--screen),0 0 0 8px var(--accent)}
+.fork.pend .fk.dim{opacity:.5}
+.fk-arm{position:absolute;height:4px;border-radius:2px;transform:translateY(-50%)}
+.fk-arm.up{background:repeating-linear-gradient(90deg,var(--dot-off) 0 6px,transparent 6px 12px)}
+.fk-arm.pend{background:var(--accent);opacity:.5}
+.fk-txt{position:absolute;left:0;right:0;text-align:center}
+.fk-txt .t{font-size:14px;font-weight:800}
+.fk-txt .s{font-size:12px;font-weight:700;color:var(--muted);margin-top:2px}
+.fk-txt .take{margin-top:10px}
+.marker{position:absolute;transform:translateY(-50%);height:26px;padding:0 10px;border-radius:999px;background:var(--text);color:var(--screen);
+        font-size:12px;font-weight:900;display:flex;align-items:center;white-space:nowrap}
+.marker::after{content:"";position:absolute;left:-5px;top:50%;margin-top:-5px;border:5px solid transparent;border-left:0;border-right-color:var(--text)}
+.marker.left::after{left:auto;right:-5px;border:5px solid transparent;border-right:0;border-left-color:var(--text)}
+
+/* ---------- розкриття таємного призу ---------- */
+.reveal{position:absolute;inset:0;z-index:20;display:none;flex-direction:column;align-items:center;justify-content:center;padding:60px 28px 44px;
+        background:color-mix(in srgb,var(--screen) 90%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);text-align:center}
+.reveal.on{display:flex;animation:fadein .25s ease}
+@keyframes fadein{from{opacity:0}}
+.rv-top{font-size:13px;font-weight:900;color:var(--muted);letter-spacing:.3px;text-transform:uppercase}
+.stage{position:relative;width:300px;height:300px;display:flex;align-items:center;justify-content:center;margin:18px 0 10px}
+.rv-t{font-size:26px;font-weight:800;opacity:0;transform:translateY(10px);transition:all .45s cubic-bezier(.22,1,.36,1)}
+.rv-s{font-size:15px;font-weight:700;color:var(--muted);margin-top:6px;opacity:0;transform:translateY(10px);transition:all .45s .08s cubic-bezier(.22,1,.36,1)}
+.rv-btn{margin-top:30px;width:100%;opacity:0;transition:opacity .4s .2s;pointer-events:none}
+.reveal.done .rv-t,.reveal.done .rv-s{opacity:1;transform:none}
+.reveal.done .rv-btn{opacity:1;pointer-events:auto}
+.outc{display:flex;gap:6px;align-items:center;justify-content:center;font-size:96px;line-height:1;position:relative}
+.outc .cnt{position:absolute;right:-18px;bottom:2px;height:32px;padding:0 10px;border-radius:999px;background:var(--accent);color:#fff;font-size:17px;font-weight:900;
+           display:flex;align-items:center;border:3px solid var(--screen)}
+.outc.two{font-size:76px}
+/* «Скриня» */
+.chest .box{font-size:150px;line-height:1;animation:shake 1.15s cubic-bezier(.36,.07,.19,.97) both;position:relative;z-index:2}
+@keyframes shake{0%{transform:scale(1)}15%{transform:rotate(-8deg) scale(1.02)}25%{transform:rotate(8deg) scale(1.04)}35%{transform:rotate(-10deg) scale(1.06)}
+  45%{transform:rotate(10deg) scale(1.08)}55%{transform:rotate(-12deg) scale(1.1)}65%{transform:rotate(12deg) scale(1.12)}80%{transform:rotate(-4deg) scale(1.15)}100%{transform:scale(1.18)}}
+.chest.burst .box{animation:boom .3s ease-in forwards}
+@keyframes boom{to{transform:scale(1.7);opacity:0}}
+.chest .rays{position:absolute;inset:-20px;border-radius:50%;opacity:0;
+             background:repeating-conic-gradient(from 0deg,color-mix(in srgb,var(--accent) 28%,transparent) 0 10deg,transparent 10deg 30deg);
+             -webkit-mask-image:radial-gradient(circle,#000 25%,transparent 68%);mask-image:radial-gradient(circle,#000 25%,transparent 68%)}
+.chest.burst .rays{opacity:1;animation:spin 9s linear infinite;transition:opacity .4s}
+@keyframes spin{to{transform:rotate(360deg)}}
+.chest .outc{position:absolute;opacity:0;transform:scale(.3)}
+.chest.burst .outc{animation:popin .6s .18s cubic-bezier(.22,1.5,.36,1) forwards}
+@keyframes popin{to{opacity:1;transform:scale(1)}}
+.conf{position:absolute;inset:0;pointer-events:none}
+.conf i{position:absolute;left:50%;top:50%;width:9px;height:9px;border-radius:2px;opacity:0}
+.chest.burst .conf i,.stage.stop .conf i{animation:fly .9s cubic-bezier(.2,.8,.3,1) forwards}
+@keyframes fly{0%{opacity:1;transform:translate(-50%,-50%)}100%{opacity:0;transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y))) rotate(var(--r))}}
+/* «Барабан» */
+.reel-wrap{position:relative;width:200px;height:230px;border-radius:30px;background:var(--card);box-shadow:var(--shadow),inset 0 0 0 3px var(--line);overflow:hidden}
+.reel-wrap::before,.reel-wrap::after{content:"";position:absolute;left:0;right:0;height:70px;z-index:2;pointer-events:none}
+.reel-wrap::before{top:0;background:linear-gradient(var(--card),transparent)}
+.reel-wrap::after{bottom:0;background:linear-gradient(transparent,var(--card))}
+.reel{position:absolute;left:0;right:0;top:0;will-change:transform}
+.reel .it{height:110px;display:flex;align-items:center;justify-content:center;font-size:64px;position:relative}
+.reel .it small{font-size:16px;font-weight:900;color:var(--btn-text);margin-left:2px}
+.payline{position:absolute;left:10px;right:10px;top:60px;height:110px;border-radius:22px;border:3px solid var(--accent);z-index:3;pointer-events:none;transition:box-shadow .3s}
+.reel-wrap.stop .payline{box-shadow:0 0 0 6px color-mix(in srgb,var(--accent) 25%,transparent)}
+/* «Стрічка» */
+.strip-wrap{position:relative;width:346px;height:130px;border-radius:24px;background:var(--card);box-shadow:var(--shadow);overflow:hidden}
+.strip-wrap::before,.strip-wrap::after{content:"";position:absolute;top:0;bottom:0;width:70px;z-index:2;pointer-events:none}
+.strip-wrap::before{left:0;background:linear-gradient(90deg,var(--card),transparent)}
+.strip-wrap::after{right:0;background:linear-gradient(-90deg,var(--card),transparent)}
+.strip{position:absolute;top:15px;left:0;display:flex;gap:10px;will-change:transform}
+.strip .it{width:96px;height:100px;flex:none;border-radius:18px;background:var(--prize-bg);display:flex;align-items:center;justify-content:center;font-size:44px}
+.strip .it small{font-size:14px;font-weight:900;color:var(--btn-text);margin-left:2px}
+.pointer{position:absolute;left:50%;top:0;bottom:0;width:4px;margin-left:-2px;background:var(--accent);z-index:3;border-radius:2px}
+.pointer::before{content:"";position:absolute;left:50%;top:0;margin-left:-9px;border:9px solid transparent;border-top-color:var(--accent)}
+.strip-wrap.stop .it.win{box-shadow:0 0 0 4px var(--accent)}
+
+/* ---------- 3f ---------- */
+.p3f{position:absolute;inset:0;padding:58px 24px 0}
+.p3f .back{width:38px;height:38px;border-radius:50%;background:var(--chip);display:flex;align-items:center;justify-content:center;color:var(--accent);font-weight:900;margin-bottom:20px}
+.donut{width:150px;height:150px;border-radius:50%;margin:0 auto;position:relative;cursor:pointer;
+       background:radial-gradient(circle,var(--screen) 61%,transparent 62%),conic-gradient(var(--accent) 0 var(--f),var(--dot-off) var(--f) 100%);
+       display:flex;align-items:center;justify-content:center;transition:transform .15s}
+.donut:active{transform:scale(.97)}
+.donut i{font-style:normal;text-align:center}
+.donut b{display:block;font-size:34px;font-weight:600;font-family:Fredoka,Nunito;line-height:1.1}
+.donut small{font-size:11px;font-weight:800;letter-spacing:.4px;color:var(--muted)}
+.donut .dot{position:absolute;right:16px;top:12px;width:14px;height:14px;border-radius:50%;background:var(--orange);border:3px solid var(--screen)}
+.p3f .xpl{text-align:center;font-size:13px;font-weight:700;color:var(--muted);margin:10px 0 24px}
+.lbl{font-size:13px;font-weight:800;color:var(--muted);letter-spacing:.3px;margin-bottom:10px}
+.lbl.acc{color:var(--orange)}
+.nr{display:flex;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.nr .e{font-size:30px;width:44px;text-align:center}
+.nr.cta{background:var(--card);border-radius:var(--r-panel);padding:12px 14px;border:2px solid var(--orange);box-shadow:var(--shadow)}
+.nr .chev{color:var(--muted);font-weight:900}
+.nr.cta .chev{color:var(--orange)}
+.pr{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
+.pr .ic{width:40px;height:40px;font-size:20px}
+.pr .x{margin-left:auto;font-size:13px;font-weight:900;color:var(--accent)}
+.faint{opacity:.35;margin-top:22px}
+.toast-s{background:#fff;border-radius:14px;padding:12px 14px;font-size:14px;font-weight:700;box-shadow:0 6px 20px rgba(31,74,114,.10);
+         display:flex;gap:12px;align-items:center;max-width:402px;margin-top:8px}
+.toast-s b{color:#3d8fd6;margin-left:auto;white-space:nowrap}
+
+/* ---------- частота ---------- */
+.panel{background:#fff;border-radius:22px;padding:20px 22px;max-width:1262px;box-shadow:0 6px 20px rgba(31,74,114,.08)}
+.chart-row{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
+.legend{display:flex;gap:16px;font-size:12px;font-weight:800;color:#5c7291;margin-top:8px}
+.legend i{display:inline-block;width:14px;height:4px;border-radius:2px;vertical-align:middle;margin-right:6px}
+.gaps{border-collapse:collapse;font-size:13px;font-weight:700;color:#1f4a72}
+.gaps th,.gaps td{padding:7px 12px;border-bottom:1px solid rgba(31,74,114,.08);text-align:right}
+.gaps th:first-child,.gaps td:first-child{text-align:left}
+.gaps th{font-size:11px;font-weight:900;color:#5c7291;text-transform:uppercase;letter-spacing:.3px}
+.gaps td.acc{color:#3d8fd6;font-weight:900}
+.strip-lv{display:grid;grid-template-columns:86px repeat(25,1fr);gap:4px 3px;margin-top:20px;align-items:center}
+.strip-lv div{text-align:center;font-size:18px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:8px}
+.strip-lv .h{font-size:11px;font-weight:900;color:#5c7291;justify-content:flex-start;text-transform:uppercase;letter-spacing:.3px}
+.strip-lv .n{font:600 12px Fredoka;color:#5c7291;height:18px}
+.strip-lv .d{font-size:10px;font-weight:800;color:#8aa1bd;height:16px}
+.strip-lv .cur{background:#f0f4f9}
+.strip-lv .new{background:#eaf4ff}
+.strip-lv .no{color:#c3cddb;font-size:14px}
+.strip-lv .chs{font-size:13px;letter-spacing:-1px}
+.strip-lv .big{box-shadow:inset 0 0 0 2px #ff8a3d}
+.pool{display:flex;gap:28px;flex-wrap:wrap;margin-top:18px}
+.pool table{border-collapse:collapse;font-size:13px;font-weight:700}
+.pool td{padding:5px 12px 5px 0}
+.pool td:last-child{font-family:Fredoka;font-weight:600;color:#3d8fd6;text-align:right}
+.pool caption{text-align:left;font-size:12px;font-weight:900;color:#5c7291;text-transform:uppercase;letter-spacing:.3px;padding-bottom:6px}
+</style>
+</head>
+<body>
+
+<h1>Шлях рівнів — вікно призів за рівні (WAT-44)</h1>
+<p class="lead">
+  Замість пів-шторки «Нагороди за рівні» — <b>окреме вікно на весь екран</b>, яке відкривається одразу на потрібному місці:
+  на призі, що чекає твоєї дії, або на останньому отриманому. Призи бувають трьох видів: <b>звичайний</b>, <b>на вибір</b> (один з двох)
+  і <b>таємний 🎁</b>. Наперед видно 3 найближчі призи, далі — туман. Рішення й джерела — <code>SPEC-PRIZES.md</code> §16.
+  <br>Обери <b>вигляд стежки</b> й <b>розкриття таємного призу</b>; стани перемикай угорі, у вікні все клікається (вибір, «Відкрити», ✕).
+</p>
+
+<div class="ctl">
+  <div><label>Вигляд стежки</label><div class="btns" data-g="layout">
+    <button data-v="ladder" class="on">A · Драбина</button><button data-v="trail">B · Стежка</button></div></div>
+  <div><label>Розкриття таємного</label><div class="btns" data-g="reveal">
+    <button data-v="chest" class="on">1 · Скриня</button><button data-v="reel">2 · Барабан</button><button data-v="strip">3 · Стрічка</button></div></div>
+  <div><label>Стан</label><div class="btns" data-g="sc">
+    <button data-v="ahead">Рівень 2 · вибір попереду</button><button data-v="choice" class="on">Рівень 4 · вибір</button><button data-v="mystery">Рівень 6 · скриня</button>
+    <button data-v="done">Рівень 9 · усе забрано</button><button data-v="late">Рівень 23</button></div></div>
+  <div><label>Тема</label><div class="btns" data-g="theme"><button data-v="light" class="on">Світла</button><button data-v="dark">Темна</button></div></div>
+  <div><label>Рух</label><div class="btns" data-g="motion"><button data-v="full" class="on">Повний</button><button data-v="reduce">Reduce Motion</button></div></div>
+  <div><label>&nbsp;</label><div class="btns"><button class="go" id="replay">▶ Відкрити вікно знову</button></div></div>
+</div>
+
+<h2>Вікно і вхід у нього</h2>
+<p class="lead">Ліворуч — екран «Прогрес» (3f): тап по донату або по блоку нагороди відкриває вікно праворуч. Поки вибір чи скриня чекають,
+  на донаті горить крапка «нове», а блок «НАГОРОДА НА РІВНІ N» стає закликом.</p>
+<div class="row" id="frames">
+  <div class="frame-wrap">
+    <div class="frame-cap">3f · Прогрес</div>
+    <div class="frame" id="f3f"><div class="p3f" id="p3f"></div></div>
+    <div class="frame-note">Тост рівня на головному, коли новий рівень дає вибір чи скриню (дія веде сюди ж, з відкритим вікном):
+      <div class="toast-s">Рівень 6! 🎁 Чекає таємний приз <b>Відкрити</b></div>
+      <div class="toast-s">Рівень 4! Обери приз: 🧊 або ⚡ <b>Обрати</b></div>
+      <div class="toast-s">Рівень 8! 🧊 Заморозка серії — у призах <b>Подивитись</b></div>
+    </div>
+  </div>
+  <div class="frame-wrap">
+    <div class="frame-cap" id="wcap">Вікно «Шлях рівнів»</div>
+    <div class="frame" id="fw">
+      <div class="closed-hint">Вікно закрите.<br>Тап по донату ліворуч або ▶ угорі.</div>
+      <div class="win" id="win">
+        <div class="bubbles" id="bub"></div>
+        <div class="top"><button class="close" id="x">✕</button>
+          <div class="hd"><div class="lvl" id="hl"></div><div class="xp" id="hx"></div><div class="bar"><i id="hb"></i></div></div></div>
+        <div class="scroll" id="sc"><div class="road" id="road"></div></div>
+        <div class="reveal" id="rv"></div>
+      </div>
+    </div>
+    <div class="frame-note" id="wnote"></div>
+  </div>
+</div>
+
+<h2>Як часто тепер призи</h2>
+<p class="lead">Крива рівнів <code>100 + 50·(n−1)</code> уже сама робить рівні рідшими: на 20-му рівень займає ≈ 5 днів. Проблема — лише
+  старт: зараз перший тиждень дає приз майже щодня. Пропоную <b>до 10-го рівня — приз через рівень, з 11-го — на кожному</b>,
+  а нові механіки вводити по одній: L2 ⚡, L4 вибір, L6 🎁. Перемикай темп, щоб побачити різницю.</p>
+<div class="panel">
+  <div class="ctl" style="box-shadow:none;padding:0 0 14px">
+    <div><label>Темп</label><div class="btns" data-g="rate"><button data-v="200" class="on">Активний · 200 XP/день</button><button data-v="120">Помірний · 120 XP/день</button></div></div>
+  </div>
+  <div class="chart-row">
+    <div><svg id="chart" width="560" height="240"></svg>
+      <div class="legend"><span><i style="background:#b7c3d4"></i>Зараз: приз на кожному рівні</span><span><i style="background:#5aa9f0"></i>Пропоную</span></div></div>
+    <table class="gaps" id="gaps"></table>
+  </div>
+  <div class="strip-lv" id="strip"></div>
+  <div class="pool">
+    <table><caption>Таємний приз (рівні 6, 15, 25…)</caption>
+      <tr><td>⚡ Подвійний XP</td><td>40 %</td></tr><tr><td>🧊 Заморозка серії</td><td>30 %</td></tr>
+      <tr><td>⚡ ×2</td><td>15 %</td></tr><tr><td>🧊 ×2</td><td>10 %</td></tr><tr><td>🌟 Потрійний XP</td><td>5 %</td></tr></table>
+    <table><caption>Великий таємний (рівні 10, 20, 30…)</caption>
+      <tr><td>🌟 Потрійний XP</td><td>30 %</td></tr><tr><td>⚡ ×2</td><td>25 %</td></tr><tr><td>🧊 ×2</td><td>25 %</td></tr><tr><td>🧊 + ⚡</td><td>20 %</td></tr></table>
+    <p class="lead" style="max-width:520px;margin:0">Великий таємний ніколи не дає одного простого призу — це ювілей.
+      <b>🌟 Потрійний XP</b> — новий приз: ×3 до 00:00, перемножується з серією, буває лише в таємних. Емодзі не 💎, бо діамант читається як валюта,
+      а магазину в застосунку немає. Що може випасти, видно до відкриття; у застосунку вміст визначений наперед — перевстановлення не перекидає скриню.</p>
+  </div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const P={freeze:{e:'🧊',t:'Заморозка серії',d:'Пропущений день не обірве серію'},
+         boost:{e:'⚡',t:'Подвійний XP',d:'×2 XP до кінця дня'},
+         triple:{e:'🌟',t:'Потрійний XP',d:'×3 XP до кінця дня'}};
+const POOL=[{g:[['boost',1]],w:40},{g:[['freeze',1]],w:30},{g:[['boost',2]],w:15},{g:[['freeze',2]],w:10},{g:[['triple',1]],w:5}];
+const POOL_BIG=[{g:[['triple',1]],w:30},{g:[['boost',2]],w:25},{g:[['freeze',2]],w:25},{g:[['freeze',1],['boost',1]],w:20}];
+const MAY='<span class="may">⚡ 🧊 🌟</span>', MAY_BIG='<span class="may">🌟 ⚡×2 🧊×2</span>';
+
+/* Каталог вузлів (§16.3): до 10-го — через рівень, з 11-го — цикл із 5. */
+function node(L){
+  if(L<2) return null;
+  if(L<=10) return ({2:{k:'prize',p:'boost'},4:{k:'choice',o:['freeze','boost']},6:{k:'mystery'},8:{k:'prize',p:'freeze'},10:{k:'mystery',big:true}})[L]||null;
+  return [{k:'prize',p:'boost'},{k:'choice',o:['freeze','boost']},{k:'prize',p:'boost'},{k:'prize',p:'freeze'},{k:'mystery',big:L%10===0}][(L-11)%5];
+}
+const xpToNext=L=>100+50*(L-1);
+const totalXp=L=>25*(L-1)*(L+2);
+
+const SCEN={
+  ahead:{level:2,into:60,claimed:{2:{g:[['boost',1]],via:'prize'}}},
+  choice:{level:4,into:40,claimed:{2:{g:[['boost',1]],via:'prize'}}},
+  mystery:{level:6,into:120,claimed:{2:{g:[['boost',1]],via:'prize'},4:{g:[['freeze',1]],via:'choice'}}},
+  done:{level:9,into:300,claimed:{2:{g:[['boost',1]],via:'prize'},4:{g:[['freeze',1]],via:'choice'},6:{g:[['boost',2]],via:'mystery'},8:{g:[['freeze',1]],via:'prize'}}},
+  late:{level:23,into:600,claimed:null}
+};
+function autoClaims(level){
+  const c={};const outs=[[['boost',1]],[['freeze',1]],[['boost',2]],[['triple',1]],[['freeze',2]]];let i=0;
+  for(let L=2;L<=level;L++){const n=node(L);if(!n)continue;
+    if(n.k==='prize')c[L]={g:[[n.p,1]],via:'prize'};
+    else if(n.k==='choice')c[L]={g:[[L%2?'boost':'freeze',1]],via:'choice'};
+    else c[L]={g:n.big?[['triple',1]]:outs[i++%outs.length],via:'mystery'};}
+  return c;
+}
+
+const S={layout:'ladder',reveal:'chest',sc:'choice',theme:'light',motion:'full',rate:'200'};
+let st;      // стан сценарію: рівень, отримане
+let sel=null;// обраний варіант у картці вибору
+function resetScenario(){
+  const s=SCEN[S.sc];
+  st={level:s.level,into:s.into,claimed:JSON.parse(JSON.stringify(s.claimed||autoClaims(s.level)))};sel=null;
+}
+
+/* ---- знімок шляху: стани вузлів, горизонт, фокус ---- */
+function snapshot(){
+  const L0=st.level,rows=[];let ahead=0,last=L0;
+  for(let L=L0+1;ahead<5;L++){if(node(L))ahead++;last=L;}
+  let seen=0;
+  for(let L=1;L<=last;L++){
+    const n=node(L);let state;
+    if(L<=L0) state=n?(st.claimed[L]?'claimed':'pending'):'past';
+    else{ if(n){seen++;state=seen<=3?'upcoming':'fog';} else state=seen>=3?'fog-lv':'future'; }
+    rows.push({L,n,state});
+  }
+  const pend=rows.find(r=>r.state==='pending');
+  const lastClaimed=[...rows].reverse().find(r=>r.state==='claimed');
+  const focus=pend?pend.L:(lastClaimed?lastClaimed.L:L0);
+  return {rows,focus};
+}
+
+const grantIcon=(g)=>g.length>1?{e:g.map(x=>P[x[0]].e).join(''),two:true,cnt:null}:{e:P[g[0][0]].e,two:false,cnt:g[0][1]>1?'×'+g[0][1]:null};
+const grantTitle=(g)=>g.length>1?g.map(x=>P[x[0]].t).join(' + '):P[g[0][0]].t;
+function claimedSub(c){return c.via==='choice'?'Обрано з двох':c.via==='mystery'?'З таємного призу':'Отримано';}
+function upcomingText(n){
+  if(n.k==='prize')return {e:P[n.p].e,t:P[n.p].t,s:P[n.p].d};
+  if(n.k==='choice')return {e:'🧊⚡',two:true,t:'Приз на вибір',s:orNames(n.o)};
+  return n.big?{e:'🎁',t:'Великий таємний приз',s:'Може випасти: '+MAY_BIG}:{e:'🎁',t:'Таємний приз',s:'Може випасти: '+MAY};
+}
+
+/* ---- вибір «один з двох» ---- */
+const pickSub=()=>sel?P[sel].d:'Можна взяти один із двох';
+// «Заморозка серії або подвійний XP»: друга назва посеред речення — з малої.
+const orNames=o=>o.map((k,i)=>i?P[k].t[0].toLowerCase()+P[k].t.slice(1):P[k].t).join(' або ');
+function optCls(k){return sel===k?'sel':sel?'dim':'';}
+function pickCard(r){
+  return `<div class="pick" data-pick="${r.L}"><div class="pk-h"><div class="tx"><div class="t">Обери один</div><div class="s pk-s">${pickSub()}</div></div>
+    <button class="take" ${sel?'':'disabled'}>Забрати</button></div>
+    <div class="opts">${r.n.o.map(k=>`<button class="opt ${optCls(k)}" data-k="${k}"><span class="oi">${P[k].e}</span><span class="ot">${P[k].t}</span></button>`).join('')}</div></div>`;
+}
+/* Ще не дійшов: картка того ж розміру, що й інші попереду, — два призи з «або». */
+function pickUpcoming(n){
+  return `<div class="card upcoming"><div class="pair">${n.o.map(k=>`<div class="ic">${P[k].e}</div>`).join('<span class="or">або</span>')}</div>
+    <div class="tx"><div class="t">Приз на вибір</div><div class="s">${orNames(n.o)}</div></div></div>`;
+}
+
+/* ---- A. Драбина ---- */
+function renderLadder(snap){
+  const f=st.into/xpToNext(st.level);
+  let h='';
+  for(const r of snap.rows){
+    const isCur=r.L===st.level, big=!!r.n;
+    const ndCls=[big?'big':'',isCur?'cur':(r.L<st.level?'done':''),r.state.startsWith('fog')?'fog':''].join(' ');
+    const nd=`<div class="nd ${ndCls}" style="--f:${(f*100).toFixed(0)}%">${r.L}</div>`;
+    let body='';
+    // «Ти тут» — під карткою: так вузол рейки лишається на рівні іконки призу.
+    const here=isCur?`<div class="here">Ти тут · <span class="num">${st.into} / ${xpToNext(st.level)}</span> XP</div>`:'';
+    if(r.L===1) body=`<div class="start">Старт</div>`;
+    if(r.state==='claimed'){const c=st.claimed[r.L],ic=grantIcon(c.g);
+      body=`<div class="card claimed"><div class="ic ${ic.two?'two':''}">${ic.e}${ic.cnt?`<span class="cnt">${ic.cnt}</span>`:''}<span class="ok">✓</span></div>
+        <div class="tx"><div class="t">${grantTitle(c.g)}</div><div class="s done">${claimedSub(c)}</div></div></div>`;}
+    else if(r.state==='pending'&&r.n.k==='choice') body=pickCard(r);
+    else if(r.state==='upcoming'&&r.n.k==='choice') body=pickUpcoming(r.n);
+    else if(r.state==='pending'){
+      const u=upcomingText(r.n);
+      body=`<div class="mys" data-l="${r.L}"><div class="r"><div class="ic"><span class="gift">🎁</span></div>
+        <div class="tx"><div class="t">${u.t}</div><div class="s">${u.s}</div></div></div><button class="primary open">Відкрити</button></div>`;}
+    else if(r.state==='upcoming'||r.state==='fog'){
+      const u=r.state==='fog'?{e:'?',t:'Ще не видно',s:'Відкриється ближче'}:upcomingText(r.n);
+      body=`<div class="card ${r.state} ${r.n.big&&r.state!=='fog'?'big-m':''}"><div class="ic ${u.two?'two':''}">${u.e}</div><div class="tx"><div class="t">${u.t}</div><div class="s">${u.s}</div></div></div>`;}
+    h+=`<div class="rw" id="n${r.L}"><div class="rail">${nd}</div><div class="body">${body}${here}</div></div>`;
+  }
+  h+=`<div class="end">Далі — ще більше призів ☁️</div>`;
+  const road=$('#road');road.className='road ladder';
+  road.innerHTML=h+'<div class="rail-line past" id="rp"></div><div class="rail-line future" id="rf"></div>';
+  // лінія рейки: суцільна до поточного рівня + частка XP, далі пунктир
+  const c=e=>{const b=e.getBoundingClientRect(),rb=road.getBoundingClientRect();return b.top-rb.top+b.height/2;};
+  const first=c($('#n1 .nd')),lastY=c($(`#n${snap.rows[snap.rows.length-1].L} .nd`));
+  const curY=c($(`#n${st.level} .nd`)),nextY=c($(`#n${st.level+1} .nd`)),fill=curY+(nextY-curY)*f;
+  Object.assign($('#rp').style,{top:first+'px',height:(fill-first)+'px'});
+  Object.assign($('#rf').style,{top:fill+'px',height:(lastY-fill)+'px'});
+}
+
+/* ---- B. Стежка ---- */
+function renderTrail(snap){
+  const road=$('#road');road.className='road';road.innerHTML='<div class="trail" id="tr"></div>';
+  const tr=$('#tr'),W=354,cx=W/2,OFF=[0,58,88,58,0,-58,-88,-58],f=st.into/xpToNext(st.level);
+  let y=24,pts=[],h='',html=[];
+  const add=s=>{tr.insertAdjacentHTML('beforeend',s);return tr.lastElementChild;};
+  for(const r of snap.rows){
+    const fork=r.n&&r.n.k==='choice'&&(r.state==='pending'||r.state==='upcoming');
+    const big=!!r.n&&!fork,size=big?68:fork?58:30,x=fork?cx:cx+OFF[(r.L-1)%8];
+    y+=size/2;pts.push({x,y,L:r.L});
+    const fog=r.state.startsWith('fog');
+    if(fork){
+      // Розвилка: рівень — на стежці, два призи — обабіч, як два відгалуження.
+      const pend=r.state==='pending',dx=88;
+      add(`<div class="fk-arm ${pend?'pend':'up'}" style="left:${cx-dx}px;width:${dx*2}px;top:${y}px"></div>`);
+      add(`<div class="fork ${pend?'pend':''}" data-pick="${r.L}" style="top:0;height:0">${r.n.o.map((k,i)=>
+        `<button class="fk ${pend?optCls(k):''}" data-k="${k}" ${pend?'':'disabled'} style="left:${cx+(i?dx:-dx)}px;top:${y}px">${P[k].e}</button>`).join('')}</div>`);
+      add(`<div class="tn lv ${r.L<=st.level?'done':''}" data-l="${r.L}" style="left:${x}px;top:${y}px">${r.L}</div>`);
+      const t=add(`<div class="fk-txt" data-pick="${r.L}" style="top:${y+size/2+14}px">${pend
+        ?`<div class="t">Обери один</div><div class="s pk-s">${pickSub()}</div><button class="take" ${sel?'':'disabled'}>Забрати</button>`
+        :`<div class="t">Приз на вибір</div><div class="s">${orNames(r.n.o)}</div>`}</div>`);
+      y+=t.offsetHeight+14;
+      if(r.L===st.level){add(`<div class="marker" style="left:${cx-62}px;top:${y+size/2+24}px">Ти тут · <span class="num">&nbsp;${st.into}/${xpToNext(st.level)}</span>&nbsp;XP</div>`);y+=34;}
+    } else if(big){
+      let e='?',two=false,cls='',extra='',lab='',labCls='',labS='';
+      if(r.state==='claimed'){const c=st.claimed[r.L],ic=grantIcon(c.g);e=ic.e;two=ic.two;cls='done';extra=`<span class="ok">✓</span>${ic.cnt?`<span class="cnt">${ic.cnt}</span>`:''}`;
+        lab=grantTitle(c.g);labS=`<div class="s done">${claimedSub(c)}</div>`;}
+      else if(r.state==='pending'){const u=upcomingText(r.n);e=r.n.k==='mystery'?'<span class="gift">🎁</span>':u.e;two=!!u.two;cls='pend '+(r.n.big?'bigm':'');lab=r.n.k==='choice'?'Обери приз':u.t;labS=r.n.k==='choice'?'':`<div class="s">${u.s}</div>`;}
+      else if(r.state==='upcoming'){const u=upcomingText(r.n);e=u.e;two=!!u.two;cls=r.n.big?'bigm':'';lab=u.t;labS=`<div class="s">${u.s}</div>`;}
+      else {cls='fog';lab='Ще не видно';labCls='fog';}
+      const fs=two?'font-size:24px;letter-spacing:-2px':'';
+      add(`<div class="tn pz ${cls} ${r.L===st.level?'cur':''}" data-l="${r.L}" style="left:${x}px;top:${y}px;${fs}">${e}${extra}<span class="lvn ${r.L<=st.level?'done':''}">${r.L}</span></div>`);
+      const left=x>cx+10;
+      add(`<div class="tl ${left?'left':''} ${labCls}" style="top:${y}px;${left?`right:${W-x+48}px`:`left:${x+48}px`}"><div class="t">${lab}</div>${labS}</div>`);
+    } else if(r.L>=1){
+      add(`<div class="tn lv ${r.L<=st.level?'done':''}" data-l="${r.L}" style="left:${x}px;top:${y}px;${fog?'opacity:.45':''}">${r.L}</div>`);
+    }
+    // «Ти тут» — збоку від вузла, з боку, де більше місця; у вузла з призом цей бік зайнятий підписом.
+    if(r.L===st.level&&!big&&!fork){const left=x>cx+10;
+      add(`<div class="marker ${left?'left':''}" style="${left?`right:${W-x+26}px`:`left:${x+26}px`};top:${y}px">Ти тут · <span class="num">&nbsp;${st.into}/${xpToNext(st.level)}</span>&nbsp;XP</div>`);}
+    if(r.L===st.level&&big) add(`<div class="marker" style="left:${x-60}px;top:${y+size/2+22}px">Ти тут · <span class="num">&nbsp;${st.into}/${xpToNext(st.level)}</span>&nbsp;XP</div>`);
+    y+=size/2;
+    if(r.state==='pending'&&r.n.k==='mystery'){const b=add(`<button class="tbtn open" data-l="${r.L}" style="left:${x}px;top:${y+16}px">Відкрити</button>`);y+=56;}
+    if(r.L===st.level&&big) y+=34;
+    y+=big?30:22;
+  }
+  tr.style.height=(y+10)+'px';
+  tr.insertAdjacentHTML('beforeend',`<div class="end" style="position:absolute;left:0;right:0;top:${y-6}px">Далі — ще більше призів ☁️</div>`);
+  // шлях: майбутнє пунктиром, пройдене суцільним; між поточним і наступним — частка XP
+  const seg=(a,b)=>`M${a.x},${a.y} C${a.x},${(a.y+b.y)/2} ${b.x},${(a.y+b.y)/2} ${b.x},${b.y}`;
+  let past='',fut='',part='';
+  for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1];
+    if(b.L<=st.level)past+=seg(a,b);else if(a.L===st.level)part=seg(a,b);else fut+=seg(a,b);}
+  const svg=`<svg width="${W}" height="${y}" style="z-index:0"><path d="${fut}${part}" fill="none" stroke="var(--dot-off)" stroke-width="6" stroke-linecap="round" stroke-dasharray="2 12"/>
+    <path d="${past}" fill="none" stroke="var(--accent)" stroke-width="8" stroke-linecap="round"/>
+    <path d="${part}" pathLength="1" fill="none" stroke="var(--accent)" stroke-width="8" stroke-linecap="round" stroke-dasharray="${f} 1"/></svg>`;
+  tr.insertAdjacentHTML('afterbegin',svg);
+  tr.querySelectorAll('.tn,.tl,.tbtn,.marker,.fork,.fk-arm,.fk-txt').forEach(e=>e.style.zIndex=1);
+}
+
+/* ---- рендер вікна ---- */
+function render(keepScroll){
+  const sc=$('#sc'),prev=sc.scrollTop;
+  $('#hl').textContent='Рівень '+st.level;
+  $('#hx').innerHTML=`<span class="num">${st.into} / ${xpToNext(st.level)}</span> XP до рівня ${st.level+1}`;
+  $('#hb').style.width=(st.into/xpToNext(st.level)*100)+'%';
+  const snap=snapshot();
+  (S.layout==='ladder'?renderLadder:renderTrail)(snap);
+  wire();
+  if(keepScroll) sc.scrollTop=prev; else center(snap.focus);
+  render3f(snap);
+  const fr=snap.rows.find(r=>r.L===snap.focus);
+  $('#wnote').innerHTML=`<b>Фокус на відкритті — рівень ${snap.focus}</b>: ${fr&&fr.state==='pending'?'приз, що чекає дії':'останній отриманий приз'}. `+
+    (S.layout==='ladder'?'<b>A · Драбина:</b> рейка рівнів зліва, приз — картка справа; порожні рівні — маленькі кружки. Читається як список, вибір і скриня вміщаються без перекомпонування.'
+                        :'<b>B · Стежка:</b> зигзаг, як карта гри; призи — великі кола з підписом збоку. Вибір — розвилка: рівень на стежці, два призи обабіч.');
+}
+function center(L){
+  const sc=$('#sc'),el=S.layout==='ladder'?($(`#n${L} .body`).firstElementChild||$(`#n${L}`)):$(`#road .tn[data-l="${L}"]`);
+  const b=el.getBoundingClientRect(),sb=sc.getBoundingClientRect();
+  sc.scrollTop+=b.top-sb.top+b.height/2-sc.clientHeight/2;
+}
+
+function wire(){
+  document.querySelectorAll('#road [data-pick] [data-k]:not([disabled])').forEach(t=>t.onclick=()=>{sel=t.dataset.k;render(true);});
+  document.querySelectorAll('#road .take').forEach(b=>b.onclick=()=>{
+    const L=+b.closest('[data-pick]').dataset.pick,k=sel;
+    document.querySelectorAll(`#road [data-pick="${L}"] [data-k]`).forEach(t=>{t.classList.remove('sel','dim');t.classList.add(t.dataset.k===k?'won':'lost');});
+    const sub=document.querySelector(`#road [data-pick="${L}"] .pk-s`);sub.textContent=`✓ ${P[k].e} у твоїх призах`;sub.classList.add('done');
+    b.style.visibility='hidden';
+    setTimeout(()=>{st.claimed[L]={g:[[k,1]],via:'choice'};sel=null;render(true);},S.motion==='reduce'?700:1400);
+  });
+  document.querySelectorAll('#road .open').forEach(b=>b.onclick=()=>{
+    const L=+(b.dataset.l||b.closest('[data-l]').dataset.l);openMystery(L);
+  });
+}
+
+/* ---- таємний приз ---- */
+function roll(pool){let r=Math.random()*100;for(const p of pool){if((r-=p.w)<0)return p.g;}return pool[0].g;}
+const reelItem=g=>{const ic=grantIcon(g);return `${ic.e}${ic.cnt?`<small>${ic.cnt}</small>`:''}`;};
+function confetti(){const c=['#5aa9f0','#ff8a3d','#3fb56f','#ffd77a','#7cc4ff'];let h='';
+  for(let i=0;i<28;i++){const a=Math.random()*Math.PI*2,d=110+Math.random()*90;
+    h+=`<i style="background:${c[i%5]};--x:${Math.cos(a)*d}px;--y:${Math.sin(a)*d}px;--r:${Math.random()*540}deg;animation-delay:${Math.random()*.08}s"></i>`;}
+  return `<div class="conf">${h}</div>`;}
+function openMystery(L){
+  const n=node(L),g=roll(n.big?POOL_BIG:POOL),ic=grantIcon(g),rv=$('#rv');
+  const outc=`<div class="outc ${ic.two?'two':''}">${ic.e}${ic.cnt?`<span class="cnt">${ic.cnt}</span>`:''}</div>`;
+  const cnt=g.reduce((a,x)=>a+x[1],0);
+  const sub=g.length>1?'Обидва — уже у твоїх призах':cnt>1?`${cnt} шт. — уже у твоїх призах`:'Уже у твоїх призах';
+  let stage;
+  if(S.motion==='reduce') stage=`<div class="stage">${outc}</div>`;
+  else if(S.reveal==='chest') stage=`<div class="stage chest" id="stg"><div class="rays"></div><div class="box">🎁</div>${outc}${confetti()}</div>`;
+  else if(S.reveal==='reel'){
+    const pool=n.big?POOL_BIG:POOL,items=[];for(let i=0;i<26;i++)items.push(roll(pool));items.push(g,roll(pool),roll(pool));
+    stage=`<div class="stage" id="stg0"><div class="reel-wrap" id="stg"><div class="reel" id="reel">${items.map(x=>`<div class="it">${reelItem(x)}</div>`).join('')}</div><div class="payline"></div></div>${confetti()}</div>`;
+  } else {
+    const pool=n.big?POOL_BIG:POOL,items=[];for(let i=0;i<30;i++)items.push(roll(pool));items.push(g,roll(pool),roll(pool),roll(pool));
+    stage=`<div class="stage" style="width:346px"><div class="strip-wrap" id="stg"><div class="strip" id="strp">${items.map((x,i)=>`<div class="it ${i===30?'win':''}">${reelItem(x)}</div>`).join('')}</div><div class="pointer"></div></div></div>`;
+  }
+  rv.innerHTML=`<div class="rv-top">${n.big?'Великий таємний приз':'Таємний приз'} · рівень ${L}</div>${stage}
+    <div class="rv-t">${grantTitle(g)}</div><div class="rv-s">${sub}</div><button class="primary rv-btn" id="rvok">Чудово</button>`;
+  rv.className='reveal on';
+  const finish=()=>{rv.classList.add('done');};
+  if(S.motion==='reduce'){setTimeout(finish,150);}
+  else if(S.reveal==='chest'){setTimeout(()=>{$('#stg').classList.add('burst');setTimeout(finish,500);},1150);}
+  else if(S.reveal==='reel'){const reel=$('#reel');void reel.offsetHeight;
+      reel.style.transition='transform 2.6s cubic-bezier(.12,.75,.18,1.02)';reel.style.transform=`translateY(${-(26*110)+60}px)`;
+    setTimeout(()=>{$('#stg').classList.add('stop');$('#stg0').classList.add('stop');finish();},2700);}
+  else {const s=$('#strp');void s.offsetHeight;
+      const x=-(30*106)+173-48+(Math.random()*40-20);s.style.transition='transform 3s cubic-bezier(.1,.7,.15,1)';s.style.transform=`translateX(${x}px)`;
+    setTimeout(()=>{$('#stg').classList.add('stop');finish();},3100);}
+  $('#rvok').onclick=()=>{rv.className='reveal';st.claimed[L]={g,via:'mystery'};render(true);};
+}
+
+/* ---- 3f ---- */
+function render3f(snap){
+  const pend=snap.rows.find(r=>r.state==='pending'),f=st.into/xpToNext(st.level);
+  let block;
+  const lead=n=>n.k==='choice'?`<div class="pair">${n.o.map(k=>`<div class="ic">${P[k].e}</div>`).join('<span class="or">або</span>')}</div>`:`<div class="e">${upcomingText(n).e}</div>`;
+  if(pend){const u=pend.n.k==='choice'?{t:'Приз на вибір',s:'Обери один із двох'}:{t:pend.n.big?'Великий таємний приз':'Таємний приз',s:'Відкрий — що всередині?'};
+    block=`<div class="lbl acc">РІВЕНЬ ${pend.L} · ЧЕКАЄ НА ТЕБЕ</div><div class="nr cta" id="nrb">${lead(pend.n)}
+      <div class="tx"><div class="t">${u.t}</div><div class="s">${u.s}</div></div><span class="chev">›</span></div>`;}
+  else{const nx=snap.rows.find(r=>r.L>st.level&&r.n),u=upcomingText(nx.n);
+    const sub=nx.n.k==='choice'?orNames(nx.n.o):u.s;
+    block=`<div class="lbl">НАГОРОДА НА РІВНІ ${nx.L}</div><div class="nr" id="nrb">${lead(nx.n)}
+      <div class="tx"><div class="t">${u.t}</div><div class="s">${sub}</div></div><span class="chev">›</span></div>`;}
+  const inv={};Object.values(st.claimed).forEach(c=>c.g.forEach(([k,n])=>inv[k]=(inv[k]||0)+n));
+  const rows=['freeze','triple','boost'].filter(k=>inv[k]).map(k=>`<div class="pr"><div class="ic">${P[k].e}</div><div class="tx"><div class="t">${P[k].t}</div><div class="s">${P[k].d}</div></div><span class="x">×${inv[k]}</span></div>`).join('');
+  $('#p3f').innerHTML=`<div class="back">‹</div><div class="donut" id="dn" style="--f:${(f*100).toFixed(0)}%"><i><small>РІВЕНЬ</small><b>${st.level}</b></i>${pend?'<span class="dot"></span>':''}</div>
+    <div class="xpl"><span class="num">${st.into}/${xpToNext(st.level)}</span> XP до рівня ${st.level+1}</div>${block}
+    <div class="lbl" style="margin-top:22px">ПРИЗИ</div>${rows||'<div class="s" style="color:var(--muted);font-size:13px;font-weight:700">—</div>'}
+    <div class="faint"><div class="lbl">ДОСЯГНЕННЯ</div></div>`;
+  $('#dn').onclick=openWin;$('#nrb').onclick=openWin;
+}
+
+/* ---- відкриття / закриття ---- */
+function openWin(){
+  const w=$('#win');$('#rv').className='reveal';
+  w.classList.add('instant','out');render(false);
+  // Примусовий reflow замість rAF: у фоновій вкладці rAF не викликається, і вікно лишалось би закритим.
+  void w.offsetHeight;w.classList.remove('instant');void w.offsetHeight;w.classList.remove('out');
+}
+$('#x').onclick=()=>$('#win').classList.add('out');
+$('#replay').onclick=openWin;
+
+/* ---- перемикачі ---- */
+document.querySelectorAll('.btns[data-g]').forEach(g=>g.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+  g.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');S[g.dataset.g]=b.dataset.v;
+  if(g.dataset.g==='theme'){document.querySelectorAll('.frame').forEach(f=>f.classList.toggle('dark',S.theme==='dark'));}
+  if(g.dataset.g==='motion'){$('#fw').classList.toggle('reduce',S.motion==='reduce');}
+  if(g.dataset.g==='rate'){freq();return;}
+  if(g.dataset.g==='sc')resetScenario();
+  if(g.dataset.g==='reveal'||g.dataset.g==='motion')return;
+  openWin();
+}));
+
+/* бульбашки */
+(()=>{let h='';for(let i=0;i<9;i++){const s=8+Math.random()*22;h+=`<i style="left:${Math.random()*100}%;width:${s}px;height:${s}px;animation-duration:${14+Math.random()*12}s;animation-delay:${-Math.random()*20}s"></i>`;}$('#bub').innerHTML=h;})();
+
+/* ---- частота: графік, інтервали, смуга рівнів ---- */
+function levelAt(xp){let L=1;while(totalXp(L+1)<=xp)L++;return L;}
+const prizesNew=L=>{let c=0;for(let l=2;l<=L;l++)if(node(l))c++;return c;};
+function freq(){
+  const r=+S.rate,W=560,H=240,pad={l:34,r:16,t:14,b:28};
+  const cur=[],nw=[];for(let w=0;w<=12;w++){const L=levelAt(r*7*w);cur.push(L-1);nw.push(prizesNew(L));}
+  const ymax=Math.max(30,Math.ceil(Math.max(...cur)/5)*5),X=w=>pad.l+(W-pad.l-pad.r)*w/12,Y=v=>H-pad.b-(H-pad.t-pad.b)*v/ymax;
+  let s='';for(let v=0;v<=ymax;v+=5)s+=`<line x1="${pad.l}" x2="${W-pad.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="#eef2f7"/><text x="${pad.l-8}" y="${Y(v)+4}" font-size="11" font-weight="700" fill="#8aa1bd" text-anchor="end">${v}</text>`;
+  for(const w of [1,2,4,8,12])s+=`<text x="${X(w)}" y="${H-8}" font-size="11" font-weight="800" fill="#8aa1bd" text-anchor="middle">${w} тиж</text>`;
+  const line=(a,c,wd)=>`<polyline fill="none" stroke="${c}" stroke-width="${wd}" stroke-linejoin="round" stroke-linecap="round" points="${a.map((v,i)=>X(i)+','+Y(v)).join(' ')}"/>`;
+  s+=line(cur,'#b7c3d4',3)+line(nw,'#5aa9f0',4);
+  for(const w of [1,4,12]){s+=`<circle cx="${X(w)}" cy="${Y(nw[w])}" r="4" fill="#5aa9f0"/><text x="${X(w)}" y="${Y(nw[w])+18}" font-size="12" font-weight="900" fill="#3d8fd6" text-anchor="middle">${nw[w]}</text>`;
+    s+=`<circle cx="${X(w)}" cy="${Y(cur[w])}" r="4" fill="#b7c3d4"/><text x="${X(w)}" y="${Y(cur[w])-9}" font-size="12" font-weight="900" fill="#8aa1bd" text-anchor="middle">${cur[w]}</text>`;}
+  $('#chart').innerHTML=s;
+  const gap=(a,b,arr)=>{const n=arr[b]-arr[a];return n>0?((b-a)*7/n).toFixed(1).replace('.',','):'—';};
+  const rng=[[0,1,'1-й тиждень'],[1,2,'2-й'],[2,4,'3–4-й'],[4,8,'5–8-й'],[8,12,'9–12-й']];
+  $('#gaps').innerHTML=`<tr><th>Днів між призами</th><th>Зараз</th><th>Пропоную</th><th>Рівень у кінці</th></tr>`+
+    rng.map(([a,b,t])=>`<tr><td>${t}</td><td>${gap(a,b,cur)}</td><td class="acc">${gap(a,b,nw)}</td><td>${levelAt(r*7*b)}</td></tr>`).join('');
+  const cells=[],curRow=[],newRow=[],days=[];
+  for(let L=1;L<=25;L++){cells.push(`<div class="n">${L}</div>`);
+    curRow.push(L<2?'<div class="no">·</div>':`<div class="cur">${L%3===0?'🧊':'⚡'}</div>`);
+    const n=node(L);newRow.push(!n?'<div class="no">·</div>':n.k==='prize'?`<div class="new">${P[n.p].e}</div>`:n.k==='choice'?'<div class="new chs">🧊⚡</div>':`<div class="new ${n.big?'big':''}">🎁</div>`);
+    days.push(`<div class="d">${L<2?'':'д. '+Math.max(1,Math.ceil(totalXp(L)/r))}</div>`);}
+  $('#strip').innerHTML=`<div class="h">Рівень</div>${cells.join('')}<div class="h">Зараз</div>${curRow.join('')}<div class="h">Пропоную</div>${newRow.join('')}<div class="h">Досягнеш</div>${days.join('')}`;
+}
+
+resetScenario();openWin();freq();
+</script>
+</body>
+</html>

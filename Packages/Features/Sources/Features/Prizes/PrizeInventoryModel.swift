@@ -119,16 +119,17 @@ public final class PrizeInventoryModel {
         let confirmation = presenter.success(for: stack, at: now)
         let done: Bool
         let haptic: WTFeedback
-        switch stack.key {
-        case RewardCatalog.freezeKey:
+        switch stack.oldest.kind {
+        case .streakFreeze:
             done = services.gamification.useFreeze(prizeId: prizeId)
             // Серію врятовано — це успіх.
             haptic = .goalReached
-        case RewardCatalog.boostKey:
+        case .xpBoost:
+            // ⚡ і 🌟 — один шлях: різниться лише множник.
             done = services.gamification.activateBoost(prizeId: prizeId)
             // Увімкнено режим, а не досягнуто мети.
             haptic = .toggle
-        default:
+        case .theme:
             return
         }
         guard done else {

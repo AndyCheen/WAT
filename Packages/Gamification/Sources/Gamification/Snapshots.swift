@@ -233,6 +233,9 @@ public struct RewardSnapshot: Equatable, Identifiable, Sendable {
         self.expiresAt = expiresAt
     }
 
+    /// Для бустів — у скільки разів множиться XP (⚡ 2, 🌟 3); для решти `nil`.
+    public var boostFactor: Int? { RewardCatalog.definition(key)?.boostFactor }
+
     /// Скільки лишилось дії буста; 0 — вже не діє.
     public func remaining(at date: Date) -> TimeInterval {
         guard let expiresAt else { return 0 }
@@ -282,7 +285,7 @@ public struct PrizeStack: Equatable, Identifiable, Sendable {
 public struct PrizeInventory: Equatable, Sendable {
     /// Діючі бусти — статус у заголовку 3f і hero-картки на екрані «Призи».
     public let active: [RewardSnapshot]
-    /// Готові стоси в порядку каталогу: 🧊 → ⚡.
+    /// Готові стоси в порядку каталогу: 🧊 → 🌟 → ⚡.
     public let ready: [PrizeStack]
 
     public init(active: [RewardSnapshot], ready: [PrizeStack]) {
@@ -310,26 +313,6 @@ extension Collection where Element == RewardSnapshot {
             )
         }
         return PrizeInventory(active: active, ready: stacks)
-    }
-}
-
-public struct LevelRewardSnapshot: Equatable, Identifiable, Sendable {
-    public let level: Int
-    public let key: String
-    public let title: String
-    public let details: String
-    public let emoji: String
-    public let isUnlocked: Bool
-
-    public var id: String { "\(level).\(key)" }
-
-    public init(level: Int, key: String, title: String, details: String, emoji: String, isUnlocked: Bool) {
-        self.level = level
-        self.key = key
-        self.title = title
-        self.details = details
-        self.emoji = emoji
-        self.isUnlocked = isUnlocked
     }
 }
 

@@ -55,7 +55,7 @@ extension AppServices {
                 lengthEndingYesterday: facts.lengthEndingYesterday, lengthEndingDayBefore: facts.lengthEndingDayBefore
             ),
             readyFreezes: gamification.streakSummary().freezeTokens,
-            boostExpiresAt: gamification.prizes(at: now).first { $0.key == RewardCatalog.boostKey && $0.state == .active }?.expiresAt,
+            boostExpiresAt: gamification.prizes(at: now).first { $0.boostFactor != nil && $0.state == .active }?.expiresAt,
             lastComebackGiftAt: gamification.lastComebackGiftAt(),
             lastBounceBackDay: gamification.lastBounceBackDay(),
             quests: questHints(at: now),

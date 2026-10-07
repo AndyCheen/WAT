@@ -46,11 +46,13 @@ public final class AppServices {
 
     /// `notificationCenter` за замовчуванням — у пам'яті: справжній `UNUserNotificationCenter`
     /// у процесі SPM-тестів падає, тож його передає лише застосунок.
+    /// - Parameter xpRules: баланс XP — застосунок збирає його з `Config/Balance.xcconfig` (SPEC-PRIZES §16.13).
     public init(
         container: ModelContainer,
         clock: Clock = SystemClock(),
         notificationCenter: NotificationCenterProtocol? = nil,
-        bubbleSoundAvailable: Bool = false
+        bubbleSoundAvailable: Bool = false,
+        xpRules: XPRules = .default
     ) {
         self.container = container
         self.clock = clock
@@ -70,7 +72,7 @@ public final class AppServices {
         )
         self.gamification = GamificationService(
             store: GamificationStore(context: context), dayLogs: dayLogs,
-            profiles: profiles, metrics: metrics, calendar: calendar
+            profiles: profiles, metrics: metrics, calendar: calendar, rules: xpRules
         )
         self.insights = InsightsService(
             dayLogs: dayLogs, profiles: profiles, metrics: metrics, calendar: calendar

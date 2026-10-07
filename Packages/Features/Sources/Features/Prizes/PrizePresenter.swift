@@ -22,11 +22,25 @@ struct PrizePresenter {
     /// Кінець буста, увімкненого в цю мить, — `GamificationService.boostExpiry(activatedAt:)`.
     let boostExpiry: (Date) -> Date
 
-    /// «⚡×2» на індикаторі рівня, поки діє буст.
-    static let boostBadge = "⚡×2"
+    /// «⚡×2» / «🌟×3» на індикаторі рівня, поки діє буст.
+    static func boostBadge(_ prize: RewardSnapshot) -> String {
+        "\(prize.emoji)×\(prize.boostFactor ?? 2)"
+    }
 
     static let freezeDetails = "Пропущений день не обірве серію. Серія збережеться, але не зросте"
-    static let boostDetails = "Увесь XP до кінця дня — удвічі. Множиться разом із бонусом серії"
+
+    static func boostDetails(factor: Int) -> String {
+        "Увесь XP до кінця дня — \(times(factor)). Множиться разом із бонусом серії"
+    }
+
+    /// «удвічі», «утричі» — множник словом, як у підтвердженні.
+    static func times(_ factor: Int) -> String {
+        switch factor {
+        case 2: return "удвічі"
+        case 3: return "утричі"
+        default: return "у \(factor) рази"
+        }
+    }
 
     // MARK: - Рядок стосу
 
@@ -39,7 +53,7 @@ struct PrizePresenter {
             }
             return ("Збереже серію, якщо пропустиш день", false)
         default:
-            return ("×2 XP до кінця дня", false)
+            return (stack.oldest.details, false)
         }
     }
 
@@ -50,11 +64,11 @@ struct PrizePresenter {
     // MARK: - Діючий буст
 
     /// «⚡ ×2 XP · » — пігулка в заголовку 3f; залишок іде окремим шрифтом.
-    func pillLabel(_ prize: RewardSnapshot) -> String { "\(prize.emoji) ×2 XP · " }
+    func pillLabel(_ prize: RewardSnapshot) -> String { "\(prize.emoji) ×\(prize.boostFactor ?? 2) XP · " }
 
     /// «×2 XP · діє до 00:00» — підпис hero-картки.
     func activeSubtitle(_ prize: RewardSnapshot) -> String {
-        "×2 XP · діє до \(clockTime(prize.expiresAt))"
+        "×\(prize.boostFactor ?? 2) XP · діє до \(clockTime(prize.expiresAt))"
     }
 
     func activeAccessibilityLabel(_ prize: RewardSnapshot) -> String { "Діє: \(prize.title)" }
@@ -114,15 +128,16 @@ struct PrizePresenter {
         let title = "Увімкнути на \(Self.compactDuration(boostExpiry(now).timeIntervalSince(now)))"
         let running = inventory.active.first
         let statusText = running.map { "Уже діє до \(clockTime($0.expiresAt))" }
+        let details = Self.boostDetails(factor: stack.oldest.boostFactor ?? 2)
         return PrizeDetailContent(
             emoji: stack.oldest.emoji, title: stack.oldest.title, count: stack.count,
-            details: Self.boostDetails,
+            details: details,
             status: statusText.map(WTPrizeDetailStatus.info) ?? .none,
             action: WTPrizeDetailAction(
                 title: title, isEnabled: running == nil,
                 disabledHint: running == nil ? nil : "Одночасно діє лише один буст"
             ),
-            accessibilityValue: Self.join(["\(stack.count) шт.", Self.boostDetails, statusText])
+            accessibilityValue: Self.join(["\(stack.count) шт.", details, statusText])
         )
     }
 
@@ -143,7 +158,7 @@ struct PrizePresenter {
             let until = clockTime(boostExpiry(now))
             return WTPrizeDetailSuccess(
                 title: "Увімкнено до \(until)",
-                message: "Увесь XP до \(until) — удвічі"
+                message: "Увесь XP до \(until) — \(Self.times(stack.oldest.boostFactor ?? 2))"
             )
         }
     }

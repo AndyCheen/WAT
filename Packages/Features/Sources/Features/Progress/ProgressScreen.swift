@@ -11,13 +11,16 @@ public struct ProgressScreen: View {
     private let onOpenAllAchievements: () -> Void
     private let onOpenAllPrizes: () -> Void
 
+    /// - Parameter opensLevelRoad: одразу з вікном «Шлях рівнів» — тост рівня з вибором чи 🎁 і
+    ///   `--start-screen level-road`.
     public init(
         services: AppServices,
+        opensLevelRoad: Bool = false,
         onBack: @escaping () -> Void,
         onOpenAllAchievements: @escaping () -> Void,
         onOpenAllPrizes: @escaping () -> Void
     ) {
-        _model = State(initialValue: ProgressViewModel(services: services))
+        _model = State(initialValue: ProgressViewModel(services: services, opensLevelRoad: opensLevelRoad))
         self.onBack = onBack
         self.onOpenAllAchievements = onOpenAllAchievements
         self.onOpenAllPrizes = onOpenAllPrizes
@@ -52,7 +55,12 @@ public struct ProgressScreen: View {
             // Bounce лише коли контент реально не влазить.
             .scrollBounceBehavior(.basedOnSize)
 
-            if model.showLevelRewards { levelRewardsSheet }
+            // «Шлях рівнів» — вікно на весь екран, а не шторка: виїжджає знизу цілком (SPEC-PRIZES §16.5).
+            if model.showLevelRoad, let road = model.levelRoad {
+                LevelRoadScreen(model: road, onClose: { model.closeLevelRoad() })
+                    .zIndex(11)
+                    .transition(.move(edge: .bottom))
+            }
             if let item = model.selectedAchievement {
                 AchievementDetailModal(item: item, onClose: { model.selectAchievement(nil) })
             }
@@ -70,11 +78,12 @@ public struct ProgressScreen: View {
     // MARK: - Рівень
 
     private var levelBlock: some View {
-        Button { model.present(\.showLevelRewards) } label: {
+        Button { model.openLevelRoad() } label: {
             VStack(spacing: 10) {
                 WTLevelDonut(
                     level: model.level.level, fraction: model.level.fraction,
-                    boostBadge: model.prizes.inventory.active.isEmpty ? nil : PrizePresenter.boostBadge
+                    boostBadge: model.prizes.inventory.active.first.map(PrizePresenter.boostBadge),
+                    isNew: model.pendingReward != nil
                 )
                 Text(model.xpLabel)
                     .font(WTFont.text(13, .bold))
@@ -84,32 +93,46 @@ public struct ProgressScreen: View {
         }
         .buttonStyle(WTPressStyle(scale: 0.97))
         .padding(.bottom, 22)
-        .accessibilityValue(model.prizes.inventory.active.isEmpty ? "" : "Діє подвійний XP")
+        .accessibilityValue(levelAccessibilityValue)
+        .accessibilityHint("Шлях рівнів")
         .accessibilityIdentifier("progress.level")
     }
 
+    private var levelAccessibilityValue: String {
+        [
+            model.prizes.inventory.active.first.map { "Діє \($0.title.lowercased())" },
+            model.pendingReward.map { _ in "Чекає приз" }
+        ].compactMap { $0 }.joined(separator: ", ")
+    }
+
+    /// Найближча нагорода, а поки вибір чи 🎁 чекають — заклик до них (SPEC-PRIZES §16.6).
+    @ViewBuilder
     private var nextRewardBlock: some View {
+        if let pending = model.pendingReward, let reward = pending.reward {
+            let call = LevelRoadPresenter.pendingCall(reward)
+            rewardBlock(
+                label: LevelRoadPresenter.pendingLabel(level: pending.level), labelColor: WTColor.orange,
+                icon: call.icon, title: call.title, subtitle: call.subtitle, isCallToAction: true
+            )
+        } else if let next = model.road.nextReward, let reward = next.reward {
+            let ahead = LevelRoadPresenter.upcoming(reward)
+            rewardBlock(
+                label: LevelRoadPresenter.nextLabel(level: next.level), labelColor: nil,
+                icon: ahead.icon, title: ahead.title, subtitle: ahead.subtitle, isCallToAction: false
+            )
+        }
+    }
+
+    private func rewardBlock(
+        label: String, labelColor: Color?, icon: WTRoadIcon, title: String, subtitle: String, isCallToAction: Bool
+    ) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            WTSectionLabel("НАГОРОДА НА РІВНІ \(model.nextReward.level)")
+            WTSectionLabel(label, color: labelColor)
                 .padding(.bottom, 12)
-            ForEach(model.nextReward.rewards) { reward in
-                HStack(spacing: 14) {
-                    Text(reward.emoji).font(.system(size: 30))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(reward.title)
-                            .font(WTFont.display(16, .semibold))
-                            .foregroundStyle(theme.textPrimary)
-                        Text(reward.details)
-                            .font(WTFont.text(13, .bold))
-                            .foregroundStyle(theme.textMuted)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .padding(.vertical, 10)
-                .overlay(alignment: .bottom) {
-                    Rectangle().fill(theme.line).frame(height: 1)
-                }
+            WTNextRewardRow(icon: icon, title: title, subtitle: subtitle, isCallToAction: isCallToAction) {
+                model.openLevelRoad()
             }
+            .accessibilityIdentifier("progress.nextReward")
         }
         .padding(.bottom, 22)
     }
@@ -241,32 +264,5 @@ public struct ProgressScreen: View {
                 }
             }
         }
-    }
-
-    // MARK: - Шторки
-
-    private var levelRewardsSheet: some View {
-        WTSheet(maxHeightFraction: 0.78, onDismiss: { model.dismiss(\.showLevelRewards) }) {
-            VStack(alignment: .leading, spacing: 0) {
-                WTSheetTitle(
-                    "Нагороди за рівні",
-                    subtitle: "Рівень \(model.level.level) · \(model.xpLabel)"
-                )
-                .padding(.bottom, 14)
-
-                WTProgressBar(fraction: model.level.fraction)
-                    .padding(.bottom, 22)
-
-                VStack(alignment: .leading, spacing: 16) {
-                    ForEach(model.levelRewards) { reward in
-                        WTLevelRewardRow(
-                            level: reward.level, emoji: reward.emoji, title: reward.title,
-                            details: reward.details, isUnlocked: reward.isUnlocked
-                        )
-                    }
-                }
-            }
-        }
-        .zIndex(10)
     }
 }

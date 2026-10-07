@@ -68,6 +68,7 @@ struct GameEnv {
         log.scheduleSnapshot = profiles.profile().schedule(isWeekend: calendar.isWeekend(key))
         let intake = Intake(amountMl: ml, createdAt: date)
         dayLogs.insert(intake, into: log)
+        recomputeTotals(log)
         dayLogs.save()
         publishIntake(intake)
         return intake.id
@@ -76,6 +77,7 @@ struct GameEnv {
     func removeIntake(_ id: UUID) {
         guard let intake = dayLogs.intake(id: id) else { return }
         intake.deletedAt = clock.now
+        if let log = intake.dayLog { recomputeTotals(log) }
         dayLogs.save()
         metrics.revert(sourceRef: id, at: clock.now)
         metrics.commit()
@@ -84,8 +86,17 @@ struct GameEnv {
     func restoreIntake(_ id: UUID) {
         guard let intake = dayLogs.intake(id: id) else { return }
         intake.deletedAt = nil
+        if let log = intake.dayLog { recomputeTotals(log) }
         dayLogs.save()
         publishIntake(intake)
+    }
+
+    /// Як `HydrationService.recompute`: XP за воду рахується від зарахованого об'єму дня (SPEC-PRIZES §16.13).
+    /// `entriesCount` не чіпаємо — на ньому подарунок за повернення, і тести на нього мають власний хелпер.
+    private func recomputeTotals(_ log: DayLog) {
+        let total = (log.intakes ?? []).filter { !$0.isDeleted }.reduce(0) { $0 + $1.amountMl }
+        log.totalMl = total
+        log.countedMl = min(total, log.capMl)
     }
 
     private func publishIntake(_ intake: Intake) {
@@ -94,11 +105,27 @@ struct GameEnv {
         metrics.commit()
     }
 
+    /// Лише події, без порції в лозі, — але з об'ємом дня: від нього XP за воду (SPEC-PRIZES §16.13).
+    @discardableResult
     func addIntakeEvent(_ ml: Int, hour: Int = 10, day: Int = 18) -> UUID {
         let ref = UUID()
         let date = Self.date(day: day, hour: hour)
+        let log = dayLogs.dayLog(for: calendar.dayKey(for: date), goalMl: 2000, timeZoneId: "Europe/Kyiv")
+        log.totalMl += ml
+        log.countedMl = min(log.totalMl, log.capMl)
+        dayLogs.save()
         metrics.record(MetricEvent(name: .intakeAdded, value: Double(ml), occurredAt: date, sourceRef: ref))
         metrics.record(MetricEvent(name: .intakeCount, value: 1, occurredAt: date, sourceRef: ref))
         return ref
+    }
+}
+
+extension GameEnv {
+    /// Рівень без порцій: XP «за завдання» рівно до порогу рівня, потім видача призів, як після дії.
+    func reachLevel(_ level: Int, at date: Date? = nil) {
+        let need = LevelCalculator.totalXpRequired(forLevel: level, curve: game.xp.curve) - game.levelProgress().totalXp
+        guard need > 0 else { return }
+        game.xp.award(amount: need, reason: .questCompleted, refId: UUID(), at: date ?? clock.now)
+        game.grantLevelRewards(at: date ?? clock.now)
     }
 }

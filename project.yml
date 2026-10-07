@@ -37,6 +37,10 @@ targets:
   WaterTracker:
     type: application
     platform: iOS
+    # Баланс XP — у конфігурації, а не в коді (SPEC-PRIZES §16.13).
+    configFiles:
+      Debug: Config/Balance.xcconfig
+      Release: Config/Balance.xcconfig
     sources:
       - path: App/Sources
       - path: App/Resources
@@ -61,6 +65,10 @@ targets:
           - fetch
         BGTaskSchedulerPermittedIdentifiers:
           - com.watertracker.app.refresh
+        # Баланс XP з Config/Balance.xcconfig — читає `AppContainer` (SPEC-PRIZES §16.13).
+        WT_XP_PER_VOLUME_STEP: $(WT_XP_PER_VOLUME_STEP)
+        WT_XP_VOLUME_STEP_ML: $(WT_XP_VOLUME_STEP_ML)
+        WT_XP_MULTIPLIER: $(WT_XP_MULTIPLIER)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.watertracker.app

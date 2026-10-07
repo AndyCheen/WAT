@@ -5,6 +5,8 @@ import DesignSystem
 
 public enum AppRoute: Hashable {
     case progress
+    /// 3f з уже відкритим вікном «Шлях рівнів» — тост рівня з вибором чи 🎁 (SPEC-PRIZES §16.6).
+    case levelRoad
     case achievements
     case prizes
     case stats
@@ -41,6 +43,7 @@ public struct RootView: View {
                     themeMode: $themeMode,
                     hapticsEnabled: $hapticsEnabled,
                     onOpenProgress: { path.append(.progress) },
+                    onOpenLevelRoad: { path.append(.levelRoad) },
                     onOpenStats: { path.append(.stats) },
                     onOpenAchievements: { path.append(.achievements) },
                     onOpenPrize: { path.append(.prizeCard($0)) },
@@ -63,9 +66,10 @@ public struct RootView: View {
     @ViewBuilder
     private func destination(_ route: AppRoute) -> some View {
         switch route {
-        case .progress:
+        case .progress, .levelRoad:
             ProgressScreen(
                 services: services,
+                opensLevelRoad: route == .levelRoad,
                 onBack: { path.removeLast() },
                 onOpenAllAchievements: { path.append(.achievements) },
                 onOpenAllPrizes: { path.append(.prizes) }

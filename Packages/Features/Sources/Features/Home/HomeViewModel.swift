@@ -75,6 +75,8 @@ public struct HomeToast: Equatable, Identifiable {
         case showAllAchievements
         /// Подарунок за повернення — картка призу (SPEC-NOTIFICATIONS §12.5 А).
         case showPrize(String)
+        /// Новий рівень дав вибір чи 🎁 — 3f з відкритим вікном «Шлях рівнів» (SPEC-PRIZES §16.6).
+        case showLevelRoad
     }
 
     public let id = UUID()
@@ -136,6 +138,7 @@ public final class HomeViewModel {
     /// Переходи робить `RootView`, модель лише просить.
     @ObservationIgnored public var onOpenAchievements: () -> Void = {}
     @ObservationIgnored public var onOpenPrize: (String) -> Void = { _ in }
+    @ObservationIgnored public var onOpenLevelRoad: () -> Void = {}
     @ObservationIgnored public var onOpenNotifications: () -> Void = {}
     /// Шторка дозволу чекає, поки зникне тост чи картка досягнення: першу порцію майже завжди
     /// святкує «Перша крапля», і шторка поверх тоста сховала б його.
@@ -258,6 +261,8 @@ public final class HomeViewModel {
             onOpenAchievements()
         case .showPrize(let key):
             onOpenPrize(key)
+        case .showLevelRoad:
+            onOpenLevelRoad()
         case nil:
             break
         }
@@ -293,6 +298,7 @@ public final class HomeViewModel {
                              actionTitle: "Подивитись", action: .showPrize(gift.key))
         }
         if let level = levelUp {
+            if let toast = levelRewardToast(level) { return toast }
             let bonus = unlocked.bounceBackXp.map { " · 🔁 Знову в ритмі: +\($0) XP" } ?? ""
             return HomeToast(message: "Рівень \(level)!\(bonus)")
         }
@@ -301,6 +307,26 @@ public final class HomeViewModel {
             return HomeToast(message: "🔁 Знову в ритмі: +\(xp) XP")
         }
         return nil
+    }
+
+    /// Тост рівня з призом (SPEC-PRIZES §16.6). Приз важливіший за «Знову в ритмі»: бонус XP уже нараховано,
+    /// а вибір чи 🎁 без підказки можна й не помітити — тож бонус у такому тості не дописуємо, щоб не в два рядки.
+    static func levelRewardToast(_ level: Int) -> HomeToast? {
+        switch LevelRoadCatalog.node(forLevel: level) {
+        case .mystery?:
+            return HomeToast(message: "Рівень \(level)! 🎁 Чекає таємний приз",
+                             actionTitle: "Відкрити", action: .showLevelRoad)
+        case .choice(let grants)?:
+            let emojis = grants.compactMap { RewardCatalog.definition($0.key)?.emoji }.joined(separator: " або ")
+            return HomeToast(message: "Рівень \(level)! Обери приз: \(emojis)",
+                             actionTitle: "Обрати", action: .showLevelRoad)
+        case .prize(let grant)?:
+            guard let definition = RewardCatalog.definition(grant.key) else { return nil }
+            return HomeToast(message: "Рівень \(level)! \(definition.emoji) \(definition.title) — у призах",
+                             actionTitle: "Подивитись", action: .showPrize(grant.key))
+        case nil:
+            return nil
+        }
     }
 
     /// «🏅 Досягнення: Перша крапля» або «🏅 Нові досягнення: 2» (SPEC-ACHIEVEMENTS §8).

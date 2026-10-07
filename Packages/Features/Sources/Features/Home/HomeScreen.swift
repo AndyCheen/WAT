@@ -11,6 +11,7 @@ public struct HomeScreen: View {
     @Binding private var hapticsEnabled: Bool
     private let services: AppServices
     private let onOpenProgress: () -> Void
+    private let onOpenLevelRoad: () -> Void
     private let onOpenStats: () -> Void
     private let onOpenAchievements: () -> Void
     private let onOpenPrize: (String) -> Void
@@ -23,6 +24,7 @@ public struct HomeScreen: View {
         themeMode: Binding<ThemeMode>,
         hapticsEnabled: Binding<Bool>,
         onOpenProgress: @escaping () -> Void,
+        onOpenLevelRoad: @escaping () -> Void = {},
         onOpenStats: @escaping () -> Void,
         onOpenAchievements: @escaping () -> Void,
         onOpenPrize: @escaping (String) -> Void = { _ in },
@@ -34,6 +36,7 @@ public struct HomeScreen: View {
         _themeMode = themeMode
         _hapticsEnabled = hapticsEnabled
         self.onOpenProgress = onOpenProgress
+        self.onOpenLevelRoad = onOpenLevelRoad
         self.onOpenStats = onOpenStats
         self.onOpenAchievements = onOpenAchievements
         self.onOpenPrize = onOpenPrize
@@ -73,6 +76,7 @@ public struct HomeScreen: View {
         .onAppear {
             model.onOpenAchievements = onOpenAchievements
             model.onOpenPrize = onOpenPrize
+            model.onOpenLevelRoad = onOpenLevelRoad
             model.onOpenNotifications = onOpenNotifications
             model.reload()
         }

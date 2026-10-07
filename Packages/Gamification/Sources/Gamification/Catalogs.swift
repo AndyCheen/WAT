@@ -227,15 +227,18 @@ public struct RewardDefinition: Sendable, Identifiable {
     public let title: String
     public let details: String
     public let emoji: String
+    /// Лише для бустів: у скільки разів множиться XP до 00:00.
+    public let boostFactor: Int?
 
     public var id: String { key }
 
-    public init(key: String, kind: RewardKind, title: String, details: String, emoji: String) {
+    public init(key: String, kind: RewardKind, title: String, details: String, emoji: String, boostFactor: Int? = nil) {
         self.key = key
         self.kind = kind
         self.title = title
         self.details = details
         self.emoji = emoji
+        self.boostFactor = boostFactor
     }
 }
 
@@ -245,25 +248,23 @@ public struct RewardDefinition: Sendable, Identifiable {
 public enum RewardCatalog {
     public static let freezeKey = "streak.freeze"
     public static let boostKey = "xp.double"
+    /// 🌟 «Потрійний XP» — лише з таємних призів (SPEC-PRIZES §16.2). Не 💎: діамант читається як валюта.
+    public static let tripleKey = "xp.triple"
 
-    /// Порядок — порядок рядків в інвентарі: заморозка вище, бо цінніша й рідша.
+    /// Порядок — порядок рядків в інвентарі: заморозка, бо цінніша й рідша, потім рідкісний 🌟, потім ⚡.
     public static let all: [RewardDefinition] = [
         RewardDefinition(key: freezeKey, kind: .streakFreeze, title: "Заморозка серії",
                          details: "Пропущений день не обірве серію", emoji: "🧊"),
+        RewardDefinition(key: tripleKey, kind: .xpBoost, title: "Потрійний XP",
+                         details: "×3 XP до кінця дня", emoji: "🌟", boostFactor: 3),
         RewardDefinition(key: boostKey, kind: .xpBoost, title: "Подвійний XP",
-                         details: "×2 XP до кінця дня", emoji: "⚡")
+                         details: "×2 XP до кінця дня", emoji: "⚡", boostFactor: 2)
     ]
+
+    /// Усі бусти: одночасно діє лише один з них, будь-який (§7).
+    public static let boostKeys = all.filter { $0.kind == .xpBoost }.map(\.key)
 
     public static func definition(_ key: String) -> RewardDefinition? {
         all.first { $0.key == key }
-    }
-
-    /// Рівно один приз на рівень (§3.4): «НАГОРОДА НА РІВНІ N» завжди один рядок.
-    /// Заморозка — кожен третій рівень: рідша за буст, бо рятує серію, а серія —
-    /// головний множник XP. Рівень 1 стартовий, нагороди за нього немає.
-    public static func rewards(forLevel level: Int) -> [RewardDefinition] {
-        guard level > 1 else { return [] }
-        let key = level % 3 == 0 ? freezeKey : boostKey
-        return definition(key).map { [$0] } ?? []
     }
 }

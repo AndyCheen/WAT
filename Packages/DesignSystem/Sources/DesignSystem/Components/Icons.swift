@@ -33,6 +33,13 @@ public enum WTIcons {
             .foregroundStyle(color)
     }
 
+    /// «?» — довідник («Звідки XP» у вікні шляху рівнів).
+    public static func question(color: Color, size: CGFloat = 16) -> some View {
+        Image(systemName: "questionmark")
+            .font(.system(size: size, weight: .bold))
+            .foregroundStyle(color)
+    }
+
     public static func check(color: Color, size: CGFloat = 13) -> some View {
         Image(systemName: "checkmark")
             .font(.system(size: size, weight: .heavy))

@@ -20,22 +20,30 @@ public final class ProgressViewModel {
     /// Інвентар, картка й дія з призом — спільні з екраном «Призи».
     public let prizes: PrizeInventoryModel
     public private(set) var achievements: [AchievementSnapshot] = []
-    public private(set) var nextReward: (level: Int, rewards: [LevelRewardSnapshot])
+    /// Шлях рівнів: блок «НАГОРОДА НА РІВНІ N» і крапка на донаті, поки щось чекає (SPEC-PRIZES §16.6).
+    public private(set) var road: LevelRoadSnapshot
 
     /// Один прапорець на весь блок «ЗАВДАННЯ» — денні й тижневі ховаються разом,
     /// два окремі перемикачі в одній секції читались би як помилка.
     public private(set) var showCompletedQuests = false
 
-    public var showLevelRewards = false
+    /// Вікно «Шлях рівнів» на весь екран (WAT-44). Модель створюється на кожне відкриття: знімок свіжий,
+    /// а позиція рейки для повтору прогресу береться заново.
+    public var showLevelRoad = false
+    public private(set) var levelRoad: LevelRoadModel?
     /// Картка деталей, відкрита з бейджа вітрини — прямо тут, без переходу на 2e.
     public private(set) var selectedAchievement: AchievementSnapshot?
 
-    public init(services: AppServices) {
+    public init(services: AppServices, opensLevelRoad: Bool = false) {
         self.services = services
         self.prizes = PrizeInventoryModel(services: services)
         self.level = services.gamification.levelProgress()
-        self.nextReward = services.gamification.nextLevelRewards()
+        self.road = services.gamification.levelRoad()
         reload()
+        if opensLevelRoad {
+            levelRoad = LevelRoadModel(services: services)
+            showLevelRoad = true
+        }
     }
 
     public func reload() {
@@ -44,8 +52,24 @@ public final class ProgressViewModel {
         weeklyQuests = services.gamification.weeklyQuests()
         prizes.reload()
         achievements = services.gamification.achievementSnapshots()
-        nextReward = services.gamification.nextLevelRewards()
+        road = services.gamification.levelRoad()
     }
+
+    // MARK: - Шлях рівнів
+
+    public func openLevelRoad() {
+        levelRoad = LevelRoadModel(services: services)
+        present(\.showLevelRoad)
+    }
+
+    /// Після вікна інвентар і блок нагороди могли змінитися: забрано вибір, відкрито 🎁.
+    public func closeLevelRoad() {
+        dismiss(\.showLevelRoad)
+        reload()
+    }
+
+    /// Вибір чи таємний, що чекає дії, — найраніший: його ж вікно покаже по центру.
+    public var pendingReward: LevelRoadNode? { road.pending.first }
 
 
     // MARK: - Завдання
@@ -92,6 +116,5 @@ public final class ProgressViewModel {
         withAnimation(WTAnimation.fade) { selectedAchievement = item }
     }
 
-    public var levelRewards: [LevelRewardSnapshot] { services.gamification.levelRewards() }
     public var xpLabel: String { "\(level.xpIntoLevel)/\(level.xpForNextLevel) XP до рівня \(level.nextLevel)" }
 }

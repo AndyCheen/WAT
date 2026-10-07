@@ -64,6 +64,7 @@ public enum FixtureSeeder {
         }
 
         services.gamification.refresh(at: calendar.now)
+        settleLevelRoad(services)
         topUpPrizes(services)
         // Патерн дня залежить від дати, а e2e біжать на справжньому годиннику: у якийсь із днів 14-денне вікно
         // могло б скластися в зсув, і вікно «Графік дня» перекрило б чужий сценарій. Демо-історія вважається
@@ -89,6 +90,28 @@ public enum FixtureSeeder {
         }
         services.gamification.refresh(at: calendar.now)
         services.touch()
+    }
+
+    /// За 60 днів демо проходить два десятки рівнів, і всі вибори й 🎁 чекали б дії. Як у живої людини,
+    /// старі забрано, а чекає по одному вузлу кожного виду — останній вибір і останній таємний: на донаті
+    /// крапка «нове», а e2e мають на чому перевірити і вибір, і скриню (SPEC-PRIZES §16.6). Вибір — по
+    /// черзі 🧊 і ⚡, щоб на драбині було видно обидва.
+    private static func settleLevelRoad(_ services: AppServices) {
+        let pending = services.gamification.levelRoad().pending
+        let keep = Set([
+            pending.last { if case .choice? = $0.reward { return true } else { return false } }?.level,
+            pending.last { if case .mystery? = $0.reward { return true } else { return false } }?.level
+        ].compactMap { $0 })
+        for (index, node) in pending.enumerated() where !keep.contains(node.level) {
+            switch node.reward {
+            case .choice(let grants)?:
+                services.gamification.claimChoice(level: node.level, key: grants[index % grants.count].key)
+            case .mystery?:
+                services.gamification.openMystery(level: node.level)
+            case .prize?, nil:
+                break
+            }
+        }
     }
 
     /// Демо-інвентар: щонайменше 2 заморозки (обидва тексти кнопки) і 1 буст.

@@ -11,14 +11,14 @@ final class GamificationServiceTests: XCTestCase {
         let env = GameEnv()
         env.addIntakeEvent(300)
 
-        // 5 XP за порцію + 25 XP за досягнення «Перша крапля»
-        XCTAssertEqual(env.game.levelProgress().totalXp, XPRules.default.perIntake + 25)
+        // 300 мл × 5 XP / 250 мл = 6 XP + 25 XP за досягнення «Перша крапля»
+        XCTAssertEqual(env.game.levelProgress().totalXp, 6 + 25)
     }
 
     func testUndoOfIntakeReturnsXP() {
         let env = GameEnv()
         let ref = env.addIntakeEvent(300)
-        XCTAssertEqual(env.game.levelProgress().totalXp, 30)
+        XCTAssertEqual(env.game.levelProgress().totalXp, 31)
 
         env.metrics.revert(sourceRef: ref, at: env.clock.now)
 
@@ -167,14 +167,12 @@ final class GamificationServiceTests: XCTestCase {
         XCTAssertGreaterThan(env.game.levelProgress().level, 1)
     }
 
-    func testLevelRewardsMarkUnlockedUpToCurrentLevel() {
+    func testNextRewardSkipsLevelsWithoutPrize() {
         let env = GameEnv()
-        let rewards = env.game.levelRewards()
-        XCTAssertFalse(rewards.contains { $0.level == 1 }, "стартовий рівень нагороди не дає")
-        XCTAssertFalse(rewards.first { $0.level == 2 }!.isUnlocked)
-        XCTAssertEqual(rewards.first { $0.level == 3 }?.key, "streak.freeze", "кожен 3-й рівень — заморозка")
-        XCTAssertEqual(rewards.first { $0.level == 4 }?.key, "xp.double")
-        XCTAssertEqual(Set(rewards.map(\.level)).count, rewards.count, "по одному призу на рівень")
+        let road = env.game.levelRoad()
+        XCTAssertEqual(road.progress.level, 1)
+        XCTAssertEqual(road.nextReward?.level, 2, "перший приз — на 2-му рівні")
+        XCTAssertEqual(road.nodes.first?.status, .passed, "стартовий рівень нагороди не дає")
     }
 }
 

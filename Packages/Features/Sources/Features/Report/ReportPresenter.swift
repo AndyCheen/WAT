@@ -436,6 +436,11 @@ struct ReportPresenter {
             let n = game.questsCompleted
             badges.append("✓ \(n) \(Plural.uk(n, one: "завдання", few: "завдання", many: "завдань"))")
         }
+        // Призи — лише в місячному звіті (SPEC-PRIZES §16.16): за день чи тиждень їх замало, щоб рахувати.
+        if !compact, case .month = report.period, game.prizesReceived > 0 {
+            let n = game.prizesReceived
+            badges.append("🎁 \(n) \(Plural.uk(n, one: "приз", few: "призи", many: "призів"))")
+        }
         return badges
     }
 

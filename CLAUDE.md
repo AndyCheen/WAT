@@ -19,8 +19,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 445 unit-тестів 9 пакетів, без симулятора — швидкий цикл
-make test-ui        # 34 e2e-сценарії (XCUITest) у симуляторі
+make test-packages  # 483 unit-тести 9 пакетів, без симулятора — швидкий цикл
+make test-ui        # 38 e2e-сценаріїв (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
 make clean
@@ -80,12 +80,21 @@ Features → DesignSystem → Core
 досягнення декларативні: `metricKey + comparator + target` у `Gamification/Catalogs.swift`,
 нова умова додається рядком у каталог, без коду.
 
-**Призи** (SPEC-PRIZES): у каталозі лише 🧊 `streak.freeze` і ⚡ `xp.double`, один приз на рівень.
-Приз **і є** жетон — дія лише з картки: `useFreeze(prizeId:)` / `activateBoost(prizeId:)`.
+**Призи** (SPEC-PRIZES): у каталозі 🧊 `streak.freeze`, ⚡ `xp.double` і 🌟 `xp.triple` (лише з таємних).
+Приз **і є** жетон — дія лише з картки: `useFreeze(prizeId:)` / `activateBoost(prizeId:)` (будь-який буст, один на раз).
 Який день заморожується, вирішує `StreakEngine.freezeTarget` (правило в doc-коментарі — не
 переписувати без рішення). Заморожений день тримає ланцюг серії, але **не додає** до числа.
 Буст множить увесь XP до 00:00 і перемножується з серією; прострочення — похідне від `Clock`.
 Блок 3f і екран «Призи» ділять одну `PrizeInventoryModel` і `PrizePresenter` (усі тексти).
+**Шлях рівнів** (WAT-44, SPEC-PRIZES §16): що дає рівень — декларативний `LevelRoadCatalog` (до 10-го приз через
+рівень, з 11-го — на кожному). Звичайний приз видає `grantLevelRewards`, а вибір і таємний 🎁 чекають дії:
+`claimChoice(level:key:)` / `openMystery(level:)`, один ref `level:N` на вузол. «Чекає» — похідна, не стан у БД;
+старі ref `level:N:<key>` рахуються як отримані. Вміст 🎁 — `MysteryRoll` від зерна профілю, без RNG. Вікно —
+`LevelRoadScreen` («Драбина», `WTRoad*`), тексти — `LevelRoadPresenter`, знімок — `levelRoad()`. Безкінечний рух
+(похитування 🎁, промені «Скрині») — лише через `TimelineView`: `withAnimation(.repeatForever)` тягнув за собою шапку.
+**XP за воду — за зарахований об'єм, не за порцію** (`XPRules.waterXp`), у межах стелі 120 %. Баланс — XP за крок
+об'єму й загальний множник — у `Config/Balance.xcconfig` → `Info.plist` → `AppContainer.xpRules`; у DEBUG ті самі
+імена в змінних середовища схеми перекривають файл.
 Звіт-історія (`Features/Report`) так само: `ReportPresenter` — чиста функція «звіт → слайди з текстами»,
 візуал — компоненти `Story.swift` у `DesignSystem`.
 Після дії картка показує підтвердження й закривається сама (`successHold`); поки діє буст,
@@ -228,13 +237,15 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
   друге читання вже не бачить нових, і крапки «нове» не з'являються зовсім (WAT-23).
 - Прапорці запуску (`App/Sources/WaterTrackerApp.swift`, `LaunchConfiguration`):
   `--uitest-empty` (чиста in-memory БД), `--uitest-demo` (демо-історія),
-  `--seed-demo`, `--start-screen progress|achievements|prizes|stats|notifications|notification-plan|report|schedule-suggestion`
+  `--seed-demo`, `--start-screen progress|level-road|achievements|prizes|stats|notifications|notification-plan|report|schedule-suggestion`
   (`report` — минулий тиждень; період явно — `report:day:2026-10-04`, `report:month:2026-09`;
   `schedule-suggestion:wake-early|wake-late|sleep-late|sleep-early|both|weekend|weekdays` — вікно «Графік дня»
   повз правило частоти). `--seed-schedule-shift` — 10 днів із першою склянкою ≈ 06:30: вікно з'являється само.
   Демо-історія завжди має пропущений учора день після закритого позавчора й ≥ 2 заморозки —
   для e2e кнопки заморозки — і вважається такою, що вже відповіла на пропозицію графіка: її патерн
-  залежить від дати, і вікно могло б перекрити чужий сценарій.
+  залежить від дати, і вікно могло б перекрити чужий сценарій. На шляху рівнів у демо чекає по одному
+  вузлу кожного виду — останній вибір і останній 🎁; номер рівня залежить від дати, тож e2e шукають
+  `levelRoad.choice.*` / `levelRoad.mystery.*` за префіксом.
 - Сповіщення в e2e: під `--uitest-*` центр — у пам'яті з дозволом `--notifications-auth
   authorized|denied|notDetermined` (типово є — інакше шторка дозволу після першої порції ламала б
   сценарії); `--notification-tap reminder|morning|evening|rescue|comeback|echo|report` імітує тап
@@ -277,6 +288,8 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
 | `Design/Achievements.html` | макет модуля досягнень (6 кадрів 402×874) до цього ТЗ; перенесено в код у WAT-23 |
 | `SPEC-PRIZES.md` | ТЗ модуля «Призи» (WAT-26): каталог, блок на 3f, екран «Призи», картка призу, правила заморозки й буста |
 | `Design/Prizes.html` | макет модуля призів (6 кадрів 402×874) до цього ТЗ; перенесено в код у WAT-34 |
+| `Design/LevelRoad.html` | макет вікна «Шлях рівнів» (WAT-44, SPEC-PRIZES §16): погоджено «Драбину» й «Скриню», компактний вибір; інфографіка частоти призів |
+| `Config/Balance.xcconfig` | баланс XP: XP за крок об'єму води й загальний множник (SPEC-PRIZES §16.13) |
 | `SPEC-NOTIFICATIONS.md` | ТЗ модуля «Сповіщення» (WAT-17): типи, нагадування за кривою темпу, анти-спам, тексти, налаштування, локальні сповіщення й планувальник; етапи 0 і A реалізовано в WAT-36 (рішення — §23), етап B — у WAT-37 (§24), одна модель цілей частин доби — WAT-39 (§25), капсула частини доби на головному — WAT-40 (§26), пропозиція змінити графік дня — WAT-41 (§27), перемикач «Ритм дня» — WAT-42 (§28), спад кривої темпу перед сном — WAT-43 (§29) |
 | `Design/DayPart.html` | макет капсули частини доби на головному (WAT-40): три варіанти, погоджено A (SPEC-NOTIFICATIONS §26) |
 | `Design/Schedule.html` | макет вікна «Графік дня» (WAT-41): три варіанти, погоджено A «Час», і правило зсуву на 14 днях (SPEC-NOTIFICATIONS §27) |
