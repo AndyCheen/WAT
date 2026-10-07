@@ -99,7 +99,7 @@ erDiagram
 ### 3.2 Таблиці
 
 **`UserProfile`** (один рядок)
-`id, createdAt, gender?, birthYear?, weightKg?, activityLevel, climate, unitSystem (ml|oz),
+`id, createdAt, gender?, birthYear?, weightKg?, activityLevel, climate, volumeUnit (ml|usOz|ukOz, WAT-46), lastCustomAmountMl? (WAT-45),
 onboardingCompleted, themeMode (system|light|dark), hapticsEnabled, soundEnabled, locale`
 · пропозиція графіка (WAT-41): `scheduleOfferShownAt?, scheduleOfferOutcome (none|accepted|declined|dismissed),
 scheduleOfferShiftMinutes` — для правила частоти (SPEC-NOTIFICATIONS §27)
@@ -396,8 +396,9 @@ Home (1a)
 | **15** | Спад кривої темпу перед сном | ✅ | останні 2 год до відбою — половинний темп (`PaceCurve.taperMinutes`, `taperFactor`); цілі частин 689 / 826 / 485; оновлено таблиці §4, §6.1, §6.3 і всі похідні (WAT-43, SPEC-NOTIFICATIONS §29) |
 | **16** | Шлях рівнів | ✅ | вікно на весь екран «Драбина» з фокусом на призі; вузли «вибір» і таємний 🎁 («Скриня»); рідші призи до 10-го рівня; горизонт 3 + 2 у тумані; 🌟 «Потрійний XP»; XP за об'єм і баланс у `Config/Balance.xcconfig`; довідник «Звідки XP»; призи у звіті місяця (WAT-44, SPEC-PRIZES §16) |
 | **17** | Кнопки порцій | ✅ | свої кнопки головного й підказки шторки «Інше» на екрані «Кнопки порцій»; шторка «Інше» з останнім об'ємом (WAT-45, SPEC-TEMPLATE §4.1) |
+| **18** | Системи об'єму | ✅ | «мл · oz США · oz UK» у налаштуваннях; усі тексти, звіти й сповіщення в системі людини, кроки редагування в її одиницях, кнопки порцій переходять на типові нової системи (WAT-46, SPEC-TEMPLATE §1.2) |
 
-**Тести:** 500 unit (9 пакетів) + 41 e2e у симуляторі — усі зелені.
+**Тести:** 517 unit (9 пакетів) + 42 e2e у симуляторі — усі зелені.
 `make test-packages` — швидкий цикл без симулятора, `make test-ui` — e2e.
 
 ### Що з'ясувалося під час реалізації
