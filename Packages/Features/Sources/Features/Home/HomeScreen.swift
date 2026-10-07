@@ -204,7 +204,9 @@ public struct HomeScreen: View {
 
     private var quickAdd: some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-            ForEach(model.quickAmounts, id: \.self) { amount in
+            // За позицією, а не значенням: дві однакові кнопки — вибір людини (WAT-45), а однакові
+            // ідентифікатори в одному `LazyVGrid` злили б комірки.
+            ForEach(Array(model.quickAmounts.enumerated()), id: \.offset) { _, amount in
                 WTQuickButton(Self.amountTitle(amount)) { model.add(amount) }
                     .accessibilityIdentifier("home.add.\(amount)")
             }
@@ -214,10 +216,15 @@ public struct HomeScreen: View {
         .padding(.bottom, 28)
     }
 
-    /// Підписи як у макеті 1a: «200 мл», «0.5 л», «1 л».
+    /// Підпис кнопки порції — один для головного й екрана «Кнопки порцій» (WAT-45): до 1 л — мілілітри,
+    /// далі літри з тими знаками, що потрібні, — «1 л», «1.05 л», «1.5 л». Не «0.5 л» з макета 1a:
+    /// з одним знаком після коми крок 50 мл двічі показував те саме число.
     static func amountTitle(_ ml: Int) -> String {
-        guard ml >= 500 else { return "\(ml) мл" }
-        return ml % 1000 == 0 ? "\(ml / 1000) л" : "\(Volume.litersLabel(ml, fractionDigits: 1)) л"
+        guard ml >= 1000 else { return "\(ml) мл" }
+        var liters = Volume.litersLabel(ml, fractionDigits: 2)
+        while liters.hasSuffix("0") { liters.removeLast() }
+        if liters.hasSuffix(".") { liters.removeLast() }
+        return "\(liters) л"
     }
 
     // MARK: - Завдання

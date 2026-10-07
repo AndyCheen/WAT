@@ -42,9 +42,4 @@ public final class PortionButtonsModel {
         services.hydration.resetPresets(place)
         reload()
     }
-
-    /// Підпис як на самій кнопці: на головному «0.5 л», у шторці — мілілітри, як на чипах.
-    public static func label(_ ml: Int, place: PresetPlace) -> String {
-        place == .home ? HomeScreen.amountTitle(ml) : "\(ml) мл"
-    }
 }

@@ -53,15 +53,28 @@ final class PortionButtonsFeatureTests: XCTestCase {
         let home = HomeViewModel(services: services)
         XCTAssertEqual(home.quickAmounts, [250, 500, 1000])
         XCTAssertEqual(home.customChips, [150, 250, 350, 550])
-        XCTAssertEqual(SettingsModel(services: services).quickAmountsSummary, "250 мл · 0.5 л · 1 л")
+        XCTAssertEqual(SettingsModel(services: services).quickAmountsSummary, "250 мл · 500 мл · 1 л")
 
         editor.reset(.home)
         XCTAssertTrue(editor.isDefault(.home))
         XCTAssertFalse(editor.isDefault(.customSheet), "скидання одного місця не чіпає інше")
     }
 
-    func testLabelsMatchTheButtons() {
-        XCTAssertEqual(PortionButtonsModel.label(500, place: .home), "0.5 л")
-        XCTAssertEqual(PortionButtonsModel.label(500, place: .customSheet), "500 мл")
+    /// До 1 л — мілілітри; далі кожен крок 50 мл дає інший підпис.
+    func testAmountTitleShowsEveryStep() {
+        XCTAssertEqual(HomeScreen.amountTitle(500), "500 мл")
+        XCTAssertEqual(HomeScreen.amountTitle(950), "950 мл")
+        XCTAssertEqual(HomeScreen.amountTitle(1000), "1 л")
+        XCTAssertEqual(HomeScreen.amountTitle(1050), "1.05 л")
+        XCTAssertEqual(HomeScreen.amountTitle(1100), "1.1 л")
+        XCTAssertEqual(HomeScreen.amountTitle(2000), "2 л")
+    }
+
+    /// Дві однакові кнопки — дозволено: перескок зайнятого значення виглядав як баг.
+    func testButtonsMayRepeatValues() {
+        let editor = PortionButtonsModel(services: services)
+        for _ in 0..<6 { editor.step(.home, at: 0, up: true) }
+        XCTAssertEqual(editor.homeAmounts, [500, 500, 1000])
+        XCTAssertEqual(HomeViewModel(services: services).quickAmounts, [500, 500, 1000])
     }
 }

@@ -214,8 +214,8 @@ public final class HydrationService {
     public func stepPreset(_ place: PresetPlace, at index: Int, by delta: Int) -> [Int] {
         let presets = profiles.quickAddPresets(place).sorted { $0.order < $1.order }
         guard presets.indices.contains(index) else { return presets.map(\.amountMl) }
-        let taken = Set(presets.enumerated().filter { $0.offset != index }.map(\.element.amountMl))
-        let next = PresetRules.stepped(presets[index].amountMl, by: delta, taken: taken)
+        // Дублі дозволені: перескок зайнятого значення виглядав як баг і заважав переставляти кнопки.
+        let next = Intake.clamp(presets[index].amountMl + delta)
         if next != presets[index].amountMl { profiles.updatePreset(presets[index], amountMl: next) }
         return quickAddAmounts(place)
     }

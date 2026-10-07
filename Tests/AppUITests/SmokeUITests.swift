@@ -455,6 +455,16 @@ final class SmokeUITests: XCTestCase {
         XCTAssertFalse(app.buttons["portions.home.reset"].exists, "типові — повертати нічого")
         app.buttons["portions.home.0.plus"].tap()
         XCTAssertEqual(first.label, "250 мл")
+        // До 1 л — мілілітри, і кожен тап змінює підпис (було «0.5 л» → «0.5 л» на 550).
+        let second = app.staticTexts["portions.home.1"]
+        XCTAssertEqual(second.label, "500 мл")
+        app.buttons["portions.home.1.plus"].tap()
+        XCTAssertEqual(second.label, "550 мл")
+        app.buttons["portions.home.1.minus"].tap()
+        XCTAssertEqual(app.staticTexts["portions.home.2"].label, "1 л")
+        app.buttons["portions.home.2.plus"].tap()
+        XCTAssertEqual(app.staticTexts["portions.home.2"].label, "1.05 л")
+        app.buttons["portions.home.2.minus"].tap()
         app.buttons["portions.custom.3.plus"].tap()
         XCTAssertEqual(app.staticTexts["portions.custom.3"].label, "550 мл")
         XCTAssertTrue(app.buttons["portions.home.reset"].exists)

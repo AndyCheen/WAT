@@ -210,11 +210,11 @@ final class HydrationServiceTests: XCTestCase {
 
     // MARK: - Кнопки порцій (WAT-45)
 
-    func testStepPresetSkipsValueTakenByNeighbour() {
+    func testStepPresetMayRepeatNeighbour() {
         let env = TestEnv()
         env.hydration.stepPreset(.customSheet, at: 0, by: 50)          // 150 → 200
         let amounts = env.hydration.stepPreset(.customSheet, at: 0, by: 50)
-        XCTAssertEqual(amounts, [300, 250, 350, 500], "250 зайняте другою підказкою — перескок на 300")
+        XCTAssertEqual(amounts, [250, 250, 350, 500], "без перескоку — кожен тап рівно 50 мл")
     }
 
     func testStepPresetStaysWithinIntakeBounds() {
