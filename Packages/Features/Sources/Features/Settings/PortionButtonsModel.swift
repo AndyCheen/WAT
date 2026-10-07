@@ -29,7 +29,7 @@ public final class PortionButtonsModel {
     }
 
     public func step(_ place: PresetPlace, at index: Int, up: Bool) {
-        services.hydration.stepPreset(place, at: index, by: up ? PresetRules.stepMl : -PresetRules.stepMl)
+        services.hydration.stepPreset(place, at: index, up: up)
         reload()
     }
 

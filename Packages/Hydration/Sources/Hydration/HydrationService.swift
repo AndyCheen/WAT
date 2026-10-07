@@ -211,11 +211,11 @@ public final class HydrationService {
 
     /// Крок кнопки на екрані «Кнопки порцій» (WAT-45). Повертає нові значення місця.
     @discardableResult
-    public func stepPreset(_ place: PresetPlace, at index: Int, by delta: Int) -> [Int] {
+    public func stepPreset(_ place: PresetPlace, at index: Int, up: Bool) -> [Int] {
         let presets = profiles.quickAddPresets(place).sorted { $0.order < $1.order }
         guard presets.indices.contains(index) else { return presets.map(\.amountMl) }
         // Дублі дозволені: перескок зайнятого значення виглядав як баг і заважав переставляти кнопки.
-        let next = Intake.clamp(presets[index].amountMl + delta)
+        let next = PresetRules.stepped(presets[index].amountMl, up: up)
         if next != presets[index].amountMl { profiles.updatePreset(presets[index], amountMl: next) }
         return quickAddAmounts(place)
     }

@@ -19,7 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 496 unit-тестів 9 пакетів, без симулятора — швидкий цикл
+make test-packages  # 500 unit-тестів 9 пакетів, без симулятора — швидкий цикл
 make test-ui        # 41 e2e-сценарій (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
@@ -98,7 +98,7 @@ Features → DesignSystem → Core
 Звіт-історія (`Features/Report`) так само: `ReportPresenter` — чиста функція «звіт → слайди з текстами»,
 візуал — компоненти `Story.swift` у `DesignSystem`.
 **Кнопки порцій** (WAT-45): `QuickAddPreset.place` — головний (3) чи підказки шторки «Інше» (4), сід окремо на
-місце; дублі дозволені, тож `ForEach` кнопок і чипів — за позицією, не за значенням. Підпис — `HomeScreen.amountTitle`
+місце; крок — 50 мл до 1 л і 100 мл від 1 л (`PresetRules.stepped`); дублі дозволені, тож `ForEach` кнопок і чипів — за позицією, не за значенням. Підпис — `HomeScreen.amountTitle`
 (до 1 л — мл, далі «1.05 л»), один для головного й налаштувань. «Інше» з
 кнопки — з `UserProfile.lastCustomAmountMl` (`HomeViewModel.openCustom`), зі сповіщення — з P через `apply(_:)`.
 Після дії картка показує підтвердження й закривається сама (`successHold`); поки діє буст,

@@ -212,23 +212,25 @@ final class HydrationServiceTests: XCTestCase {
 
     func testStepPresetMayRepeatNeighbour() {
         let env = TestEnv()
-        env.hydration.stepPreset(.customSheet, at: 0, by: 50)          // 150 → 200
-        let amounts = env.hydration.stepPreset(.customSheet, at: 0, by: 50)
+        env.hydration.stepPreset(.customSheet, at: 0, up: true)          // 150 → 200
+        let amounts = env.hydration.stepPreset(.customSheet, at: 0, up: true)
         XCTAssertEqual(amounts, [250, 250, 350, 500], "без перескоку — кожен тап рівно 50 мл")
     }
 
     func testStepPresetStaysWithinIntakeBounds() {
         let env = TestEnv()
-        for _ in 0..<5 { env.hydration.stepPreset(.home, at: 0, by: -50) }
+        for _ in 0..<5 { env.hydration.stepPreset(.home, at: 0, up: false) }
         XCTAssertEqual(env.hydration.quickAddAmounts().first, Intake.minAmountMl)
-        for _ in 0..<30 { env.hydration.stepPreset(.home, at: 2, by: 50) }
+        for _ in 0..<15 { env.hydration.stepPreset(.home, at: 2, up: true) }
         XCTAssertEqual(env.hydration.quickAddAmounts().last, Intake.maxAmountMl)
     }
 
     func testResetPresetsBringsDefaultsBack() {
         let env = TestEnv()
-        env.hydration.stepPreset(.home, at: 1, by: 50)
+        env.hydration.stepPreset(.home, at: 1, up: true)
         XCTAssertEqual(env.hydration.quickAddAmounts(), [200, 550, 1000])
+        env.hydration.stepPreset(.home, at: 2, up: true)
+        XCTAssertEqual(env.hydration.quickAddAmounts(), [200, 550, 1100], "від 1 л — крок 100 мл")
         env.hydration.resetPresets(.home)
         XCTAssertEqual(env.hydration.quickAddAmounts(), [200, 500, 1000])
     }
