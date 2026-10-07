@@ -183,12 +183,40 @@ public final class GamificationService: MetricsSubscriber {
         )
     }
     public func dailyQuests(at date: Date? = nil) -> [QuestSnapshot] {
-        quests.snapshots(scope: .daily, at: date ?? calendar.now)
+        inUserUnits(quests.snapshots(scope: .daily, at: date ?? calendar.now))
     }
     public func weeklyQuests(at date: Date? = nil) -> [QuestSnapshot] {
-        quests.snapshots(scope: .weekly, at: date ?? calendar.now)
+        inUserUnits(quests.snapshots(scope: .weekly, at: date ?? calendar.now))
     }
-    public func achievementSnapshots() -> [AchievementSnapshot] { achievements.snapshots() }
+    public func achievementSnapshots() -> [AchievementSnapshot] {
+        let unit = profile.volumeUnit
+        guard !unit.isMetric else { return achievements.snapshots() }
+        return achievements.snapshots().map { snapshot in
+            guard let definition = AchievementCatalog.definition(snapshot.key), definition.rule.measuresVolume else {
+                return snapshot
+            }
+            var shown = snapshot
+            shown.ounces = unit
+            if let volumeDetails = definition.volumeDetails {
+                shown.details = volumeDetails(unit.format(Int(definition.target)) { "\($0)" })
+            }
+            return shown
+        }
+    }
+
+    /// Підписи об'ємних завдань — у системі людини (WAT-46); у мілілітрах — як були.
+    private func inUserUnits(_ snapshots: [QuestSnapshot]) -> [QuestSnapshot] {
+        let unit = profile.volumeUnit
+        guard !unit.isMetric else { return snapshots }
+        return snapshots.map { snapshot in
+            guard let definition = QuestCatalog.definition(snapshot.key), definition.rule.measuresVolume else {
+                return snapshot
+            }
+            var shown = snapshot
+            shown.ounces = unit
+            return shown
+        }
+    }
     public var hasUnseenAchievements: Bool { achievements.hasUnseenUnlocks }
     public func markAchievementsSeen() { achievements.markAllSeen(at: calendar.now) }
     public func markAchievementSeen(key: String) { achievements.markSeen(key: key, at: calendar.now) }

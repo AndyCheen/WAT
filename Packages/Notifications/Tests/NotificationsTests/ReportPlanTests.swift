@@ -149,5 +149,12 @@ final class ReportPlanTests: XCTestCase {
                      ReportText.weekMonth(week: worst, month: worst)] {
             XCTAssertLessThanOrEqual(body.count, 100, body)
         }
+        for unit in [VolumeUnit.usFluidOunces, .imperialFluidOunces] {
+            for body in [ReportText.day(worst, streak: 1234, unit: unit), ReportText.week(worst, unit: unit),
+                         ReportText.month(worst, unit: unit)] {
+                XCTAssertLessThanOrEqual(body.count, 100, body)
+            }
+        }
+        XCTAssertEqual(ReportText.month(worst, unit: .usFluidOunces).prefix(19), "5260 oz за місяць —")
     }
 }

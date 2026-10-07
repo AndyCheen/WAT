@@ -42,7 +42,8 @@ public final class NotificationService: MetricsSubscriber {
     @ObservationIgnored private var needsAnotherPass = false
     @ObservationIgnored private var attributionOverride: String?
     @ObservationIgnored private var intakeSinceLastPass = false
-    @ObservationIgnored private var registeredGlass: Int?
+    /// Склянка й система об'єму, з якими зареєстровано категорії: назва дії «+250 мл» / «+8 oz».
+    @ObservationIgnored private var registeredGlass: (ml: Int, unit: VolumeUnit)?
 
     public init(
         store: NotificationStoreProtocol,
@@ -122,7 +123,7 @@ public final class NotificationService: MetricsSubscriber {
         // Без дозволу чи з вимкненим головним вимикачем перемикачі зберігаються, але нічого
         // не планується, а вже заплановане знімається (§16.5).
         let active = authorization == .authorized && preferences.isEnabled
-        if active { registerCategoriesIfNeeded(glassMl: preferences.glassMl) }
+        if active { registerCategoriesIfNeeded(preferences) }
         let sound = SoundResolver.resolve(preferences.sound, bubbleAvailable: bubbleSoundAvailable)
         let requests = active ? NotificationScheduler.requests(for: plan, sound: sound, calendar: calendar.calendar) : []
         await NotificationScheduler.apply(requests, to: center)
@@ -395,7 +396,7 @@ public final class NotificationService: MetricsSubscriber {
     /// поза диффом планувальника, тож наступне перепланування його не зніме.
     public func scheduleTestReminder(after seconds: TimeInterval = 5) async {
         let preferences = preferences()
-        registerCategoriesIfNeeded(glassMl: preferences.glassMl)
+        registerCategoriesIfNeeded(preferences)
         let fireAt = calendar.now.addingTimeInterval(seconds)
         var parts = calendar.calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: fireAt)
         parts.timeZone = calendar.calendar.timeZone
@@ -416,14 +417,16 @@ public final class NotificationService: MetricsSubscriber {
 
     /// Назва дії «+250 мл» належить категорії, а не запиту — при зміні склянки категорії
     /// реєструються наново.
-    private func registerCategoriesIfNeeded(glassMl: Int) {
-        guard registeredGlass != glassMl else { return }
-        registeredGlass = glassMl
-        center.setCategories(Self.categories(glassMl: glassMl))
+    private func registerCategoriesIfNeeded(_ preferences: NotificationPreferences) {
+        let key = (ml: preferences.glassMl, unit: preferences.volumeUnit)
+        guard registeredGlass.map({ $0 != key }) ?? true else { return }
+        registeredGlass = key
+        center.setCategories(Self.categories(glassMl: key.ml, unit: key.unit))
     }
 
-    public static func categories(glassMl: Int) -> [NotificationCategorySpec] {
-        let add = NotificationActionSpec(id: NotificationActionID.addGlass, title: "+\(glassMl) мл")
+    public static func categories(glassMl: Int, unit: VolumeUnit = .milliliters) -> [NotificationCategorySpec] {
+        let add = NotificationActionSpec(id: NotificationActionID.addGlass,
+                                         title: "+" + unit.format(glassMl) { "\($0) мл" })
         return [
             NotificationCategorySpec(id: NotificationCategory.reminder.rawValue, actions: [
                 add,

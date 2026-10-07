@@ -176,27 +176,27 @@ enum ReportText {
     static let limit = 100
 
     /// «1,8 л з 2 л (90 %) · серія 12 днів · найслабше — вечір»
-    static func day(_ digest: ReportDigest, streak: Int) -> String {
+    static func day(_ digest: ReportDigest, streak: Int, unit: VolumeUnit = .milliliters) -> String {
         let percent = digest.goalMl > 0 ? Int((Double(digest.totalMl) / Double(digest.goalMl) * 100).rounded()) : 0
-        var parts = ["\(NotificationFormat.volume(digest.totalMl)) з \(NotificationFormat.volume(digest.goalMl)) (\(percent) %)"]
+        var parts = ["\(NotificationFormat.volume(digest.totalMl, unit)) з \(NotificationFormat.volume(digest.goalMl, unit)) (\(percent) %)"]
         if streak > 0 { parts.append("серія \(Plural.days(streak))") }
         if let weakest = digest.weakestPart { parts.append("найслабше — \(weakest)") }
         return joined(parts)
     }
 
     /// «У середньому 1,9 л на день — на 8 % більше, ніж минулого тижня»
-    static func week(_ digest: ReportDigest) -> String {
-        let average = "У середньому \(NotificationFormat.volume(digest.averageMl)) на день"
+    static func week(_ digest: ReportDigest, unit: VolumeUnit = .milliliters) -> String {
+        let average = "У середньому \(NotificationFormat.volume(digest.averageMl, unit)) на день"
         guard let change = digest.averageChangePercent, change != 0 else {
-            return joined([average, "усього \(NotificationFormat.volume(digest.totalMl))"])
+            return joined([average, "усього \(NotificationFormat.volume(digest.totalMl, unit))"])
         }
         return "\(average) — на \(abs(change)) % \(change > 0 ? "більше" : "менше"), ніж минулого тижня"
     }
 
     /// «52 л за місяць — це 208 склянок · найдовша серія 9 днів»
-    static func month(_ digest: ReportDigest) -> String {
+    static func month(_ digest: ReportDigest, unit: VolumeUnit = .milliliters) -> String {
         let glasses = Plural.uk(digest.glasses, one: "склянка", few: "склянки", many: "склянок")
-        var parts = ["\(NotificationFormat.volume(digest.totalMl)) за місяць — це \(digest.glasses) \(glasses)"]
+        var parts = ["\(NotificationFormat.volume(digest.totalMl, unit)) за місяць — це \(digest.glasses) \(glasses)"]
         if digest.longestStreak >= 2 { parts.append("найдовша серія \(Plural.days(digest.longestStreak))") }
         return joined(parts)
     }
@@ -224,13 +224,15 @@ enum ReportText {
 /// Числа в текстах сповіщень (§14.1).
 enum NotificationFormat {
     /// Скільки бракує — округлення **вгору** до 50, щоб людина не недобрала. Від 1000 — у літрах.
-    static func left(_ ml: Int) -> String {
-        volume(Int((Double(max(0, ml)) / 50).rounded(.up)) * 50)
+    static func left(_ ml: Int, _ unit: VolumeUnit = .milliliters) -> String {
+        guard unit.isMetric else { return "\(unit.unitsRoundedUp(ml)) \(VolumeUnit.ounceSymbol)" }
+        return volume(Int((Double(max(0, ml)) / 50).rounded(.up)) * 50)
     }
 
     /// «850 мл», «1,05 л», «2 л». Кома — лише тут: в інтерфейсі застосунку свій формат
     /// (`Volume.litersLabel`), і e2e на нього спираються (рішення від 04.10.2026).
-    static func volume(_ ml: Int) -> String {
+    static func volume(_ ml: Int, _ unit: VolumeUnit = .milliliters) -> String {
+        guard unit.isMetric else { return unit.format(ml) { "\($0)" } }
         guard ml >= 1000 else { return "\(ml) мл" }
         var text = String(format: "%.2f", Double(ml) / 1000)
         while text.hasSuffix("0") { text.removeLast() }

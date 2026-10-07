@@ -128,6 +128,8 @@ public struct AchievementDefinition: Sendable, Identifiable {
     public let target: Double
     public let rewardXp: Int
     public let isSecret: Bool
+    /// Опис з об'ємом у системі людини, якщо це не мілілітри: «34 oz за один раз» (WAT-46).
+    public let volumeDetails: (@Sendable (String) -> String)?
 
     public var id: String { key }
 
@@ -135,6 +137,7 @@ public struct AchievementDefinition: Sendable, Identifiable {
         key: String,
         title: String,
         details: String,
+        volumeDetails: (@Sendable (String) -> String)? = nil,
         emoji: String,
         category: AchievementCategory,
         rule: MetricRule,
@@ -143,6 +146,7 @@ public struct AchievementDefinition: Sendable, Identifiable {
         isSecret: Bool = false
     ) {
         self.key = key
+        self.volumeDetails = volumeDetails
         self.title = title
         self.details = details
         self.emoji = emoji
@@ -188,7 +192,8 @@ public enum AchievementCatalog {
             target: 30, rewardXp: 300
         ),
         AchievementDefinition(
-            key: "big.gulp", title: "Великий ковток", details: "1 л за один раз", emoji: "🥤",
+            key: "big.gulp", title: "Великий ковток", details: "1 л за один раз",
+            volumeDetails: { "\($0) за один раз" }, emoji: "🥤",
             category: .volume,
             rule: MetricRule(key: .intakeAdded, period: .all, aggregate: .max),
             target: 1000, rewardXp: 50
