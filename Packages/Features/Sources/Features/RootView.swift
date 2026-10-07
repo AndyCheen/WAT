@@ -10,6 +10,8 @@ public enum AppRoute: Hashable {
     case achievements
     case prizes
     case stats
+    /// Екран «Налаштування» (WAT-15).
+    case settings
     /// Екран «Призи» з уже відкритою карткою — тап по порятунку серії веде в картку
     /// заморозки, бо заморожувати можна лише з неї (SPEC-NOTIFICATIONS §12.1).
     case prizeCard(String)
@@ -40,14 +42,12 @@ public struct RootView: View {
             NavigationStack(path: $path) {
                 HomeScreen(
                     services: services,
-                    themeMode: $themeMode,
-                    hapticsEnabled: $hapticsEnabled,
+                    onOpenSettings: { path.append(.settings) },
                     onOpenProgress: { path.append(.progress) },
                     onOpenLevelRoad: { path.append(.levelRoad) },
                     onOpenStats: { path.append(.stats) },
                     onOpenAchievements: { path.append(.achievements) },
                     onOpenPrize: { path.append(.prizeCard($0)) },
-                    onOpenNotifications: { path.append(.notifications) },
                     isOnTop: { path.isEmpty }
                 )
                 .wtHideNavigationBar()
@@ -82,6 +82,14 @@ public struct RootView: View {
             StatsScreen(services: services, onBack: { path.removeLast() })
         case .prizeCard(let key):
             PrizesScreen(services: services, onBack: { path.removeLast() }, focusKey: key)
+        case .settings:
+            SettingsScreen(
+                services: services,
+                themeMode: $themeMode,
+                hapticsEnabled: $hapticsEnabled,
+                onBack: { path.removeLast() },
+                onOpenNotifications: { path.append(.notifications) }
+            )
         case .notifications:
             NotificationsScreen(
                 services: services,

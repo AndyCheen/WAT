@@ -4,8 +4,8 @@ import Persistence
 import DesignSystem
 import Notifications
 
-/// Екран «Сповіщення» — рядки етапів A і B з SPEC-NOTIFICATIONS §15.1. Повна верстка — WAT-18
-/// разом з окремим вікном налаштувань (WAT-15); рядки етапу B — за макетом
+/// Екран «Сповіщення» — рядки етапів A і B з SPEC-NOTIFICATIONS §15.1. Відкривається з екрана
+/// «Налаштування» (WAT-15); повна верстка — WAT-18; рядки етапу B — за макетом
 /// Design/Notifications.html (кадр 7), тими самими компонентами.
 public struct NotificationsScreen: View {
     @Environment(\.wtTheme) private var theme

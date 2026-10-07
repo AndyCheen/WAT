@@ -7,40 +7,34 @@ import DesignSystem
 public struct HomeScreen: View {
     @Environment(\.wtTheme) private var theme
     @State private var model: HomeViewModel
-    @Binding private var themeMode: ThemeMode
-    @Binding private var hapticsEnabled: Bool
     private let services: AppServices
+    private let onOpenSettings: () -> Void
     private let onOpenProgress: () -> Void
     private let onOpenLevelRoad: () -> Void
     private let onOpenStats: () -> Void
     private let onOpenAchievements: () -> Void
     private let onOpenPrize: (String) -> Void
-    private let onOpenNotifications: () -> Void
     /// Головний — верхній екран стека. Пропозиція графіка не з'являється під іншим екраном (WAT-41).
     private let isOnTop: () -> Bool
 
     public init(
         services: AppServices,
-        themeMode: Binding<ThemeMode>,
-        hapticsEnabled: Binding<Bool>,
+        onOpenSettings: @escaping () -> Void,
         onOpenProgress: @escaping () -> Void,
         onOpenLevelRoad: @escaping () -> Void = {},
         onOpenStats: @escaping () -> Void,
         onOpenAchievements: @escaping () -> Void,
         onOpenPrize: @escaping (String) -> Void = { _ in },
-        onOpenNotifications: @escaping () -> Void = {},
         isOnTop: @escaping () -> Bool = { true }
     ) {
         self.services = services
         _model = State(initialValue: HomeViewModel(services: services))
-        _themeMode = themeMode
-        _hapticsEnabled = hapticsEnabled
+        self.onOpenSettings = onOpenSettings
         self.onOpenProgress = onOpenProgress
         self.onOpenLevelRoad = onOpenLevelRoad
         self.onOpenStats = onOpenStats
         self.onOpenAchievements = onOpenAchievements
         self.onOpenPrize = onOpenPrize
-        self.onOpenNotifications = onOpenNotifications
         self.isOnTop = isOnTop
     }
 
@@ -77,7 +71,6 @@ public struct HomeScreen: View {
             model.onOpenAchievements = onOpenAchievements
             model.onOpenPrize = onOpenPrize
             model.onOpenLevelRoad = onOpenLevelRoad
-            model.onOpenNotifications = onOpenNotifications
             model.reload()
         }
         .onChange(of: model.epoch) { model.reload() }
@@ -109,7 +102,7 @@ public struct HomeScreen: View {
 
     private var header: some View {
         HStack {
-            WTCircleButton(size: 42, action: { model.present(.settings) }) {
+            WTCircleButton(size: 42, action: onOpenSettings) {
                 WTIcons.gear(color: theme.accent)
             }
             .accessibilityIdentifier("home.settings")
@@ -330,11 +323,6 @@ public struct HomeScreen: View {
                     CustomAmountSheet(model: model)
                 case .calendar:
                     StreakCalendarSheet(model: model)
-                case .settings:
-                    SettingsSheet(
-                        model: model, themeMode: $themeMode,
-                        hapticsEnabled: $hapticsEnabled, services: services
-                    )
                 case .stats:
                     WeekStatsSheet(model: model)
                 case .permission:
