@@ -13,19 +13,22 @@ public struct SettingsScreen: View {
     @Binding private var hapticsEnabled: Bool
     private let onBack: () -> Void
     private let onOpenNotifications: () -> Void
+    private let onOpenPortionButtons: () -> Void
 
     public init(
         services: AppServices,
         themeMode: Binding<ThemeMode>,
         hapticsEnabled: Binding<Bool>,
         onBack: @escaping () -> Void,
-        onOpenNotifications: @escaping () -> Void
+        onOpenNotifications: @escaping () -> Void,
+        onOpenPortionButtons: @escaping () -> Void
     ) {
         _model = State(initialValue: SettingsModel(services: services))
         _themeMode = themeMode
         _hapticsEnabled = hapticsEnabled
         self.onBack = onBack
         self.onOpenNotifications = onOpenNotifications
+        self.onOpenPortionButtons = onOpenPortionButtons
     }
 
     public var body: some View {
@@ -59,6 +62,9 @@ public struct SettingsScreen: View {
                                onDecrement: { model.changeGoal(by: -250) },
                                onIncrement: { model.changeGoal(by: 250) })
             }
+            WTDivider()
+            WTNavigationRow("Кнопки порцій", value: model.quickAmountsSummary, action: onOpenPortionButtons)
+                .accessibilityIdentifier("settings.portions")
         }
     }
 

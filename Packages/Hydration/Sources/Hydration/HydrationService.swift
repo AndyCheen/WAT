@@ -205,8 +205,35 @@ public final class HydrationService {
 
     // MARK: - Пресети
 
-    public func quickAddAmounts() -> [Int] {
-        profiles.quickAddPresets().filter(\.enabled).sorted { $0.order < $1.order }.map(\.amountMl)
+    public func quickAddAmounts(_ place: PresetPlace = .home) -> [Int] {
+        profiles.quickAddPresets(place).filter(\.enabled).sorted { $0.order < $1.order }.map(\.amountMl)
+    }
+
+    /// Крок кнопки на екрані «Кнопки порцій» (WAT-45). Повертає нові значення місця.
+    @discardableResult
+    public func stepPreset(_ place: PresetPlace, at index: Int, up: Bool) -> [Int] {
+        let presets = profiles.quickAddPresets(place).sorted { $0.order < $1.order }
+        guard presets.indices.contains(index) else { return presets.map(\.amountMl) }
+        // Дублі дозволені: перескок зайнятого значення виглядав як баг і заважав переставляти кнопки.
+        let next = PresetRules.stepped(presets[index].amountMl, up: up)
+        if next != presets[index].amountMl { profiles.updatePreset(presets[index], amountMl: next) }
+        return quickAddAmounts(place)
+    }
+
+    public func resetPresets(_ place: PresetPlace) {
+        profiles.resetPresets(place)
+    }
+
+    // MARK: - Шторка «Інше» (WAT-45)
+
+    /// З чого відкривається шторка: останній доданий через неї об'єм, а вперше — 300 мл.
+    public func customAmountStart() -> Int {
+        profile.lastCustomAmountMl.map(Intake.clamp) ?? PresetRules.firstCustomAmountMl
+    }
+
+    public func rememberCustomAmount(_ ml: Int) {
+        profile.lastCustomAmountMl = Intake.clamp(ml)
+        profiles.save()
     }
 
     // MARK: - Внутрішнє

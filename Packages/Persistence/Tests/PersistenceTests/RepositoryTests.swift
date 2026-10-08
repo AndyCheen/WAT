@@ -53,9 +53,31 @@ final class RepositoryTests: XCTestCase {
     }
 
     func testQuickAddPresetsSeedOnceWithMockupValues() {
-        let first = profiles.quickAddPresets()
+        let first = profiles.quickAddPresets(.home)
         XCTAssertEqual(first.map(\.amountMl), [200, 500, 1000])
-        XCTAssertEqual(profiles.quickAddPresets().count, 3, "повторний виклик не дублює пресети")
+        XCTAssertEqual(profiles.quickAddPresets(.home).count, 3, "повторний виклик не дублює пресети")
+        XCTAssertEqual(profiles.quickAddPresets(.customSheet).map(\.amountMl), [150, 250, 350, 500])
+        XCTAssertEqual(profiles.quickAddPresets(.home).count, 3, "підказки шторки не змішуються з кнопками")
+    }
+
+    /// БД з часів, коли пресети були лише на головному (WAT-45): рядки без `placeRaw` — кнопки
+    /// головного, а підказки шторки досіюються окремо.
+    func testCustomSheetPresetsSeedNextToOldHomeOnes() {
+        container.mainContext.insert(QuickAddPreset(order: 0, amountMl: 300))
+        profiles.save()
+        XCTAssertEqual(profiles.quickAddPresets(.home).map(\.amountMl), [300])
+        XCTAssertEqual(profiles.quickAddPresets(.customSheet).map(\.amountMl), [150, 250, 350, 500])
+    }
+
+    func testResetPresetsRestoresDefaultsOfOnePlace() {
+        let home = profiles.quickAddPresets(.home)
+        profiles.updatePreset(home[0], amountMl: 250)
+        let sheet = profiles.quickAddPresets(.customSheet)
+        profiles.updatePreset(sheet[0], amountMl: 400)
+
+        profiles.resetPresets(.home)
+        XCTAssertEqual(profiles.quickAddPresets(.home).map(\.amountMl), [200, 500, 1000])
+        XCTAssertEqual(profiles.quickAddPresets(.customSheet).first?.amountMl, 400, "чуже місце не скидається")
     }
 
     // MARK: - Денні логи

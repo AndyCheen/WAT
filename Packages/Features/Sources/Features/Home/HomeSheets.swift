@@ -35,7 +35,7 @@ struct CustomAmountSheet: View {
                 .padding(.bottom, 22)
 
                 HStack(spacing: 8) {
-                    ForEach([150, 250, 350, 500], id: \.self) { value in
+                    ForEach(Array(model.customChips.enumerated()), id: \.offset) { _, value in
                         WTChip("\(value)", isSelected: model.customAmount == value) {
                             model.customAmount = value
                         }

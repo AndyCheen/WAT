@@ -188,6 +188,25 @@ final class SmokeUITests: XCTestCase {
         XCTAssertEqual(app.staticTexts["home.percent"].label, "25%")
     }
 
+    /// «Інше» відкривається з останнім доданим через нього об'ємом, а не з 300 мл (WAT-45).
+    func testCustomSheetOpensWithLastAmount() {
+        let app = launch(["--uitest-empty"])
+        XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
+
+        let confirm = app.buttons["custom.confirm"]
+        app.buttons["home.add.custom"].tap()
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        app.buttons["350"].tap()
+        confirm.tap()
+        XCTAssertTrue(confirm.waitForNonExistence(timeout: 5))
+        waitForToastToHide(app)
+
+        app.buttons["home.add.custom"].tap()
+        let value = app.staticTexts["custom.value"]
+        XCTAssertTrue(value.waitForExistence(timeout: 5))
+        XCTAssertEqual(value.label, "350")
+    }
+
     func testGoalChangeInSettingsRecalculatesProgress() {
         let app = launch(["--uitest-empty"])
         XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
@@ -419,6 +438,47 @@ final class SmokeUITests: XCTestCase {
         app.buttons["nav.back"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["home.percent"].isHittable)
+    }
+
+    /// «Кнопки порцій» (WAT-45): змінена кнопка з'являється на головному, підказка — у шторці «Інше».
+    func testPortionButtonsReachHomeAndCustomSheet() {
+        let app = launch(["--uitest-empty"])
+        XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
+
+        app.buttons["home.settings"].tap()
+        let row = app.buttons["settings.portions"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+
+        let first = app.staticTexts["portions.home.0"]
+        XCTAssertTrue(first.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["portions.home.reset"].exists, "типові — повертати нічого")
+        app.buttons["portions.home.0.plus"].tap()
+        XCTAssertEqual(first.label, "250 мл")
+        // До 1 л — мілілітри по 50, від 1 л — літри по 100 мл; кожен тап змінює підпис.
+        let second = app.staticTexts["portions.home.1"]
+        XCTAssertEqual(second.label, "500 мл")
+        app.buttons["portions.home.1.plus"].tap()
+        XCTAssertEqual(second.label, "550 мл")
+        app.buttons["portions.home.1.minus"].tap()
+        XCTAssertEqual(app.staticTexts["portions.home.2"].label, "1 л")
+        app.buttons["portions.home.2.plus"].tap()
+        XCTAssertEqual(app.staticTexts["portions.home.2"].label, "1.1 л", "від 1 л — крок 100 мл")
+        app.buttons["portions.home.2.minus"].tap()
+        app.buttons["portions.custom.3.plus"].tap()
+        XCTAssertEqual(app.staticTexts["portions.custom.3"].label, "550 мл")
+        XCTAssertTrue(app.buttons["portions.home.reset"].exists)
+
+        app.buttons["nav.back"].firstMatch.tap()
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertEqual(row.label.contains("250 мл"), true, "підпис рядка — нові кнопки")
+        app.buttons["nav.back"].firstMatch.tap()
+
+        XCTAssertTrue(app.buttons["home.add.250"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["home.add.200"].exists)
+        app.buttons["home.add.custom"].tap()
+        XCTAssertTrue(app.buttons["550"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["500"].exists)
     }
 
     // MARK: - Тема

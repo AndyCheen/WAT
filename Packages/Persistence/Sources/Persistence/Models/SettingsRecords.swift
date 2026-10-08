@@ -1,22 +1,39 @@
 import Foundation
 import SwiftData
 
-/// Кнопки швидкого додавання на головному екрані (ТЗ §4.1 — редаговані).
+/// Де живе кнопка-пресет: на головному чи підказкою в шторці «Інше» (WAT-45).
+public enum PresetPlace: Int, CaseIterable, Sendable {
+    case home = 0
+    case customSheet = 1
+
+    /// Кількість фіксована: три кнопки з «Інше» складають сітку 2×2, чотири чипи — ширину шторки.
+    public var defaults: [Int] {
+        switch self {
+        case .home: return [200, 500, 1000]
+        case .customSheet: return [150, 250, 350, 500]
+        }
+    }
+}
+
+/// Кнопки швидкого додавання на головному й підказки шторки «Інше» (ТЗ §4.1 — редаговані, WAT-45).
 @Model
 public final class QuickAddPreset {
     public var id: UUID = UUID()
+    /// `PresetPlace`; типове 0 — рядки зі старих БД, коли пресети були лише на головному.
+    public var placeRaw: Int = PresetPlace.home.rawValue
     public var order: Int = 0
     public var amountMl: Int = 200
     public var enabled: Bool = true
 
-    public init(id: UUID = UUID(), order: Int, amountMl: Int, enabled: Bool = true) {
+    public init(id: UUID = UUID(), place: PresetPlace = .home, order: Int, amountMl: Int, enabled: Bool = true) {
         self.id = id
+        self.placeRaw = place.rawValue
         self.order = order
         self.amountMl = amountMl
         self.enabled = enabled
     }
 
-    public static let defaults: [(order: Int, amountMl: Int)] = [(0, 200), (1, 500), (2, 1000)]
+    public var place: PresetPlace { PresetPlace(rawValue: placeRaw) ?? .home }
 }
 
 /// Тихий період: дні тижня + від–до (SPEC-NOTIFICATIONS §13.2). Те, що потрапило всередину,
