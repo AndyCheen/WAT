@@ -19,24 +19,24 @@ struct CustomAmountSheet: View {
                     .padding(.bottom, 20)
 
                 HStack(spacing: 22) {
-                    WTStepperButton("–") { model.stepCustom(-50) }
+                    WTStepperButton("–") { model.stepCustom(up: false) }
                     VStack(spacing: 0) {
-                        Text("\(model.customAmount)")
+                        Text(model.volumeUnit.number(model.customAmount))
                             .font(WTFont.number(52, .semibold))
                             .foregroundStyle(theme.textPrimary)
                             .accessibilityIdentifier("custom.value")
-                        Text("мл")
+                        Text(model.volumeUnit.symbol)
                             .font(WTFont.text(15, .bold))
                             .foregroundStyle(theme.textMuted)
                     }
                     .frame(minWidth: 120)
-                    WTStepperButton("+") { model.stepCustom(50) }
+                    WTStepperButton("+") { model.stepCustom(up: true) }
                 }
                 .padding(.bottom, 22)
 
                 HStack(spacing: 8) {
                     ForEach(Array(model.customChips.enumerated()), id: \.offset) { _, value in
-                        WTChip("\(value)", isSelected: model.customAmount == value) {
+                        WTChip(model.volumeUnit.number(value), isSelected: model.customAmount == value) {
                             model.customAmount = value
                         }
                     }
@@ -125,7 +125,7 @@ struct WeekStatsSheet: View {
                     bars: summary.bars.enumerated().map { index, bar in
                         WTBar(
                             id: bar.key, label: bar.label, value: Double(bar.ml),
-                            topLabel: Volume.litersLabel(bar.ml, fractionDigits: 1),
+                            topLabel: model.volumeUnit.format(bar.ml) { Volume.litersLabel($0, fractionDigits: 1) },
                             isHighlighted: index == summary.bars.count - 1
                         )
                     },
@@ -148,7 +148,7 @@ struct WeekStatsSheet: View {
 
     private func statCell(_ title: String, _ ml: Int) -> some View {
         VStack(spacing: 2) {
-            Text("\(Volume.litersLabel(ml, fractionDigits: 1)) л")
+            Text(model.volumeUnit.format(ml) { "\(Volume.litersLabel($0, fractionDigits: 1)) л" })
                 .font(WTFont.display(20, .semibold))
                 .foregroundStyle(theme.textPrimary)
             Text(title)

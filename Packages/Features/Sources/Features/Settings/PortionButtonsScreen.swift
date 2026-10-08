@@ -54,7 +54,7 @@ public struct PortionButtonsScreen: View {
                     ForEach(Array(amounts.enumerated()), id: \.offset) { index, ml in
                         if index > 0 { WTDivider() }
                         WTSettingRow("\(rowTitle) \(index + 1)") {
-                            WTValueStepper(HomeScreen.amountTitle(ml),
+                            WTValueStepper(HomeScreen.amountTitle(ml, model.volumeUnit),
                                            identifier: "\(prefix).\(index)",
                                            onDecrement: { model.step(place, at: index, up: false) },
                                            onIncrement: { model.step(place, at: index, up: true) })

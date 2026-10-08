@@ -86,42 +86,43 @@ struct TextComposer {
 
     private func fill(_ template: String, _ candidate: Candidate) -> String {
         var text = template
-        text = text.replacingOccurrences(of: "{glass}", with: NotificationFormat.volume(builder.preferences.glassMl))
+        let unit = builder.preferences.volumeUnit
+        text = text.replacingOccurrences(of: "{glass}", with: NotificationFormat.volume(builder.preferences.glassMl, unit))
         switch candidate.copy {
         case .reminder(_, let left, let last):
-            text = text.replacingOccurrences(of: "{left}", with: NotificationFormat.left(left))
+            text = text.replacingOccurrences(of: "{left}", with: NotificationFormat.left(left, unit))
             if let last {
                 let minutes = Int(candidate.item.fireAt.timeIntervalSince(last) / 60)
                 text = text.replacingOccurrences(of: "{since}", with: NotificationFormat.duration(minutes: minutes))
             }
         case .eveningClosable(let left, let streak):
-            text = text.replacingOccurrences(of: "{left}", with: NotificationFormat.left(left))
+            text = text.replacingOccurrences(of: "{left}", with: NotificationFormat.left(left, unit))
             if let streak { text = text.replacingOccurrences(of: "{streak}", with: NotificationFormat.days(streak)) }
         case .eveningSoothing(let total):
-            text = text.replacingOccurrences(of: "{total}", with: NotificationFormat.volume(total))
+            text = text.replacingOccurrences(of: "{total}", with: NotificationFormat.volume(total, unit))
         case .rescueEvening(let streak), .rescueMorning(let streak):
             text = text.replacingOccurrences(of: "{streak}", with: NotificationFormat.days(streak))
         case .checkpoint(let left, let deadline, let part, let xp):
-            text = text.replacingOccurrences(of: "{left}", with: NotificationFormat.left(left))
+            text = text.replacingOccurrences(of: "{left}", with: NotificationFormat.left(left, unit))
             text = text.replacingOccurrences(of: "{deadline}", with: clockLabel(deadline))
             text = text.replacingOccurrences(of: "{part}", with: part.title.lowercased())
             text = text.replacingOccurrences(of: "{xp}", with: "\(xp)")
         case .reportDay(let digest, let streak):
-            text = text.replacingOccurrences(of: "{report}", with: ReportText.day(digest, streak: streak))
+            text = text.replacingOccurrences(of: "{report}", with: ReportText.day(digest, streak: streak, unit: unit))
         case .reportWeek(let digest):
             text = text.replacingOccurrences(of: "{goalDays}", with: "\(digest.goalDays)")
                 .replacingOccurrences(of: "{dayCount}", with: "\(digest.dayCount)")
-                .replacingOccurrences(of: "{report}", with: ReportText.week(digest))
+                .replacingOccurrences(of: "{report}", with: ReportText.week(digest, unit: unit))
         case .reportMonth(let digest):
             text = text.replacingOccurrences(of: "{month}", with: ReportText.monthName(digest.period))
                 .replacingOccurrences(of: "{goalDaysPlural}", with: Plural.days(digest.goalDays))
-                .replacingOccurrences(of: "{report}", with: ReportText.month(digest))
+                .replacingOccurrences(of: "{report}", with: ReportText.month(digest, unit: unit))
         case .reportWeekMonth(let week, let month):
             text = text.replacingOccurrences(of: "{report}", with: ReportText.weekMonth(week: week, month: month))
         case .morning, .comeback:
             break
         }
-        return text
+        return VolumeUnit.tidy(text)
     }
 
     // MARK: - Вставки контексту (§12.2)

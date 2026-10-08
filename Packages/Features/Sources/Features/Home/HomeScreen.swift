@@ -207,7 +207,7 @@ public struct HomeScreen: View {
             // За позицією, а не значенням: дві однакові кнопки — вибір людини (WAT-45), а однакові
             // ідентифікатори в одному `LazyVGrid` злили б комірки.
             ForEach(Array(model.quickAmounts.enumerated()), id: \.offset) { _, amount in
-                WTQuickButton(Self.amountTitle(amount)) { model.add(amount) }
+                WTQuickButton(Self.amountTitle(amount, model.volumeUnit)) { model.add(amount) }
                     .accessibilityIdentifier("home.add.\(amount)")
             }
             WTQuickButton("Інше", isAccent: true) { model.openCustom() }
@@ -219,7 +219,9 @@ public struct HomeScreen: View {
     /// Підпис кнопки порції — один для головного й екрана «Кнопки порцій» (WAT-45): до 1 л — мілілітри,
     /// далі літри з тими знаками, що потрібні, — «1 л», «1.05 л», «1.5 л». Не «0.5 л» з макета 1a:
     /// з одним знаком після коми крок 50 мл двічі показував те саме число.
-    static func amountTitle(_ ml: Int) -> String {
+    /// В унціях — «8 унц.» (WAT-46).
+    static func amountTitle(_ ml: Int, _ unit: VolumeUnit = .milliliters) -> String {
+        guard unit.isMetric else { return unit.portion(ml) }
         guard ml >= 1000 else { return "\(ml) мл" }
         var liters = Volume.litersLabel(ml, fractionDigits: 2)
         while liters.hasSuffix("0") { liters.removeLast() }
@@ -274,7 +276,7 @@ public struct HomeScreen: View {
             } else {
                 ForEach(Array(model.history.enumerated()), id: \.element.id) { index, item in
                     WTHistoryRow(
-                        amountLabel: "\(item.amountMl) мл",
+                        amountLabel: model.volumeUnit.portion(item.amountMl),
                         timeLabel: item.timeLabel,
                         isLast: index == model.history.count - 1,
                         isOpen: model.openHistoryId == item.id,

@@ -27,7 +27,7 @@ final class PortionButtonsFeatureTests: XCTestCase {
         model.openCustom()
         XCTAssertEqual(model.customAmount, 300, "уперше — як до WAT-45")
 
-        model.stepCustom(150)
+        for _ in 0..<3 { model.stepCustom(up: true) }
         model.confirmCustom()
         model.customAmount = 100                     // будь-що між відкриттями
         model.openCustom()

@@ -50,4 +50,9 @@ public struct MetricKey: RawRepresentable, Hashable, Codable, Sendable, Expressi
     }
 
     public static let dayParts: [MetricKey] = [partMorning, partNoon, partAfternoon, partEvening, partNight]
+
+    /// Значення в мілілітрах — підпис прогресу показується в системі об'єму людини (WAT-46).
+    public var isVolume: Bool {
+        self == .intakeAdded || self == .dayTotal || Self.dayParts.contains(self)
+    }
 }

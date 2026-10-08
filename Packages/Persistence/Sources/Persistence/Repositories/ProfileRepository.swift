@@ -84,7 +84,7 @@ public final class ProfileRepository: ProfileRepositoryProtocol {
         )
         let existing = (try? context.fetch(descriptor)) ?? []
         if !existing.isEmpty { return existing }
-        let created = place.defaults.enumerated().map { QuickAddPreset(place: place, order: $0, amountMl: $1) }
+        let created = place.defaults(for: profile().volumeUnit).enumerated().map { QuickAddPreset(place: place, order: $0, amountMl: $1) }
         created.forEach { context.insert($0) }
         save()
         return created
@@ -96,7 +96,7 @@ public final class ProfileRepository: ProfileRepositoryProtocol {
     }
 
     public func resetPresets(_ place: PresetPlace) {
-        for (preset, amount) in zip(quickAddPresets(place), place.defaults) {
+        for (preset, amount) in zip(quickAddPresets(place), place.defaults(for: profile().volumeUnit)) {
             preset.amountMl = amount
             preset.enabled = true
         }

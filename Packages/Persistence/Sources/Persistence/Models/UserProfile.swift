@@ -69,6 +69,13 @@ public final class UserProfile {
         set { climateRaw = newValue.rawValue }
     }
 
+    /// Система об'єму (WAT-46). Змінювати — через `HydrationService.setVolumeUnit(_:)`: він же
+    /// переводить кнопки порцій на сітку нової системи.
+    public var volumeUnit: VolumeUnit {
+        get { VolumeUnit(rawValue: volumeUnitRaw) ?? .milliliters }
+        set { volumeUnitRaw = newValue.rawValue }
+    }
+
     public var themeMode: ThemeMode {
         get { ThemeMode(rawValue: themeModeRaw) ?? .system }
         set { themeModeRaw = newValue.rawValue }

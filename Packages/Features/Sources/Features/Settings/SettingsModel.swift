@@ -3,6 +3,7 @@ import Observation
 import SwiftUI
 import Core
 import Persistence
+import Hydration
 
 /// Екран «Налаштування» (WAT-15): денна мета, ритм дня, вхід у «Сповіщення», вібрація, тема.
 ///
@@ -33,15 +34,43 @@ public final class SettingsModel {
 
     // MARK: - Денна мета
 
-    public var goalLabel: String { "\(Volume.litersLabel(goalMl, fractionDigits: 1)) л" }
+    public var goalLabel: String {
+        volumeUnit.format(goalMl) { "\(Volume.litersLabel($0, fractionDigits: 1)) л" }
+    }
 
-    public func changeGoal(by delta: Int) {
-        goalMl = services.hydration.setGoal(goalMl + delta).goalMl
+    /// Підпис кроку мети: «Крок — 100 мл» / «Крок — 4 унц.».
+    public var goalStepLabel: String {
+        "Крок — " + volumeUnit.portion(volumeUnit.milliliters(units: VolumeSteps.goal(volumeUnit).fine))
+    }
+
+    /// ±100 мл або ±4 унц. (`VolumeSteps.goal`, WAT-46).
+    public func stepGoal(up: Bool) {
+        goalMl = services.hydration.stepGoal(up: up).goalMl
+        services.touch()
+    }
+
+    // MARK: - Система об'єму (WAT-46)
+
+    public var volumeUnit: VolumeUnit { services.profile.volumeUnit }
+
+    /// Як виглядатимуть числа: «250 мл · 2 л» / «8 унц. · 64 унц.» (64 — звична в США денна норма).
+    public var volumeUnitExample: String {
+        volumeUnit.isMetric ? "250 мл · 2 л" : [8, 64].map { volumeUnit.portion(volumeUnit.milliliters(units: $0)) }.joined(separator: " · ")
+    }
+
+    /// Перемикає систему й переводить кнопки порцій; `touch()` — тексти сповіщень перескладаються одразу.
+    public func setVolumeUnit(_ unit: VolumeUnit) {
+        services.hydration.setVolumeUnit(unit)
+        quickAmounts = services.hydration.quickAddAmounts()
         services.touch()
     }
 
     public var quickAmountsSummary: String {
-        quickAmounts.map(HomeScreen.amountTitle).joined(separator: " · ")
+        // В унціях позначення одне на всіх: «8 унц. · 16 унц. · 32 унц.» не вміщалось у рядок.
+        guard volumeUnit.isMetric else {
+            return quickAmounts.map(volumeUnit.number).joined(separator: " · ") + " " + VolumeUnit.ounceSymbol
+        }
+        return quickAmounts.map { HomeScreen.amountTitle($0, volumeUnit) }.joined(separator: " · ")
     }
 
     // MARK: - Сповіщення

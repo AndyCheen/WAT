@@ -13,12 +13,13 @@ final class CopyCatalogTests: XCTestCase {
     ]
 
     /// Найгірші значення плейсхолдерів — найдовші рядки, які реально можуть з'явитися.
-    private func worstCase(_ text: String) -> String {
-        text.replacingOccurrences(of: "{left}", with: "1,95 л")
-            .replacingOccurrences(of: "{glass}", with: "500 мл")
+    private func worstCase(_ text: String, ounces: Bool = false) -> String {
+        // В унціях (WAT-46) — норма до 5 л: «170 унц.», склянка до 500 мл: «18 унц.».
+        text.replacingOccurrences(of: "{left}", with: ounces ? "170 унц." : "1,95 л")
+            .replacingOccurrences(of: "{glass}", with: ounces ? "18 унц." : "500 мл")
             .replacingOccurrences(of: "{streak}", with: Plural.days(365))
             .replacingOccurrences(of: "{since}", with: "11 год 55 хв")
-            .replacingOccurrences(of: "{total}", with: "1,95 л")
+            .replacingOccurrences(of: "{total}", with: ounces ? "170 унц." : "1,95 л")
             .replacingOccurrences(of: "{deadline}", with: "12:00")
             .replacingOccurrences(of: "{part}", with: "полудень")
             .replacingOccurrences(of: "{xp}", with: "20")
@@ -38,6 +39,8 @@ final class CopyCatalogTests: XCTestCase {
         for variant in NotificationCopy.all {
             XCTAssertLessThanOrEqual(worstCase(variant.title).count, 30, variant.title)
             XCTAssertLessThanOrEqual(worstCase(variant.body).count, 100, variant.body)
+            XCTAssertLessThanOrEqual(worstCase(variant.title, ounces: true).count, 30, variant.title)
+            XCTAssertLessThanOrEqual(worstCase(variant.body, ounces: true).count, 100, variant.body)
         }
     }
 
@@ -103,6 +106,14 @@ final class CopyCatalogTests: XCTestCase {
         XCTAssertEqual(NotificationFormat.duration(minutes: 100), "1 год 40 хв")
         XCTAssertEqual(NotificationFormat.duration(minutes: 120), "2 год")
         XCTAssertEqual(NotificationFormat.duration(minutes: 45), "45 хв")
+    }
+
+    /// Унції (WAT-46): цілі, «бракує» — вгору, щоб не недобрати.
+    @MainActor
+    func testOunceFormats() {
+        XCTAssertEqual(NotificationFormat.volume(2000, .usFluidOunces), "68 унц.")
+        XCTAssertEqual(NotificationFormat.left(240, .usFluidOunces), "9 унц.")
+        XCTAssertEqual(NotificationService.categories(glassMl: 237, unit: .usFluidOunces).first?.actions.first?.title, "+8 унц.")
     }
 }
 

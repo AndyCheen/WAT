@@ -107,7 +107,7 @@ public struct NotificationsScreen: View {
             }
             WTDivider()
             WTSettingRow("Моя склянка", subtitle: "Для «+склянка» в сповіщеннях") {
-                WTValueStepper("\(model.profile.glassMl) мл", identifier: "notifications.glass",
+                WTValueStepper(model.profile.volumeUnit.portion(model.profile.glassMl), identifier: "notifications.glass",
                                onDecrement: { model.stepGlass(-1) }, onIncrement: { model.stepGlass(1) })
             }
         }
@@ -153,6 +153,12 @@ public struct NotificationsScreen: View {
 
     // MARK: - Протягом дня
 
+    /// Приклад тексту чекпоінта в системі людини (WAT-46): «150 мл» / «5 унц.».
+    private var dayPartExample: String {
+        let unit = model.profile.volumeUnit
+        return unit.portion(unit.isMetric ? 150 : unit.milliliters(units: 5))
+    }
+
     private var duringDay: some View {
         section("ПРОТЯГОМ ДНЯ") {
             WTSettingRow("Нагадування пити", subtitle: "Коли відстаєш від свого темпу") {
@@ -178,7 +184,8 @@ public struct NotificationsScreen: View {
             // Без ритму дня чекпоінтів немає зовсім (WAT-42) — перемикач, що нічого не змінює, не показуємо.
             if model.profile.dayRhythmEnabled {
                 WTDivider()
-                WTSettingRow("Частини доби", subtitle: "«До 12:00 — ще 150 мл», якщо можна встигнути") {
+                WTSettingRow("Частини доби",
+                             subtitle: "«До 12:00 — ще \(dayPartExample)», якщо можна встигнути") {
                     WTToggle(isOn: model.toggle(\.checkpointsEnabled)).accessibilityIdentifier("notifications.checkpoints")
                 }
             }

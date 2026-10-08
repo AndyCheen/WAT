@@ -85,7 +85,7 @@ public struct StatsScreen: View {
                     ForEach(report.rows) { row in
                         WTEvennessRowView(
                             label: row.label,
-                            valueLabel: "\(row.ml) мл",
+                            valueLabel: model.volumeUnit.portion(row.ml),
                             fraction: row.fraction,
                             tickFraction: row.tickFraction
                         )
@@ -233,14 +233,14 @@ public struct StatsScreen: View {
                 }
                 .padding(.bottom, 4)
 
-                Text("\(detail.title) · \(detail.litersLabel) л · \(detail.completionPct)% від норми")
+                Text("\(detail.title) · \(model.volumeUnit.format(detail.totalMl) { _ in "\(detail.litersLabel) л" }) · \(detail.completionPct)% від норми")
                     .font(WTFont.text(12, .bold))
                     .foregroundStyle(theme.textMuted)
                     .padding(.bottom, 16)
 
                 WTBarChart(
                     bars: detail.rhythm.map {
-                        WTBar(id: "\($0.id)", label: $0.label, value: Double($0.ml), topLabel: "\($0.ml)")
+                        WTBar(id: "\($0.id)", label: $0.label, value: Double($0.ml), topLabel: model.volumeUnit.number($0.ml))
                     },
                     maxValue: Double(max(detail.rhythm.map(\.ml).max() ?? 1, 1)),
                     height: 110,
@@ -256,7 +256,7 @@ public struct StatsScreen: View {
                 if detail.hasEntries {
                     ForEach(Array(detail.entries.enumerated()), id: \.element.id) { index, entry in
                         WTHistoryStaticRow(
-                            amountLabel: "\(entry.amountMl) мл",
+                            amountLabel: model.volumeUnit.portion(entry.amountMl),
                             timeLabel: entry.timeLabel,
                             isLast: index == detail.entries.count - 1
                         )

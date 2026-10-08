@@ -157,6 +157,13 @@ public final class HydrationService {
         profiles.currentGoalMl(on: day ?? calendar.today)
     }
 
+    /// Крок норми на екрані «Налаштування»: 100 мл або 4 унц. (`VolumeSteps.goal`).
+    @discardableResult
+    public func stepGoal(up: Bool) -> DaySnapshot {
+        let unit = profile.volumeUnit
+        return setGoal(unit.stepped(currentGoal(), up: up, grid: VolumeSteps.goal(unit)))
+    }
+
     /// Встановлює нову норму з поточного дня і підлаштовує сьогоднішній день.
     @discardableResult
     public func setGoal(_ ml: Int, source: GoalSource = .manual, at date: Date? = nil) -> DaySnapshot {
@@ -215,7 +222,7 @@ public final class HydrationService {
         let presets = profiles.quickAddPresets(place).sorted { $0.order < $1.order }
         guard presets.indices.contains(index) else { return presets.map(\.amountMl) }
         // Дублі дозволені: перескок зайнятого значення виглядав як баг і заважав переставляти кнопки.
-        let next = PresetRules.stepped(presets[index].amountMl, up: up)
+        let next = PresetRules.stepped(presets[index].amountMl, up: up, unit: profile.volumeUnit)
         if next != presets[index].amountMl { profiles.updatePreset(presets[index], amountMl: next) }
         return quickAddAmounts(place)
     }
@@ -231,8 +238,40 @@ public final class HydrationService {
         profile.lastCustomAmountMl.map(Intake.clamp) ?? PresetRules.firstCustomAmountMl
     }
 
+    public func steppedCustomAmount(_ ml: Int, up: Bool) -> Int {
+        let unit = profile.volumeUnit
+        return Intake.clamp(unit.stepped(ml, up: up, grid: VolumeSteps.custom(unit)))
+    }
+
     public func rememberCustomAmount(_ ml: Int) {
         profile.lastCustomAmountMl = Intake.clamp(ml)
+        profiles.save()
+    }
+
+    // MARK: - Система об'єму (WAT-46)
+
+    public var volumeUnit: VolumeUnit { profile.volumeUnit }
+
+    /// Перемикає систему й переводить кнопки порцій: ті, що стоять на типових старої системи, стають
+    /// типовими нової (8 · 16 · 32 унц., а не «7 · 17 · 34»); змінені вручну — на найближчий вузол нової
+    /// сітки. Так само «останній об'єм Інше». Норма, склянка й нараховане не чіпаються — лише показ.
+    public func setVolumeUnit(_ unit: VolumeUnit) {
+        let old = profile.volumeUnit
+        guard unit != old else { return }
+        profile.volumeUnit = unit
+        for place in PresetPlace.allCases {
+            let presets = profiles.quickAddPresets(place).sorted { $0.order < $1.order }
+            let amounts = presets.map(\.amountMl)
+            let target = amounts == place.defaults(for: old)
+                ? place.defaults(for: unit)
+                : amounts.map { Intake.clamp(unit.snapped($0, grid: VolumeSteps.preset(unit))) }
+            for (preset, amount) in zip(presets, target) where preset.amountMl != amount {
+                profiles.updatePreset(preset, amountMl: amount)
+            }
+        }
+        if let last = profile.lastCustomAmountMl {
+            profile.lastCustomAmountMl = Intake.clamp(unit.snapped(last, grid: VolumeSteps.custom(unit)))
+        }
         profiles.save()
     }
 

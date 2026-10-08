@@ -24,13 +24,13 @@ final class SettingsFeatureTests: XCTestCase {
 
         let settings = SettingsModel(services: services)
         XCTAssertEqual(settings.goalLabel, "2.0 л")
-        settings.changeGoal(by: 250)
-        XCTAssertEqual(settings.goalMl, 2250)
-        XCTAssertEqual(settings.goalLabel, "2.2 л", "2250 мл → «2.2 л», як і було в шторці")
+        settings.stepGoal(up: true)
+        XCTAssertEqual(settings.goalMl, 2100, "крок — 100 мл")
+        XCTAssertEqual(settings.goalLabel, "2.1 л")
 
         home.reload()
-        XCTAssertEqual(home.day.goalMl, 2250)
-        XCTAssertEqual(home.pctLabel, "22%")
+        XCTAssertEqual(home.day.goalMl, 2100)
+        XCTAssertEqual(home.pctLabel, "24%")
     }
 
     func testThemeAndHapticsArePersisted() {

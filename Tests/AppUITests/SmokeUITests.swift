@@ -218,10 +218,10 @@ final class SmokeUITests: XCTestCase {
         XCTAssertEqual(goal.label, "2.0 л")
 
         app.buttons["settings.goal.plus"].tap()
-        XCTAssertEqual(goal.label, "2.2 л", "2000 + 250 мл = 2250 → «2.2 л»")
+        XCTAssertEqual(goal.label, "2.1 л", "крок — 100 мл")
 
         app.buttons["nav.back"].tap()
-        XCTAssertEqual(app.staticTexts["home.percent"].label, "22%", "прогрес перерахований під нову норму")
+        XCTAssertEqual(app.staticTexts["home.percent"].label, "24%", "прогрес перерахований під нову норму")
     }
 
     // MARK: - Навігація
@@ -479,6 +479,35 @@ final class SmokeUITests: XCTestCase {
         app.buttons["home.add.custom"].tap()
         XCTAssertTrue(app.buttons["550"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["500"].exists)
+    }
+
+    /// Системи об'єму (WAT-46): «Унції» переводять кнопки, кільце й мету в унції; «Мілілітри» — повертають як було.
+    func testVolumeUnitSwitchesToOuncesAndBack() {
+        let app = launch(["--uitest-empty"])
+        XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
+
+        app.buttons["home.settings"].tap()
+        let ounces = app.buttons["Унції"]
+        XCTAssertTrue(ounces.waitForExistence(timeout: 5))
+        ounces.tap()
+        XCTAssertEqual(app.staticTexts["settings.goal"].label, "68 унц.")
+        XCTAssertTrue(app.buttons["settings.portions"].label.contains("8 · 16 · 32 унц."))
+        app.buttons["nav.back"].firstMatch.tap()
+
+        let cup = app.buttons["home.add.237"]
+        XCTAssertTrue(cup.waitForExistence(timeout: 5))
+        XCTAssertEqual(cup.label, "8 унц.")
+        cup.tap()
+        XCTAssertEqual(app.staticTexts["home.volume"].label, "8 / 68 унц.")
+        waitForToastToHide(app)
+
+        app.buttons["home.settings"].tap()
+        XCTAssertTrue(app.buttons["Мілілітри"].waitForExistence(timeout: 5))
+        app.buttons["Мілілітри"].tap()
+        XCTAssertEqual(app.staticTexts["settings.goal"].label, "2.0 л")
+        app.buttons["nav.back"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["home.add.200"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["home.volume"].label, "0.24 / 2.0 л")
     }
 
     // MARK: - Тема

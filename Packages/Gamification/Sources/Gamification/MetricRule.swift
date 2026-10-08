@@ -49,6 +49,12 @@ public struct MetricRule: Sendable {
         self.source = source
     }
 
+    /// Правило рахує мілілітри — підпис прогресу показується в системі об'єму людини (WAT-46).
+    public var measuresVolume: Bool {
+        if case .metric(let key, _, _) = source { return key.isVolume }
+        return false
+    }
+
     public init(key: MetricKey, period: MetricPeriodType = .all, aggregate: Aggregate = .sum) {
         self.source = .metric(key, period, aggregate)
     }
