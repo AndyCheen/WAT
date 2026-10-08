@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WaterTracker — віджети (WAT-30)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Токени — DESIGN-TOKENS.md §2. Кадр 402×874, 1px = 1pt. Розміри віджетів — iPhone 16 Pro (402 pt):
+   малий 170×170, середній 364×170, великий 364×382, радіус ~22. Нових кольорів немає, крім
+   «глибокої води» тла «Запасу» — це кінці градієнта кільця (#6bb6f2 → #3b6ef5), і тонованого режиму iOS 18. */
+:root{--orange:#ff8a3d;--success:#3ea86b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#e9eef5;font-family:Nunito,system-ui,sans-serif;color:#1f4a72;padding:40px 28px 80px}
+h1{font-size:20px;font-weight:800;margin-bottom:6px}
+h2{font-size:16px;font-weight:800;margin:44px 0 6px}
+.lead{font-size:13px;font-weight:700;color:#5c7291;margin-bottom:18px;max-width:1100px;line-height:1.5}
+.lead b{color:#1f4a72}
+code{font-size:12px}
+.row{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+.frame-wrap{width:402px}
+.frame-wrap.wide{width:874px}
+.frame-cap{font-size:12px;font-weight:800;letter-spacing:.3px;color:#5c7291;margin-bottom:8px;text-transform:uppercase}
+.frame-cap em{font-style:normal;color:#3ea86b}
+.frame-note{font-size:12px;font-weight:700;color:#5c7291;margin-top:10px;line-height:1.45}
+.frame-note b{color:#1f4a72}
+.frame{width:402px;height:874px;border-radius:38px;position:relative;overflow:hidden;box-shadow:0 18px 50px rgba(31,74,114,.18);user-select:none}
+.num{font-family:Fredoka,Nunito,sans-serif}
+
+/* ---------- панель керування ---------- */
+.ctl{background:#fff;border-radius:18px;padding:16px 18px;max-width:1262px;display:grid;grid-template-columns:1fr 1fr;gap:14px 28px;
+     box-shadow:0 6px 20px rgba(31,74,114,.08)}
+.ctl label{font-size:12px;font-weight:900;color:#5c7291;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:6px}
+.time{display:flex;align-items:center;gap:14px}
+.time input{flex:1;accent-color:#5aa9f0}
+.time b{font-family:Fredoka;font-size:28px;font-weight:600;min-width:84px}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+.btns button{height:30px;padding:0 12px;border-radius:999px;border:0;background:#dbe6f3;color:#1f4a72;font:800 13px Nunito;cursor:pointer}
+.btns button.on{background:#5aa9f0;color:#fff}
+.btns button.go{background:#1f4a72;color:#fff}
+.chart{grid-column:1/-1}
+.chart svg{display:block;width:100%;height:120px}
+.chart .cap{font-size:12px;font-weight:700;color:#5c7291;margin-top:4px}
+.chart .cap b{color:#1f4a72}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(80px);background:#1f4a72;color:#fff;font:800 14px Nunito;
+       padding:12px 18px;border-radius:999px;transition:transform .3s;z-index:50;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ---------- теми віджетів ---------- */
+.t-light{--wbg:#fff;--wt:#1f4a72;--wm:#8aa1bd;--wa:#5aa9f0;--wtr:#e4f0fb;--wchip:#eaf4ff;--wbtn:#3d8fd6;--r1:#bfe3ff;--r2:#6bb6f2;
+  --ok:#3ea86b;--okbg:rgba(62,168,107,.12);--or:#ff8a3d;--deep1:#6bb6f2;--deep2:#3b6ef5;--ondeep:#fff;--ondeepm:rgba(255,255,255,.72);
+  --water1:#bfe3ff;--water2:#5aa9f0;--wall:linear-gradient(170deg,#bcdcff 0%,#e6d9f7 55%,#f7dfe6 100%);--lbl:#1f4a72}
+.t-dark{--wbg:#161f33;--wt:#eaf2ff;--wm:#8ba0bd;--wa:#7cc4ff;--wtr:rgba(255,255,255,.08);--wchip:#1e2b45;--wbtn:#bcd8ff;--r1:#8fd0ff;--r2:#3b6ef5;
+  --ok:#4cc27e;--okbg:rgba(76,194,126,.14);--or:#ff8a3d;--deep1:#24489e;--deep2:#0f1f45;--ondeep:#eaf2ff;--ondeepm:rgba(234,242,255,.62);
+  --water1:#8fd0ff;--water2:#3b6ef5;--wall:linear-gradient(170deg,#0d1a36 0%,#231a3d 60%,#120d1f 100%);--lbl:#eaf2ff}
+/* Тоновані віджети iOS 18: тло — темне скло з відтінком, «акцентна» група — колір відтінку (widgetAccentable),
+   решта — світла. Кольорів застосунку тут немає зовсім — так їх малює система. */
+.t-tint{--wbg:rgba(58,42,14,.62);--wt:#f7e9cc;--wm:rgba(247,233,204,.58);--wa:#ffc861;--wtr:rgba(255,200,97,.2);--wchip:rgba(255,200,97,.14);--wbtn:#ffc861;
+  --r1:#ffc861;--r2:#ffc861;--ok:#ffc861;--okbg:rgba(255,200,97,.14);--or:#ffc861;--deep1:rgba(58,42,14,.62);--deep2:rgba(58,42,14,.62);
+  --ondeep:#f7e9cc;--ondeepm:rgba(247,233,204,.58);--water1:#ffc861;--water2:#ffc861;--wall:linear-gradient(170deg,#3b2a10 0%,#1c1408 100%);--lbl:#f7e9cc}
+
+/* ---------- віджет ---------- */
+.w{position:relative;border-radius:22px;overflow:hidden;background:var(--wbg);color:var(--wt);flex:0 0 auto;
+   box-shadow:0 4px 18px rgba(20,40,80,.10)}
+.t-tint .w{backdrop-filter:blur(8px);box-shadow:none}
+.w.s{width:170px;height:170px}.w.m{width:364px;height:170px}.w.l{width:364px;height:382px}
+.w.deep{background:linear-gradient(160deg,var(--deep1),var(--deep2));color:var(--ondeep)}
+.w .pad{position:absolute;inset:0;padding:15px 16px}
+.w [data-link]{cursor:pointer}
+.w .lbl{font-size:12px;font-weight:900;letter-spacing:.3px;color:var(--wm);text-transform:uppercase}
+.w.deep .lbl{color:var(--ondeepm)}
+.w .big{font-family:Fredoka;font-weight:600;line-height:1}
+.w .mut{color:var(--wm);font-weight:700}
+.w.deep .mut{color:var(--ondeepm)}
+.ringbox{position:relative;flex:0 0 auto}
+.ringbox svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.ringbox .in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.bar{height:8px;border-radius:99px;background:var(--wtr);overflow:hidden;position:relative}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:99px;background:linear-gradient(90deg,var(--r1),var(--r2));transition:width .4s}
+.bar.ok i{background:var(--ok)}
+.stk{display:inline-flex;align-items:center;gap:3px;font-family:Fredoka;font-weight:600;font-size:15px;color:var(--or)}
+.chk{display:inline-flex;width:20px;height:20px;border-radius:50%;background:var(--ok);color:#fff;align-items:center;justify-content:center;font-size:11px;font-weight:900}
+.t-tint .chk{color:#3b2a10}
+/* кнопки порцій — Button(intent:) */
+.pb{border:0;border-radius:14px;background:var(--wchip);color:var(--wbtn);font:800 15px Nunito;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;transition:transform .12s}
+.pb:active{transform:scale(.94)}
+.pb.acc{background:var(--wa);color:#fff}
+.t-tint .pb.acc{color:#3b2a10}
+.w.deep .pb{background:rgba(255,255,255,.16);color:var(--ondeep)}
+.t-tint .w.deep .pb{background:var(--wchip);color:var(--wbtn)}
+.undo{display:inline-flex;align-items:center;height:30px;padding:0 14px;border-radius:99px;background:var(--wchip);color:var(--wbtn);font:800 13px Nunito;cursor:pointer;border:0}
+.w.deep .undo{background:rgba(255,255,255,.18);color:var(--ondeep)}
+.done{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;animation:fadein .3s}
+.done .dc{width:38px;height:38px;border-radius:50%;background:var(--ok);color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:900;
+          animation:pop .45s cubic-bezier(.22,1.6,.36,1)}
+.t-tint .done .dc{color:#3b2a10}
+.done b{font-family:Fredoka;font-size:22px;font-weight:600}
+@keyframes pop{0%{transform:scale(.2)}100%{transform:scale(1)}}
+@keyframes fadein{0%{opacity:0}100%{opacity:1}}
+/* хвиля — у віджеті вона нерухома (новий запис раз на 5 хв), тут рухається лише для наочності */
+@keyframes wave{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.wave{animation:wave 6s linear infinite}
+
+/* ---------- кадри ---------- */
+.home{position:absolute;inset:0;background:var(--wall)}
+.sbar{position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 34px;
+      font:700 16px system-ui;color:var(--lbl)}
+.grid{position:absolute;top:66px;left:19px;width:364px;display:flex;flex-wrap:wrap;gap:0 24px}
+.cell{display:flex;flex-direction:column;align-items:center;margin-bottom:14px}
+.cell small{font:600 11px system-ui;color:var(--lbl);margin-top:5px;opacity:.85}
+.dock{position:absolute;left:12px;right:12px;bottom:10px;height:92px;border-radius:34px;background:rgba(255,255,255,.28);backdrop-filter:blur(20px);
+      display:flex;align-items:center;justify-content:space-around;padding:0 14px}
+.t-dark .dock,.t-tint .dock{background:rgba(255,255,255,.10)}
+.dock i{width:62px;height:62px;border-radius:16px;background:rgba(255,255,255,.55)}
+.t-dark .dock i,.t-tint .dock i{background:rgba(255,255,255,.14)}
+.dots{position:absolute;bottom:112px;left:0;right:0;display:flex;justify-content:center;gap:7px}
+.dots i{width:7px;height:7px;border-radius:50%;background:var(--lbl);opacity:.3}.dots i.on{opacity:.9}
+
+/* ---------- екран блокування ---------- */
+.lock{position:absolute;inset:0;background:linear-gradient(165deg,#3e5f8f 0%,#1f2f52 55%,#141b30 100%);color:#fff;text-align:center}
+.lock .date{margin-top:74px;font:600 19px system-ui;opacity:.9}
+.lock .inline{font:600 15px system-ui;opacity:.92;margin-top:2px}
+.lock .clock{font:700 96px/1 system-ui;letter-spacing:-2px;margin-top:4px}
+.lock .acc{display:flex;justify-content:center;gap:10px;margin-top:16px}
+.acc-c{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.14);backdrop-filter:blur(10px);position:relative;display:flex;align-items:center;justify-content:center;flex-direction:column}
+.acc-c svg{position:absolute;inset:6px;transform:rotate(-90deg)}
+.acc-c b{font:700 17px system-ui}
+.acc-c small{font:600 10px system-ui;opacity:.8}
+.acc-r{width:158px;height:72px;border-radius:16px;background:rgba(255,255,255,.14);backdrop-filter:blur(10px);text-align:left;padding:8px 10px;
+       display:flex;flex-direction:column;justify-content:space-between}
+.acc-r .t1{font:700 11px system-ui;opacity:.75;letter-spacing:.2px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acc-r .t2{font:700 15px system-ui;white-space:nowrap}
+.acc-r .bar{height:5px;background:rgba(255,255,255,.25)}.acc-r .bar i{background:#fff}
+.acc-r .t3{font:600 11px system-ui;opacity:.8}
+.lock .ctrls{position:absolute;bottom:46px;left:46px;right:46px;display:flex;justify-content:space-between}
+.lock .ctrls i{width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.18);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;
+               font-style:normal;font:800 13px system-ui;cursor:pointer}
+.lock .notif{position:absolute;left:12px;right:12px;bottom:130px;background:rgba(255,255,255,.82);color:#111;border-radius:20px;padding:12px 14px;text-align:left;display:flex;gap:10px}
+.lock .notif .app{width:34px;height:34px;border-radius:9px;background:linear-gradient(160deg,#8fd0ff,#3b6ef5);flex:0 0 auto}
+.lock .notif b{font:800 13px Nunito;display:block}.lock .notif span{font:600 14px Nunito}
+
+.strip{display:flex;gap:12px;align-items:center;background:linear-gradient(165deg,#3e5f8f,#1f2f52);padding:16px;border-radius:20px;color:#fff;margin-top:12px;flex-wrap:wrap}
+
+/* ---------- StandBy ---------- */
+.standby{width:874px;height:402px;border-radius:38px;background:#000;position:relative;overflow:hidden;box-shadow:0 18px 50px rgba(31,74,114,.18);
+         display:flex;align-items:center;justify-content:center;gap:120px}
+.standby .w{background:transparent!important;box-shadow:none;transform:scale(1.9)}
+
+/* ---------- Пункт керування ---------- */
+.cc{position:absolute;inset:0;background:linear-gradient(165deg,#5b6d8a,#29324a);}
+.cc::after{content:"";position:absolute;inset:0;background:rgba(10,16,30,.45);backdrop-filter:blur(30px)}
+.ccg{position:absolute;top:120px;left:28px;right:28px;display:grid;grid-template-columns:repeat(4,72px);gap:14px;justify-content:space-between;z-index:2}
+.cct{height:72px;border-radius:22px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;color:#fff;font:700 22px system-ui}
+.cct.w2{grid-column:span 2;justify-content:flex-start;gap:12px;padding:0 14px;cursor:pointer}
+.cct.w2 .ic{width:46px;height:46px;border-radius:50%;background:#fff;color:#3b6ef5;display:flex;align-items:center;justify-content:center;font-size:20px}
+.cct.w2 b{font:700 15px system-ui;display:block}.cct.w2 small{font:600 12px system-ui;opacity:.75}
+.cct.big{grid-column:span 2;grid-row:span 2;height:auto}
+.action{position:absolute;z-index:3;left:-4px;top:74px;width:8px;height:40px;border-radius:4px;background:#ff8a3d}
+.action-note{position:absolute;z-index:3;left:16px;top:80px;font:800 13px Nunito;color:#fff;background:rgba(255,138,61,.9);padding:6px 10px;border-radius:12px}
+
+/* ---------- таблиця правил ---------- */
+table{border-collapse:collapse;max-width:1262px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 6px 20px rgba(31,74,114,.06)}
+th,td{text-align:left;font-size:12.5px;font-weight:700;color:#5c7291;padding:9px 12px;border-bottom:1px solid #edf2f8;vertical-align:top}
+th{font-weight:900;color:#1f4a72;background:#f4f8fd}
+td b{color:#1f4a72}
+</style>
+</head>
+<body>
+
+<h1>Віджети — WAT-30</h1>
+<p class="lead">
+  Усі віджети на одних даних. Перенесено рядок у рядок із <code>Core</code>: крива темпу <code>PaceCurve</code> зі спадом перед сном (WAT-43),
+  блоки <code>goalBlocks()</code> і формулу першого нагадування §6.2 (типова порція <b>P = 250 мл</b>, частота «звичайно»).
+  Тож числа збігаються з кодом. <b>Тисни кнопки на віджетах</b>: порція додається, з'являється «Скасувати», а «Запас води» підстрибує.
+  Тапи по решті віджета показують знизу, куди вони ведуть. Тягни час і перемикай тему. Вибрати треба вигляд
+  <b>«Запасу води»</b> (§3) і <b>«Огляду дня»</b> (§4). Решту — підтвердити або поправити.
+</p>
+
+<div class="ctl">
+  <div>
+    <label>Зараз</label>
+    <div class="time"><input id="t" type="range" min="360" max="1430" step="5" value="805"><b id="tl" class="num">13:25</b></div>
+  </div>
+  <div>
+    <label>Сценарій</label>
+    <div class="btns">
+      <button data-scn="ahead" class="go">Випереджаю</button><button data-scn="behind">Відстаю</button><button data-scn="morning">Ранок, ще нічого</button>
+      <button data-scn="goal">Норму закрито</button><button data-scn="night">Ніч</button>
+    </div>
+  </div>
+  <div>
+    <label>Тема · ритм дня</label>
+    <div class="btns">
+      <button data-theme="light" class="on">Світла</button><button data-theme="dark">Темна</button><button data-theme="tint">Тонована (iOS 18)</button>
+      <button id="rhythm" class="on">Ритм дня увімк.</button>
+    </div>
+  </div>
+  <div>
+    <label>Вигляд «Запасу води» · «Огляду дня»</label>
+    <div class="btns">
+      <button data-res="a" class="on">A · Крапля</button><button data-res="b">B · Колба</button><button data-res="c">C · Вода на все тло</button>
+      <span style="width:10px"></span>
+      <button data-ov="a" class="on">A · Панель</button><button data-ov="b">B · Графік дня</button>
+    </div>
+  </div>
+  <div class="chart">
+    <label>Запас води за день — так його порахує віджет</label>
+    <svg id="chart" viewBox="0 0 1220 120" preserveAspectRatio="none"></svg>
+    <div class="cap" id="chartcap"></div>
+  </div>
+</div>
+
+<h2>1. Головний екран — як це виглядає разом</h2>
+<p class="lead">Три сторінки домашнього екрана iPhone 16 Pro, віджети в справжньому розмірі. Під віджетом iOS сама пише назву застосунку.</p>
+<div class="row">
+  <div class="frame-wrap">
+    <div class="frame-cap">Сторінка 1 · стежити</div>
+    <div class="frame" id="home1"></div>
+    <div class="frame-note">
+      <b>Сьогодні</b> (S) — кільце дня, як на головному: відсоток, «1.25 / 2 л», «ще 750 мл»; серія — помаранчевою краплею, як у шапці.
+      <b>Частина доби</b> (S) — та сама ціль, що в капсули під кільцем і чекпоінта: «ще 150 мл до 12:00», XP за закриття.
+      <b>Запас води</b> (M) — крапля й три кнопки з головного. <b>Ритм дня</b> (M) — три блоки дня з ризкою «за темпом зараз»
+      і висновком «випереджаєш / відстаєш».
+    </div>
+  </div>
+  <div class="frame-wrap">
+    <div class="frame-cap">Сторінка 2 · додавати</div>
+    <div class="frame" id="home2"></div>
+    <div class="frame-note">
+      <b>Швидке додавання</b> (M) — кільце й кнопки головного; «Інше» відкриває шторку з останнім своїм об'ємом.
+      <b>Кнопка</b> (S) — одна або дві кнопки. Об'єм обирається в самому віджеті («Змінити віджет»): «Моя склянка»,
+      «Кнопка 1/2/3 з головного» (ідуть за застосунком) або будь-який об'єм із сітки 50 мл / 100 мл.
+      <b>Прогрес</b> (M) — рівень і XP, серія, завдання дня й тижня; тап — екран «Прогрес».
+    </div>
+  </div>
+  <div class="frame-wrap">
+    <div class="frame-cap">Сторінка 3 · усе в одному</div>
+    <div class="frame" id="home3"></div>
+    <div class="frame-note">
+      <b>Огляд дня</b> (L) — для тих, хто хоче один віджет на все. Тапи зонами: кільце → головний, ритм → статистика,
+      серія й рівень → прогрес. Під ним — малий «Запас води» в обраному вигляді.
+    </div>
+  </div>
+</div>
+
+<h2>2. Після тапу — «Скасувати»</h2>
+<p class="lead">
+  Кнопка у віджеті спрацьовує одразу, без відкриття застосунку. Тому випадковий тап має бути легко відкотити: <b>~1 хвилину</b>
+  місце кнопок займає «✓ +250 мл · Скасувати» (тут — 8 с). «Скасувати» прибирає саме цю порцію з тим самим відкатом XP, що й
+  видалення з історії. Підтвердження бачать усі віджети з кнопками, бо порція одна на всіх.
+  Якщо порція щось відкрила (рівень, досягнення), а застосунок закритий, приходить звичайне відлуння (SPEC-NOTIFICATIONS §12.1).
+</p>
+<div class="row t-light" id="undoRow"></div>
+
+<h2>3. «Запас води» — обери вигляд</h2>
+<p class="lead">
+  <b>Як рахується.</b> Порція піднімає рівень на свій об'єм; ємність краплі — дві типові порції (<b>2 × 250 = 500 мл</b>),
+  тож одна склянка — пів краплі. Далі рівень рівно спадає й <b>доходить до нуля за 10 хв до нагадування</b>. Час
+  нагадування береться з плану сповіщень (там уже враховано тишу й чекпоінти), тож віджет «спорожнів» — і за 10 хв дзенькне.
+  Без нагадувань (вимкнено, «Не сьогодні», пізній вечір) — до моменту, коли за кривою темпу настав час наступної порції.
+  Норму закрито — повільно до відбою. Нагадування відсувається, коли п'єш більше, тож більша порція — і вище, і довше.
+</p>
+<div class="row" id="resRow"></div>
+
+<h2>4. «Огляд дня» — обери вигляд</h2>
+<div class="row" id="ovRow"></div>
+
+<h2>5. Екран блокування, StandBy, Пункт керування</h2>
+<div class="row">
+  <div class="frame-wrap">
+    <div class="frame-cap">Екран блокування</div>
+    <div class="frame" id="lock"></div>
+    <div class="frame-note">
+      Над годинником — рядок «Сьогодні». Під ним — прямокутник «Частина доби», кільце «Сьогодні» й кільце «Запас»:
+      воно спадає саме, без оновлень (<code>ProgressView(timerInterval:)</code>). Знизу ліворуч замість ліхтарика —
+      «+250» з Пункту керування. Кнопки на екрані блокування працюють лише після розблокування — так вирішила iOS.
+    </div>
+    <div class="strip" id="accStrip"></div>
+  </div>
+  <div class="frame-wrap">
+    <div class="frame-cap">Пункт керування · кнопка дії</div>
+    <div class="frame" id="cc"></div>
+    <div class="frame-note">
+      Елемент iOS 18 «Вода +250 мл»: у Пункті керування, на екрані блокування й на <b>кнопці дії</b> iPhone 15 Pro і новіших.
+      Об'єм налаштовується так само, як у віджета «Кнопка». Підпис — сума дня. Тап додає порцію, застосунок не відкривається.
+    </div>
+  </div>
+  <div class="frame-wrap">
+    <div class="frame-cap">«Команди»</div>
+    <div class="frame-note" style="margin-top:0;background:#fff;border-radius:18px;padding:16px">
+      Дія <b>«Додати воду»</b> з параметром «Об'єм» з'являється в застосунку «Команди» сама. Це та сама дія, що в кнопок.
+      Її можна поставити в автоматизацію: «після тренування — +500 мл», «NFC-мітка на пляшці — +750 мл».
+      Порція записується з джерелом <code>shortcut</code>, у віджетах — <code>widget</code>, щоб потім було видно,
+      звідки вносять воду (ТЗ §2). Siri українською не говорить, тож голосових фраз не додаємо.
+    </div>
+  </div>
+</div>
+<div class="row" style="margin-top:28px">
+  <div class="frame-wrap wide">
+    <div class="frame-cap">StandBy — телефон на зарядці горизонтально</div>
+    <div class="standby" id="standby"></div>
+    <div class="frame-note">
+      У StandBy iOS прибирає тло віджетів і показує їх великими. Тому малі віджети не покладаються на білу картку:
+      кільце й крапля читаються на чорному.
+    </div>
+  </div>
+</div>
+
+<h2>6. Стани — однакові для всіх віджетів</h2>
+<table>
+  <tr><th style="width:190px">Стан</th><th>Що показують</th></tr>
+  <tr><td><b>До підйому</b></td><td>«Сьогодні» — 0 % і норма. «Частина доби» — «Підйом о 08:00». «Запас» — сон, крапля порожня. Кнопки працюють: порція до підйому рахується першому блоку (WAT-39).</td></tr>
+  <tr><td><b>Ранок, ще нічого</b></td><td>«Запас» порожній — «Почни зі склянки». «Частина доби» — уся ціль першого блоку.</td></tr>
+  <tr><td><b>Частину доби закрито</b></td><td>«✓ Ранок і полудень закрито» і що далі: «Далі день — 826 мл до 17:00».</td></tr>
+  <tr><td><b>Норму закрито</b></td><td>Кільце повне, «✓ Норму закрито». «Частина доби» показує те саме: ціль частини більше не важить. «Запас» спадає до відбою без «Час пити». Стеля 120 % — як на головному.</td></tr>
+  <tr><td><b>Після відбою</b></td><td>«Добраніч», підсумок дня; кнопки працюють.</td></tr>
+  <tr><td><b>Ритм дня вимкнено</b> (WAT-42)</td><td>«Частина доби» стає «До кінця дня — ще 750 мл до 22:00». «Ритм дня» і блок ритму в «Огляді» показують розподіл по блоках без цілей і висновку. XP за частини доби не пишеться.</td></tr>
+  <tr><td><b>Нова доба, застосунок не відкривали</b></td><td>Віджет сам рахує нову добу зі знімка: 0 мл, та сама норма, розклад будні/вихідні. Завдання — «Нові завдання — у застосунку». Серія — лише якщо вчора норму закрито.</td></tr>
+  <tr><td><b>Smart Stack</b></td><td>Віджет піднімається нагору стопки, коли «Запас» на нулі, частина доби спливає за 45 хв і ціль не закрито, а після 19:00 — якщо не закрито норму.</td></tr>
+</table>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- PaceCurve + goalBlocks + перше нагадування §6.2: перенесено з Core / Notifications ---------- */
+const PARTS=[
+  {key:'morning',title:'Ранок',h:[5,9],w:.20},{key:'noon',title:'Полудень',h:[9,12],w:.20},
+  {key:'afternoon',title:'День',h:[12,17],w:.30},{key:'evening',title:'Вечір',h:[17,22],w:.22},
+  {key:'night',title:'Ніч',h:[22,5],w:.08}];
+const piecesOf=p=>p.h[0]<p.h[1]?[[p.h[0]*60,p.h[1]*60]]:[[0,p.h[1]*60],[p.h[0]*60,1440]];
+function curve(goal,wake,sleep){
+  const taper=Math.max(wake,sleep-120),raw=[];
+  for(const p of PARTS){
+    const pc=piecesOf(p),full=pc.reduce((s,x)=>s+x[1]-x[0],0),per=p.w/full;
+    for(const [f,t] of pc){
+      const a=Math.max(f,wake),b=Math.min(t,sleep); if(b<=a)continue;
+      const sub=[];
+      if(a<taper){const e=Math.min(b,taper);sub.push({from:a,to:e,w:per*(e-a)});}
+      if(b>taper){const s=Math.max(a,taper);sub.push({from:s,to:b,w:per*.5*(b-s)});}
+      raw.push({part:p,from:a,to:b,sub});
+    }
+  }
+  raw.sort((x,y)=>x.from-y.from);
+  const tot=raw.reduce((s,r)=>s+r.sub.reduce((q,x)=>q+x.w,0),0),k=tot>0?goal/tot:0;
+  const pcs=raw.flatMap(r=>r.sub.map(x=>({from:x.from,to:x.to,ml:x.w*k})));
+  const E=m=>{if(m<=wake)return 0;if(m>=sleep)return goal;let s=0;for(const g of pcs){if(m>=g.to)s+=g.ml;else{if(m>g.from)s+=g.ml*(m-g.from)/(g.to-g.from);break;}}return s;};
+  const reach=ml=>{if(ml<=1e-6)return wake;if(ml>goal+1e-6)return null;let s=0;
+    for(const g of pcs){if(s+g.ml>=ml-1e-6){return g.ml>0?g.from+(g.to-g.from)*Math.max(0,Math.min(1,(ml-s)/g.ml)):g.from;}s+=g.ml;}return sleep;};
+  const rt=(a,b)=>Math.round(E(b))-Math.round(E(a));
+  let bl=raw.map(r=>({parts:[r.part],from:r.from,to:r.to})),i;
+  while(bl.length>1&&(i=bl.findIndex(b=>b.to-b.from<120))>=0){
+    const o=i<bl.length-1?i+1:i-1,f=Math.min(i,o),s=Math.max(i,o);
+    bl[f]={parts:bl[f].parts.concat(bl[s].parts),from:bl[f].from,to:bl[s].to};bl.splice(s,1);}
+  const blocks=bl.map((b,n)=>{const names=b.parts.map(p=>p.title.toLowerCase());
+    return {...b,target:rt(b.from,b.to),cFrom:n===0?0:b.from,cTo:n===bl.length-1?1440:b.to,
+      title:names.length>1?names.slice(0,-1).join(', ')+' і '+names.at(-1):names[0]};});
+  return {E,reach,blocks};
+}
+
+/* ---------- стан ---------- */
+const S={now:805,goal:2000,wake:480,sleep:1320,P:250,rhythm:true,theme:'light',res:'a',ov:'a',
+  presets:[200,500,1000],glass:250,streak:12,level:7,xp:[120,200],portions:[],last:null};
+const C=()=>2*S.P;
+const hm=m=>{m=Math.round(m);m=((m%1440)+1440)%1440;return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');};
+const hh=m=>String(Math.floor(m/60)).padStart(2,'0');
+const L=ml=>String(+(ml/1000).toFixed(2));                       // «1.25», як litersLabel на головному
+const amt=ml=>ml<1000?ml+' мл':L(ml)+' л';                       // HomeScreen.amountTitle
+const up50=ml=>Math.ceil(Math.max(0,ml)/50)*50;
+const dur=m=>{m=Math.max(1,Math.round(m));const h=Math.floor(m/60),r=m%60;return h===0?r+' хв':r===0?h+' год':h+' год '+r+' хв';};
+const cap=s=>s[0].toUpperCase()+s.slice(1);
+
+function nextRem(c,anchor,A){
+  if(A>=S.goal)return null;
+  const base=Math.max(A,c.E(anchor)),low=anchor+60,high=anchor+180,r=c.reach(base+S.P);
+  const first=Math.ceil(r!=null&&r<=high?Math.max(low,r):high);
+  return first<S.sleep-120?first:null;                            // далі — вечірній підсумок (§6.2)
+}
+function zeroFor(c,t,A){
+  if(A>=S.goal)return {z:S.sleep,why:'goal'};
+  const r=nextRem(c,t,A);
+  if(r==null)return {z:S.sleep,why:'late'};
+  return {z:Math.max(t+15,r-10),rem:r,why:'rem'};
+}
+/* Запас: програвання порцій дня. Повертає рівень о хвилині `at` і що буде далі. */
+function reserve(c,at){
+  let Lv=0,t=S.wake,z=null,A=0;
+  for(const p of S.portions){
+    if(p.m>at)break;
+    Lv=z?(p.m>=z.z?0:Lv*(z.z-p.m)/(z.z-t)):0;
+    Lv=Math.min(C(),Lv+p.ml);A+=p.ml;t=p.m;z=zeroFor(c,t,A);
+  }
+  const level=z?Lv*Math.max(0,Math.min(1,(z.z-at)/(z.z-t))):0;
+  return {level,frac:level/C(),z,t,L0:Lv,A};
+}
+
+function state(){
+  const c=curve(S.goal,S.wake,S.sleep),vis=S.portions.filter(p=>p.m<=S.now);
+  const total=vis.reduce((s,p)=>s+p.ml,0),counted=Math.min(total,S.goal*1.2);
+  const goalMet=counted>=S.goal,frac=Math.min(1,counted/S.goal),pct=Math.round(counted/S.goal*100);
+  const night=S.now<S.wake||S.now>=S.sleep;
+  const blocks=c.blocks.map(b=>{const d=vis.filter(p=>p.m>=b.cFrom&&p.m<b.cTo).reduce((s,p)=>s+p.ml,0);
+    const st=S.now>=b.to?'past':S.now>=b.from?'cur':'future';
+    const pace=st==='cur'?c.E(S.now)-c.E(b.from):st==='past'?b.target:0;
+    return {...b,drunk:d,ok:d>=b.target,st,pace};});
+  const cur=blocks.find(b=>b.st==='cur');
+  const delta=Math.round(total-c.E(S.now));
+  return {c,vis,total,counted,goalMet,frac,pct,night,blocks,cur,delta,res:reserve(c,S.now),
+    next:blocks.find(b=>b.st==='future')};
+}
+
+/* ---------- примітиви ---------- */
+let gid=0;
+function ring(size,stroke,f,track='var(--wtr)'){
+  const r=(size-stroke)/2,C2=2*Math.PI*r,id='g'+(gid++);
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2=".4">
+    <stop offset="0" stop-color="var(--r1)"/><stop offset="1" stop-color="var(--r2)"/></linearGradient></defs>
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${track}" stroke-width="${stroke}"/>
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="url(#${id})" stroke-width="${stroke}" stroke-linecap="round"
+      stroke-dasharray="${C2}" stroke-dashoffset="${C2*(1-Math.max(.001,f))}" style="transition:stroke-dashoffset .6s cubic-bezier(.22,1.2,.36,1)"/></svg>`;
+}
+const streakDrop=(n,s=15)=>`<span class="stk"><svg width="${s*.8}" height="${s}" viewBox="0 0 24 30"><path d="M12 1s11 12.5 11 19a11 10 0 0 1-22 0C1 13.5 12 1 12 1z" fill="var(--or)"/></svg>${n}</span>`;
+const lvlDrop=n=>`<span style="position:relative;display:inline-block;width:30px;height:36px"><svg width="30" height="36" viewBox="0 0 38 44"><path d="M19 1C19 1 2 20 2 29a17 15 0 0 0 34 0C36 20 19 1 19 1z" fill="var(--wa)"/></svg>
+  <b style="position:absolute;inset:11px 0 0;text-align:center;color:#fff;font:600 14px Fredoka">${n}</b></span>`;
+const btn=(ml,cls='',style='')=>`<button class="pb ${cls}" data-add="${ml}" style="${style}">${ml<1000?'+'+ml+' мл':'+'+L(ml)+' л'}</button>`;
+const shortBtn=(ml,style='')=>`<button class="pb" data-add="${ml}" style="${style}">${amt(ml)}</button>`;
+const link=(to,inner,style='')=>`<div data-link="${to}" style="${style}">${inner}</div>`;
+const lastLive=()=>S.last&&Date.now()-S.last.at<8000;
+function doneBlock(small){
+  return `<div class="done" style="height:100%"><div class="dc">✓</div><b>+${amt(S.last.ml)}</b>
+    <button class="undo" data-undo>Скасувати</button>${small?'':`<span class="mut" style="font-size:11px">додано о ${hm(S.last.m)}</span>`}</div>`;
+}
+
+/* ---------- 1. Сьогодні (S) ---------- */
+function wToday(st){
+  const sub=st.goalMet?`<span style="color:var(--ok);font-weight:900">✓ Норму закрито</span>`:`<span class="mut">ще ${amt(up50(S.goal-st.counted))}</span>`;
+  return `<div class="w s" data-link="головний"><div class="pad" style="display:flex;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;align-items:center"><span class="lbl">Сьогодні</span>${streakDrop(S.streak)}</div>
+    <div style="flex:1;display:flex;align-items:center;justify-content:center"><div class="ringbox" style="width:84px;height:84px">${ring(84,11,st.frac)}
+      <div class="in"><span class="big" style="font-size:24px">${st.pct}%</span></div></div></div>
+    <div style="text-align:center;line-height:1.25"><div style="font-weight:800;font-size:15px">${L(st.counted)} / ${L(S.goal)} л</div><div style="font-size:12px">${sub}</div></div>
+  </div></div>`;
+}
+
+/* ---------- 2. Частина доби (S) ---------- */
+function wPart(st){
+  let lbl,big,sub,f,foot,ok=false;
+  if(st.goalMet){lbl='Сьогодні';big=`<span class="chk" style="width:30px;height:30px;font-size:15px">✓</span>`;sub='Норму закрито';f=1;ok=true;foot=`${L(st.counted)} л за день`;}
+  else if(S.now<S.wake){lbl='Ще рано';big=`<span class="big" style="font-size:30px">${hm(S.wake)}</span>`;sub='підйом';f=0;foot=`ціль ранку — ${st.blocks[0].target} мл`;}
+  else if(S.now>=S.sleep){lbl='Добраніч';big=`<span class="big" style="font-size:30px">${st.pct}%</span>`;sub='норми за день';f=st.frac;foot=`завтра з ${hm(S.wake)}`;}
+  else if(!S.rhythm){lbl='До кінця дня';big=`<span class="big" style="font-size:30px">${up50(S.goal-st.counted)}</span> <span class="mut">мл</span>`;
+    sub=`ще до ${hm(S.sleep)}`;f=st.frac;foot=dur(S.sleep-S.now);}
+  else if(st.cur.ok){lbl=st.cur.title;ok=true;big=`<span class="chk" style="width:30px;height:30px;font-size:15px">✓</span>`;sub=cap(st.cur.title)+' закрито';f=1;
+    foot=st.next?`далі ${st.next.title} — ${st.next.target} мл`:'вечір закрито';}
+  else{lbl=st.cur.title;const left=up50(st.cur.target-st.cur.drunk);
+    big=`<span class="big" style="font-size:30px">${left<1000?left:L(left)}</span> <span class="mut">${left<1000?'мл':'л'}</span>`;
+    sub=`ще до ${hm(st.cur.to)}`;f=st.cur.drunk/st.cur.target;foot=`${dur(st.cur.to-S.now)} · <b style="color:var(--wbtn)">+10 XP</b>`;}
+  return `<div class="w s" data-link="головний"><div class="pad" style="display:flex;flex-direction:column;gap:6px">
+    <span class="lbl" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${lbl}</span>
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:2px">
+      <div style="display:flex;align-items:baseline;gap:2px">${big}</div>
+      <div style="font-weight:800;font-size:15px;${ok?'color:var(--ok)':''}">${sub}</div></div>
+    <div class="bar ${ok?'ok':''}"><i style="width:${Math.min(100,f*100)}%"></i></div>
+    <div class="mut" style="font-size:12px">${foot}</div>
+  </div></div>`;
+}
+
+/* ---------- 3. Ритм дня (M) ---------- */
+function rhythmCols(st,h){
+  return st.blocks.map(b=>{
+    const fr=Math.min(1.2,b.drunk/Math.max(1,b.target)),tick=b.st==='cur'&&S.rhythm?b.pace/b.target:null;
+    const colr=S.rhythm&&b.ok?'var(--ok)':'linear-gradient(0deg,var(--r2),var(--r1))';
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;opacity:${b.st==='future'?.55:1}">
+      <div style="font-size:11px;font-weight:900;color:${b.st==='cur'?'var(--wt)':'var(--wm)'};white-space:nowrap">${S.rhythm&&b.ok?'✓ ':''}${b.drunk}${S.rhythm?' / '+b.target:' мл'}</div>
+      <div style="position:relative;width:100%;max-width:58px;height:${h}px;border-radius:12px;background:var(--wtr);overflow:hidden;${b.st==='cur'?'box-shadow:0 0 0 2px var(--wa)':''}">
+        <i style="position:absolute;left:0;right:0;bottom:0;height:${Math.min(100,fr/1.2*100*1.2)}%;background:${colr};border-radius:10px;transition:height .4s"></i>
+        ${tick!=null?`<i style="position:absolute;left:-2px;right:-2px;bottom:${Math.min(100,tick*100)}%;height:2px;background:var(--wt);opacity:.7"></i>`:''}
+      </div>
+      <div style="font-size:11px;font-weight:800;color:var(--wm)">${hh(b.from)}–${hh(b.to)}</div></div>`;}).join('');
+}
+function paceLine(st){
+  if(!S.rhythm||st.night||st.goalMet)return st.goalMet?`<span style="color:var(--ok)">✓ норму закрито</span>`:'';
+  const d=st.delta;
+  return Math.abs(d)<50?'йдеш за темпом':d>0?`<span style="color:var(--ok)">+${up50(d)} мл до темпу</span>`:`відстаєш на ${up50(-d)} мл`;
+}
+function wRhythm(st){
+  return `<div class="w m" data-link="статистика"><div class="pad" style="display:flex;gap:14px">
+    <div style="width:118px;display:flex;flex-direction:column;justify-content:space-between">
+      <span class="lbl">Ритм дня</span>
+      <div><div class="big" style="font-size:32px">${L(st.counted)}<span style="font-size:16px"> л</span></div>
+        <div class="mut" style="font-size:12px">з ${L(S.goal)} л · ${st.pct}%</div></div>
+      <div style="font-size:12px;font-weight:800">${paceLine(st)}</div></div>
+    <div style="flex:1;display:flex;gap:8px">${rhythmCols(st,96)}</div>
+  </div></div>`;
+}
+
+/* ---------- 4. Запас води ---------- */
+function resText(st){
+  const r=st.res;
+  if(st.night)return {h:S.now<S.wake?'Сон':'Добраніч',s:S.now<S.wake?`підйом о ${hm(S.wake)}`:`завтра з ${hm(S.wake)}`};
+  if(!r.z)return {h:'Почни зі склянки',s:'запас порожній',urgent:true};
+  if(r.z.why==='goal')return {h:'Норму закрито',s:`запас до ${hm(S.sleep)}`};
+  if(r.level<=0.5)return {h:'Час пити',s:r.z.rem>S.now?`нагадаю о ${hm(r.z.rem)}`:'запас порожній',urgent:true};
+  if(r.z.why==='late')return {h:`~${dur(r.z.z-S.now)}`,s:'запасу до вечора'};
+  return {h:`Пий о ${hm(r.z.rem)}`,s:`запасу ~${dur(r.z.z-S.now)}`};
+}
+const DROP='M50 3C50 3 7 55 7 84a43 43 0 0 0 86 0C93 55 50 3 50 3z';
+function waveRect(y,w,h,color,opacity=1){
+  // дві хвилі поспіль — для безшовного зсуву
+  const seg=`q ${w/8} -6 ${w/4} 0 t ${w/4} 0 t ${w/4} 0 t ${w/4} 0`;
+  return `<path class="wave" d="M0 ${y} ${seg} ${seg} V ${h} H 0 Z" fill="${color}" opacity="${opacity}"/>`;
+}
+function dropSvg(frac,w,h){
+  const id='d'+(gid++),y=6+(1-frac)*124;
+  return `<svg width="${w}" height="${h}" viewBox="0 0 100 130"><defs><clipPath id="${id}"><path d="${DROP}"/></clipPath>
+    <linearGradient id="${id}w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e3f6ff"/><stop offset="1" stop-color="#9fdcff"/></linearGradient></defs>
+    <path d="${DROP}" fill="rgba(255,255,255,.16)" stroke="rgba(255,255,255,.55)" stroke-width="2.5"/>
+    <g clip-path="url(#${id})">${frac>0.005?`<g>${waveRect(y,200,130,'url(#'+id+'w)')}</g>`:''}</g>
+    <path d="M30 70c-4 10-3 20 2 27" stroke="rgba(255,255,255,.55)" stroke-width="5" fill="none" stroke-linecap="round"/></svg>`;
+}
+function flaskSvg(frac,w,h){
+  const id='f'+(gid++),y=4+(1-frac)*122;
+  return `<svg width="${w}" height="${h}" viewBox="0 0 50 130"><defs><clipPath id="${id}"><rect x="3" y="4" width="44" height="122" rx="22"/></clipPath>
+    <linearGradient id="${id}w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e3f6ff"/><stop offset="1" stop-color="#9fdcff"/></linearGradient></defs>
+    <rect x="3" y="4" width="44" height="122" rx="22" fill="rgba(255,255,255,.16)" stroke="rgba(255,255,255,.55)" stroke-width="2.5"/>
+    <g clip-path="url(#${id})">${frac>0.005?waveRect(y,100,130,'url(#'+id+'w)'):''}</g>
+    <line x1="10" y1="65" x2="20" y2="65" stroke="rgba(255,255,255,.7)" stroke-width="2.5" stroke-linecap="round"/>
+    <text x="24" y="69" font-family="Nunito" font-weight="900" font-size="10" fill="rgba(255,255,255,.75)">½</text></svg>`;
+}
+function bgWater(frac,w,h){
+  const y=h*(1-frac);
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="position:absolute;inset:0">
+    <defs><linearGradient id="bw${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--water1)"/><stop offset="1" stop-color="var(--water2)"/></linearGradient></defs>
+    ${frac>0.005?waveRect(y,w*2,h,`url(#bw${gid++})`,.95):''}</svg>`;
+}
+function wReserve(st,size,v=S.res){
+  const r=st.res,t=resText(st),f=st.night?Math.min(r.frac,1):r.frac;
+  const btns=size==='m'?(lastLive()?`<div style="width:110px">${doneBlock(true)}</div>`:
+    `<div style="width:96px;display:flex;flex-direction:column;gap:7px;justify-content:center">${S.presets.map(ml=>btn(ml,'','height:38px;width:100%;font-size:14px')).join('')}</div>`):'';
+  const head=`<div style="font-weight:900;font-size:${size==='s'?16:18}px;line-height:1.15;white-space:nowrap${t.urgent&&v!=='c'?';color:#fff':''}">${t.h}</div>
+    <div class="mut" style="font-size:12px">${t.s}</div>`;
+  if(v==='c'){
+    const W=size==='s'?170:364;
+    const dark=f>0.62;
+    return `<div class="w ${size}">${bgWater(f,W,170)}<div class="pad" style="display:flex;gap:12px">
+      ${link('головний',`<span class="lbl" style="${dark?'color:rgba(255,255,255,.85)':''}">Запас води</span>
+        <div style="margin-top:auto;${dark?'color:#fff':''}"><div class="big" style="font-size:${size==='s'?30:36}px">${Math.round(f*100)}%</div>
+        <div style="font-weight:900;font-size:15px">${t.h}</div><div style="font-size:12px;font-weight:700;opacity:.75">${t.s}</div></div>`,
+        'flex:1;display:flex;flex-direction:column;position:relative')}
+      ${size==='m'?`<div style="position:relative;display:flex">${btns}</div>`:''}</div></div>`;
+  }
+  const vis=v==='a'?dropSvg(f,size==='s'?70:80,size==='s'?92:104):flaskSvg(f,size==='s'?40:42,size==='s'?104:110);
+  if(size==='s')return `<div class="w s deep" data-link="головний"><div class="pad" style="display:flex;flex-direction:column;align-items:center;justify-content:space-between;text-align:center">
+    <div style="display:flex;align-items:center;gap:10px">${vis}${v==='b'?`<div style="text-align:left"><div class="big" style="font-size:26px">${Math.round(f*100)}%</div><div class="mut" style="font-size:11px">запас</div></div>`:''}</div>
+    <div>${head}</div></div></div>`;
+  return `<div class="w m deep"><div class="pad" style="display:flex;gap:12px;align-items:center">
+    ${link('головний',`${vis}<div style="display:flex;flex-direction:column;gap:3px"><span class="lbl">Запас води</span>${head}</div>`,'flex:1;min-width:0;display:flex;align-items:center;gap:12px')}
+    ${btns}</div></div>`;
+}
+
+/* ---------- 5. Швидке додавання (M) ---------- */
+function wQuick(st){
+  const right=lastLive()?doneBlock(false):`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;height:100%">
+    ${S.presets.map(ml=>shortBtn(ml)).join('')}<button class="pb acc" data-link="шторка «Інше» з останнім об'ємом">Інше</button></div>`;
+  return `<div class="w m"><div class="pad" style="display:flex;gap:16px">
+    ${link('головний',`<div class="ringbox" style="width:96px;height:96px">${ring(96,12,st.frac)}<div class="in"><span class="big" style="font-size:26px">${st.pct}%</span></div></div>
+      <div style="font-weight:800;font-size:13px;margin-top:8px">${L(st.counted)} / ${L(S.goal)} л</div>`,'width:110px;display:flex;flex-direction:column;align-items:center;justify-content:center')}
+    <div style="flex:1">${right}</div></div></div>`;
+}
+
+/* ---------- 6. Кнопка (S) ---------- */
+function wButton(st,two){
+  const top=`<div style="display:flex;align-items:center;gap:7px" data-link="головний"><div class="ringbox" style="width:24px;height:24px">${ring(24,4,st.frac)}</div>
+    <span style="font-weight:800;font-size:13px">${L(st.counted)} / ${L(S.goal)} л</span></div>`;
+  if(lastLive())return `<div class="w s"><div class="pad" style="display:flex;flex-direction:column">${top}<div style="flex:1">${doneBlock(true)}</div></div></div>`;
+  if(two)return `<div class="w s"><div class="pad" style="display:flex;flex-direction:column;gap:8px">${top}
+    <div style="flex:1;display:flex;flex-direction:column;gap:8px;justify-content:flex-end">${btn(S.glass,'acc','height:46px;font-size:17px')}${btn(500,'','height:46px;font-size:17px')}</div></div></div>`;
+  return `<div class="w s"><div class="pad" style="display:flex;flex-direction:column;align-items:center">${top}
+    <div style="flex:1;display:flex;align-items:center"><button class="pb acc" data-add="${S.glass}" style="width:96px;height:96px;border-radius:50%;flex-direction:column;
+      background:linear-gradient(160deg,var(--r1),var(--r2));box-shadow:0 6px 16px rgba(59,110,245,.25)">
+      <span class="big" style="font-size:30px">+${S.glass}</span><span style="font-size:12px;font-weight:800;opacity:.9">мл</span></button></div></div></div>`;
+}
+
+/* ---------- 7. Прогрес (M) ---------- */
+function questRow(t,cur,target,done){
+  const f=Math.min(1,cur/target),lab=done?'Готово':target>=1000?Math.round(f*100)+'%':`${cur}/${target}`;
+  return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+    <div class="ringbox" style="width:20px;height:20px">${done?`<span class="chk" style="width:20px;height:20px">✓</span>`:ring(20,4,f)}</div>
+    <span style="flex:1;font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${done?'color:var(--wm)':''}">${t}</span>
+    <span style="font-size:11px;font-weight:900;color:${done?'var(--ok)':'var(--wm)'}">${lab}</span></div>`;
+}
+function wProgress(st){
+  const q=[['Випити денну норму',Math.min(st.counted,S.goal),S.goal,st.goalMet],['Додати 4 записи',Math.min(4,st.vis.length),4,st.vis.length>=4]];
+  return `<div class="w m" data-link="«Прогрес» (3f)"><div class="pad" style="display:flex;gap:14px">
+    <div style="width:122px;display:flex;flex-direction:column;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:8px">${lvlDrop(S.level)}<div><div style="font-weight:900;font-size:15px">Рівень ${S.level}</div>
+        <div class="mut" style="font-size:11px">${S.xp[1]-S.xp[0]} XP до ${S.level+1}</div></div></div>
+      <div class="bar"><i style="width:${S.xp[0]/S.xp[1]*100}%"></i></div>
+      <div style="display:flex;align-items:center;gap:8px">${streakDrop(S.streak,22)}<span class="mut" style="font-size:12px;line-height:1.2">днів<br>поспіль</span></div></div>
+    <div style="flex:1;border-left:1px solid var(--wtr);padding-left:12px">
+      <div class="lbl" style="font-size:10px">Сьогодні</div>${q.map(x=>questRow(...x)).join('')}
+      <div class="lbl" style="font-size:10px;margin-top:4px">Цього тижня</div>${questRow('Стрік 7 днів поспіль',5,7,false)}
+    </div></div></div>`;
+}
+
+/* ---------- 8. Огляд дня (L) ---------- */
+function ovA(st){
+  const rows=st.blocks.map(b=>`<div style="display:flex;align-items:center;gap:10px;opacity:${b.st==='future'?.55:1}">
+      <span style="width:46px;font-size:12px;font-weight:800;color:var(--wm)">${hh(b.from)}–${hh(b.to)}</span>
+      <div class="bar ${S.rhythm&&b.ok?'ok':''}" style="flex:1;height:10px;${b.st==='cur'?'box-shadow:0 0 0 2px var(--wa)':''}"><i style="width:${Math.min(100,b.drunk/b.target*100)}%"></i></div>
+      <span style="width:84px;text-align:right;font-size:12px;font-weight:900;color:${b.st==='cur'?'var(--wt)':'var(--wm)'}">${S.rhythm&&b.ok?'✓ ':''}${b.drunk}${S.rhythm?' / '+b.target:' мл'}</span></div>`).join('');
+  const btns=lastLive()?`<div style="height:52px;display:flex;align-items:center;justify-content:center;gap:12px"><span class="chk">✓</span><b class="big" style="font-size:20px">+${amt(S.last.ml)}</b><button class="undo" data-undo>Скасувати</button></div>`:
+    `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${S.presets.map(ml=>shortBtn(ml,'height:52px')).join('')}<button class="pb acc" style="height:52px" data-link="шторка «Інше»">Інше</button></div>`;
+  return `<div class="w l"><div class="pad" style="display:flex;flex-direction:column;gap:14px;padding:18px">
+    <div style="display:flex;gap:16px;align-items:center">
+      ${link('головний',`<div class="ringbox" style="width:118px;height:118px">${ring(118,14,st.frac)}<div class="in"><span class="big" style="font-size:32px">${st.pct}%</span></div></div>`)}
+      <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+        <div><span class="big" style="font-size:34px">${L(st.counted)}</span><span class="mut" style="font-size:15px"> / ${L(S.goal)} л</span></div>
+        <div style="font-weight:800;font-size:14px">${st.goalMet?'<span style="color:var(--ok)">✓ Норму закрито</span>':'ще '+amt(up50(S.goal-st.counted))+' · '+paceLine(st)}</div>
+        ${link('«Прогрес» (3f)',`<div style="display:flex;gap:14px;align-items:center;margin-top:2px">${streakDrop(S.streak,18)}<span style="display:flex;align-items:center;gap:4px">${lvlDrop(S.level)}<span class="mut" style="font-size:12px">${S.xp[0]}/${S.xp[1]} XP</span></span></div>`)}
+      </div></div>
+    ${link('статистика',`<div class="lbl" style="margin-bottom:8px">Ритм дня</div><div style="display:flex;flex-direction:column;gap:9px">${rows}</div>`,'flex:1')}
+    ${btns}</div></div>`;
+}
+function ovB(st){
+  const W=328,H=150,x0=S.wake,x1=S.sleep,X=m=>(Math.max(x0,Math.min(x1,m))-x0)/(x1-x0)*W,Y=ml=>H-Math.min(1.1,ml/S.goal)/1.1*H;
+  let pace='';for(let m=x0;m<=x1;m+=10)pace+=(m===x0?'M':'L')+X(m).toFixed(1)+' '+Y(st.c.E(m)).toFixed(1)+' ';
+  let acc=0,steps=`M0 ${H} `;const pts=[];
+  for(const p of st.vis){const m=Math.max(x0,p.m);steps+=`L${X(m).toFixed(1)} ${Y(acc).toFixed(1)} `;acc+=p.ml;steps+=`L${X(m).toFixed(1)} ${Y(acc).toFixed(1)} `;pts.push([X(m),Y(acc)]);}
+  const nowX=X(S.now);steps+=`L${nowX.toFixed(1)} ${Y(acc).toFixed(1)} L${nowX.toFixed(1)} ${H} Z`;
+  const bands=st.blocks.map((b,i)=>`<rect x="${X(b.from)}" y="0" width="${X(b.to)-X(b.from)}" height="${H}" fill="${i%2?'var(--wtr)':'transparent'}" opacity=".6"/>
+    <text x="${(X(b.from)+X(b.to))/2}" y="${H+16}" text-anchor="middle" font-family="Nunito" font-weight="800" font-size="11" fill="var(--wm)">${hh(b.from)}–${hh(b.to)}</text>`).join('');
+  const goalY=Y(S.goal);
+  const btns=lastLive()?`<div style="height:46px;display:flex;align-items:center;justify-content:center;gap:12px"><span class="chk">✓</span><b class="big" style="font-size:20px">+${amt(S.last.ml)}</b><button class="undo" data-undo>Скасувати</button></div>`:
+    `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${S.presets.map(ml=>shortBtn(ml,'height:46px')).join('')}<button class="pb acc" style="height:46px" data-link="шторка «Інше»">Інше</button></div>`;
+  return `<div class="w l"><div class="pad" style="display:flex;flex-direction:column;gap:10px;padding:18px">
+    ${link('головний',`<div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div><div class="lbl">Сьогодні</div><div><span class="big" style="font-size:34px">${L(st.counted)}</span><span class="mut" style="font-size:15px"> / ${L(S.goal)} л</span></div>
+      <div style="font-weight:800;font-size:13px">${paceLine(st)||('ще '+amt(up50(S.goal-st.counted)))}</div></div>
+      <div style="display:flex;gap:10px;align-items:center">${streakDrop(S.streak,18)}${lvlDrop(S.level)}</div></div>`)}
+    ${link('статистика',`<svg width="${W}" height="${H+20}" viewBox="0 0 ${W} ${H+20}" style="overflow:visible">${bands}
+      <line x1="0" x2="${W}" y1="${goalY}" y2="${goalY}" stroke="var(--wm)" stroke-dasharray="3 4" opacity=".6"/>
+      <text x="${W}" y="${goalY-5}" text-anchor="end" font-family="Nunito" font-weight="800" font-size="10" fill="var(--wm)">норма ${L(S.goal)} л</text>
+      <path d="${steps}" fill="var(--wa)" opacity=".22"/>
+      <path d="${steps.replace(/ L[\d.]+ [\d.]+ Z$/,'').replace(/^M0 [\d.]+ /,'M0 '+H+' ')}" fill="none" stroke="var(--wa)" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="${pace}" fill="none" stroke="var(--wt)" stroke-width="1.5" stroke-dasharray="4 4" opacity=".55"/>
+      ${pts.map(([x,y])=>`<circle cx="${x}" cy="${y}" r="3.5" fill="var(--wa)" stroke="var(--wbg)" stroke-width="1.5"/>`).join('')}
+      ${st.night?'':`<line x1="${nowX}" x2="${nowX}" y1="0" y2="${H}" stroke="var(--or)" stroke-width="2"/>`}
+      </svg>
+      <div class="mut" style="font-size:11px;display:flex;gap:14px;margin-top:2px"><span>━ випито</span><span>┅ темп</span><span style="color:var(--or)">┃ зараз</span></div>`)}
+    <div style="flex:1"></div>${btns}</div></div>`;
+}
+const wOverview=(st,v=S.ov)=>v==='a'?ovA(st):ovB(st);
+
+/* ---------- кадри ---------- */
+const cell=(w)=>`<div class="cell">${w}<small>Вода</small></div>`;
+function home(inner,page){
+  return `<div class="home"><div class="sbar"><span>${hm(S.now)}</span><span>●●● ▮</span></div><div class="grid">${inner}</div>
+    <div class="dots">${[1,2,3].map(i=>`<i class="${i===page?'on':''}"></i>`).join('')}</div><div class="dock"><i></i><i></i><i></i><i></i></div></div>`;
+}
+function accRing(f,inner,timer){
+  const r=27,C2=2*Math.PI*r;
+  return `<div class="acc-c"><svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="${r}" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="5"/>
+    <circle cx="30" cy="30" r="${r}" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-dasharray="${C2}" stroke-dashoffset="${C2*(1-Math.max(.001,f))}"/></svg>${inner}</div>`;
+}
+function accRect(st){
+  if(st.goalMet)return `<div class="acc-r"><div class="t1">Сьогодні</div><div class="t2">✓ Норму закрито</div><div class="bar"><i style="width:100%"></i></div><div class="t3">${L(st.counted)} л</div></div>`;
+  if(st.night||!st.cur)return `<div class="acc-r"><div class="t1">Вода</div><div class="t2">${L(st.counted)} / ${L(S.goal)} л</div><div class="bar"><i style="width:${st.frac*100}%"></i></div><div class="t3">завтра з ${hm(S.wake)}</div></div>`;
+  if(!S.rhythm)return `<div class="acc-r"><div class="t1">До кінця дня</div><div class="t2">ще ${amt(up50(S.goal-st.counted))}</div><div class="bar"><i style="width:${st.frac*100}%"></i></div><div class="t3">до ${hm(S.sleep)}</div></div>`;
+  const b=st.cur;
+  return `<div class="acc-r"><div class="t1">${b.title} · до ${hm(b.to)}</div><div class="t2">${b.ok?'✓ закрито':'ще '+amt(up50(b.target-b.drunk))}</div>
+    <div class="bar"><i style="width:${Math.min(100,b.drunk/b.target*100)}%"></i></div><div class="t3">${b.ok?(st.next?'далі '+st.next.title:''):dur(b.to-S.now)}</div></div>`;
+}
+const accDrop=`<svg width="16" height="20" viewBox="0 0 24 30" style="position:static;transform:none"><path d="M12 1s11 12.5 11 19a11 10 0 0 1-22 0C1 13.5 12 1 12 1z" fill="#fff"/></svg>`;
+function lockFrame(st){
+  const days=['неділя','понеділок','вівторок','середа','четвер','пʼятниця','субота'];
+  return `<div class="lock"><div class="date">Середа, 8 жовтня</div>
+    <div class="inline">💧 ${L(st.counted)} з ${L(S.goal)} л${st.goalMet?' · ✓':' · ще '+amt(up50(S.goal-st.counted))}</div>
+    <div class="clock">${hm(S.now)}</div>
+    <div class="acc">${accRect(st)}${accRing(st.frac,`<b>${st.pct}%</b>`)}${accRing(st.night?0:st.res.frac,accDrop+`<small>${st.res.z&&st.res.z.rem&&!st.night?hm(st.res.z.rem):''}</small>`)}</div>
+    ${st.res.z&&st.res.z.rem&&st.res.level<=0.5&&!st.night&&S.now>=st.res.z.rem?`<div class="notif"><div class="app"></div><div><b>Вода</b><span>Час для склянки — ще ${amt(up50(S.goal-st.counted))} до норми</span></div></div>`:''}
+    <div class="ctrls"><i data-add="${S.glass}" title="+${S.glass}">+${S.glass}</i><i>📷</i></div></div>`;
+}
+function accStrip(st){
+  return `${accRing(st.frac,`<b>${st.pct}%</b>`)}${accRing(st.night?0:st.res.frac,accDrop)}
+    <div class="acc-c" data-add="${S.glass}" style="cursor:pointer"><b style="font-size:20px">+${S.glass}</b><small>мл</small></div>${accRect(st)}
+    <div style="font:700 12px Nunito;opacity:.85;max-width:160px;line-height:1.35">Кільце «Сьогодні», кільце «Запас», кнопка «+250» (працює після розблокування), прямокутник «Частина доби»</div>`;
+}
+function ccFrame(st){
+  return `<div class="cc"></div><div class="action"></div><div class="action-note">кнопка дії → +${S.glass} мл</div>
+    <div class="ccg"><div class="cct big" style="height:158px">✈︎ 📶</div><div class="cct big" style="height:158px">♫</div>
+      <div class="cct">🔦</div><div class="cct">⏱</div><div class="cct w2" data-add="${S.glass}"><span class="ic">${accDrop.replace('#fff','#3b6ef5')}</span>
+        <div><b>+${S.glass} мл</b><small>${L(st.counted)} з ${L(S.goal)} л</small></div></div>
+      <div class="cct">🔒</div><div class="cct">◐</div><div class="cct">🧮</div><div class="cct">📷</div></div>`;
+}
+
+/* ---------- графік запасу в панелі ---------- */
+function chart(st){
+  const W=1220,H=120,x0=360,x1=1440,X=m=>(m-x0)/(x1-x0)*W,Y=f=>H-14-f*(H-28);
+  let d='';for(let m=S.wake;m<=S.sleep;m+=2){d+=(m===S.wake?'M':'L')+X(m).toFixed(1)+' '+Y(reserve(st.c,m).frac).toFixed(1)+' ';}
+  const area=d+`L${X(S.sleep)} ${Y(0)} L${X(S.wake)} ${Y(0)} Z`;
+  // нагадування: для кожної порції — коли за темпом настав би час наступної
+  let A=0;const rems=[];for(const p of S.portions){A+=p.ml;const z=zeroFor(st.c,p.m,A);if(z.rem)rems.push({m:z.rem,zero:z.z,from:p.m});}
+  let h=st.blocks.map((b,i)=>`<rect x="${X(b.from)}" y="0" width="${X(b.to)-X(b.from)}" height="${H}" fill="${i%2?'#f1f6fc':'#f8fbfe'}"/>
+     <text x="${X(b.from)+6}" y="12" font-family="Nunito" font-weight="800" font-size="11" fill="#8aa1bd">${b.title}</text>`).join('');
+  h+=`<path d="${area}" fill="#5aa9f0" opacity=".2"/><path d="${d}" fill="none" stroke="#5aa9f0" stroke-width="2"/>`;
+  for(let m=480;m<1440;m+=120)h+=`<text x="${X(m)}" y="${H-1}" font-family="Nunito" font-weight="800" font-size="10" fill="#8aa1bd" text-anchor="middle">${hm(m)}</text>`;
+  for(const r of rems){const active=S.portions.filter(p=>p.m<=r.from).length===S.portions.length;
+    h+=`<text x="${X(r.m)}" y="${Y(0)+2}" text-anchor="middle" font-size="13" opacity="${active?1:.35}">🔔</text>`;}
+  for(const p of S.portions)h+=`<circle cx="${X(p.m)}" cy="${Y(0)+7}" r="4" fill="#1f4a72" opacity="${p.m<=S.now?1:.3}"/>`;
+  h+=`<line x1="${X(S.now)}" x2="${X(S.now)}" y1="14" y2="${H-14}" stroke="#ff8a3d" stroke-width="2"/>`;
+  document.getElementById('chart').innerHTML=h;
+  const r=st.res;
+  document.getElementById('chartcap').innerHTML=st.night?'Поза активними годинами — стан «сон».':
+    !r.z?'Порцій ще немає — запас порожній.':
+    `Зараз <b>${Math.round(r.level)} мл</b> із ${C()} (${Math.round(r.frac*100)}%). Остання порція о ${hm(r.t)} підняла до <b>${Math.round(r.L0)} мл</b>; `+
+    (r.z.why==='rem'?`нуль о <b>${hm(r.z.z)}</b> — за 10 хв до нагадування о <b>${hm(r.z.rem)}</b> 🔔.`:r.z.why==='goal'?`норму закрито — спадає до відбою ${hm(S.sleep)}.`:
+    `після ${hm(S.sleep-120)} нагадувань немає (далі вечірній підсумок) — спадає до відбою.`)+` Крапки — порції, 🔔 — нагадування.`;
+}
+
+/* ---------- рендер ---------- */
+function render(){
+  gid=0;const st=state();
+  document.getElementById('tl').textContent=hm(S.now);
+  const th='t-'+S.theme;
+  const set=(id,html,cls)=>{const el=document.getElementById(id);el.className=(cls||el.className.replace(/ ?t-\w+/g,''))+' '+th;el.innerHTML=html;};
+  set('home1',home(cell(wToday(st))+cell(wPart(st))+cell(wReserve(st,'m'))+cell(wRhythm(st)),1),'frame');
+  set('home2',home(cell(wQuick(st))+cell(wButton(st,false))+cell(wButton(st,true))+cell(wProgress(st)),2),'frame');
+  set('home3',home(cell(wOverview(st))+cell(wReserve(st,'s'))+cell(wToday(st)),3),'frame');
+  const undo=document.getElementById('undoRow');undo.className='row '+th;
+  const saved=S.last;S.last={ml:S.glass,m:S.now,at:Date.now()};
+  undo.innerHTML=`<div>${wButton(st,false)}</div><div>${wQuick(st)}</div><div>${wReserve(st,'m')}</div>`;
+  S.last=saved;
+  const vn={a:'A · Крапля',b:'B · Колба',c:'C · Вода на все тло'};
+  const notes={a:'Крапля — знак застосунку (рівень і серія в шапці теж краплі). Читається за пів секунди. Тло — глибока вода, тож віджет вирізняється серед білих.',
+    b:'Колба з позначкою «½» = одна склянка. Видно й відсоток. Найточніша, але найменш «водяна».',
+    c:'Вода піднімається по всьому віджету. Найефектніше на домашньому екрані, проте текст поверх води має перемикати колір, а в тонованому режимі хвиля стає плоскою смугою.'};
+  const resRow=document.getElementById('resRow');resRow.className='row '+th;
+  resRow.innerHTML=['a','b','c'].map(v=>`<div style="width:364px"><div class="frame-cap">${vn[v]}${S.res===v?' <em>— обрано в панелі</em>':''}</div>
+    <div style="display:flex;flex-direction:column;gap:14px">${wReserve(st,'s',v)}${wReserve(st,'m',v)}</div><div class="frame-note">${notes[v]}</div></div>`).join('');
+  const ovRow=document.getElementById('ovRow');ovRow.className='row '+th;
+  ovRow.innerHTML=`<div style="width:364px"><div class="frame-cap">A · Панель${S.ov==='a'?' <em>— обрано</em>':''}</div>${wOverview(st,'a')}
+      <div class="frame-note">Кільце, сума, серія й рівень зверху; ритм дня — три рядки блоків; кнопки внизу. Усе, що є на головному, крім історії.</div></div>
+    <div style="width:364px"><div class="frame-cap">B · Графік дня${S.ov==='b'?' <em>— обрано</em>':''}</div>${wOverview(st,'b')}
+      <div class="frame-note">Жива інфографіка: накопичене за день проти пунктирної кривої темпу, блоки дня смугами, порції — крапками.
+      Одним поглядом видно «де я зараз відносно плану». Числа — лише сума й відрив від темпу.</div></div>`;
+  set('lock',lockFrame(st),'frame');
+  document.getElementById('accStrip').innerHTML=accStrip(st);
+  const sb=document.getElementById('standby');sb.className='standby t-dark';sb.innerHTML=wToday(st)+wReserve(st,'s');
+  set('cc',ccFrame(st),'frame');
+  chart(st);
+}
+
+/* ---------- керування ---------- */
+const t=document.getElementById('t');
+t.oninput=()=>{S.now=+t.value;render();};
+const setNow=m=>{S.now=m;t.value=m;};
+const SCN={
+  ahead:()=>{S.portions=[{m:495,ml:300},{m:605,ml:250},{m:700,ml:250},{m:770,ml:200}];setNow(805);},
+  behind:()=>{S.portions=[{m:500,ml:250},{m:590,ml:200}];setNow(760);},
+  morning:()=>{S.portions=[];setNow(505);},
+  goal:()=>{S.portions=[{m:490,ml:300},{m:600,ml:500},{m:720,ml:500},{m:870,ml:400},{m:1010,ml:350}];setNow(1080);},
+  night:()=>{S.portions=[{m:490,ml:300},{m:600,ml:500},{m:720,ml:500},{m:870,ml:400},{m:1010,ml:350}];setNow(1370);}
+};
+let toastT;
+function toast(s){const el=document.getElementById('toast');el.textContent=s;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),1800);}
+let undoT;
+document.addEventListener('click',e=>{
+  const a=e.target.closest('[data-add]');
+  if(a){const ml=+a.dataset.add,id=Math.random();S.portions.push({m:S.now,ml,id});S.portions.sort((x,y)=>x.m-y.m);
+    S.last={ml,m:S.now,id,at:Date.now()};clearTimeout(undoT);undoT=setTimeout(render,8100);render();toast(`+${amt(ml)} — застосунок не відкривається`);return;}
+  if(e.target.closest('[data-undo]')){if(S.last){const i=S.portions.findIndex(p=>p.id===S.last.id);if(i>=0)S.portions.splice(i,1);S.last=null;render();toast('Порцію прибрано');}return;}
+  const l=e.target.closest('[data-link]');
+  if(l){toast('Відкриє: '+l.dataset.link);return;}
+  const s=e.target.closest('[data-scn]');
+  if(s){SCN[s.dataset.scn]();S.last=null;document.querySelectorAll('[data-scn]').forEach(b=>b.className=b===s?'go':'');render();return;}
+  const th=e.target.closest('[data-theme]');
+  if(th){S.theme=th.dataset.theme;document.querySelectorAll('[data-theme]').forEach(b=>b.classList.toggle('on',b===th));render();return;}
+  const r=e.target.closest('[data-res]');
+  if(r){S.res=r.dataset.res;document.querySelectorAll('[data-res]').forEach(b=>b.classList.toggle('on',b===r));render();return;}
+  const o=e.target.closest('[data-ov]');
+  if(o){S.ov=o.dataset.ov;document.querySelectorAll('[data-ov]').forEach(b=>b.classList.toggle('on',b===o));render();return;}
+  if(e.target.id==='rhythm'){S.rhythm=!S.rhythm;e.target.classList.toggle('on',S.rhythm);e.target.textContent=S.rhythm?'Ритм дня увімк.':'Ритм дня вимк.';render();}
+});
+SCN.ahead();render();
+</script>
+</body>
+</html>
