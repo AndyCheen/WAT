@@ -175,8 +175,9 @@ td b{color:#1f4a72}
   Усі віджети на одних даних. Перенесено рядок у рядок із <code>Core</code>: крива темпу <code>PaceCurve</code> зі спадом перед сном (WAT-43),
   блоки <code>goalBlocks()</code> і формулу першого нагадування §6.2 (типова порція <b>P = 250 мл</b>, частота «звичайно»).
   Тож числа збігаються з кодом. <b>Тисни кнопки на віджетах</b>: порція додається, з'являється «Скасувати», а «Запас води» підстрибує.
-  Тапи по решті віджета показують знизу, куди вони ведуть. Тягни час і перемикай тему. Вибрати треба вигляд
-  <b>«Запасу води»</b> (§3) і <b>«Огляду дня»</b> (§4). Решту — підтвердити або поправити.
+  Тапи по решті віджета показують знизу, куди вони ведуть. Тягни час і перемикай тему.<br>
+  <b>Погоджено 08.10.2026:</b> «Запас води» — <b>C «Вода на все тло»</b> типово і <b>B «Колба»</b> на вибір у налаштуванні віджета
+  («Змінити віджет» → «Вигляд»); «Огляд дня» — <b>A «Панель»</b>. A «Крапля» і B «Графік дня» лишаються для історії рішення.
 </p>
 
 <div class="ctl">
@@ -201,7 +202,7 @@ td b{color:#1f4a72}
   <div>
     <label>Вигляд «Запасу води» · «Огляду дня»</label>
     <div class="btns">
-      <button data-res="a" class="on">A · Крапля</button><button data-res="b">B · Колба</button><button data-res="c">C · Вода на все тло</button>
+      <button data-res="a">A · Крапля</button><button data-res="b">B · Колба</button><button data-res="c" class="on">C · Вода на все тло</button>
       <span style="width:10px"></span>
       <button data-ov="a" class="on">A · Панель</button><button data-ov="b">B · Графік дня</button>
     </div>
@@ -255,7 +256,7 @@ td b{color:#1f4a72}
 </p>
 <div class="row t-light" id="undoRow"></div>
 
-<h2>3. «Запас води» — обери вигляд</h2>
+<h2>3. «Запас води» — C типово, B на вибір у налаштуванні віджета</h2>
 <p class="lead">
   <b>Як рахується.</b> Порція піднімає рівень на свій об'єм; ємність краплі — дві типові порції (<b>2 × 250 = 500 мл</b>),
   тож одна склянка — пів краплі. Далі рівень рівно спадає й <b>доходить до нуля за 10 хв до нагадування</b>. Час
@@ -265,7 +266,7 @@ td b{color:#1f4a72}
 </p>
 <div class="row" id="resRow"></div>
 
-<h2>4. «Огляд дня» — обери вигляд</h2>
+<h2>4. «Огляд дня» — погоджено A «Панель»</h2>
 <div class="row" id="ovRow"></div>
 
 <h2>5. Екран блокування, StandBy, Пункт керування</h2>
@@ -361,7 +362,7 @@ function curve(goal,wake,sleep){
 }
 
 /* ---------- стан ---------- */
-const S={now:805,goal:2000,wake:480,sleep:1320,P:250,rhythm:true,theme:'light',res:'a',ov:'a',
+const S={now:805,goal:2000,wake:480,sleep:1320,P:250,rhythm:true,theme:'light',res:'c',ov:'a',
   presets:[200,500,1000],glass:250,streak:12,level:7,xp:[120,200],portions:[],last:null};
 const C=()=>2*S.P;
 const hm=m=>{m=Math.round(m);m=((m%1440)+1440)%1440;return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');};
@@ -733,17 +734,17 @@ function render(){
   const saved=S.last;S.last={ml:S.glass,m:S.now,at:Date.now()};
   undo.innerHTML=`<div>${wButton(st,false)}</div><div>${wQuick(st)}</div><div>${wReserve(st,'m')}</div>`;
   S.last=saved;
-  const vn={a:'A · Крапля',b:'B · Колба',c:'C · Вода на все тло'};
+  const vn={a:'A · Крапля',b:'B · Колба <em>— погоджено, на вибір</em>',c:'C · Вода на все тло <em>— погоджено, типово</em>'};
   const notes={a:'Крапля — знак застосунку (рівень і серія в шапці теж краплі). Читається за пів секунди. Тло — глибока вода, тож віджет вирізняється серед білих.',
     b:'Колба з позначкою «½» = одна склянка. Видно й відсоток. Найточніша, але найменш «водяна».',
     c:'Вода піднімається по всьому віджету. Найефектніше на домашньому екрані, проте текст поверх води має перемикати колір, а в тонованому режимі хвиля стає плоскою смугою.'};
   const resRow=document.getElementById('resRow');resRow.className='row '+th;
-  resRow.innerHTML=['a','b','c'].map(v=>`<div style="width:364px"><div class="frame-cap">${vn[v]}${S.res===v?' <em>— обрано в панелі</em>':''}</div>
+  resRow.innerHTML=['a','b','c'].map(v=>`<div style="width:364px"><div class="frame-cap">${vn[v]}</div>
     <div style="display:flex;flex-direction:column;gap:14px">${wReserve(st,'s',v)}${wReserve(st,'m',v)}</div><div class="frame-note">${notes[v]}</div></div>`).join('');
   const ovRow=document.getElementById('ovRow');ovRow.className='row '+th;
-  ovRow.innerHTML=`<div style="width:364px"><div class="frame-cap">A · Панель${S.ov==='a'?' <em>— обрано</em>':''}</div>${wOverview(st,'a')}
+  ovRow.innerHTML=`<div style="width:364px"><div class="frame-cap">A · Панель <em>— погоджено</em></div>${wOverview(st,'a')}
       <div class="frame-note">Кільце, сума, серія й рівень зверху; ритм дня — три рядки блоків; кнопки внизу. Усе, що є на головному, крім історії.</div></div>
-    <div style="width:364px"><div class="frame-cap">B · Графік дня${S.ov==='b'?' <em>— обрано</em>':''}</div>${wOverview(st,'b')}
+    <div style="width:364px"><div class="frame-cap">B · Графік дня</div>${wOverview(st,'b')}
       <div class="frame-note">Жива інфографіка: накопичене за день проти пунктирної кривої темпу, блоки дня смугами, порції — крапками.
       Одним поглядом видно «де я зараз відносно плану». Числа — лише сума й відрив від темпу.</div></div>`;
   set('lock',lockFrame(st),'frame');
