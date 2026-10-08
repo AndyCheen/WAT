@@ -158,6 +158,8 @@ struct WidgetWaterShape: Shape {
     var phase: Double = 0.6
 
     func path(in rect: CGRect) -> Path {
+        // Порожня — без хвилі: інакше по низу віджета лишалась смужка «води».
+        guard fraction > 0.005 else { return Path() }
         let level = rect.maxY - rect.height * max(0, min(1, fraction))
         let wavelength = rect.width / 6
         var path = Path()

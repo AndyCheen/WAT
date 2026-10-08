@@ -30,11 +30,12 @@ enum SnapshotTimeline {
         return entry(WidgetSnapshotStore.shared.read(), at: clock.now, calendar: calendar)
     }
 
-    /// Галерея віджетів системи й заглушка — типовий день, а не порожній знімок.
+    /// Галерея віджетів системи й заглушка — типовий день о 13:25, а не порожній знімок: о пів на одинадцяту
+    /// вечора галерея інакше показувала б «Добраніч» замість того, що віджет робить удень.
     static func sample() -> SnapshotEntry {
-        let clock = SystemClock()
-        let calendar = CalendarService(clock: clock)
-        return entry(WidgetSnapshot.sample(at: clock.now, calendar: calendar), at: clock.now, calendar: calendar)
+        let calendar = CalendarService(clock: SystemClock())
+        let noon = WidgetTimeline.date(of: calendar.today, minute: 13 * 60 + 25, calendar: calendar) ?? calendar.now
+        return entry(WidgetSnapshot.sample(at: noon, calendar: calendar), at: noon, calendar: calendar)
     }
 
     private static func entry(_ snapshot: WidgetSnapshot?, at date: Date, calendar: CalendarService) -> SnapshotEntry {
