@@ -344,3 +344,22 @@ Siri українською не говорить, тож голосових ф�
 - **Інтерактивні завдання** у «Прогресі» (зараз лише показ).
 - **Голосові фрази Siri** — коли з'явиться англійська локалізація.
 - **Push-оновлення віджетів** — не потрібні, поки дані лише на пристрої.
+
+---
+
+## 12. Реалізація (WAT-30)
+
+| Що | Де |
+|---|---|
+| Знімок, запас, доба, таймлайн, тексти, в'юшки | пакет `Widgets` (`WidgetSnapshot`, `HydrationReserve`, `WidgetDay`, `WidgetTimeline`, `WidgetPresenter`, `Views/`) |
+| Формула «коли за темпом час наступної порції» | `PaceCurve.nextDueMinute` у `Core` — її ж кличе планувальник |
+| Публікація знімка, порція ззовні, «Скасувати», переходи | `AppServices+Widgets.swift`; хук — `NotificationService.onRescheduled` |
+| Інтенти кнопок | `App/Shared/Intents/WidgetIntents.swift` (обидві цілі), «Команди» — `App/Sources/AddWaterIntent.swift` |
+| Розширення | `WidgetExtension/Sources`: `WaterWidgets`, `Timeline`, `ConfiguredProvider`, `Configuration`, `WaterControl` |
+| DEBUG-галерея | `--start-screen widgets` (`WidgetGalleryScreen`) |
+
+Що з'ясувалося під час реалізації:
+- `ProgressView(timerInterval:)` поза WidgetKit — спінер, тож кільце «Запасу» на екрані блокування — `Gauge` (§5).
+- Превʼю в галереї віджетів iOS — на 13:25 сьогодні: ввечері інакше вся галерея казала б «Добраніч».
+- Перевірено на домашньому екрані симулятора: тап «+200 мл» не відкриває застосунок, віджет показує
+  «✓ +200 мл · Скасувати», «Скасувати» прибирає порцію; темна тема.

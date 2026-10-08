@@ -19,8 +19,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 500 unit-тестів 9 пакетів, без симулятора — швидкий цикл
-make test-ui        # 41 e2e-сценарій (XCUITest) у симуляторі
+make test-packages  # 551 unit-тест 10 пакетів, без симулятора — швидкий цикл
+make test-ui        # 46 e2e-сценаріїв (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
 make clean
@@ -49,12 +49,12 @@ xcodebuild test -scheme WaterTracker -destination 'platform=iOS Simulator,name=i
 
 ## Архітектура
 
-9 локальних SPM-пакетів у `Packages/` + тонкий app-таргет `App/`. Граф залежностей
-жорсткий — його тримають самі маніфести `Package.swift`, зайвий `import` просто не збереться:
+10 локальних SPM-пакетів у `Packages/` + тонкий app-таргет `App/` і розширення віджетів `WidgetExtension/`.
+Граф залежностей жорсткий — його тримають самі маніфести `Package.swift`, зайвий `import` просто не збереться:
 
 ```
 Features → (Hydration | Gamification | Insights | Notifications) → Metrics → Persistence → Core
-Features → DesignSystem → Core
+Features → Widgets → DesignSystem → Core
 ```
 
 Ніхто не імпортує `Features`. `DesignSystem` не знає доменних моделей — приймає лише
@@ -160,6 +160,26 @@ Features → DesignSystem → Core
   контекст `ReportDigest` за періодами з `NotificationPlanner.reportPeriods`, текст складає `ReportText`.
   Денний — `.passive`, усі звіти без звуку й поза лімітом 8.
 
+### Віджети (WAT-30, SPEC-WIDGETS)
+
+- **Пише лише застосунок.** Розширення `WaterTrackerWidgets` лінкує тільки пакет `Widgets` і SwiftData не відкриває:
+  два процеси в одному сховищі — застарілі дані й розбіжні кеші метрик. Застосунок наприкінці кожного проходу
+  перепланування (`NotificationService.onRescheduled`) пише `WidgetSnapshot` у App Group
+  (`group.com.watertracker.app/widget-snapshot.json`, `AppServices+Widgets.swift`); той самий зміст таймлайнів не
+  перезавантажує. Нову добу без запуску застосунку віджет проєктує сам (`WidgetDay.resolve`).
+- **Кнопки — `LiveActivityIntent`** (`App/Shared/Intents`, у двох цілях): система виконує їх у процесі застосунку,
+  тож порція йде `AppServices.perform(_:)` — тим самим шляхом, що «+склянка» зі сповіщення (відлуння, перепланування).
+  Тіло `perform()` — лише в застосунку (`#if !WIDGET_EXTENSION`). «Додати воду» в «Командах» — `AddWaterIntent`,
+  лише в застосунку, джерело `.shortcut`. «Скасувати» — лише щойно додану з віджета порцію.
+- **Запас води** — `HydrationReserve`: порція піднімає рівень на свій об'єм (ємність — 2 типові порції), нуль за
+  10 хв до першого нагадування з плану, без плану — `PaceCurve.nextDueMinute` (та сама формула, що в планувальника).
+  Та сама остання порція — рівень тягнеться без стрибків (відкриття застосунку відсуває нагадування на 30 хв).
+- В'юшки — у пакеті; кнопки через `\.widgetActionButton` (інтенти в SPM-пакеті Xcode 16 не індексує). Тексти —
+  `WidgetPresenter` і `DayPartPresenter` (один для капсули головного й віджета). `kind` — `WidgetKind.identifier`,
+  не міняти: поставлені віджети зникнуть. Кільце «Запасу» на екрані блокування — `Gauge`, не
+  `ProgressView(timerInterval:)`: поза WidgetKit той — спінер.
+- Переходи — `watertracker://home|custom|stats|progress` (`WidgetLink`) → `.onOpenURL` → `AppServices.open(_:)`.
+
 ### Ритм дня (WAT-42, SPEC-NOTIFICATIONS §28)
 
 - `UserProfile.dayRhythmEnabled`, типово увімкнено. Вимкнено — «просто норма за день»: планувальник не ставить
@@ -241,7 +261,7 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
   друге читання вже не бачить нових, і крапки «нове» не з'являються зовсім (WAT-23).
 - Прапорці запуску (`App/Sources/WaterTrackerApp.swift`, `LaunchConfiguration`):
   `--uitest-empty` (чиста in-memory БД), `--uitest-demo` (демо-історія),
-  `--seed-demo`, `--start-screen progress|level-road|achievements|prizes|stats|settings|portion-buttons|notifications|notification-plan|report|schedule-suggestion`
+  `--seed-demo`, `--start-screen progress|level-road|achievements|prizes|stats|settings|portion-buttons|notifications|notification-plan|report|schedule-suggestion|widgets`
   (`report` — минулий тиждень; період явно — `report:day:2026-10-04`, `report:month:2026-09`;
   `schedule-suggestion:wake-early|wake-late|sleep-late|sleep-early|both|weekend|weekdays` — вікно «Графік дня»
   повз правило частоти). `--seed-schedule-shift` — 10 днів із першою склянкою ≈ 06:30: вікно з'являється само.
@@ -255,6 +275,11 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
   сценарії); `--notification-tap reminder|morning|evening|rescue|comeback|echo|report` імітує тап
   (`morning` — вікно «Склянка», `report` — звіт за минулий тиждень);
   `--uitest-now 2026-10-01T07:00:00+03:00` фіксує годинник для DEBUG-екрана «План сповіщень».
+- Віджети в e2e: домашній екран у XCUITest нестабільний, тож в'юшки — у DEBUG-галереї `--start-screen widgets`
+  (кнопки кличуть `AppServices.perform` напряму, ідентифікатори `widget.add.<мл>` / `widget.undo`), дії —
+  `--widget-action add:250,undo`, переходи — `XCUIDevice.shared.system.open(watertracker://…)` (не `app.open`:
+  той нестабільно чіпляється за системний діалог «Відкрити у програмі?»). Галерея без `--uitest-now` о пізній годині
+  показує нічний стан. Під `--uitest-*` знімок у App Group не пишеться.
 
 ## Відомі прогалини
 
