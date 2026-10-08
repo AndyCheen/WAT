@@ -53,6 +53,11 @@ public final class AppRouter {
         }
     }
 
+    /// Екран без шторки — тап по віджету «Ритм дня» веде у статистику (WAT-30, SPEC-WIDGETS §9.4).
+    public func open(path: [AppRoute]) {
+        pendingPath = path
+    }
+
     public func openScheduleSuggestion(_ suggestion: ScheduleSuggestion) {
         pendingPath = []
         pendingHomeIntent = .schedule(suggestion)

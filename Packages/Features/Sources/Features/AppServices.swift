@@ -7,6 +7,7 @@ import Hydration
 import Gamification
 import Insights
 import Notifications
+import Widgets
 
 /// Композиційний корінь: збирає репозиторії та сервіси й тримає їх разом.
 /// Застосунок-таргет лишається тонким — уся збірка тут.
@@ -44,17 +45,32 @@ public final class AppServices {
     /// повернення з фону, а лише коли настала нова доба.
     private var lastRefreshedDay: DayKey?
 
+    /// Куди писати знімок для віджетів і хто перезавантажує таймлайни (WAT-30). За замовчуванням — нікуди:
+    /// App Group і WidgetKit передає лише застосунок, у тестах — тимчасовий файл.
+    @ObservationIgnored let widgetStore: WidgetSnapshotStore
+    @ObservationIgnored let widgetReloader: (any WidgetReloading)?
+    /// Останній опублікований знімок: без змін таймлайни не перезавантажуються, а «Запас води» тягнеться
+    /// від нього без стрибків (`HydrationReserve.make`).
+    @ObservationIgnored var publishedWidgetSnapshot: WidgetSnapshot?
+    /// Порція з віджета, яку ще можна скасувати (SPEC-WIDGETS §4.1).
+    @ObservationIgnored var lastWidgetAction: WidgetSnapshot.LastAction?
+
     /// `notificationCenter` за замовчуванням — у пам'яті: справжній `UNUserNotificationCenter`
     /// у процесі SPM-тестів падає, тож його передає лише застосунок.
     /// - Parameter xpRules: баланс XP — застосунок збирає його з `Config/Balance.xcconfig` (SPEC-PRIZES §16.13).
+    /// - Parameter widgetStore: знімок для віджетів — застосунок передає файл у App Group (SPEC-WIDGETS §9.1).
     public init(
         container: ModelContainer,
         clock: Clock = SystemClock(),
         notificationCenter: NotificationCenterProtocol? = nil,
         bubbleSoundAvailable: Bool = false,
-        xpRules: XPRules = .default
+        xpRules: XPRules = .default,
+        widgetStore: WidgetSnapshotStore = WidgetSnapshotStore(url: nil),
+        widgetReloader: (any WidgetReloading)? = nil
     ) {
         self.container = container
+        self.widgetStore = widgetStore
+        self.widgetReloader = widgetReloader
         self.clock = clock
         let context = container.mainContext
         let calendar = CalendarService(clock: clock)
@@ -95,6 +111,8 @@ public final class AppServices {
         gamification.bootstrap()
         notifications.bootstrap()
         notifications.contextProvider = { [unowned self] in self.makeNotificationContext() }
+        publishedWidgetSnapshot = widgetStore.read()
+        notifications.onRescheduled = { [unowned self] plan in self.publishWidgetSnapshot(plan: plan) }
         lastRefreshedDay = calendar.today
         metrics.record(MetricEvent(name: .appOpened, value: 1, occurredAt: calendar.now))
         touch()
