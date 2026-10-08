@@ -70,11 +70,14 @@ private struct WidgetContainer<Background: View>: ViewModifier {
     func body(content: Content) -> some View {
         if isGallery {
             content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(WidgetMetrics.margin)
                 .background { background }
                 .clipShape(RoundedRectangle(cornerRadius: WidgetMetrics.cornerRadius, style: .continuous))
         } else {
-            content.containerBackground(for: .widget) { background }
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .containerBackground(for: .widget) { background }
         }
     }
 }

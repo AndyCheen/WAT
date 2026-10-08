@@ -587,6 +587,7 @@ public struct OverviewWidgetView: View {
                     }
                 }
             }
+            Spacer(minLength: 0)
             Link(destination: WidgetLink.stats.url) {
                 VStack(alignment: .leading, spacing: 9) {
                     WidgetCaption(text: "Ритм дня")
@@ -721,30 +722,22 @@ public struct DayPartRectangularView: View {
     }
 }
 
-/// Кільце «Запас води» — спадає саме: `ProgressView(timerInterval:)` веде система, без записів таймлайну.
+/// Кільце «Запас води». Віджет «Запас» і так перемальовується кожні 5 хв (`WidgetKind.cadence`), тож звичайний
+/// `Gauge`: `ProgressView(timerInterval:)` поза WidgetKit — спінер, і галерея показувала б не те, що екран блокування.
 public struct ReserveCircularView: View {
     let content: WidgetContent
 
     public init(_ content: WidgetContent) { self.content = content }
 
     public var body: some View {
-        Group {
-            if let reserve = content.day.reserve, content.day.phase == .active, !content.day.reserveIsEmpty {
-                ProgressView(timerInterval: reserve.timerStart...reserve.zeroAt, countsDown: true) {
-                    EmptyView()
-                } currentValueLabel: {
-                    Image(systemName: "drop.fill")
-                }
-                .progressViewStyle(.circular)
-            } else {
-                Gauge(value: 0) {
-                    EmptyView()
-                } currentValueLabel: {
-                    Image(systemName: content.day.phase == .active ? "drop" : "moon.zzz.fill")
-                }
-                .gaugeStyle(.accessoryCircularCapacity)
-            }
+        let day = content.day
+        let active = day.phase == .active
+        Gauge(value: active ? day.reserveFraction : 0) {
+            EmptyView()
+        } currentValueLabel: {
+            Image(systemName: active ? (day.reserveIsEmpty ? "drop" : "drop.fill") : "moon.zzz.fill")
         }
+        .gaugeStyle(.accessoryCircularCapacity)
         .widgetAccentable()
         .containerBackground(for: .widget) { AccessoryWidgetBackground() }
     }

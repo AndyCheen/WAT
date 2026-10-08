@@ -5,6 +5,7 @@ import Persistence
 import Gamification
 import Features
 import Notifications
+import Widgets
 
 /// Єдиний екземпляр сервісів застосунку.
 ///
@@ -30,7 +31,10 @@ enum AppContainer {
         let services = AppServices(
             container: container, clock: clock, notificationCenter: center,
             bubbleSoundAvailable: Bundle.main.url(forResource: "drop", withExtension: "caf") != nil,
-            xpRules: xpRules
+            xpRules: xpRules,
+            // e2e — база в пам'яті: справжній знімок віджетів у App Group вона не переписує.
+            widgetStore: launch.isUITest ? WidgetSnapshotStore(url: nil) : .shared,
+            widgetReloader: WidgetCenterReloader()
         )
         services.bootstrap()
         if launch.seedsDemoData {
@@ -44,6 +48,9 @@ enum AppContainer {
         }
         if let tap = launch.notificationTap {
             services.simulateNotificationTap(tap)
+        }
+        if let actions = launch.widgetActions {
+            Task { await services.simulateWidgetActions(actions) }
         }
         return services
     }()

@@ -7,8 +7,8 @@ import Foundation
 /// нагадування** — віджет спорожнів, і за 10 хв дзенькне. Нагадування відсувається, коли п'єш
 /// більше, тож більша порція дає і вищий рівень, і довший спад.
 ///
-/// Віджет зберігає лише прямий відрізок `(t₀, L₀) → (Z, 0)`: так рівень на будь-яку хвилину — проста
-/// формула, а на екрані блокування його веде сама система (`ProgressView(timerInterval:)`).
+/// Віджет зберігає лише прямий відрізок `(t₀, L₀) → (Z, 0)`: рівень на будь-яку хвилину — проста формула,
+/// і записи таймлайну раз на 5 хв просто малюють її.
 public struct HydrationReserve: Codable, Equatable, Sendable {
     public enum Mode: String, Codable, Sendable {
         /// Спадає до нагадування або до моменту, коли за темпом настав час пити.
@@ -57,17 +57,6 @@ public struct HydrationReserve: Codable, Equatable, Sendable {
 
     /// Менше мілілітра — це вже нуль: інакше «Час пити» запізнювався б на хвилини дробового хвоста.
     public func isEmpty(at date: Date) -> Bool { level(at: date) < 1 }
-
-    /// Початок інтервалу для `ProgressView(timerInterval: timerStart...zeroAt, countsDown: true)`.
-    ///
-    /// Системний прогрес-бар спадає від 1 до 0 на всьому інтервалі, а наш рівень у момент `t₀` — `L₀ / C`.
-    /// Початок відсувається назад так, щоб у `t₀` частка інтервалу, що лишилась, дорівнювала `L₀ / C`:
-    /// `start = Z − (Z − t₀) · C / L₀`. Далі обидва спадають лінійно до `Z` — збігаються в кожній точці.
-    public var timerStart: Date {
-        guard anchorMl > 0, capacityMl > 0 else { return zeroAt.addingTimeInterval(-1) }
-        let span = zeroAt.timeIntervalSince(anchorAt) * Double(capacityMl) / anchorMl
-        return zeroAt.addingTimeInterval(-max(1, span))
-    }
 
     static func level(from ml: Double, at anchor: Date, zeroAt: Date, on date: Date) -> Double {
         guard date > anchor else { return ml }

@@ -30,6 +30,8 @@ packages:
     path: Packages/Notifications
   DesignSystem:
     path: Packages/DesignSystem
+  Widgets:
+    path: Packages/Widgets
   Features:
     path: Packages/Features
 
@@ -43,8 +45,17 @@ targets:
       Release: Config/Balance.xcconfig
     sources:
       - path: App/Sources
+      # Інтенти кнопок віджетів — в обох цілях: розширенню для `Button(intent:)`, застосунку — щоб виконати
+      # (`LiveActivityIntent` іде в процесі застосунку, SPEC-WIDGETS §9.2).
+      - path: App/Shared
       - path: App/Resources
         buildPhase: resources
+    # App Group — знімок для віджетів (SPEC-WIDGETS §9.1).
+    entitlements:
+      path: App/WaterTracker.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.watertracker.app
     info:
       path: App/Info.plist
       properties:
@@ -60,6 +71,11 @@ targets:
         UIAppFonts:
           - Fredoka.ttf
           - Nunito.ttf
+        # Тапи по віджетах: watertracker://home|custom|stats|progress (`WidgetLink`).
+        CFBundleURLTypes:
+          - CFBundleURLName: com.watertracker.app
+            CFBundleURLSchemes:
+              - watertracker
         # Фонове оновлення плану сповіщень — лише бонус, план від нього не залежить (SPEC-NOTIFICATIONS §16.3).
         UIBackgroundModes:
           - fetch
@@ -84,7 +100,47 @@ targets:
       - package: Insights
       - package: Notifications
       - package: DesignSystem
+      - package: Widgets
       - package: Features
+      - target: WaterTrackerWidgets
+        embed: true
+        codeSign: true
+
+  # Віджети, екран блокування й Пункт керування (WAT-30). Лише пакет `Widgets` — без SwiftData й сервісів:
+  # дані — знімок у App Group, дії — інтенти в процесі застосунку.
+  WaterTrackerWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: WidgetExtension/Sources
+      - path: App/Shared
+      - path: App/Resources/Fonts
+        buildPhase: resources
+    entitlements:
+      path: WidgetExtension/WaterTrackerWidgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.watertracker.app
+    info:
+      path: WidgetExtension/Info.plist
+      properties:
+        CFBundleDisplayName: Вода
+        CFBundleShortVersionString: "0.1"
+        CFBundleVersion: "1"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        UIAppFonts:
+          - Fredoka.ttf
+          - Nunito.ttf
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.watertracker.app.widgets
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1"
+        # Тіло `perform()` спільних інтентів — лише в застосунку.
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) WIDGET_EXTENSION
+    dependencies:
+      - package: Widgets
 
   WaterTrackerUITests:
     type: bundle.ui-testing

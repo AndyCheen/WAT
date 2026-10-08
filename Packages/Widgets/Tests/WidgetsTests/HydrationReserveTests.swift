@@ -119,18 +119,6 @@ final class HydrationReserveTests: XCTestCase {
         XCTAssertTrue(later.isEmpty(at: Fixture.date(10, 50)))
     }
 
-    /// Системний прогрес-бар на екрані блокування: у момент порції частка інтервалу = L₀ / C.
-    func testTimerStartMatchesLevelAtAnchor() throws {
-        let reserve = try XCTUnwrap(HydrationReserve.make(
-            portions: [Fixture.portion(9, 0, 250, id: 1)], capacityMl: capacity, now: Fixture.date(9, 0),
-            plannedReminder: Fixture.date(10, 40), previous: nil, zero: Fixture.paceZero()))
-        let span = reserve.zeroAt.timeIntervalSince(reserve.timerStart)
-        let leftAtAnchor = reserve.zeroAt.timeIntervalSince(reserve.anchorAt) / span
-        XCTAssertEqual(leftAtAnchor, 0.5, accuracy: 0.001)
-        let mid = Fixture.date(9, 45)
-        XCTAssertEqual(reserve.zeroAt.timeIntervalSince(mid) / span, reserve.fraction(at: mid), accuracy: 0.001)
-    }
-
     /// Чекпоінт одразу після порції не «спалює» краплю на очах — спад не коротший за 15 хв.
     func testMinimumSpan() throws {
         let reserve = try XCTUnwrap(HydrationReserve.make(

@@ -1,0 +1,90 @@
+import WidgetKit
+import SwiftUI
+import Core
+import Widgets
+
+/// Запис таймлайну: що малювати о `date`. `content == nil` — знімка ще немає, «Відкрий застосунок».
+struct SnapshotEntry: TimelineEntry {
+    let date: Date
+    let content: WidgetContent?
+    let relevance: TimelineEntryRelevance?
+}
+
+/// Таймлайн зі знімка застосунку (SPEC-WIDGETS §9.3). Час — `SystemClock` лише тут, на межі з WidgetKit:
+/// уся логіка записів — чиста `WidgetTimeline` у пакеті, з тестами на фіксованих датах.
+enum SnapshotTimeline {
+    static func timeline(_ kind: WidgetKind) -> Timeline<SnapshotEntry> {
+        let clock = SystemClock()
+        let calendar = CalendarService(clock: clock)
+        let now = clock.now
+        let snapshot = WidgetSnapshotStore.shared.read()
+        let dates = WidgetTimeline.dates(for: kind, snapshot: snapshot, from: now, calendar: calendar)
+        let entries = dates.map { date in entry(snapshot, at: date, calendar: calendar) }
+        // Після останнього запису WidgetKit попросить новий таймлайн — знімок до того часу вже інший.
+        return Timeline(entries: entries, policy: .after(dates.last ?? now.addingTimeInterval(3600)))
+    }
+
+    static func current() -> SnapshotEntry {
+        let clock = SystemClock()
+        let calendar = CalendarService(clock: clock)
+        return entry(WidgetSnapshotStore.shared.read(), at: clock.now, calendar: calendar)
+    }
+
+    /// Галерея віджетів системи й заглушка — типовий день, а не порожній знімок.
+    static func sample() -> SnapshotEntry {
+        let clock = SystemClock()
+        let calendar = CalendarService(clock: clock)
+        return entry(WidgetSnapshot.sample(at: clock.now, calendar: calendar), at: clock.now, calendar: calendar)
+    }
+
+    private static func entry(_ snapshot: WidgetSnapshot?, at date: Date, calendar: CalendarService) -> SnapshotEntry {
+        guard let snapshot else { return SnapshotEntry(date: date, content: nil, relevance: nil) }
+        let content = WidgetContent(snapshot: snapshot, at: date, calendar: calendar)
+        return SnapshotEntry(date: date, content: content,
+                             relevance: TimelineEntryRelevance(score: WidgetTimeline.relevance(content.day)))
+    }
+}
+
+struct SnapshotProvider: TimelineProvider {
+    let kind: WidgetKind
+
+    func placeholder(in context: Context) -> SnapshotEntry { SnapshotTimeline.sample() }
+
+    func getSnapshot(in context: Context, completion: @escaping (SnapshotEntry) -> Void) {
+        completion(context.isPreview ? SnapshotTimeline.sample() : SnapshotTimeline.current())
+    }
+
+    func getTimeline(in context: Context, completion: @escaping (Timeline<SnapshotEntry>) -> Void) {
+        completion(SnapshotTimeline.timeline(kind))
+    }
+}
+
+/// Спільна обгортка в'юшки: тема з `colorScheme`, кнопки — інтентами, порожній стан без знімка.
+struct WidgetEntryView<Content: View>: View {
+    let entry: SnapshotEntry
+    @ViewBuilder let content: (WidgetContent) -> Content
+
+    var body: some View {
+        Group {
+            if let widgetContent = entry.content {
+                content(widgetContent)
+            } else {
+                WidgetEmptyView()
+            }
+        }
+        .wtWidgetTheme()
+        .environment(\.widgetActionButton, .intents)
+    }
+}
+
+extension WidgetActionButtonFactory {
+    /// Кнопки віджетів — `Button(intent:)`: дія виконується в процесі застосунку (`LiveActivityIntent`).
+    static let intents = WidgetActionButtonFactory { action, label in
+        switch action {
+        case let .add(ml, _):
+            AnyView(Button(intent: AddWaterWidgetIntent(ml: ml)) { label }.buttonStyle(.plain))
+        case let .undo(intakeId):
+            AnyView(Button(intent: UndoWaterWidgetIntent(intakeId: intakeId)) { label }.buttonStyle(.plain))
+        }
+    }
+}
