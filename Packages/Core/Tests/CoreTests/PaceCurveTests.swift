@@ -102,4 +102,23 @@ final class PaceCurveTests: XCTestCase {
         XCTAssertEqual(curve.target(fromMinute: 8 * 60, toMinute: 12 * 60).rounded(), 689)
         XCTAssertEqual(curve.target(fromMinute: 12 * 60, toMinute: 17 * 60).rounded(), 826)
     }
+
+    // MARK: - Наступна порція за темпом (§6.2, WAT-30)
+
+    /// Від підйому без порцій: E(t) = 250 о ~09:37 — пізніше за мінімальний інтервал (09:00).
+    func testNextDueReachesTypicalPortionFromWake() {
+        let curve = PaceCurve(goalMl: 2000, wakeMinutes: 480, sleepMinutes: 1320)
+        let due = curve.nextDueMinute(anchorMinute: 480, drunkMl: 0, portionMl: 250, k: 1, minGapMinutes: 60, maxGapMinutes: 180)
+        XCTAssertEqual(due, 576.7, accuracy: 0.1)
+    }
+
+    /// Хто випередив темп, отримує нагадування не пізніше `maxGap`; хто щойно випив — не раніше `minGap`.
+    func testNextDueIsClampedByGaps() {
+        let curve = PaceCurve(goalMl: 2000, wakeMinutes: 480, sleepMinutes: 1320)
+        let ahead = curve.nextDueMinute(anchorMinute: 600, drunkMl: 1500, portionMl: 250, k: 1, minGapMinutes: 60, maxGapMinutes: 180)
+        XCTAssertEqual(ahead, 780)
+        // Мала порція: темп наздоганяє її за ~18 хв, але раніше ніж за годину не нагадуємо.
+        let small = curve.nextDueMinute(anchorMinute: 760, drunkMl: 0, portionMl: 50, k: 1, minGapMinutes: 60, maxGapMinutes: 180)
+        XCTAssertEqual(small, 820)
+    }
 }
