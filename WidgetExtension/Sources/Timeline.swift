@@ -85,7 +85,7 @@ struct WidgetEntryView<Content: View>: View {
 }
 
 extension WidgetActionButtonFactory {
-    /// Кнопки віджетів — `Button(intent:)`: дія виконується в процесі застосунку (`LiveActivityIntent`).
+    /// Кнопки віджетів — `Button(intent:)`: порція виконується в процесі застосунку (`WidgetIntents.swift`).
     static let intents = WidgetActionButtonFactory { action, label in
         switch action {
         case let .add(ml, _):

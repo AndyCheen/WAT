@@ -46,7 +46,7 @@ targets:
     sources:
       - path: App/Sources
       # Інтенти кнопок віджетів — в обох цілях: розширенню для `Button(intent:)`, застосунку — щоб виконати
-      # (`LiveActivityIntent` іде в процесі застосунку, SPEC-WIDGETS §9.2).
+      # (`ForegroundContinuableIntent` іде в процесі застосунку, SPEC-WIDGETS §9.2).
       - path: App/Shared
       - path: App/Resources
         buildPhase: resources

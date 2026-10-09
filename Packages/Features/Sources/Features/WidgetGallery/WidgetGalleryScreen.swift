@@ -7,7 +7,7 @@ import Widgets
 ///
 /// Домашній екран у XCUITest нестабільний, а WidgetKit малює в окремому процесі, — тож e2e і швидка
 /// перевірка вигляду йдуть тут. В'юшки ті самі, що в розширенні; кнопки замість інтентів кличуть
-/// `AppServices.perform(_:)` напряму — той самий шлях, що й `LiveActivityIntent` у процесі застосунку.
+/// `AppServices.perform(_:)` напряму — той самий шлях, що й інтенти кнопок у процесі застосунку.
 struct WidgetGalleryScreen: View {
     @Environment(\.wtTheme) private var theme
     private let services: AppServices
