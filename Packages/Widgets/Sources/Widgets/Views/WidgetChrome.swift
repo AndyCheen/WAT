@@ -129,11 +129,11 @@ struct WidgetRing: View {
     }
 }
 
-/// Тонка смужка прогресу з акцентною заливкою.
+/// Тонка смужка прогресу з акцентною заливкою. Закрита ціль — та сама синя вода, без зеленого: зелена смужка
+/// випадала з палітри (правка після перевірки, 09.10.2026); «закрито» каже підпис.
 struct WidgetBar: View {
     @Environment(\.wtTheme) private var theme
     let fraction: Double
-    var isDone = false
     var height: CGFloat = 8
     var highlighted = false
 
@@ -142,9 +142,7 @@ struct WidgetBar: View {
             ZStack(alignment: .leading) {
                 Capsule().fill(theme.track)
                 Capsule()
-                    .fill(isDone ? AnyShapeStyle(WTColor.success)
-                                 : AnyShapeStyle(LinearGradient(colors: [theme.ringStart, theme.ringEnd],
-                                                                startPoint: .leading, endPoint: .trailing)))
+                    .fill(LinearGradient(colors: [theme.ringStart, theme.ringEnd], startPoint: .leading, endPoint: .trailing))
                     .frame(width: max(height, proxy.size.width * max(0, min(1, fraction))))
                     .opacity(fraction > 0 ? 1 : 0)
                     .widgetAccentable()
@@ -203,6 +201,70 @@ struct PortionLabel: View {
                     .fill(prominent ? (theme.isTinted ? Color.white.opacity(0.32) : theme.accent) : theme.button)
                     .widgetAccentable(prominent)
             }
+    }
+}
+
+/// «✓ 800» — ціль частини доби закрито: пігулка кольору акценту над стовпчиком чи біля смужки (рішення від
+/// 09.10.2026, варіант A). Колір води не змінюється — змінюється лише підпис.
+struct DonePill: View {
+    @Environment(\.wtTheme) private var theme
+    let text: String
+
+    var body: some View {
+        Text("✓ " + text)
+            .font(WTFont.text(11, .black))
+            .foregroundStyle(theme.isTinted ? Color.white : theme.accent)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 1)
+            .background(theme.button, in: Capsule())
+            .widgetAccentable()
+    }
+}
+
+/// Розгорнутий вибір «Інше»: підказки зі шторки «Інше» й ✕ (рішення від 09.10.2026, SPEC-WIDGETS §4.3).
+struct CustomPickerPanel: View {
+    @Environment(\.wtTheme) private var theme
+    let kind: WidgetKind
+    let hints: [Int]
+    var columns = 2
+    var buttonHeight: CGFloat = 46
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: WidgetMetrics.gap) {
+            HStack {
+                WidgetCaption(text: "Скільки?")
+                Spacer(minLength: 4)
+                WidgetActionButton(.hideCustomPicker(kind)) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .heavy))
+                        .foregroundStyle(theme.textButton)
+                        .frame(width: 26, height: 26)
+                        .background(theme.button, in: Circle())
+                }
+            }
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: WidgetMetrics.gap), count: columns),
+                      spacing: WidgetMetrics.gap) {
+                // Підказки можуть повторюватись (WAT-45) — ідентифікатор за позицією.
+                ForEach(Array(hints.prefix(4).enumerated()), id: \.offset) { _, ml in
+                    WidgetActionButton(.add(ml: ml, source: .widget)) {
+                        PortionLabel(title: WidgetPresenter.amount(ml), height: buttonHeight)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// «Інше» — розгортає вибір у самому віджеті.
+struct OtherButton: View {
+    let kind: WidgetKind
+    var height: CGFloat = WidgetMetrics.buttonHeight
+    var fontSize: CGFloat = 15
+
+    var body: some View {
+        WidgetActionButton(.showCustomPicker(kind)) {
+            PortionLabel(title: "Інше", prominent: true, height: height, fontSize: fontSize)
+        }
     }
 }
 

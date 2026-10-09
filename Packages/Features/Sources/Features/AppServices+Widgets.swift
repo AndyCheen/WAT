@@ -24,6 +24,7 @@ extension AppServices {
         var echo: EchoContent?
         switch action {
         case let .add(ml, source):
+            widgetPicker.closeAll()
             echo = addPortionFromOutside(ml: ml, source: source == .shortcut ? .shortcut : .widget, at: now)
         case let .undo(intakeId):
             // «Скасувати» з віджета — лише щойно додану звідти порцію: старий таймлайн не має прибирати
@@ -31,6 +32,15 @@ extension AppServices {
             guard lastWidgetAction?.intakeId == intakeId else { break }
             lastWidgetAction = nil
             _ = hydration.removeIntake(id: intakeId, at: now)
+        case let .showCustomPicker(kind):
+            // У розширенні це робить `CustomPickerIntent` без застосунку; сюди доходить лише з DEBUG-галереї.
+            widgetPicker.open(kind, at: now)
+            epoch &+= 1
+            return Task {}
+        case let .hideCustomPicker(kind):
+            widgetPicker.close(kind)
+            epoch &+= 1
+            return Task {}
         }
         epoch &+= 1
         // Старий план — ще до порції: його нагадування для запасу не годяться, нуль поки що за темпом.
@@ -128,6 +138,7 @@ extension AppServices {
                 : nil,
             dayRhythmEnabled: profile.dayRhythmEnabled,
             homeButtons: hydration.quickAddAmounts(), glassMl: profile.glassMl,
+            customHints: hydration.quickAddAmounts(.customSheet),
             streak: WidgetSnapshot.Streak(current: streak.current, countsToday: streak.lastCountedDay == today),
             level: WidgetSnapshot.Level(level: level.level, xpIntoLevel: level.xpIntoLevel,
                                         xpForNextLevel: level.xpForNextLevel),

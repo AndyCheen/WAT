@@ -21,8 +21,14 @@ struct WidgetGalleryScreen: View {
     var body: some View {
         // Порція чи перепланування — нова доба на віджетах, як після нового знімка.
         let _ = (services.epoch, services.notifications.revision)
-        let content = WidgetContent(snapshot: services.makeWidgetSnapshot(plan: services.notifications.lastPlan),
-                                    at: services.calendar.now, calendar: services.calendar)
+        let snapshot = services.makeWidgetSnapshot(plan: services.notifications.lastPlan)
+        let now = services.calendar.now
+        let content = WidgetContent(snapshot: snapshot, at: now, calendar: services.calendar)
+        // Вибір «Інше» розгортається окремо в кожному віджеті, як на домашньому екрані.
+        let picking = { (kind: WidgetKind) in
+            WidgetContent(snapshot: snapshot, at: now, calendar: services.calendar,
+                          customPickerOpen: services.widgetPicker.isOpen(kind, at: now))
+        }
         ZStack {
             theme.screen.ignoresSafeArea()
             ScrollView(showsIndicators: false) {
@@ -32,17 +38,17 @@ struct WidgetGalleryScreen: View {
                     item("Частина доби", id: "dayPart", size: WidgetMetrics.small) { DayPartWidgetView(content) }
                     item("Ритм дня", id: "rhythm", size: WidgetMetrics.medium) { RhythmWidgetView(content) }
                     item("Запас води · Вода", id: "reserve.water", size: WidgetMetrics.medium) {
-                        ReserveWidgetView(content, style: .water, isMedium: true)
+                        ReserveWidgetView(picking(.reserve), style: .water, isMedium: true)
                     }
                     item("Запас води · Колба", id: "reserve.flask", size: WidgetMetrics.small) {
                         ReserveWidgetView(content, style: .flask, isMedium: false)
                     }
-                    item("Швидке додавання", id: "quickAdd", size: WidgetMetrics.medium) { QuickAddWidgetView(content) }
+                    item("Швидке додавання", id: "quickAdd", size: WidgetMetrics.medium) { QuickAddWidgetView(picking(.quickAdd)) }
                     item("Кнопка", id: "button", size: WidgetMetrics.small) {
                         ButtonWidgetView(content, first: content.snapshot.glassMl, second: nil)
                     }
                     item("Прогрес", id: "progress", size: WidgetMetrics.medium) { ProgressWidgetView(content) }
-                    item("Огляд дня", id: "overview", size: WidgetMetrics.large) { OverviewWidgetView(content) }
+                    item("Огляд дня", id: "overview", size: WidgetMetrics.large) { OverviewWidgetView(picking(.overview)) }
                     lockScreen(content)
                 }
                 .padding(.horizontal, WTSpacing.screenSide)
@@ -97,6 +103,8 @@ struct WidgetGalleryScreen: View {
         switch action {
         case let .add(ml, _): return "widget.add.\(ml)"
         case .undo: return "widget.undo"
+        case let .showCustomPicker(kind): return "widget.other.\(kind.rawValue)"
+        case let .hideCustomPicker(kind): return "widget.other.close.\(kind.rawValue)"
         }
     }
 }

@@ -50,6 +50,25 @@ final class WidgetsUITests: XCTestCase {
         XCTAssertFalse(app.buttons["widget.undo"].exists)
     }
 
+    /// «Інше» розгортає у віджеті підказки зі шторки «Інше»; тап по підказці — порція й «Скасувати».
+    func testOtherShowsHintsInWidget() {
+        let app = launch(["--uitest-empty", "--start-screen", "widgets"] + Self.noon)
+        XCTAssertTrue(app.staticTexts["widgetGallery.title.today"].waitForExistence(timeout: 15))
+        // Кнопки «Швидкого додавання» — у `LazyVGrid`: поки віджет за екраном, їх немає в ієрархії.
+        let other = app.buttons["widget.other.quickAdd"]
+        for _ in 0..<5 where !other.exists { app.swipeUp() }
+        XCTAssertTrue(other.waitForExistence(timeout: 5))
+        other.tap()
+
+        let hint = app.buttons["widget.add.150"].firstMatch
+        XCTAssertTrue(hint.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["widget.other.close.quickAdd"].exists)
+        hint.tap()
+
+        XCTAssertTrue(app.buttons["widget.undo"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["+150 мл"].firstMatch.exists)
+    }
+
     /// `--widget-action` — порція з віджета доходить до головного: та сама доба, той самий відсоток.
     func testWidgetActionReachesHome() {
         let app = launch(["--uitest-empty", "--widget-action", "add:500"])

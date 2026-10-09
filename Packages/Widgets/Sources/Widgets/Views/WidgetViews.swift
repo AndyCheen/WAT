@@ -7,15 +7,22 @@ import DesignSystem
 public struct WidgetContent: Equatable, Sendable {
     public let snapshot: WidgetSnapshot
     public let day: WidgetDay
+    /// Розгорнуто вибір «Інше» (`WidgetCustomPicker`).
+    public let customPickerOpen: Bool
 
-    public init(snapshot: WidgetSnapshot, day: WidgetDay) {
+    public init(snapshot: WidgetSnapshot, day: WidgetDay, customPickerOpen: Bool = false) {
         self.snapshot = snapshot
         self.day = day
+        self.customPickerOpen = customPickerOpen
     }
 
-    public init(snapshot: WidgetSnapshot, at date: Date, calendar: CalendarService) {
-        self.init(snapshot: snapshot, day: WidgetDay.resolve(snapshot, at: date, calendar: calendar))
+    public init(snapshot: WidgetSnapshot, at date: Date, calendar: CalendarService, customPickerOpen: Bool = false) {
+        self.init(snapshot: snapshot, day: WidgetDay.resolve(snapshot, at: date, calendar: calendar),
+                  customPickerOpen: customPickerOpen)
     }
+
+    /// Вибір «Інше» видно, лише поки немає «Скасувати»: щойно додана підказка важливіша.
+    var showsCustomPicker: Bool { customPickerOpen && day.undo == nil }
 }
 
 // MARK: - 1. Сьогодні (S)
@@ -86,7 +93,7 @@ public struct DayPartWidgetView: View {
                 .font(WTFont.text(15, .heavy))
                 .foregroundStyle(done ? WTColor.successText : theme.textPrimary)
             Spacer(minLength: 0)
-            WidgetBar(fraction: part.fraction, isDone: done)
+            WidgetBar(fraction: part.fraction)
             HStack(spacing: 4) {
                 Text(part.footnote).foregroundStyle(theme.textMuted)
                 if let xp = part.xp {
@@ -154,42 +161,57 @@ private struct BlockColumn: View {
         let current = block.position == .current
         let done = rhythm && block.isReached
         VStack(spacing: 5) {
-            Text((done ? "✓ " : "") + WidgetPresenter.blockValue(block, rhythm: rhythm))
-                .font(WTFont.text(11, .black))
-                .foregroundStyle(current ? theme.textPrimary : theme.textMuted)
+            if done {
+                DonePill(text: "\(block.drunkMl)")
+            } else {
+                Text(WidgetPresenter.blockValue(block, rhythm: rhythm))
+                    .font(WTFont.text(11, .black))
+                    .foregroundStyle(current ? theme.textPrimary : theme.textMuted)
+            }
             GeometryReader { proxy in
                 let height = proxy.size.height
                 ZStack(alignment: .bottom) {
                     RoundedRectangle(cornerRadius: WTRadius.chip, style: .continuous).fill(theme.track)
                     RoundedRectangle(cornerRadius: WTRadius.chip - 2, style: .continuous)
-                        .fill(done ? AnyShapeStyle(WTColor.success)
-                                   : AnyShapeStyle(LinearGradient(colors: [theme.ringStart, theme.ringEnd],
-                                                                  startPoint: .top, endPoint: .bottom)))
+                        .fill(LinearGradient(colors: [theme.ringStart, theme.ringEnd], startPoint: .top, endPoint: .bottom))
                         .frame(height: height * block.fraction)
                         .widgetAccentable()
+                }
+                .overlay {
+                    if current {
+                        RoundedRectangle(cornerRadius: WTRadius.chip, style: .continuous).stroke(theme.accent, lineWidth: 2)
+                    }
+                }
+                .overlay(alignment: .bottomTrailing) {
                     if current && rhythm {
-                        // Ризка «за темпом зараз»: вище заливки — відстаєш, нижче — випереджаєш.
-                        Rectangle()
+                        // Засічка «за темпом зараз» збоку (рішення від 09.10.2026, варіант B): лінія через стовпчик
+                        // різала воду навпіл. Вище за воду — відстаєш, нижче — випереджаєш.
+                        PaceNotch()
                             .fill(theme.textPrimary.opacity(0.7))
-                            .frame(height: 2)
-                            .padding(.horizontal, -2)
-                            .offset(y: -height * block.paceFraction)
-                            .frame(maxHeight: .infinity, alignment: .bottom)
+                            .frame(width: 7, height: 10)
+                            .offset(x: 9, y: 5 - height * block.paceFraction)
                     }
                 }
             }
             .frame(maxWidth: 58)
-            .overlay {
-                if current {
-                    RoundedRectangle(cornerRadius: WTRadius.chip, style: .continuous).stroke(theme.accent, lineWidth: 2)
-                }
-            }
             Text(WidgetPresenter.blockHours(block))
                 .font(WTFont.text(11, .heavy))
                 .foregroundStyle(theme.textMuted)
         }
         .opacity(block.position == .future ? 0.55 : 1)
         .frame(maxWidth: .infinity)
+    }
+}
+
+/// Трикутник-засічка ◂, що вказує на стовпчик.
+private struct PaceNotch: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.midY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.closeSubpath()
+        return path
     }
 }
 
@@ -220,14 +242,19 @@ public struct ReserveWidgetView: View {
         let text = WidgetPresenter.reserve(day)
         let fraction = day.phase == .active ? day.reserveFraction : 0
         HStack(spacing: 12) {
-            switch style {
-            case .water:
-                waterText(text, fraction: fraction)
-            case .flask:
-                flaskText(text, fraction: fraction)
-            }
-            if isMedium {
-                buttons
+            if isMedium && content.showsCustomPicker {
+                // Колонка кнопок завузька для чотирьох підказок — на час вибору вони займають увесь віджет.
+                CustomPickerPanel(kind: .reserve, hints: content.snapshot.hints, columns: 4, buttonHeight: 56)
+            } else {
+                switch style {
+                case .water:
+                    waterText(text, fraction: fraction)
+                case .flask:
+                    flaskText(text, fraction: fraction)
+                }
+                if isMedium {
+                    buttons
+                }
             }
         }
         .lineLimit(1)
@@ -323,7 +350,7 @@ public struct ReserveWidgetView: View {
                         reserveButton(WidgetPresenter.addTitle(ml), prominent: false)
                     }
                 }
-                Link(destination: WidgetLink.custom.url) {
+                WidgetActionButton(.showCustomPicker(.reserve)) {
                     reserveButton("Інше", prominent: true)
                 }
             }
@@ -396,6 +423,8 @@ public struct QuickAddWidgetView: View {
             .frame(width: 104)
             if let undo = day.undo {
                 UndoPanel(undo: undo)
+            } else if content.showsCustomPicker {
+                CustomPickerPanel(kind: .quickAdd, hints: content.snapshot.hints)
             } else {
                 let columns = [GridItem(.flexible(), spacing: WidgetMetrics.gap), GridItem(.flexible(), spacing: WidgetMetrics.gap)]
                 LazyVGrid(columns: columns, spacing: WidgetMetrics.gap) {
@@ -405,9 +434,7 @@ public struct QuickAddWidgetView: View {
                             PortionLabel(title: WidgetPresenter.amount(ml), height: 62)
                         }
                     }
-                    Link(destination: WidgetLink.custom.url) {
-                        PortionLabel(title: "Інше", prominent: true, height: 62)
-                    }
+                    OtherButton(kind: .quickAdd, height: 62)
                 }
             }
         }
@@ -623,13 +650,17 @@ public struct OverviewWidgetView: View {
                                 .font(WTFont.text(12, .heavy))
                                 .foregroundStyle(theme.textMuted)
                                 .frame(width: 44, alignment: .leading)
-                            WidgetBar(fraction: block.fraction, isDone: day.dayRhythmEnabled && block.isReached,
-                                      height: 10, highlighted: block.position == .current)
-                            Text(((day.dayRhythmEnabled && block.isReached) ? "✓ " : "")
-                                 + WidgetPresenter.blockValue(block, rhythm: day.dayRhythmEnabled))
-                                .font(WTFont.text(12, .black))
-                                .foregroundStyle(block.position == .current ? theme.textPrimary : theme.textMuted)
-                                .frame(width: 84, alignment: .trailing)
+                            WidgetBar(fraction: block.fraction, height: 10, highlighted: block.position == .current)
+                            Group {
+                                if day.dayRhythmEnabled && block.isReached {
+                                    DonePill(text: "\(block.drunkMl)")
+                                } else {
+                                    Text(WidgetPresenter.blockValue(block, rhythm: day.dayRhythmEnabled))
+                                        .font(WTFont.text(12, .black))
+                                        .foregroundStyle(block.position == .current ? theme.textPrimary : theme.textMuted)
+                                }
+                            }
+                            .frame(width: 84, alignment: .trailing)
                         }
                         .opacity(block.position == .future ? 0.55 : 1)
                     }
@@ -650,6 +681,8 @@ public struct OverviewWidgetView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, minHeight: 50)
+            } else if content.showsCustomPicker {
+                CustomPickerPanel(kind: .overview, hints: snapshot.hints, columns: 4, buttonHeight: 50)
             } else {
                 HStack(spacing: WidgetMetrics.gap) {
                     ForEach(Array(snapshot.homeButtons.prefix(3).enumerated()), id: \.offset) { _, ml in
@@ -657,9 +690,7 @@ public struct OverviewWidgetView: View {
                             PortionLabel(title: WidgetPresenter.amount(ml), height: 50)
                         }
                     }
-                    Link(destination: WidgetLink.custom.url) {
-                        PortionLabel(title: "Інше", prominent: true, height: 50)
-                    }
+                    OtherButton(kind: .overview, height: 50)
                 }
             }
         }

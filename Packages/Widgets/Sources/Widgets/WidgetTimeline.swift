@@ -35,8 +35,9 @@ public enum WidgetTimeline {
     /// Кожен запис — заархівована в'юшка; 80 вистачає на 6 год кроком 5 хв разом із ключовими моментами.
     public static let maxEntries = 80
 
+    /// - Parameter pickerClosesAt: коли згорнеться вибір «Інше» — запис на цей момент, щоб віджет згорнувся сам.
     public static func dates(for kind: WidgetKind, snapshot: WidgetSnapshot?, from now: Date,
-                             calendar: CalendarService) -> [Date] {
+                             calendar: CalendarService, pickerClosesAt: Date? = nil) -> [Date] {
         let end = now.addingTimeInterval(horizon)
         var dates: Set<Date> = [now]
         func add(_ date: Date?) {
@@ -58,6 +59,7 @@ public enum WidgetTimeline {
             }
         }
 
+        add(pickerClosesAt)
         if let snapshot {
             // «Скасувати» зникає саме, без нового знімка.
             add(snapshot.lastAction?.at.addingTimeInterval(WidgetSnapshot.undoWindow))

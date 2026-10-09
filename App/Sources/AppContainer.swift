@@ -35,7 +35,8 @@ enum AppContainer {
             xpRules: xpRules,
             // e2e — база в пам'яті: справжній знімок віджетів у App Group вона не переписує.
             widgetStore: launch.isUITest ? WidgetSnapshotStore(url: nil) : .shared,
-            widgetReloader: WidgetCenterReloader()
+            widgetReloader: WidgetCenterReloader(),
+            widgetPicker: launch.isUITest ? nil : .shared
         )
         services.bootstrap()
         if launch.seedsDemoData {

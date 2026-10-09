@@ -19,7 +19,7 @@ struct ConfiguredProvider<Intent: WidgetConfigurationIntent>: AppIntentTimelineP
     }
 
     func snapshot(for configuration: Intent, in context: Context) async -> ConfiguredEntry<Intent> {
-        ConfiguredEntry(base: context.isPreview ? SnapshotTimeline.sample() : SnapshotTimeline.current(),
+        ConfiguredEntry(base: context.isPreview ? SnapshotTimeline.sample() : SnapshotTimeline.current(kind),
                         configuration: configuration)
     }
 

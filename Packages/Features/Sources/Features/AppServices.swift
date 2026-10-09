@@ -49,6 +49,9 @@ public final class AppServices {
     /// App Group і WidgetKit передає лише застосунок, у тестах — тимчасовий файл.
     @ObservationIgnored let widgetStore: WidgetSnapshotStore
     @ObservationIgnored let widgetReloader: (any WidgetReloading)?
+    /// Розгорнутий вибір «Інше» у віджетах (`WidgetCustomPicker`): у застосунку — лише щоб порція його згорнула
+    /// й DEBUG-галерея його показала.
+    @ObservationIgnored let widgetPicker: WidgetCustomPicker
     /// Останній опублікований знімок: без змін таймлайни не перезавантажуються, а «Запас води» тягнеться
     /// від нього без стрибків (`HydrationReserve.make`).
     @ObservationIgnored var publishedWidgetSnapshot: WidgetSnapshot?
@@ -66,11 +69,14 @@ public final class AppServices {
         bubbleSoundAvailable: Bool = false,
         xpRules: XPRules = .default,
         widgetStore: WidgetSnapshotStore = WidgetSnapshotStore(url: nil),
-        widgetReloader: (any WidgetReloading)? = nil
+        widgetReloader: (any WidgetReloading)? = nil,
+        widgetPicker: WidgetCustomPicker? = nil
     ) {
         self.container = container
         self.widgetStore = widgetStore
         self.widgetReloader = widgetReloader
+        // Свій набір налаштувань на екземпляр: стан вибору з одного тесту не має протікати в інший.
+        self.widgetPicker = widgetPicker ?? WidgetCustomPicker(defaults: UserDefaults(suiteName: UUID().uuidString) ?? .standard)
         self.clock = clock
         let context = container.mainContext
         let calendar = CalendarService(clock: clock)

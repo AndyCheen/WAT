@@ -34,6 +34,9 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
     public var homeButtons: [Int]
     /// «Моя склянка».
     public var glassMl: Int
+    /// Підказки шторки «Інше» (`QuickAddPreset.place == .customSheet`) — вибір «Інше» у віджеті. Необов'язкове:
+    /// знімок старішої збірки його не має, і віджет тоді бере типові.
+    public var customHints: [Int]?
     public var streak: Streak
     public var level: Level
     public var dailyQuests: [Quest]
@@ -47,7 +50,8 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
     public init(
         generatedAt: Date, day: DayKey, unitRaw: Int = 0, goalMl: Int, totalMl: Int, countedMl: Int,
         portions: [Portion], schedule: Schedule, weekday: Schedule, weekend: Schedule? = nil,
-        dayRhythmEnabled: Bool = true, homeButtons: [Int], glassMl: Int, streak: Streak, level: Level,
+        dayRhythmEnabled: Bool = true, homeButtons: [Int], glassMl: Int, customHints: [Int]? = nil,
+        streak: Streak, level: Level,
         dailyQuests: [Quest] = [], weeklyQuests: [Quest] = [], dayPartXp: Int = 10,
         reserve: HydrationReserve? = nil, lastAction: LastAction? = nil
     ) {
@@ -65,6 +69,7 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
         self.dayRhythmEnabled = dayRhythmEnabled
         self.homeButtons = homeButtons
         self.glassMl = glassMl
+        self.customHints = customHints
         self.streak = streak
         self.level = level
         self.dailyQuests = dailyQuests
@@ -158,6 +163,11 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
 }
 
 extension WidgetSnapshot {
+    /// Типові підказки шторки «Інше» — як у `QuickAddPreset` (WAT-45).
+    public static let defaultCustomHints = [150, 250, 350, 500]
+
+    public var hints: [Int] { (customHints?.isEmpty == false ? customHints : nil) ?? Self.defaultCustomHints }
+
     /// Скільки «Скасувати» лишається на віджетах після тапу (SPEC-WIDGETS §4.1).
     public static let undoWindow: TimeInterval = 60
 

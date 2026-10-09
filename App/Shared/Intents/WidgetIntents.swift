@@ -28,6 +28,8 @@ struct AddWaterWidgetIntent: LiveActivityIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         #if !WIDGET_EXTENSION
+        // Порція з підказки «Інше» згортає вибір — після неї віджет показує «Скасувати», а не підказки.
+        WidgetCustomPicker.shared.closeAll()
         AppContainer.finishInBackground(await AppContainer.services.perform(.add(ml: amountMl, source: .widget)))
         #endif
         return .result()

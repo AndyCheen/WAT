@@ -18,16 +18,21 @@ enum SnapshotTimeline {
         let calendar = CalendarService(clock: clock)
         let now = clock.now
         let snapshot = WidgetSnapshotStore.shared.read()
-        let dates = WidgetTimeline.dates(for: kind, snapshot: snapshot, from: now, calendar: calendar)
-        let entries = dates.map { date in entry(snapshot, at: date, calendar: calendar) }
+        let pickerCloses = WidgetCustomPicker.shared.closesAt(kind, now: now)
+        let dates = WidgetTimeline.dates(for: kind, snapshot: snapshot, from: now, calendar: calendar,
+                                         pickerClosesAt: pickerCloses)
+        let entries = dates.map { date in
+            entry(snapshot, at: date, calendar: calendar, pickerOpen: pickerCloses.map { date < $0 } ?? false)
+        }
         // Після останнього запису WidgetKit попросить новий таймлайн — знімок до того часу вже інший.
         return Timeline(entries: entries, policy: .after(dates.last ?? now.addingTimeInterval(3600)))
     }
 
-    static func current() -> SnapshotEntry {
+    static func current(_ kind: WidgetKind) -> SnapshotEntry {
         let clock = SystemClock()
         let calendar = CalendarService(clock: clock)
-        return entry(WidgetSnapshotStore.shared.read(), at: clock.now, calendar: calendar)
+        return entry(WidgetSnapshotStore.shared.read(), at: clock.now, calendar: calendar,
+                     pickerOpen: WidgetCustomPicker.shared.isOpen(kind, at: clock.now))
     }
 
     /// Галерея віджетів системи й заглушка — типовий день о 13:25, а не порожній знімок: о пів на одинадцяту
@@ -38,9 +43,10 @@ enum SnapshotTimeline {
         return entry(WidgetSnapshot.sample(at: noon, calendar: calendar), at: noon, calendar: calendar)
     }
 
-    private static func entry(_ snapshot: WidgetSnapshot?, at date: Date, calendar: CalendarService) -> SnapshotEntry {
+    private static func entry(_ snapshot: WidgetSnapshot?, at date: Date, calendar: CalendarService,
+                              pickerOpen: Bool = false) -> SnapshotEntry {
         guard let snapshot else { return SnapshotEntry(date: date, content: nil, relevance: nil) }
-        let content = WidgetContent(snapshot: snapshot, at: date, calendar: calendar)
+        let content = WidgetContent(snapshot: snapshot, at: date, calendar: calendar, customPickerOpen: pickerOpen)
         return SnapshotEntry(date: date, content: content,
                              relevance: TimelineEntryRelevance(score: WidgetTimeline.relevance(content.day)))
     }
@@ -52,7 +58,7 @@ struct SnapshotProvider: TimelineProvider {
     func placeholder(in context: Context) -> SnapshotEntry { SnapshotTimeline.sample() }
 
     func getSnapshot(in context: Context, completion: @escaping (SnapshotEntry) -> Void) {
-        completion(context.isPreview ? SnapshotTimeline.sample() : SnapshotTimeline.current())
+        completion(context.isPreview ? SnapshotTimeline.sample() : SnapshotTimeline.current(kind))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<SnapshotEntry>) -> Void) {
@@ -86,6 +92,10 @@ extension WidgetActionButtonFactory {
             AnyView(Button(intent: AddWaterWidgetIntent(ml: ml)) { label }.buttonStyle(.plain))
         case let .undo(intakeId):
             AnyView(Button(intent: UndoWaterWidgetIntent(intakeId: intakeId)) { label }.buttonStyle(.plain))
+        case let .showCustomPicker(kind):
+            AnyView(Button(intent: CustomPickerIntent(kind: kind, open: true)) { label }.buttonStyle(.plain))
+        case let .hideCustomPicker(kind):
+            AnyView(Button(intent: CustomPickerIntent(kind: kind, open: false)) { label }.buttonStyle(.plain))
         }
     }
 }

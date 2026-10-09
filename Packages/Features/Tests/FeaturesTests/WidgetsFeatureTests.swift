@@ -167,6 +167,20 @@ final class WidgetsFeatureTests: XCTestCase {
         XCTAssertEqual(after.level(at: clock.now), levelBefore, accuracy: 0.5)
     }
 
+    /// «Інше» у віджеті: підказки — зі шторки «Інше», порція згортає вибір.
+    func testCustomPickerFromGallery() async throws {
+        await services.perform(.showCustomPicker(.quickAdd)).value
+        XCTAssertTrue(services.widgetPicker.isOpen(.quickAdd, at: clock.now))
+        XCTAssertEqual(try XCTUnwrap(store.read()).hints, services.hydration.quickAddAmounts(.customSheet))
+
+        await services.perform(.add(ml: 350, source: .widget)).value
+        XCTAssertFalse(services.widgetPicker.isOpen(.quickAdd, at: clock.now))
+
+        await services.perform(.showCustomPicker(.overview)).value
+        await services.perform(.hideCustomPicker(.overview)).value
+        XCTAssertFalse(services.widgetPicker.isOpen(.overview, at: clock.now))
+    }
+
     func testLinks() {
         services.open(.stats)
         XCTAssertEqual(services.router.takePath(), [.stats])
