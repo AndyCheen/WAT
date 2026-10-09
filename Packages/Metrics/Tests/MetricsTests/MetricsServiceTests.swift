@@ -71,6 +71,23 @@ final class MetricsServiceTests: XCTestCase {
         XCTAssertEqual(service.sumAllTime(.intakeAdded), 200)
     }
 
+    /// Максимум відкочується лише тоді, коли відкочене значення й було максимумом (WAT-30: без цього «Скасувати»
+    /// у віджеті перечитувало всю історію на кожен період).
+    func testRevertKeepsOrRecomputesMaximum() {
+        let small = UUID(), big = UUID()
+        service.record(MetricEvent(name: .intakeAdded, value: 300, occurredAt: Self.date(day: 17, hour: 9)))
+        service.record(MetricEvent(name: .intakeAdded, value: 250, occurredAt: clock.now, sourceRef: small))
+        service.record(MetricEvent(name: .intakeAdded, value: 900, occurredAt: clock.now, sourceRef: big))
+
+        service.revert(sourceRef: small, at: clock.now)
+        XCTAssertEqual(service.maxValue(.intakeAdded), 900, "не крайнє значення максимум не чіпає")
+
+        service.revert(sourceRef: big, at: clock.now)
+        XCTAssertEqual(service.maxValue(.intakeAdded), 300, "максимум перечитано з решти подій")
+        let today = service.periodKeys(for: clock.now).first { $0.0 == .day }!.1
+        XCTAssertEqual(service.maxValue(.intakeAdded, periodType: .day, periodKey: today), 0, "день спорожнів")
+    }
+
     func testRevertIsIdempotent() {
         let ref = UUID()
         service.record(MetricEvent(name: .intakeAdded, value: 500, occurredAt: clock.now, sourceRef: ref))

@@ -83,6 +83,28 @@ public struct WTTheme: Equatable, Sendable {
 }
 
 public extension WTTheme {
+    /// Тоновані віджети iOS 18 (WAT-30). Система перефарбовує все в білий і колір відтінку, лишаючи тільки
+    /// прозорість: світла плашка й синій текст на ній ставали однаково білими, а доріжка кільця — суцільною
+    /// білою смугою. Тут розрізняє лише прозорість — плашки й доріжки напівпрозорі, текст суцільний.
+    static let tinted = WTTheme(
+        isDark: true,
+        screen: .clear,
+        card: .clear,
+        sheet: .clear,
+        chip: Color.white.opacity(0.16),
+        button: Color.white.opacity(0.16),
+        textPrimary: .white,
+        textMuted: Color.white.opacity(0.6),
+        textButton: .white,
+        accent: .white,
+        line: Color.white.opacity(0.15),
+        track: Color.white.opacity(0.18),
+        dotOff: Color.white.opacity(0.2),
+        deleteBg: Color.white.opacity(0.16),
+        ringStart: .white,
+        ringEnd: .white
+    )
+
     /// Фон кола відкритого досягнення. `goldIconBg` — фіксований світлий колір, на темному
     /// екрані він «світиться», тож у темній темі беремо `chip` (SPEC-ACHIEVEMENTS §11).
     /// Похідне поле замість `if theme.isDark` у кожній вʼюсі.

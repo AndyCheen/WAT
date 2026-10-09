@@ -19,8 +19,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 500 unit-тестів 9 пакетів, без симулятора — швидкий цикл
-make test-ui        # 41 e2e-сценарій (XCUITest) у симуляторі
+make test-packages  # 562 unit-тести 10 пакетів, без симулятора — швидкий цикл
+make test-ui        # 47 e2e-сценаріїв (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
 make clean
@@ -49,12 +49,12 @@ xcodebuild test -scheme WaterTracker -destination 'platform=iOS Simulator,name=i
 
 ## Архітектура
 
-9 локальних SPM-пакетів у `Packages/` + тонкий app-таргет `App/`. Граф залежностей
-жорсткий — його тримають самі маніфести `Package.swift`, зайвий `import` просто не збереться:
+10 локальних SPM-пакетів у `Packages/` + тонкий app-таргет `App/` і розширення віджетів `WidgetExtension/`.
+Граф залежностей жорсткий — його тримають самі маніфести `Package.swift`, зайвий `import` просто не збереться:
 
 ```
 Features → (Hydration | Gamification | Insights | Notifications) → Metrics → Persistence → Core
-Features → DesignSystem → Core
+Features → Widgets → DesignSystem → Core
 ```
 
 Ніхто не імпортує `Features`. `DesignSystem` не знає доменних моделей — приймає лише
@@ -160,6 +160,41 @@ Features → DesignSystem → Core
   контекст `ReportDigest` за періодами з `NotificationPlanner.reportPeriods`, текст складає `ReportText`.
   Денний — `.passive`, усі звіти без звуку й поза лімітом 8.
 
+### Віджети (WAT-30, SPEC-WIDGETS)
+
+- **Пише лише застосунок.** Розширення `WaterTrackerWidgets` лінкує тільки пакет `Widgets` і SwiftData не відкриває:
+  два процеси в одному сховищі — застарілі дані й розбіжні кеші метрик. Застосунок наприкінці кожного проходу
+  перепланування (`NotificationService.onRescheduled`) пише `WidgetSnapshot` у App Group
+  (`group.com.watertracker.app/widget-snapshot.json`, `AppServices+Widgets.swift`); той самий зміст таймлайнів не
+  перезавантажує. Нову добу без запуску застосунку віджет проєктує сам (`WidgetDay.resolve`).
+- **Кнопки йдуть у процес застосунку** (`App/Shared/Intents`, у двох цілях) через `ForegroundContinuableIntent`,
+  недоступний у розширенні (`@available(iOSApplicationExtension, unavailable)`), — **не `LiveActivityIntent`**: той
+  додає ~3 с до кожного тапу («Команди» чекають, чи почне застосунок Live Activity). Порція йде
+  `AppServices.perform(_:)` — тим самим шляхом, що «+склянка» зі сповіщення (відлуння, перепланування).
+  Тіло `perform()` — лише в застосунку (`#if !WIDGET_EXTENSION`). «Додати воду» в «Командах» — `AddWaterIntent`,
+  лише в застосунку, джерело `.shortcut`. «Скасувати» — лише щойно додану з віджета порцію.
+  `perform(_:)` повертається одразу після порції й знімка — кожна частка секунди тут видна як пауза на віджеті;
+  відлуння, перепланування й `reloadAllTimelines()` — у повернутій задачі під фоновим завданням
+  (`AppContainer.finishInBackground`): натиснутий віджет WidgetKit перезавантажує сам і має бути першим у його черзі.
+- **Таймлайн — короткий** (`WidgetTimeline`): після тапу віджет оновлюється, лише коли намальовано всі записи (×4 —
+  світла/темна, повний колір/тонований). Не більше 12 кроків каденції, а поки видно «Скасувати» чи «Інше» — до їхнього
+  кінця; далі WidgetKit просить новий таймлайн сам.
+- **«Інше»** розгортає підказки шторки «Інше» в самому віджеті (вікна поверх робочого столу віджет не має): стан —
+  `WidgetCustomPicker` в App Group, кнопки — звичайний `AppIntent` (`CustomPickerIntent`, лише в розширенні, без
+  застосунку), окремо для кожного віджета, згортається сам за хвилину; порція згортає всі.
+- **Запас води** — `HydrationReserve`: порція піднімає рівень на свій об'єм (ємність — 2 типові порції), нуль за
+  10 хв до першого нагадування з плану, без плану — `PaceCurve.nextDueMinute` (та сама формула, що в планувальника).
+  Та сама остання порція — рівень тягнеться без стрибків (відкриття застосунку відсуває нагадування на 30 хв).
+- В'юшки — у пакеті; кнопки через `\.widgetActionButton` (інтенти в SPM-пакеті Xcode 16 не індексує). Тексти —
+  `WidgetPresenter` і `DayPartPresenter` (один для капсули головного й віджета). `kind` — `WidgetKind.identifier`,
+  не міняти: поставлені віджети зникнуть. Кільце «Запасу» на екрані блокування — `Gauge`, не
+  `ProgressView(timerInterval:)`: поза WidgetKit той — спінер.
+- **Тоновані віджети iOS 18** лишають від кольору лише прозорість: тема — `WTTheme.tinted` (`wtWidgetTheme()` за
+  `widgetRenderingMode`), акцентним (`widgetAccentable`) робити лише тло, не текст поверх нього; галочки — `CheckBadge`.
+  Тло віджета (`containerBackground`) у тонованому режимі прибирається — усе, що несе зміст (вода «Запасу»), малювати
+  у вмісті. Зеленого «закрито» у віджетах немає — пігулка `DonePill` кольору акценту.
+- Переходи — `watertracker://home|custom|stats|progress` (`WidgetLink`) → `.onOpenURL` → `AppServices.open(_:)`.
+
 ### Ритм дня (WAT-42, SPEC-NOTIFICATIONS §28)
 
 - `UserProfile.dayRhythmEnabled`, типово увімкнено. Вимкнено — «просто норма за день»: планувальник не ставить
@@ -241,7 +276,7 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
   друге читання вже не бачить нових, і крапки «нове» не з'являються зовсім (WAT-23).
 - Прапорці запуску (`App/Sources/WaterTrackerApp.swift`, `LaunchConfiguration`):
   `--uitest-empty` (чиста in-memory БД), `--uitest-demo` (демо-історія),
-  `--seed-demo`, `--start-screen progress|level-road|achievements|prizes|stats|settings|portion-buttons|notifications|notification-plan|report|schedule-suggestion`
+  `--seed-demo`, `--start-screen progress|level-road|achievements|prizes|stats|settings|portion-buttons|notifications|notification-plan|report|schedule-suggestion|widgets`
   (`report` — минулий тиждень; період явно — `report:day:2026-10-04`, `report:month:2026-09`;
   `schedule-suggestion:wake-early|wake-late|sleep-late|sleep-early|both|weekend|weekdays` — вікно «Графік дня»
   повз правило частоти). `--seed-schedule-shift` — 10 днів із першою склянкою ≈ 06:30: вікно з'являється само.
@@ -255,6 +290,11 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
   сценарії); `--notification-tap reminder|morning|evening|rescue|comeback|echo|report` імітує тап
   (`morning` — вікно «Склянка», `report` — звіт за минулий тиждень);
   `--uitest-now 2026-10-01T07:00:00+03:00` фіксує годинник для DEBUG-екрана «План сповіщень».
+- Віджети в e2e: домашній екран у XCUITest нестабільний, тож в'юшки — у DEBUG-галереї `--start-screen widgets`
+  (кнопки кличуть `AppServices.perform` напряму, ідентифікатори `widget.add.<мл>` / `widget.undo`), дії —
+  `--widget-action add:250,undo`, переходи — `XCUIDevice.shared.system.open(watertracker://…)` (не `app.open`:
+  той нестабільно чіпляється за системний діалог «Відкрити у програмі?»). Галерея без `--uitest-now` о пізній годині
+  показує нічний стан. Під `--uitest-*` знімок у App Group не пишеться.
 
 ## Відомі прогалини
 
@@ -294,6 +334,8 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
 | `Design/Prizes.html` | макет модуля призів (6 кадрів 402×874) до цього ТЗ; перенесено в код у WAT-34 |
 | `Design/LevelRoad.html` | макет вікна «Шлях рівнів» (WAT-44, SPEC-PRIZES §16): погоджено «Драбину» й «Скриню», компактний вибір; інфографіка частоти призів |
 | `Config/Balance.xcconfig` | баланс XP: XP за крок об'єму води й загальний множник (SPEC-PRIZES §16.13) |
+| `SPEC-WIDGETS.md` | ТЗ віджетів (WAT-30): набір, «Скасувати», налаштування «Кнопки», алгоритм «Запасу води», екран блокування, Пункт керування, «Команди»; один пише — застосунок, віджет читає знімок |
+| `Design/Widgets.html` | інтерактивний макет віджетів (WAT-30): три сторінки домашнього екрана, варіанти «Запасу води» й «Огляду дня», екран блокування, StandBy, Пункт керування |
 | `SPEC-NOTIFICATIONS.md` | ТЗ модуля «Сповіщення» (WAT-17): типи, нагадування за кривою темпу, анти-спам, тексти, налаштування, локальні сповіщення й планувальник; етапи 0 і A реалізовано в WAT-36 (рішення — §23), етап B — у WAT-37 (§24), одна модель цілей частин доби — WAT-39 (§25), капсула частини доби на головному — WAT-40 (§26), пропозиція змінити графік дня — WAT-41 (§27), перемикач «Ритм дня» — WAT-42 (§28), спад кривої темпу перед сном — WAT-43 (§29), екран «Налаштування» на весь екран — WAT-15 (§30) |
 | `Design/DayPart.html` | макет капсули частини доби на головному (WAT-40): три варіанти, погоджено A (SPEC-NOTIFICATIONS §26) |
 | `Design/Schedule.html` | макет вікна «Графік дня» (WAT-41): три варіанти, погоджено A «Час», і правило зсуву на 14 днях (SPEC-NOTIFICATIONS §27) |

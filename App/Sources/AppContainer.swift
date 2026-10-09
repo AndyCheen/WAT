@@ -1,10 +1,12 @@
 import Foundation
+import UIKit
 import SwiftData
 import Core
 import Persistence
 import Gamification
 import Features
 import Notifications
+import Widgets
 
 /// Єдиний екземпляр сервісів застосунку.
 ///
@@ -30,7 +32,11 @@ enum AppContainer {
         let services = AppServices(
             container: container, clock: clock, notificationCenter: center,
             bubbleSoundAvailable: Bundle.main.url(forResource: "drop", withExtension: "caf") != nil,
-            xpRules: xpRules
+            xpRules: xpRules,
+            // e2e — база в пам'яті: справжній знімок віджетів у App Group вона не переписує.
+            widgetStore: launch.isUITest ? WidgetSnapshotStore(url: nil) : .shared,
+            widgetReloader: WidgetCenterReloader(),
+            widgetPicker: launch.isUITest ? nil : .shared
         )
         services.bootstrap()
         if launch.seedsDemoData {
@@ -45,8 +51,24 @@ enum AppContainer {
         if let tap = launch.notificationTap {
             services.simulateNotificationTap(tap)
         }
+        if let actions = launch.widgetActions {
+            Task { await services.simulateWidgetActions(actions) }
+        }
         return services
     }()
+
+    /// Дочекатися хвоста дії з віджета (відлуння, перепланування) у фоні. Інтент повертається раніше — заради
+    /// швидкої цифри на віджеті (`AppServices.perform`), а після повернення iOS може приспати застосунок:
+    /// фонове завдання дає хвосту дійти, інакше нагадування лишилось би за старим планом.
+    static func finishInBackground(_ work: Task<Void, Never>) {
+        let application = UIApplication.shared
+        var taskId = UIBackgroundTaskIdentifier.invalid
+        taskId = application.beginBackgroundTask { application.endBackgroundTask(taskId) }
+        Task { @MainActor in
+            await work.value
+            application.endBackgroundTask(taskId)
+        }
+    }
 
     /// Баланс XP: `Config/Balance.xcconfig` → `Info.plist`, а в DEBUG — ще й змінні середовища схеми,
     /// щоб пробувати числа без правки конфігурації (SPEC-PRIZES §16.13).

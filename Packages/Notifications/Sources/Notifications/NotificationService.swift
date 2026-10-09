@@ -31,6 +31,10 @@ public final class NotificationService: MetricsSubscriber {
 
     /// Збирає `NotificationContext` — ставить `AppServices`.
     @ObservationIgnored public var contextProvider: (() -> NotificationContext)?
+    /// Прохід перепланування завершено — план свіжий. Сюди сходяться всі зміни стану (дія, повернення з
+    /// фону, північ, дія зі сповіщення, фонове оновлення), тож тут застосунок оновлює знімок для віджетів
+    /// (WAT-30, SPEC-WIDGETS §9.1): «Запас води» бере з плану час наступного нагадування.
+    @ObservationIgnored public var onRescheduled: ((NotificationPlan) -> Void)?
 
     /// `nil` — ще не перевіряли: шторку дозволу до першої перевірки не показуємо.
     public private(set) var authorization: NotificationAuthorization?
@@ -131,6 +135,7 @@ public final class NotificationService: MetricsSubscriber {
         store.deleteLogs(firedBefore: now.addingTimeInterval(-Double(rules.logRetentionDays) * 86_400))
         metrics.commit()
         revision &+= 1
+        onRescheduled?(plan)
     }
 
     /// «Доставлено» видно лише коли застосунок працює: запити, час яких минув і які не

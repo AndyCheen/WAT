@@ -4,6 +4,7 @@ import Core
 import Persistence
 import Features
 import Notifications
+import Widgets
 
 @main
 struct WaterTrackerApp: App {
@@ -14,6 +15,10 @@ struct WaterTrackerApp: App {
     var body: some Scene {
         WindowGroup {
             RootView(services: services, initialRoute: AppContainer.launch.startRoute)
+                // Тап по віджету (SPEC-WIDGETS §9.4).
+                .onOpenURL { url in
+                    if let link = WidgetLink(url: url) { services.open(link) }
+                }
                 // Північ і переведення годинника, поки застосунок на екрані.
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
                     NSTimeZone.resetSystemTimeZone()
@@ -55,7 +60,7 @@ struct WaterTrackerApp: App {
 struct LaunchConfiguration {
     let isInMemory: Bool
     let seedsDemoData: Bool
-    /// `--start-screen progress|level-road|achievements|prizes|stats|settings|portion-buttons|notifications|notification-plan|report|schedule-suggestion` —
+    /// `--start-screen progress|level-road|achievements|prizes|stats|settings|portion-buttons|notifications|notification-plan|report|schedule-suggestion|widgets` —
     /// відкрити екран одразу. Використовується для дизайн-QA та e2e без ручної навігації.
     /// `report` — звіт за минулий тиждень; конкретний період — `report:day:2026-10-04`,
     /// `report:month:2026-09` (кілька — через кому, як у злитому сповіщенні).
@@ -76,6 +81,8 @@ struct LaunchConfiguration {
     let scheduleSuggestion: ScheduleSuggestionDemo?
     /// `--seed-schedule-shift` — 10 днів із першою склянкою ≈ 06:30: вікно з'являється саме, як у житті.
     let seedsScheduleShift: Bool
+    /// `--widget-action add:250,undo` — дії кнопок віджета по черзі: домашній екран у XCUITest нестабільний (WAT-30).
+    let widgetActions: String?
 
     static var current: LaunchConfiguration {
         let arguments = ProcessInfo.processInfo.arguments
@@ -97,6 +104,7 @@ struct LaunchConfiguration {
         case "portion-buttons": route = .portionButtons
         case "notifications": route = .notifications
         case "notification-plan": route = .notificationPlan
+        case "widgets": route = .widgetGallery
         case let screen? where screen.hasPrefix("report"):
             let periods = screen.dropFirst("report".count).drop { $0 == ":" }
                 .split(separator: ",").compactMap { ReportPeriod(encoded: String($0)) }
@@ -124,7 +132,8 @@ struct LaunchConfiguration {
             fixedNow: value(after: "--uitest-now").flatMap { ISO8601DateFormatter().date(from: $0) },
             notificationTap: value(after: "--notification-tap").flatMap(NotificationType.init(key:)),
             scheduleSuggestion: scheduleSuggestion,
-            seedsScheduleShift: arguments.contains("--seed-schedule-shift")
+            seedsScheduleShift: arguments.contains("--seed-schedule-shift"),
+            widgetActions: value(after: "--widget-action")
         )
     }
 }

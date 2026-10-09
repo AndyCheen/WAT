@@ -4,6 +4,7 @@ import Core
 import Persistence
 import Notifications
 @testable import Features
+import Widgets
 
 /// Капсула поточної частини доби на головному (WAT-40). Розклад за замовчуванням — 08:00–22:00,
 /// норма 2000 мл: цілі частин 689 (до 12:00), 826 і 485 мл.

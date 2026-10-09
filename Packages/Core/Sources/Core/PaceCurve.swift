@@ -171,3 +171,22 @@ public struct PaceCurve: Sendable, Equatable {
         return [(0, to * 60), (from * 60, 24 * 60)]
     }
 }
+
+extension PaceCurve {
+    /// Коли за темпом настав час наступної порції — перше нагадування ланцюга (SPEC-NOTIFICATIONS §6.2):
+    /// `R = max(A, E(L))`, перший момент `t ∈ [L + minGap, L + maxGap]`, де `E(t) − R ≥ k·P`, інакше `L + maxGap`.
+    ///
+    /// У `Core`, а не в планувальнику: та сама формула веде «Запас води» у віджеті (WAT-30, SPEC-WIDGETS §5),
+    /// і віджет мусить спорожніти саме тоді, коли нагадування вирішить, що час пити. Без округлення до
+    /// хвилини й без тиші — це вже справа планувальника.
+    public func nextDueMinute(anchorMinute: Double, drunkMl: Int, portionMl: Int,
+                              k: Double, minGapMinutes: Int, maxGapMinutes: Int) -> Double {
+        // `max(A, E(L))`: старий дефіцит — справа вечірнього підсумку, нагадування стежить лише за
+        // поточним ритмом. З просто `A` нарада давала 8 нагадувань замість 4 (§6.2).
+        let base = max(Double(drunkMl), expected(atMinute: anchorMinute))
+        let low = anchorMinute + Double(minGapMinutes)
+        let high = anchorMinute + Double(maxGapMinutes)
+        guard let reach = minute(reaching: base + k * Double(portionMl)), reach <= high else { return high }
+        return max(low, reach)
+    }
+}

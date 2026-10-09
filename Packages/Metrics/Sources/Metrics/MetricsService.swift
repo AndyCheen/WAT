@@ -183,6 +183,7 @@ public final class MetricsService {
     }
 
     private func applyToCounters(name: MetricKey, value: Double, at date: Date, sign: Double) {
+        var stale: [(type: MetricPeriodType, key: String, counter: MetricCounterRecord)] = []
         for (type, key) in periodKeys(for: date) {
             let counter = store.makeCounter(metricKey: name.rawValue, periodType: type, periodKey: key)
             counter.sum += value * sign
@@ -190,28 +191,38 @@ public final class MetricsService {
             if sign > 0 {
                 counter.maxValue = max(counter.maxValue, value)
                 counter.minValue = counter.count == 1 ? value : min(counter.minValue, value)
-            } else {
-                // Мінімум і максимум не «відкочуються» арифметично — перечитуємо з подій.
-                // Відкат трапляється рідко, тому ціна перерахунку прийнятна.
-                recomputeExtremes(name: name, type: type, periodKey: key, counter: counter)
+            } else if counter.count <= 0 {
+                counter.maxValue = 0
+                counter.minValue = 0
+            } else if value >= counter.maxValue || value <= counter.minValue {
+                // Мінімум і максимум не «відкочуються» арифметично — перечитуємо з подій, але лише коли
+                // відкочене значення й було крайнім: порція 250 мл серед 200…1000 їх не змінює.
+                stale.append((type, key, counter))
             }
             counter.lastUpdatedAt = date
         }
+        if !stale.isEmpty { recomputeExtremes(name: name, stale) }
     }
 
+    /// Одна вибірка на всі застарілі періоди. Раніше кожен із п'яти періодів вибирав усі події метрики й рахував
+    /// ключі періодів для кожної — «Скасувати» у віджеті й видалення з історії коштували ~0,3 с на подію (WAT-30).
     private func recomputeExtremes(
         name: MetricKey,
-        type: MetricPeriodType,
-        periodKey key: String,
-        counter: MetricCounterRecord
+        _ stale: [(type: MetricPeriodType, key: String, counter: MetricCounterRecord)]
     ) {
-        let values = store.events(name: name.rawValue, dayKey: nil)
-            .filter { record in
-                periodKeys(for: record.occurredAt).contains { $0.0 == type && $0.1 == key }
+        // Лише день — досить подій цього дня, а не всієї історії.
+        let dayKey = stale.allSatisfy { $0.type == .day } ? stale.first?.key : nil
+        var values = Array(repeating: [Double](), count: stale.count)
+        for record in store.events(name: name.rawValue, dayKey: dayKey) {
+            let keys = periodKeys(for: record.occurredAt)
+            for (index, item) in stale.enumerated() where keys.contains(where: { $0.0 == item.type && $0.1 == item.key }) {
+                values[index].append(record.value)
             }
-            .map(\.value)
-        counter.maxValue = values.max() ?? 0
-        counter.minValue = values.min() ?? 0
+        }
+        for (index, item) in stale.enumerated() {
+            item.counter.maxValue = values[index].max() ?? 0
+            item.counter.minValue = values[index].min() ?? 0
+        }
     }
 
     private static func encode(_ payload: [String: String]) -> Data? {

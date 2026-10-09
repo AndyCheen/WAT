@@ -398,20 +398,13 @@ struct PlanBuilder {
         let anchor = todayIntakes.max() ?? frame.wake
         let anchorMinute = frame.minute(of: anchor)
 
-        var first: Double
+        let first: Double
         switch preferences.cadence {
         case .pace(let frequency):
             let pace = rules.pace(for: frequency)
-            // `max(A, E(L))`: старий дефіцит — справа вечірнього підсумку, нагадування стежить
-            // лише за поточним ритмом. З просто `A` нарада давала 8 нагадувань замість 4 (§6.2).
-            let base = max(Double(drank), frame.curve.expected(atMinute: anchorMinute))
-            let low = anchorMinute + Double(pace.minGapMinutes)
-            let high = anchorMinute + Double(pace.maxGapMinutes)
-            if let reach = frame.curve.minute(reaching: base + pace.k * Double(portion)), reach <= high {
-                first = max(low, reach)
-            } else {
-                first = high
-            }
+            first = frame.curve.nextDueMinute(anchorMinute: anchorMinute, drunkMl: drank, portionMl: portion,
+                                              k: pace.k, minGapMinutes: pace.minGapMinutes,
+                                              maxGapMinutes: pace.maxGapMinutes)
         case .interval(let minutes):
             first = anchorMinute + Double(minutes)
         }
