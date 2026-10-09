@@ -19,7 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 558 unit-тестів 10 пакетів, без симулятора — швидкий цикл
+make test-packages  # 562 unit-тести 10 пакетів, без симулятора — швидкий цикл
 make test-ui        # 47 e2e-сценаріїв (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
@@ -167,12 +167,18 @@ Features → Widgets → DesignSystem → Core
   перепланування (`NotificationService.onRescheduled`) пише `WidgetSnapshot` у App Group
   (`group.com.watertracker.app/widget-snapshot.json`, `AppServices+Widgets.swift`); той самий зміст таймлайнів не
   перезавантажує. Нову добу без запуску застосунку віджет проєктує сам (`WidgetDay.resolve`).
-- **Кнопки — `LiveActivityIntent`** (`App/Shared/Intents`, у двох цілях): система виконує їх у процесі застосунку,
-  тож порція йде `AppServices.perform(_:)` — тим самим шляхом, що «+склянка» зі сповіщення (відлуння, перепланування).
+- **Кнопки йдуть у процес застосунку** (`App/Shared/Intents`, у двох цілях) через `ForegroundContinuableIntent`,
+  недоступний у розширенні (`@available(iOSApplicationExtension, unavailable)`), — **не `LiveActivityIntent`**: той
+  додає ~3 с до кожного тапу («Команди» чекають, чи почне застосунок Live Activity). Порція йде
+  `AppServices.perform(_:)` — тим самим шляхом, що «+склянка» зі сповіщення (відлуння, перепланування).
   Тіло `perform()` — лише в застосунку (`#if !WIDGET_EXTENSION`). «Додати воду» в «Командах» — `AddWaterIntent`,
   лише в застосунку, джерело `.shortcut`. «Скасувати» — лише щойно додану з віджета порцію.
   `perform(_:)` повертається одразу після порції й знімка — кожна частка секунди тут видна як пауза на віджеті;
-  відлуння й перепланування — у повернутій задачі під фоновим завданням (`AppContainer.finishInBackground`).
+  відлуння, перепланування й `reloadAllTimelines()` — у повернутій задачі під фоновим завданням
+  (`AppContainer.finishInBackground`): натиснутий віджет WidgetKit перезавантажує сам і має бути першим у його черзі.
+- **Таймлайн — короткий** (`WidgetTimeline`): після тапу віджет оновлюється, лише коли намальовано всі записи (×4 —
+  світла/темна, повний колір/тонований). Не більше 12 кроків каденції, а поки видно «Скасувати» чи «Інше» — до їхнього
+  кінця; далі WidgetKit просить новий таймлайн сам.
 - **«Інше»** розгортає підказки шторки «Інше» в самому віджеті (вікна поверх робочого столу віджет не має): стан —
   `WidgetCustomPicker` в App Group, кнопки — звичайний `AppIntent` (`CustomPickerIntent`, лише в розширенні, без
   застосунку), окремо для кожного віджета, згортається сам за хвилину; порція згортає всі.
