@@ -18,6 +18,10 @@ extension AppServices {
     /// перезавантажує таймлайн, і кожна зайва частка секунди тут — затримка між тапом і цифрою на віджеті.
     /// Відлуння й перепланування сповіщень (~0,2 с) доходять у повернутій задачі — застосунок тримає для неї
     /// фонове завдання, а знімок із часом нагадування з нового плану приходить другим.
+    ///
+    /// Таймлайни решти віджетів перезавантажує лише хвіст. WidgetKit малює віджети по одному, а натиснутий
+    /// перезавантажує сам, щойно `perform()` повернувся, — тож прохання «перезавантаж усе» до того ставило
+    /// натиснутий у кінець черги, і цифра на ньому з'являлася після всіх інших (SPEC-WIDGETS §12).
     @discardableResult
     public func perform(_ action: WidgetAction) async -> Task<Void, Never> {
         let now = calendar.now
@@ -43,6 +47,7 @@ extension AppServices {
             return Task {}
         }
         epoch &+= 1
+        widgetReloadHolds += 1
         // Старий план — ще до порції: його нагадування для запасу не годяться, нуль поки що за темпом.
         publishWidgetSnapshot(plan: notifications.lastPlan, planIsCurrent: false)
         return Task { [weak self] in
@@ -52,6 +57,8 @@ extension AppServices {
                                              intakeId: echo.intakeId, at: now)
             }
             await notifications.rescheduleNow()
+            widgetReloadHolds -= 1
+            reloadWidgetsIfNeeded()
         }
     }
 
@@ -97,9 +104,19 @@ extension AppServices {
     ///   перепланування не дасть справжній час нагадування.
     func publishWidgetSnapshot(plan: NotificationPlan, planIsCurrent: Bool = true) {
         let snapshot = makeWidgetSnapshot(plan: plan, planIsCurrent: planIsCurrent)
-        if let published = publishedWidgetSnapshot, published.sameContent(as: snapshot) { return }
-        publishedWidgetSnapshot = snapshot
-        widgetStore.write(snapshot)
+        if publishedWidgetSnapshot?.sameContent(as: snapshot) != true {
+            publishedWidgetSnapshot = snapshot
+            widgetStore.write(snapshot)
+            widgetReloadPending = true
+        }
+        reloadWidgetsIfNeeded()
+    }
+
+    /// Поки йде дія з віджета — навіть коли знімок публікує чужий прохід перепланування, як стартовий на
+    /// холодному запуску, — таймлайни чекають її хвоста (`perform(_:)`).
+    private func reloadWidgetsIfNeeded() {
+        guard widgetReloadPending, widgetReloadHolds == 0 else { return }
+        widgetReloadPending = false
         widgetReloader?.reloadAll()
     }
 

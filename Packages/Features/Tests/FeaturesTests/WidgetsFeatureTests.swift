@@ -153,6 +153,19 @@ final class WidgetsFeatureTests: XCTestCase {
         XCTAssertEqual(store.read()?.reserve?.reminderIsPlanned, true)
     }
 
+    /// Таймлайни перезавантажує хвіст дії, а не `perform()`: натиснутий віджет WidgetKit перезавантажує сам
+    /// одразу після інтенту, і прохання «перезавантаж усе» раніше за це ставило б його в кінець черги.
+    func testReloadWaitsForActionTail() async {
+        let before = reloader.count
+        let followUp = await services.perform(.add(ml: 250, source: .widget))
+        XCTAssertEqual(reloader.count, before)
+
+        // Чужий прохід перепланування посеред дії (стартовий на холодному запуску) теж чекає.
+        services.touch()
+        await followUp.value
+        XCTAssertEqual(reloader.count, before + 1)
+    }
+
     /// Відкриття застосунку відсуває нагадування на 30 хв — крапля не підстрибує, змінюється лише нахил.
     func testReserveDoesNotJumpWhenReminderMoves() async throws {
         await services.perform(.add(ml: 250, source: .widget)).value

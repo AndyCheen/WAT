@@ -32,13 +32,44 @@ public enum WidgetTimeline {
     /// Далі за 6 год записів не будуємо — WidgetKit попросить новий таймлайн, а знімок до того часу
     /// найчастіше вже оновить застосунок.
     public static let horizon: TimeInterval = 6 * 3600
-    /// Кожен запис — заархівована в'юшка; 80 вистачає на 6 год кроком 5 хв разом із ключовими моментами.
-    public static let maxEntries = 80
+    /// Скільки кроків каденції вміщає один таймлайн; далі він закінчується, і WidgetKit просить новий.
+    ///
+    /// Кожен запис WidgetKit малює наперед, та ще й у чотирьох варіантах (світла й темна × повний колір і
+    /// тонований), а після тапу по кнопці віджет оновлюється лише тоді, коли намальовано весь таймлайн:
+    /// 75 записів «Запасу» (6 год кроком 5 хв) — 1,7 с у симуляторі. 12 кроків — година з кроком 5 хв:
+    /// ~16 нових таймлайнів на добу, у межах бюджету WidgetKit, а відлік «запасу ~35 хв» не застигає.
+    public static let maxCadenceSteps = 12
+    /// Запобіжник: каденція й ключові моменти разом рідко дають більше 20.
+    public static let maxEntries = 24
 
     /// - Parameter pickerClosesAt: коли згорнеться вибір «Інше» — запис на цей момент, щоб віджет згорнувся сам.
     public static func dates(for kind: WidgetKind, snapshot: WidgetSnapshot?, from now: Date,
                              calendar: CalendarService, pickerClosesAt: Date? = nil) -> [Date] {
-        let end = now.addingTimeInterval(horizon)
+        let today = calendar.dayKey(for: now)
+        var end = now.addingTimeInterval(horizon)
+        var cadenceLimit = end
+        if let step = kind.cadence {
+            // Порожня крапля далі не змінюється — рахувати кроки після нуля нема чого.
+            if kind == .reserve, let snapshot, let reserve = snapshot.reserve, snapshot.day == today {
+                cadenceLimit = min(end, max(now, reserve.zeroAt))
+            }
+            // Кроки, що не вміщаються в таймлайн, обрізають і його самого: після останнього запису WidgetKit
+            // попросить новий, а ключові моменти за цим краєм лише малювалися б даремно.
+            let window = now.addingTimeInterval(step * Double(maxCadenceSteps))
+            if cadenceLimit > window {
+                cadenceLimit = window
+                end = window
+            }
+        }
+        // «Скасувати» чи розгорнуте «Інше» — таймлайн до їхнього кінця. Такий таймлайн WidgetKit малює саме
+        // після тапу, і два записи замість дюжини — це віджет, що відповідає одразу; повний він попросить сам,
+        // щойно панель зникне.
+        let panelCloses = [snapshot?.undoable(at: now).map { $0.at.addingTimeInterval(WidgetSnapshot.undoWindow) },
+                           pickerClosesAt].compactMap { $0 }.filter { $0 > now }.min()
+        if let panelCloses, panelCloses < end {
+            end = panelCloses
+            cadenceLimit = min(cadenceLimit, end)
+        }
         var dates: Set<Date> = [now]
         func add(_ date: Date?) {
             guard let date, date > now, date <= end else { return }
@@ -46,7 +77,6 @@ public enum WidgetTimeline {
         }
 
         // Ключові моменти: північ, підйом, відбій і межі частин доби — сьогодні й завтра.
-        let today = calendar.dayKey(for: now)
         for offset in 0...1 {
             let day = calendar.dayKey(offsetDays: offset, from: today)
             add(calendar.date(from: day))
@@ -70,13 +100,8 @@ public enum WidgetTimeline {
         }
 
         if let step = kind.cadence {
-            var limit = end
-            // Порожня крапля далі не змінюється — рахувати кроки після нуля нема чого.
-            if kind == .reserve, let reserve = snapshot?.reserve, snapshot?.day == today {
-                limit = min(end, max(now, reserve.zeroAt))
-            }
             var next = now.addingTimeInterval(step)
-            while next <= limit {
+            while next <= cadenceLimit {
                 add(next)
                 next = next.addingTimeInterval(step)
             }

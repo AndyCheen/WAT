@@ -57,6 +57,11 @@ public final class AppServices {
     @ObservationIgnored var publishedWidgetSnapshot: WidgetSnapshot?
     /// Порція з віджета, яку ще можна скасувати (SPEC-WIDGETS §4.1).
     @ObservationIgnored var lastWidgetAction: WidgetSnapshot.LastAction?
+    /// Скільки дій з віджета ще не дійшли до кінця хвоста: поки не нуль, новий знімок пишеться, а таймлайни
+    /// чекають (`AppServices.perform(_:)`).
+    @ObservationIgnored var widgetReloadHolds = 0
+    /// Знімок змінився, а таймлайни ще не перезавантажено.
+    @ObservationIgnored var widgetReloadPending = false
 
     /// `notificationCenter` за замовчуванням — у пам'яті: справжній `UNUserNotificationCenter`
     /// у процесі SPM-тестів падає, тож його передає лише застосунок.
