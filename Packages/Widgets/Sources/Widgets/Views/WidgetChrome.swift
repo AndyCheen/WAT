@@ -84,10 +84,17 @@ private struct WidgetContainer<Background: View>: ViewModifier {
 
 private struct WidgetTheme: ViewModifier {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.widgetRenderingMode) private var renderingMode
 
     func body(content: Content) -> some View {
-        content.environment(\.wtTheme, scheme == .dark ? .dark : .light)
+        let theme: WTTheme = renderingMode == .accented ? .tinted : scheme == .dark ? .dark : .light
+        return content.environment(\.wtTheme, theme)
     }
+}
+
+extension WTTheme {
+    /// Тоновані віджети iOS 18: кольорів немає, лише прозорість (`WTTheme.tinted`).
+    var isTinted: Bool { self == .tinted }
 }
 
 /// Розміри віджетів iPhone 6.3″ (402 pt) і внутрішні пропорції — щоб числа не розсипались по в'юшках.
@@ -190,9 +197,32 @@ struct PortionLabel: View {
             .minimumScaleFactor(0.7)
             .foregroundStyle(prominent ? Color.white : theme.textButton)
             .frame(maxWidth: .infinity, minHeight: height, maxHeight: height)
-            .background(prominent ? theme.accent : theme.button,
-                        in: RoundedRectangle(cornerRadius: WTRadius.control, style: .continuous))
-            .widgetAccentable(prominent)
+            .background {
+                // Акцентне — лише тло: інакше в тонованому режимі текст і тло ставали одного кольору відтінку.
+                RoundedRectangle(cornerRadius: WTRadius.control, style: .continuous)
+                    .fill(prominent ? (theme.isTinted ? Color.white.opacity(0.32) : theme.accent) : theme.button)
+                    .widgetAccentable(prominent)
+            }
+    }
+}
+
+/// Галочка «зроблено». У тонованому режимі — контуром: зелене коло й біла галочка ставали однаково білими.
+struct CheckBadge: View {
+    @Environment(\.wtTheme) private var theme
+    var size: CGFloat = 20
+
+    var body: some View {
+        ZStack {
+            if theme.isTinted {
+                Circle().stroke(Color.white, lineWidth: max(1.5, size / 12))
+            } else {
+                Circle().fill(WTColor.success)
+            }
+            WTIcons.check(color: .white, size: size * 0.48)
+        }
+        .frame(width: size, height: size)
+        .widgetAccentable()
+        .accessibilityHidden(true)
     }
 }
 
@@ -237,12 +267,7 @@ struct UndoPanel: View {
 
     var body: some View {
         VStack(spacing: compact ? 6 : 8) {
-            ZStack {
-                Circle().fill(WTColor.success)
-                WTIcons.check(color: .white, size: compact ? 14 : 17)
-            }
-            .frame(width: compact ? 30 : 36, height: compact ? 30 : 36)
-            .widgetAccentable()
+            CheckBadge(size: compact ? 30 : 36)
             Text(WidgetPresenter.addTitle(undo.ml))
                 .font(WTFont.number(compact ? 18 : 21, .semibold))
                 .foregroundStyle(onDeep ? Color.white : theme.textPrimary)

@@ -41,6 +41,7 @@ public struct TodayWidgetView: View {
                     .font(WTFont.number(24))
                     .foregroundStyle(theme.textPrimary)
                     .contentTransition(.numericText())
+                    .invalidatableContent()
             }
             .frame(width: 86, height: 86)
             Spacer(minLength: 4)
@@ -72,15 +73,10 @@ public struct DayPartWidgetView: View {
             WidgetCaption(text: part.caption)
             Spacer(minLength: 0)
             if done {
-                ZStack {
-                    Circle().fill(WTColor.success)
-                    WTIcons.check(color: .white, size: 15)
-                }
-                .frame(width: 30, height: 30)
-                .widgetAccentable()
+                CheckBadge(size: 30)
             } else {
                 HStack(alignment: .firstTextBaseline, spacing: 3) {
-                    Text(part.value).font(WTFont.number(32)).foregroundStyle(theme.textPrimary)
+                    Text(part.value).font(WTFont.number(32)).foregroundStyle(theme.textPrimary).invalidatableContent()
                     if let unit = part.unit {
                         Text(unit).font(WTFont.text(15, .bold)).foregroundStyle(theme.textMuted)
                     }
@@ -236,19 +232,26 @@ public struct ReserveWidgetView: View {
         }
         .lineLimit(1)
         .minimumScaleFactor(0.75)
-        .wtWidgetContainer { background(fraction) }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Вода — у вмісті, а не в тлі віджета: тонований режим iOS 18 тло прибирає, і рівень зникав разом із ним.
+        // Від'ємні поля доводять її до країв віджета, як було з тлом.
+        .background {
+            if style == .water {
+                WidgetWaterShape(fraction: fraction)
+                    .fill(LinearGradient(colors: waterColors, startPoint: .top, endPoint: .bottom))
+                    .opacity(theme.isTinted ? 0.35 : 1)
+                    .widgetAccentable()
+                    .padding(-WidgetMetrics.margin)
+            }
+        }
+        .wtWidgetContainer { background }
     }
 
     @ViewBuilder
-    private func background(_ fraction: Double) -> some View {
+    private var background: some View {
         switch style {
         case .water:
-            ZStack {
-                theme.card
-                WidgetWaterShape(fraction: fraction)
-                    .fill(LinearGradient(colors: waterColors, startPoint: .top, endPoint: .bottom))
-                    .widgetAccentable()
-            }
+            theme.card
         case .flask:
             LinearGradient(colors: [theme.ringEnd, theme.waterDeep], startPoint: .topLeading, endPoint: .bottomTrailing)
         }
@@ -267,6 +270,7 @@ public struct ReserveWidgetView: View {
             Text("\(Int((fraction * 100).rounded()))%")
                 .font(WTFont.number(isMedium ? 34 : 30))
                 .contentTransition(.numericText())
+                .invalidatableContent()
             Text(text.headline).font(WTFont.text(15, .black))
             Text(text.footnote).font(WTFont.text(12, .bold)).opacity(0.75)
         }
@@ -311,23 +315,33 @@ public struct ReserveWidgetView: View {
             UndoPanel(undo: undo, compact: true, onDeep: style == .flask)
                 .frame(width: 104)
         } else {
+            // Дві кнопки з головного й «Інше» третьою (правка після перевірки, 09.10.2026): свій об'єм тут
+            // потрібен частіше, ніж третя фіксована порція.
             VStack(spacing: WidgetMetrics.gap) {
-                ForEach(Array(content.snapshot.homeButtons.prefix(3).enumerated()), id: \.offset) { _, ml in
+                ForEach(Array(content.snapshot.homeButtons.prefix(2).enumerated()), id: \.offset) { _, ml in
                     WidgetActionButton(.add(ml: ml, source: .widget)) {
-                        if style == .flask {
-                            Text(WidgetPresenter.addTitle(ml))
-                                .font(WTFont.text(14, .heavy))
-                                .foregroundStyle(Color.white)
-                                .frame(maxWidth: .infinity, minHeight: WidgetMetrics.buttonHeight)
-                                .background(Color.white.opacity(0.18),
-                                            in: RoundedRectangle(cornerRadius: WTRadius.control, style: .continuous))
-                        } else {
-                            PortionLabel(title: WidgetPresenter.addTitle(ml), fontSize: 14)
-                        }
+                        reserveButton(WidgetPresenter.addTitle(ml), prominent: false)
                     }
+                }
+                Link(destination: WidgetLink.custom.url) {
+                    reserveButton("Інше", prominent: true)
                 }
             }
             .frame(width: 96)
+        }
+    }
+
+    @ViewBuilder
+    private func reserveButton(_ title: String, prominent: Bool) -> some View {
+        if style == .flask {
+            Text(title)
+                .font(WTFont.text(14, .heavy))
+                .foregroundStyle(Color.white)
+                .frame(maxWidth: .infinity, minHeight: WidgetMetrics.buttonHeight)
+                .background(Color.white.opacity(prominent ? 0.3 : 0.18),
+                            in: RoundedRectangle(cornerRadius: WTRadius.control, style: .continuous))
+        } else {
+            PortionLabel(title: title, prominent: prominent, fontSize: 14)
         }
     }
 }
@@ -441,7 +455,10 @@ public struct ButtonWidgetView: View {
                 WidgetActionButton(.add(ml: first, source: .widget)) {
                     ZStack {
                         Circle()
-                            .fill(LinearGradient(colors: [theme.ringStart, theme.ringEnd], startPoint: .top, endPoint: .bottom))
+                            .fill(theme.isTinted
+                                  ? AnyShapeStyle(Color.white.opacity(0.3))
+                                  : AnyShapeStyle(LinearGradient(colors: [theme.ringStart, theme.ringEnd],
+                                                                 startPoint: .top, endPoint: .bottom)))
                             .widgetAccentable()
                         VStack(spacing: 0) {
                             Text("+" + WidgetPresenter.number(first)).font(WTFont.number(28))
@@ -473,7 +490,7 @@ public struct ProgressWidgetView: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 8) {
-                    WTLevelDrop(level: snapshot.level.level, color: theme.accent, size: 32).widgetAccentable()
+                    LevelBadge(level: snapshot.level.level, size: 32)
                     VStack(alignment: .leading, spacing: 0) {
                         Text("Рівень \(snapshot.level.level)").font(WTFont.text(15, .black)).foregroundStyle(theme.textPrimary)
                         Text(WidgetPresenter.xpLeft(snapshot.level)).font(WTFont.text(11, .bold)).foregroundStyle(theme.textMuted)
@@ -519,6 +536,19 @@ public struct ProgressWidgetView: View {
     }
 }
 
+/// Крапля рівня. У тонованому режимі цифра в краплі зникала — крапля й цифра ставали одним кольором відтінку,
+/// тож там крапля напівпрозора й не акцентна.
+private struct LevelBadge: View {
+    @Environment(\.wtTheme) private var theme
+    let level: Int
+    let size: CGFloat
+
+    var body: some View {
+        WTLevelDrop(level: level, color: theme.isTinted ? Color.white.opacity(0.3) : theme.accent, size: size)
+            .widgetAccentable(!theme.isTinted)
+    }
+}
+
 private struct QuestLine: View {
     @Environment(\.wtTheme) private var theme
     let quest: WidgetSnapshot.Quest
@@ -526,11 +556,7 @@ private struct QuestLine: View {
     var body: some View {
         HStack(spacing: 7) {
             if quest.isDone {
-                ZStack {
-                    Circle().fill(WTColor.success)
-                    WTIcons.check(color: .white, size: 9)
-                }
-                .frame(width: 18, height: 18)
+                CheckBadge(size: 18)
             } else {
                 WidgetRing(fraction: quest.fraction, lineWidth: 3.5).frame(width: 18, height: 18)
             }
@@ -578,7 +604,7 @@ public struct OverviewWidgetView: View {
                         HStack(spacing: 12) {
                             if let streak = day.streak { StreakBadge(count: streak, size: 17) }
                             HStack(spacing: 5) {
-                                WTLevelDrop(level: snapshot.level.level, color: theme.accent, size: 26).widgetAccentable()
+                                LevelBadge(level: snapshot.level.level, size: 26)
                                 Text("\(snapshot.level.xpIntoLevel)/\(snapshot.level.xpForNextLevel) XP")
                                     .font(WTFont.text(12, .bold))
                                     .foregroundStyle(theme.textMuted)
@@ -612,11 +638,7 @@ public struct OverviewWidgetView: View {
             Spacer(minLength: 0)
             if let undo = day.undo {
                 HStack(spacing: 12) {
-                    ZStack {
-                        Circle().fill(WTColor.success)
-                        WTIcons.check(color: .white, size: 12)
-                    }
-                    .frame(width: 26, height: 26)
+                    CheckBadge(size: 26)
                     Text(WidgetPresenter.addTitle(undo.ml)).font(WTFont.number(20)).foregroundStyle(theme.textPrimary)
                     WidgetActionButton(.undo(intakeId: undo.intakeId)) {
                         Text("Скасувати")
