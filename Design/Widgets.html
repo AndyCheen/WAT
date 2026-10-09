@@ -310,6 +310,24 @@ td b{color:#1f4a72}
   </div>
 </div>
 
+<h2>7. Правки після перевірки (09.10.2026) — обери варіанти</h2>
+<p class="lead">
+  Зелений стовпчик «закрито» випадав з палітри, а лінія темпу різала стовпчик навпіл. Нижче — по три-чотири способи
+  зробити це тихіше. Обидва вибори діють і в «Ритмі дня», і в рядках «Огляду дня». Тисни порції на панелі вгорі й тягни час:
+  стовпчики живі. Тема — та сама, що в панелі.
+</p>
+<h3 style="font-size:14px;font-weight:900;margin:18px 0 8px">7.1 Частину доби закрито — замість зеленого</h3>
+<div class="row" id="doneRow"></div>
+<h3 style="font-size:14px;font-weight:900;margin:26px 0 8px">7.2 Де ти мав би бути за темпом — замість лінії</h3>
+<div class="row" id="paceRow"></div>
+<h3 style="font-size:14px;font-weight:900;margin:26px 0 8px">7.3 «Інше» — без відкриття застосунку</h3>
+<p class="lead">
+  <b>Вікна поверх робочого столу віджет показати не може</b>: iOS дозволяє йому лише кнопки й перемикачі, а дія з кнопки
+  не може нічого спитати (параметри інтентів у віджетах не запитуються — так у документації Apple). Тож або вибір у самому
+  віджеті, або застосунок. Тисни «Інше» на віджетах нижче. Розгорнутий стан сам згортається за хвилину без дій.
+</p>
+<div class="row" id="otherRow"></div>
+
 <h2>6. Стани — однакові для всіх віджетів</h2>
 <table>
   <tr><th style="width:190px">Стан</th><th>Що показують</th></tr>
@@ -656,6 +674,83 @@ function ovB(st){
 const wOverview=(st,v=S.ov)=>v==='a'?ovA(st):ovB(st);
 
 /* ---------- кадри ---------- */
+/* ---------- 7. Правки після перевірки ---------- */
+const DONE={a:'A · Плашка з галочкою',b:'B · Галочка в стовпчику',c:'C · Значок на куті'};
+const DONE_NOTE={a:'Стовпчик лишається синім, як інші; над ним замість «800 / 689» — пігулка «✓ 800» кольором акценту. Найспокійніше: колір не перемикається, змінюється лише підпис.',
+  b:'Стовпчик синій до верху, у ньому — біла галочка. Видно здалеку навіть на малому екрані блокування; підпис над ним — як був.',
+  c:'Маленький синій кружечок ✓ на правому верхньому куті стовпчика — як бейдж на іконці застосунку. Компактно, але найдрібніше.'};
+const PACE={a:'A · Тінь темпу',b:'B · Засічка збоку',c:'C · Крапка на краю',d:'D · Без позначки — словами'};
+const PACE_NOTE={a:'Напівпрозора «тінь» води до висоти, де мав би бути рівень за темпом; справжня вода — поверх. Відставання видно як порожню тінь над водою, випередження — тінь ховається під водою. Без жодних ліній.',
+  b:'Маленький трикутник ◂ праворуч від стовпчика на висоті темпу — як стрілка на шкалі. Стовпчик лишається цілим.',
+  c:'Біла крапка з тонким контуром на лівому краї стовпчика. Найменш помітна, але читається.',
+  d:'У стовпчику нічого, під ним — «за темпом 234». Найчистіше, але треба читати, а не бачити.'};
+const OTHER={a:'A · Підказки «Інше»',b:'B · Степер у віджеті',c:'C · Застосунок (як зараз)'};
+const OTHER_NOTE={a:'«Інше» розгортає 4 підказки зі шторки «Інше» (ті, що на екрані «Кнопки порцій») і ✕. Тап по підказці — порція. Лише один зайвий тап, і він швидкий: розгортання робить сам віджет, без застосунку.',
+  b:'«Інше» відкриває «− 300 мл +» і «Додати». Будь-який об\'єм із кроком 50 мл, але кожен «+» — окремий тап, а віджет перемальовується з помітною паузою.',
+  c:'Застосунок відкривається зі шторкою «Інше» й останнім своїм об\'ємом. Будь-який об\'єм, але це вже не «без застосунку».'};
+const HINTS=[150,250,350,500];
+const PREVIEW_THEME=()=>'t-'+S.theme;
+let otherOpen={a:false,b:false,c:false},otherStep=300;
+
+function doneLabel(b,v){
+  const val=`${b.drunk}`;
+  if(!(S.rhythm&&b.ok))return `<div style="font-size:11px;font-weight:900;color:${b.st==='cur'?'var(--wt)':'var(--wm)'};white-space:nowrap">${b.drunk}${S.rhythm?' / '+b.target:' мл'}</div>`;
+  if(v==='a')return `<div style="font-size:11px;font-weight:900;color:var(--wa);background:var(--wchip);border-radius:99px;padding:1px 7px;white-space:nowrap">✓ ${val}</div>`;
+  return `<div style="font-size:11px;font-weight:900;color:var(--wm);white-space:nowrap">${b.drunk} / ${b.target}</div>`;
+}
+function col2(b,h,doneV,paceV){
+  const fr=Math.min(1,b.drunk/Math.max(1,b.target)),pace=b.st==='cur'&&S.rhythm?Math.min(1,b.pace/b.target):null;
+  const done=S.rhythm&&b.ok;
+  let inner=`<i style="position:absolute;left:0;right:0;bottom:0;height:${fr*100}%;background:linear-gradient(0deg,var(--r2),var(--r1));border-radius:10px;transition:height .4s"></i>`;
+  if(pace!=null&&paceV==='a')inner=`<i style="position:absolute;left:0;right:0;bottom:0;height:${pace*100}%;background:var(--wa);opacity:.22;border-radius:10px"></i>`+inner;
+  if(done&&doneV==='b')inner+=`<b style="position:absolute;left:0;right:0;top:8px;text-align:center;color:#fff;font:900 16px Nunito">✓</b>`;
+  if(pace!=null&&paceV==='c')inner+=`<i style="position:absolute;left:3px;bottom:calc(${pace*100}% - 5px);width:10px;height:10px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px var(--wa)"></i>`;
+  const notch=pace!=null&&paceV==='b'?`<i style="position:absolute;right:-9px;bottom:calc(${pace*100}% - 5px);width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-right:7px solid var(--wt);opacity:.7"></i>`:'';
+  const corner=done&&doneV==='c'?`<i style="position:absolute;right:-6px;top:-6px;width:18px;height:18px;border-radius:50%;background:var(--wa);color:#fff;font:900 11px/18px Nunito;text-align:center;font-style:normal;box-shadow:0 0 0 2px var(--wbg)">✓</i>`:'';
+  const under=pace!=null&&paceV==='d'?`<div style="font-size:10px;font-weight:800;color:var(--wm);white-space:nowrap">за темпом ${Math.round(b.pace)} мл</div>`:'';
+  return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;opacity:${b.st==='future'?.55:1}">
+    ${doneLabel(b,doneV)}
+    <div style="position:relative;width:100%;max-width:58px;height:${h}px">
+      <div style="position:absolute;inset:0;border-radius:12px;background:var(--wtr);overflow:hidden;${b.st==='cur'?'box-shadow:0 0 0 2px var(--wa)':''}">${inner}</div>${notch}${corner}
+    </div>
+    <div style="font-size:11px;font-weight:800;color:var(--wm)">${hh(b.from)}–${hh(b.to)}</div>${under}</div>`;
+}
+function wRhythm2(st,doneV,paceV){
+  return `<div class="w m"><div class="pad" style="display:flex;gap:14px">
+    <div style="width:112px;display:flex;flex-direction:column;justify-content:space-between">
+      <span class="lbl">Ритм дня</span>
+      <div><div class="big" style="font-size:32px">${L(st.counted)}<span style="font-size:16px"> л</span></div>
+        <div class="mut" style="font-size:12px">з ${L(S.goal)} л · ${st.pct}%</div></div>
+      <div style="font-size:12px;font-weight:800">${paceLine(st)}</div></div>
+    <div style="flex:1;display:flex;gap:10px">${st.blocks.map(b=>col2(b,paceV==='d'?82:96,doneV,paceV)).join('')}</div>
+  </div></div>`;
+}
+function otherArea(v,compact){
+  if(!otherOpen[v]){
+    return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;height:100%">${S.presets.map(ml=>shortBtn(ml)).join('')}
+      <button class="pb acc" data-other="${v}">Інше</button></div>`;
+  }
+  if(v==='a')return `<div style="display:flex;flex-direction:column;gap:8px;height:100%">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span class="lbl">Скільки?</span><button class="undo" data-other-close="${v}" style="height:26px;padding:0 10px">✕</button></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;flex:1">${HINTS.map(ml=>`<button class="pb" data-add="${ml}" data-other-done="${v}">${ml} мл</button>`).join('')}</div></div>`;
+  if(v==='b')return `<div style="display:flex;flex-direction:column;gap:8px;height:100%;justify-content:center">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+        <button class="pb" data-step="-50" style="width:40px;height:40px;border-radius:50%">−</button>
+        <b class="big" style="font-size:24px">${otherStep}<span style="font-size:13px"> мл</span></b>
+        <button class="pb" data-step="50" style="width:40px;height:40px;border-radius:50%">+</button></div>
+      <div style="display:flex;gap:8px"><button class="undo" data-other-close="${v}" style="height:40px">✕</button>
+        <button class="pb acc" style="flex:1;height:40px" data-add="${otherStep}" data-other-done="${v}">Додати</button></div></div>`;
+  return '';
+}
+function wQuick2(st,v){
+  const right=lastLive()?doneBlock(false):otherArea(v);
+  return `<div class="w m"><div class="pad" style="display:flex;gap:16px">
+    <div style="width:104px;display:flex;flex-direction:column;align-items:center;justify-content:center">
+      <div class="ringbox" style="width:92px;height:92px">${ring(92,12,st.frac)}<div class="in"><span class="big" style="font-size:24px">${st.pct}%</span></div></div>
+      <div style="font-weight:800;font-size:12px;margin-top:8px">${L(st.counted)} / ${L(S.goal)} л</div></div>
+    <div style="flex:1">${right}</div></div></div>`;
+}
+
 const cell=(w)=>`<div class="cell">${w}<small>Вода</small></div>`;
 function home(inner,page){
   return `<div class="home"><div class="sbar"><span>${hm(S.now)}</span><span>●●● ▮</span></div><div class="grid">${inner}</div>
@@ -751,6 +846,13 @@ function render(){
   document.getElementById('accStrip').innerHTML=accStrip(st);
   const sb=document.getElementById('standby');sb.className='standby t-dark';sb.innerHTML=wToday(st)+wReserve(st,'s');
   set('cc',ccFrame(st),'frame');
+  const th7='row '+th;
+  const doneRow=document.getElementById('doneRow');doneRow.className=th7;
+  doneRow.innerHTML=['a','b','c'].map(v=>`<div style="width:364px"><div class="frame-cap">${DONE[v]}</div>${wRhythm2(st,v,'a')}<div class="frame-note">${DONE_NOTE[v]}</div></div>`).join('');
+  const paceRow=document.getElementById('paceRow');paceRow.className=th7;
+  paceRow.innerHTML=['a','b','c','d'].map(v=>`<div style="width:364px"><div class="frame-cap">${PACE[v]}</div>${wRhythm2(st,'a',v)}<div class="frame-note">${PACE_NOTE[v]}</div></div>`).join('');
+  const otherRow=document.getElementById('otherRow');otherRow.className=th7;
+  otherRow.innerHTML=['a','b','c'].map(v=>`<div style="width:364px"><div class="frame-cap">${OTHER[v]}</div>${wQuick2(st,v)}<div class="frame-note">${OTHER_NOTE[v]}</div></div>`).join('');
   chart(st);
 }
 
@@ -768,7 +870,17 @@ const SCN={
 let toastT;
 function toast(s){const el=document.getElementById('toast');el.textContent=s;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),1800);}
 let undoT;
+let otherT;
 document.addEventListener('click',e=>{
+  const oc=e.target.closest('[data-other]');
+  if(oc){const v=oc.dataset.other;if(v==='c'){toast('Відкриє застосунок зі шторкою «Інше»');return;}
+    otherOpen[v]=true;clearTimeout(otherT);otherT=setTimeout(()=>{otherOpen={a:false,b:false,c:false};render();},60000);render();return;}
+  const cl=e.target.closest('[data-other-close]');
+  if(cl){otherOpen[cl.dataset.otherClose]=false;render();return;}
+  const stp=e.target.closest('[data-step]');
+  if(stp){otherStep=Math.max(50,Math.min(2000,otherStep+(+stp.dataset.step)));render();return;}
+  const od=e.target.closest('[data-other-done]');
+  if(od)otherOpen[od.dataset.otherDone]=false;
   const a=e.target.closest('[data-add]');
   if(a){const ml=+a.dataset.add,id=Math.random();S.portions.push({m:S.now,ml,id});S.portions.sort((x,y)=>x.m-y.m);
     S.last={ml,m:S.now,id,at:Date.now()};clearTimeout(undoT);undoT=setTimeout(render,8100);render();toast(`+${amt(ml)} — застосунок не відкривається`);return;}
