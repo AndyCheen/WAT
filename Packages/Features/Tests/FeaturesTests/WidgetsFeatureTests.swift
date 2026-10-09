@@ -61,7 +61,7 @@ final class WidgetsFeatureTests: XCTestCase {
 
     /// Порція з віджета: джерело `.widget`, у знімку — порція, «Скасувати» і запас до нагадування з плану.
     func testAddFromWidget() async throws {
-        await services.perform(.add(ml: 250, source: .widget))
+        await services.perform(.add(ml: 250, source: .widget)).value
 
         let intakes = services.dayLogs.activeIntakes(for: services.calendar.today)
         XCTAssertEqual(intakes.map(\.amountMl), [250])
@@ -82,30 +82,30 @@ final class WidgetsFeatureTests: XCTestCase {
 
     /// «Команди» пишуть своє джерело — щоб потім було видно, звідки вносять воду (ТЗ §2).
     func testShortcutSource() async {
-        await services.perform(.add(ml: 500, source: .shortcut))
+        await services.perform(.add(ml: 500, source: .shortcut)).value
         XCTAssertEqual(services.dayLogs.activeIntakes(for: services.calendar.today).first?.source, .shortcut)
     }
 
     /// Порція з віджета, поки застосунку немає на екрані, — відлуння розблокувань (SPEC-NOTIFICATIONS §12.1).
     func testEchoOutsideTheApp() async {
-        await services.perform(.add(ml: 250, source: .widget))
+        await services.perform(.add(ml: 250, source: .widget)).value
         XCTAssertEqual(center.scheduled.first { $0.identifier.hasPrefix("wt.echo.") }?.title, "🏅 Досягнення: Перша крапля")
     }
 
     func testNoEchoWhileAppIsOpen() async {
         services.handleBecameActive()
-        await services.perform(.add(ml: 250, source: .widget))
+        await services.perform(.add(ml: 250, source: .widget)).value
         XCTAssertFalse(center.scheduled.contains { $0.identifier.hasPrefix("wt.echo.") })
     }
 
     /// «Скасувати» прибирає порцію й відкочує XP так само, як видалення з історії.
     func testUndoRemovesPortionAndXp() async throws {
         let xpBefore = services.gamification.levelProgress().totalXp
-        await services.perform(.add(ml: 250, source: .widget))
+        await services.perform(.add(ml: 250, source: .widget)).value
         XCTAssertGreaterThan(services.gamification.levelProgress().totalXp, xpBefore)
         let id = try XCTUnwrap(services.lastWidgetAction?.intakeId)
 
-        await services.perform(.undo(intakeId: id))
+        await services.perform(.undo(intakeId: id)).value
 
         XCTAssertTrue(services.dayLogs.activeIntakes(for: services.calendar.today).isEmpty)
         XCTAssertEqual(services.gamification.levelProgress().totalXp, xpBefore)
@@ -116,11 +116,11 @@ final class WidgetsFeatureTests: XCTestCase {
 
     /// Старий таймлайн не прибирає порцію, яку додали не з віджета.
     func testUndoOnlyForWidgetPortion() async {
-        await services.perform(.add(ml: 250, source: .widget))
+        await services.perform(.add(ml: 250, source: .widget)).value
         let other = services.hydration.addIntake(amountMl: 300)
         services.touch()
 
-        await services.perform(.undo(intakeId: other!.intakeId))
+        await services.perform(.undo(intakeId: other!.intakeId)).value
 
         XCTAssertEqual(services.dayLogs.activeIntakes(for: services.calendar.today).count, 2)
     }
@@ -135,13 +135,27 @@ final class WidgetsFeatureTests: XCTestCase {
         let before = reloader.count
         await services.notifications.rescheduleNow()
         XCTAssertEqual(reloader.count, before)
-        await services.perform(.add(ml: 250, source: .widget))
-        XCTAssertEqual(reloader.count, before + 1)
+        await services.perform(.add(ml: 250, source: .widget)).value
+        XCTAssertGreaterThan(reloader.count, before)
+    }
+
+    /// Інтент повертається, щойно порцію записано: знімок уже з нею, хоча перепланування ще не дійшло, — так
+    /// цифра на віджеті змінюється без очікування на сповіщення. Час нагадування приходить другим знімком.
+    func testSnapshotIsWrittenBeforeRescheduling() async throws {
+        let followUp = await services.perform(.add(ml: 250, source: .widget))
+
+        let early = try XCTUnwrap(store.read())
+        XCTAssertEqual(early.portions.map(\.ml), [250])
+        XCTAssertNotNil(early.lastAction)
+        XCTAssertEqual(early.reserve?.reminderIsPlanned, false, "старий план — ще до порції")
+
+        await followUp.value
+        XCTAssertEqual(store.read()?.reserve?.reminderIsPlanned, true)
     }
 
     /// Відкриття застосунку відсуває нагадування на 30 хв — крапля не підстрибує, змінюється лише нахил.
     func testReserveDoesNotJumpWhenReminderMoves() async throws {
-        await services.perform(.add(ml: 250, source: .widget))
+        await services.perform(.add(ml: 250, source: .widget)).value
         let first = try XCTUnwrap(store.read()?.reserve)
         clock.set(Self.date(10, 40))
         let levelBefore = first.level(at: clock.now)

@@ -28,7 +28,7 @@ struct AddWaterWidgetIntent: LiveActivityIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         #if !WIDGET_EXTENSION
-        await AppContainer.services.perform(.add(ml: amountMl, source: .widget))
+        AppContainer.finishInBackground(await AppContainer.services.perform(.add(ml: amountMl, source: .widget)))
         #endif
         return .result()
     }
@@ -52,7 +52,7 @@ struct UndoWaterWidgetIntent: LiveActivityIntent {
     func perform() async throws -> some IntentResult {
         #if !WIDGET_EXTENSION
         if let id = UUID(uuidString: intakeId) {
-            await AppContainer.services.perform(.undo(intakeId: id))
+            AppContainer.finishInBackground(await AppContainer.services.perform(.undo(intakeId: id)))
         }
         #endif
         return .result()

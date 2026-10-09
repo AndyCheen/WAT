@@ -12,16 +12,19 @@ import Widgets
 extension AppServices {
     // MARK: - Дії з віджета (§4.1, §9.2)
 
-    /// Дія з віджета, елемента керування чи «Команд». Повертається, коли знімок уже записано: після
-    /// `perform()` інтенту система перезавантажує таймлайн, і віджет одразу бачить нову порцію.
-    public func perform(_ action: WidgetAction) async {
+    /// Дія з віджета, елемента керування чи «Команд».
+    ///
+    /// Повертається, щойно порцію записано й знімок оновлено: після `perform()` інтенту система
+    /// перезавантажує таймлайн, і кожна зайва частка секунди тут — затримка між тапом і цифрою на віджеті.
+    /// Відлуння й перепланування сповіщень (~0,2 с) доходять у повернутій задачі — застосунок тримає для неї
+    /// фонове завдання, а знімок із часом нагадування з нового плану приходить другим.
+    @discardableResult
+    public func perform(_ action: WidgetAction) async -> Task<Void, Never> {
         let now = calendar.now
+        var echo: EchoContent?
         switch action {
         case let .add(ml, source):
-            if let echo = addPortionFromOutside(ml: ml, source: source == .shortcut ? .shortcut : .widget, at: now) {
-                await notifications.sendEcho(title: echo.title, body: echo.body, route: echo.route,
-                                             intakeId: echo.intakeId, at: now)
-            }
+            echo = addPortionFromOutside(ml: ml, source: source == .shortcut ? .shortcut : .widget, at: now)
         case let .undo(intakeId):
             // «Скасувати» з віджета — лише щойно додану звідти порцію: старий таймлайн не має прибирати
             // порцію, яку людина вже бачила в історії.
@@ -30,7 +33,16 @@ extension AppServices {
             _ = hydration.removeIntake(id: intakeId, at: now)
         }
         epoch &+= 1
-        await notifications.rescheduleNow()
+        // Старий план — ще до порції: його нагадування для запасу не годяться, нуль поки що за темпом.
+        publishWidgetSnapshot(plan: notifications.lastPlan, planIsCurrent: false)
+        return Task { [weak self] in
+            guard let self else { return }
+            if let echo {
+                await notifications.sendEcho(title: echo.title, body: echo.body, route: echo.route,
+                                             intakeId: echo.intakeId, at: now)
+            }
+            await notifications.rescheduleNow()
+        }
     }
 
     /// Порція ззовні — як `addGlass` зі сповіщення: черга розблокувань до й після, відлуння лише тоді, коли
@@ -51,9 +63,9 @@ extension AppServices {
     public func simulateWidgetActions(_ encoded: String) async {
         for step in encoded.split(separator: ",") {
             if step == "undo" {
-                if let id = lastWidgetAction?.intakeId { await perform(.undo(intakeId: id)) }
+                if let id = lastWidgetAction?.intakeId { await perform(.undo(intakeId: id)).value }
             } else if step.hasPrefix("add:"), let ml = Int(step.dropFirst(4)) {
-                await perform(.add(ml: ml, source: .widget))
+                await perform(.add(ml: ml, source: .widget)).value
             }
         }
     }
@@ -71,15 +83,17 @@ extension AppServices {
     // MARK: - Знімок (§9.1)
 
     /// Новий знімок — після кожного проходу перепланування. Той самий зміст таймлайнів не перезавантажує.
-    func publishWidgetSnapshot(plan: NotificationPlan) {
-        let snapshot = makeWidgetSnapshot(plan: plan)
+    /// - Parameter planIsCurrent: план уже врахував останню дію. Ні — нуль запасу за кривою темпу, доки
+    ///   перепланування не дасть справжній час нагадування.
+    func publishWidgetSnapshot(plan: NotificationPlan, planIsCurrent: Bool = true) {
+        let snapshot = makeWidgetSnapshot(plan: plan, planIsCurrent: planIsCurrent)
         if let published = publishedWidgetSnapshot, published.sameContent(as: snapshot) { return }
         publishedWidgetSnapshot = snapshot
         widgetStore.write(snapshot)
         widgetReloader?.reloadAll()
     }
 
-    func makeWidgetSnapshot(plan: NotificationPlan) -> WidgetSnapshot {
+    func makeWidgetSnapshot(plan: NotificationPlan, planIsCurrent: Bool = true) -> WidgetSnapshot {
         let now = calendar.now
         let today = calendar.today
         let profile = profile
@@ -97,7 +111,7 @@ extension AppServices {
         let typical = plan.typicalPortionMl > 0 ? plan.typicalPortionMl : profile.glassMl
         let reserve = HydrationReserve.make(
             portions: portions, capacityMl: HydrationReserve.capacity(typicalPortionMl: typical), now: now,
-            plannedReminder: plannedReminder(in: plan, after: portions.last?.at, on: today),
+            plannedReminder: planIsCurrent ? plannedReminder(in: plan, after: portions.last?.at, on: today) : nil,
             previous: publishedWidgetSnapshot?.day == today ? publishedWidgetSnapshot?.reserve : nil,
             zero: reserveZero(goalMl: day.goalMl, schedule: schedule, typicalPortionMl: typical, day: today)
         )

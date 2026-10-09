@@ -17,7 +17,7 @@ struct AddWaterIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        await AppContainer.services.perform(.add(ml: amountMl, source: .shortcut))
+        AppContainer.finishInBackground(await AppContainer.services.perform(.add(ml: amountMl, source: .shortcut)))
         return .result(dialog: "Додано \(amountMl) мл")
     }
 }

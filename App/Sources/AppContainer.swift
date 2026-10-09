@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import SwiftData
 import Core
 import Persistence
@@ -54,6 +55,19 @@ enum AppContainer {
         }
         return services
     }()
+
+    /// Дочекатися хвоста дії з віджета (відлуння, перепланування) у фоні. Інтент повертається раніше — заради
+    /// швидкої цифри на віджеті (`AppServices.perform`), а після повернення iOS може приспати застосунок:
+    /// фонове завдання дає хвосту дійти, інакше нагадування лишилось би за старим планом.
+    static func finishInBackground(_ work: Task<Void, Never>) {
+        let application = UIApplication.shared
+        var taskId = UIBackgroundTaskIdentifier.invalid
+        taskId = application.beginBackgroundTask { application.endBackgroundTask(taskId) }
+        Task { @MainActor in
+            await work.value
+            application.endBackgroundTask(taskId)
+        }
+    }
 
     /// Баланс XP: `Config/Balance.xcconfig` → `Info.plist`, а в DEBUG — ще й змінні середовища схеми,
     /// щоб пробувати числа без правки конфігурації (SPEC-PRIZES §16.13).
