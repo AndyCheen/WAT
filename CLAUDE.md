@@ -19,8 +19,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 551 unit-тест 10 пакетів, без симулятора — швидкий цикл
-make test-ui        # 46 e2e-сценаріїв (XCUITest) у симуляторі
+make test-packages  # 558 unit-тестів 10 пакетів, без симулятора — швидкий цикл
+make test-ui        # 47 e2e-сценаріїв (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
 make clean
@@ -171,6 +171,11 @@ Features → Widgets → DesignSystem → Core
   тож порція йде `AppServices.perform(_:)` — тим самим шляхом, що «+склянка» зі сповіщення (відлуння, перепланування).
   Тіло `perform()` — лише в застосунку (`#if !WIDGET_EXTENSION`). «Додати воду» в «Командах» — `AddWaterIntent`,
   лише в застосунку, джерело `.shortcut`. «Скасувати» — лише щойно додану з віджета порцію.
+  `perform(_:)` повертається одразу після порції й знімка — кожна частка секунди тут видна як пауза на віджеті;
+  відлуння й перепланування — у повернутій задачі під фоновим завданням (`AppContainer.finishInBackground`).
+- **«Інше»** розгортає підказки шторки «Інше» в самому віджеті (вікна поверх робочого столу віджет не має): стан —
+  `WidgetCustomPicker` в App Group, кнопки — звичайний `AppIntent` (`CustomPickerIntent`, лише в розширенні, без
+  застосунку), окремо для кожного віджета, згортається сам за хвилину; порція згортає всі.
 - **Запас води** — `HydrationReserve`: порція піднімає рівень на свій об'єм (ємність — 2 типові порції), нуль за
   10 хв до першого нагадування з плану, без плану — `PaceCurve.nextDueMinute` (та сама формула, що в планувальника).
   Та сама остання порція — рівень тягнеться без стрибків (відкриття застосунку відсуває нагадування на 30 хв).
@@ -178,6 +183,10 @@ Features → Widgets → DesignSystem → Core
   `WidgetPresenter` і `DayPartPresenter` (один для капсули головного й віджета). `kind` — `WidgetKind.identifier`,
   не міняти: поставлені віджети зникнуть. Кільце «Запасу» на екрані блокування — `Gauge`, не
   `ProgressView(timerInterval:)`: поза WidgetKit той — спінер.
+- **Тоновані віджети iOS 18** лишають від кольору лише прозорість: тема — `WTTheme.tinted` (`wtWidgetTheme()` за
+  `widgetRenderingMode`), акцентним (`widgetAccentable`) робити лише тло, не текст поверх нього; галочки — `CheckBadge`.
+  Тло віджета (`containerBackground`) у тонованому режимі прибирається — усе, що несе зміст (вода «Запасу»), малювати
+  у вмісті. Зеленого «закрито» у віджетах немає — пігулка `DonePill` кольору акценту.
 - Переходи — `watertracker://home|custom|stats|progress` (`WidgetLink`) → `.onOpenURL` → `AppServices.open(_:)`.
 
 ### Ритм дня (WAT-42, SPEC-NOTIFICATIONS §28)
