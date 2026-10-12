@@ -328,6 +328,16 @@ td b{color:#1f4a72}
 </p>
 <div class="row" id="otherRow"></div>
 
+<h2>8. Ніч — показати, що вночі віджети не рахують (12.10.2026) — на вибір</h2>
+<p class="lead">
+  Після відбою «Запас води» показував <b>«0%» і «Добраніч»</b> — читається як «води немає, пий», хоча вночі запас просто
+  не ведеться: нагадувань немає, рахунок почнеться з підйому. Нижче три способи сказати «зараз ніч» — однаково для
+  «Запасу води», «Частини доби» й кільця на екрані блокування. Перемикай «після відбою» / «до підйому»; тема — з панелі
+  вгорі. <b>Кнопки працюють і вночі</b>: порція до підйому рахується першій частині доби (WAT-39).
+</p>
+<div class="btns" style="margin-bottom:14px"><button data-night="after" class="on">Після відбою · 22:50</button><button data-night="before">До підйому · 06:40</button></div>
+<div class="row" id="nightRow"></div>
+
 <h2>6. Стани — однакові для всіх віджетів</h2>
 <table>
   <tr><th style="width:190px">Стан</th><th>Що показують</th></tr>
@@ -751,6 +761,111 @@ function wQuick2(st,v){
     <div style="flex:1">${right}</div></div></div>`;
 }
 
+/* ---------- 8. Ніч ---------- */
+const NIGHT={a:'A · Нічне небо',b:'B · Місяць замість нуля',c:'C · Підсумок дня'};
+const NIGHT_NOTE={
+  a:'Уночі віджет переходить у нічну палітру: глибоке небо, зорі, місяць — і жодних відсотків. Ніч видно краєм ока, навіть не читаючи. Найгучніший варіант: темний віджет вирізняється на світлому робочому столі. У тонованому режимі тло прибирає система — лишаються місяць і текст.',
+  b:'Картка лишається денною, лише на місці «0%» — місяць і «z z Z», а підпис прямо каже, що вночі запас не рахується. Найтихіший варіант: нічого не перефарбовується, але нуля, що лякає, більше немає.',
+  c:'Уночі «Запас» корисніший як підсумок: кільце дня, скільки випито й чи закрито норму. Місяць біля назви пояснює, чому запасу немає. До підйому — «Підйом о 08:00» і ціль ранку. Найінформативніше, але вночі віджет «Запас води» говорить уже не про запас.'};
+let nightPhase='after';
+const NIGHT_PORTIONS=[{m:495,ml:300},{m:640,ml:250},{m:760,ml:250},{m:1010,ml:250},{m:1180,ml:200}];
+/* Нічний стан — окремо від панелі: свій час і порції, потім усе повертається. */
+function nightState(fn){
+  const saved={now:S.now,portions:S.portions,last:S.last};
+  S.now=nightPhase==='after'?S.sleep+50:S.wake-80;
+  S.portions=nightPhase==='after'?NIGHT_PORTIONS:[];S.last=null;
+  try{return fn(state());}finally{Object.assign(S,saved);}
+}
+function moon(size,color,style=''){
+  const id='mn'+(gid++);
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" style="flex:0 0 auto;${style}"><defs><mask id="${id}"><rect width="24" height="24" fill="#fff"/>
+    <circle cx="17.5" cy="7" r="8" fill="#000"/></mask></defs><circle cx="11" cy="13" r="9.5" fill="${color}" mask="url(#${id})"/></svg>`;
+}
+const zzz=(c='var(--wa)',k=1)=>`<span style="display:inline-flex;align-items:flex-end;gap:1px;color:${c};font-family:Fredoka;font-weight:600;line-height:1">
+  <span style="font-size:${10*k}px">z</span><span style="font-size:${13*k}px;transform:translateY(-${4*k}px)">z</span><span style="font-size:${17*k}px;transform:translateY(-${9*k}px)">Z</span></span>`;
+/* Зорі — поза підписами й текстом: у середньому — між текстом і кнопками, у малому — справа й згори. */
+function stars(w,h){
+  const pts=w>200?[[.38,.1,1],[.52,.26,.8],[.3,.36,.7],[.6,.08,1.2],[.47,.47,.6],[.62,.52,.7]]
+                 :[[.62,.08,.8],[.88,.42,1],[.78,.64,.7],[.93,.88,.6]];
+  return `<svg width="${w}" height="${h}" style="position:absolute;inset:0">${pts.map(([x,y,r])=>`<circle cx="${x*w}" cy="${y*h}" r="${r*1.5}" fill="#fff" opacity=".6"/>`).join('')}</svg>`;
+}
+const nightBtns=(style='')=>`<div style="width:96px;display:flex;flex-direction:column;gap:7px;justify-content:center">${S.presets.map(ml=>btn(ml,'','height:38px;width:100%;font-size:14px;'+style)).join('')}</div>`;
+const lockStrip=inner=>`<div class="strip" style="margin-top:0">${inner}<span style="font:700 12px Nunito;opacity:.8;max-width:180px">кільце «Запасу» на екрані блокування</span></div>`;
+
+function nightA(st){
+  const after=nightPhase==='after',tint=S.theme==='tint';
+  const sky=tint?'':'background:linear-gradient(160deg,#24489e,#0f1f45);color:#eaf2ff';
+  const mc=tint?'var(--wa)':'#e3f6ff',sub=tint?'var(--wm)':'rgba(234,242,255,.68)',sk=(w,h)=>tint?'':stars(w,h);
+  const head=after?'Добраніч':'Сон';
+  const m=`<div class="w m" style="${sky}">${sk(364,170)}<div class="pad" style="display:flex;gap:12px">
+    <div style="flex:1;display:flex;flex-direction:column;position:relative"><span class="lbl" style="color:${sub}">Запас води</span>
+      <div style="margin-top:auto;display:flex;align-items:center;gap:12px">${moon(48,mc)}<div><div style="font-weight:900;font-size:20px">${head}</div>
+      <div style="font-size:12px;font-weight:700;color:${sub}">запас рахую з ${hm(S.wake)}</div></div></div></div>
+    ${nightBtns(tint?'':'background:rgba(255,255,255,.14);color:#eaf2ff')}</div></div>`;
+  const s=`<div class="w s" style="${sky}">${sk(170,170)}<div class="pad" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px">
+    ${moon(54,mc)}<div style="font-weight:900;font-size:17px;margin-top:4px">${head}</div><div style="font-size:12px;font-weight:700;color:${sub}">запас — з ${hm(S.wake)}</div></div></div>`;
+  const part=`<div class="w s" style="${sky}">${sk(170,170)}<div class="pad" style="display:flex;flex-direction:column;gap:6px">
+    <div style="display:flex;justify-content:space-between;align-items:center"><span class="lbl" style="color:${sub}">${after?'Ніч':'Ще рано'}</span>${moon(20,mc)}</div>
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center">
+      ${after?`<span class="big" style="font-size:30px">${st.pct}%</span><div style="font-weight:800;font-size:15px">норми за день</div>`
+             :`<span class="big" style="font-size:30px">${hm(S.wake)}</span><div style="font-weight:800;font-size:15px">підйом</div>`}</div>
+    <div style="font-size:12px;font-weight:700;color:${sub}">${after?`завтра з ${hm(S.wake)}`:`ціль ранку — ${st.blocks[0].target} мл`}</div></div></div>`;
+  return {m,s,part,lock:lockStrip(`<div class="acc-c">${moon(30,'#fff','position:static;transform:none')}</div>`)};
+}
+
+function nightB(st){
+  const after=nightPhase==='after',head=after?'Добраніч':'Сон';
+  const icon=(k=1)=>`<div style="display:flex;align-items:flex-end;gap:5px">${moon(34*k,'var(--wa)')}${zzz('var(--wa)',k)}</div>`;
+  const m=`<div class="w m"><div class="pad" style="display:flex;gap:12px">
+    <div style="flex:1;display:flex;flex-direction:column"><span class="lbl">Запас води</span>
+      <div style="margin-top:auto">${icon()}<div style="font-weight:900;font-size:15px;margin-top:8px">${head}</div>
+      <div class="mut" style="font-size:12px">${after?'уночі запас не рахую':`запас — з ${hm(S.wake)}`}</div></div></div>
+    ${nightBtns()}</div></div>`;
+  const s=`<div class="w s deep"><div class="pad" style="display:flex;flex-direction:column;align-items:center;justify-content:space-between;text-align:center">
+    <div style="display:flex;align-items:center;gap:12px">${flaskSvg(0,40,104)}<div style="text-align:left">${moon(30,'var(--ondeep)')}<div style="margin-top:2px">${zzz('var(--ondeep)',.8)}</div></div></div>
+    <div><div style="font-weight:900;font-size:16px">${head}</div><div class="mut" style="font-size:12px">запас — з ${hm(S.wake)}</div></div></div></div>`;
+  const part=`<div class="w s"><div class="pad" style="display:flex;flex-direction:column;gap:6px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start"><span class="lbl">${after?'Добраніч':'Ще рано'}</span>${zzz('var(--wa)',.8)}</div>
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:2px">
+      ${after?`<span class="big" style="font-size:30px">${st.pct}%</span><div style="font-weight:800;font-size:15px">норми за день</div>`
+             :`<span class="big" style="font-size:30px">${hm(S.wake)}</span><div style="font-weight:800;font-size:15px">підйом</div>`}</div>
+    <div class="bar"><i style="width:${after?Math.min(100,st.frac*100):0}%"></i></div>
+    <div class="mut" style="font-size:12px">${after?`завтра з ${hm(S.wake)}`:`ціль ранку — ${st.blocks[0].target} мл`}</div></div></div>`;
+  const lock=`<div class="acc-c">${moon(24,'#fff','position:static;transform:none')}<small style="margin-top:1px">zZ</small></div>`;
+  return {m,s,part,lock:lockStrip(lock)};
+}
+
+function nightC(st){
+  const after=nightPhase==='after';
+  const cap=`<div style="display:flex;justify-content:space-between;align-items:center"><span class="lbl">Запас води</span>${moon(18,'var(--wa)')}</div>`;
+  const verdict=st.goalMet?`<span style="color:var(--ok);font-weight:900">✓ норму закрито</span>`:`<span class="mut">${st.pct}% норми</span>`;
+  const sum=after
+    ?`<div class="ringbox" style="width:76px;height:76px">${ring(76,10,st.frac)}<div class="in"><span class="big" style="font-size:20px">${st.pct}%</span></div></div>
+      <div><div class="big" style="font-size:26px">${L(st.counted)}<span style="font-size:14px"> л</span></div><div style="font-size:12px;font-weight:800">${verdict} за день</div>
+      <div class="mut" style="font-size:12px;margin-top:2px">запас — з ${hm(S.wake)}</div></div>`
+    :`<div><div class="big" style="font-size:30px">${hm(S.wake)}</div><div style="font-weight:900;font-size:15px">підйом</div>
+      <div class="mut" style="font-size:12px;margin-top:2px">ціль ранку — ${st.blocks[0].target} мл</div></div>`;
+  const m=`<div class="w m"><div class="pad" style="display:flex;gap:12px">
+    <div style="flex:1;display:flex;flex-direction:column">${cap}<div style="margin-top:auto;display:flex;align-items:center;gap:12px">${sum}</div></div>
+    ${nightBtns()}</div></div>`;
+  const s=`<div class="w s"><div class="pad" style="display:flex;flex-direction:column;align-items:center;gap:6px">${cap.replace('justify-content:space-between','justify-content:space-between;width:100%')}
+    ${after?`<div class="ringbox" style="width:74px;height:74px">${ring(74,10,st.frac)}<div class="in"><span class="big" style="font-size:20px">${st.pct}%</span></div></div>
+      <div style="text-align:center;line-height:1.25"><div style="font-weight:800;font-size:14px">${L(st.counted)} л за день</div><div class="mut" style="font-size:12px">запас — з ${hm(S.wake)}</div></div>`
+    :`<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center"><div class="big" style="font-size:30px">${hm(S.wake)}</div>
+      <div style="font-weight:800;font-size:14px">підйом</div><div class="mut" style="font-size:12px">ціль ранку — ${st.blocks[0].target} мл</div></div>`}</div></div>`;
+  const part=`<div class="w s"><div class="pad" style="display:flex;flex-direction:column;gap:6px">
+    <div style="display:flex;justify-content:space-between;align-items:center"><span class="lbl">${after?'Добраніч':'Ще рано'}</span>${moon(18,'var(--wa)')}</div>
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:2px">
+      ${after?`<span class="big" style="font-size:30px">${st.pct}%</span><div style="font-weight:800;font-size:15px">норми за день</div>`
+             :`<span class="big" style="font-size:30px">${hm(S.wake)}</span><div style="font-weight:800;font-size:15px">підйом</div>`}</div>
+    <div class="bar"><i style="width:${after?Math.min(100,st.frac*100):0}%"></i></div>
+    <div class="mut" style="font-size:12px">${after?`завтра з ${hm(S.wake)}`:`ціль ранку — ${st.blocks[0].target} мл`}</div></div></div>`;
+  const lock=after?accRing(st.frac,`${moon(14,'#fff','position:static;transform:none')}<b style="font-size:14px">${st.pct}%</b>`)
+                  :`<div class="acc-c">${moon(22,'#fff','position:static;transform:none')}<small>${hm(S.wake)}</small></div>`;
+  return {m,s,part,lock:lockStrip(lock)};
+}
+const NIGHT_FN={a:nightA,b:nightB,c:nightC};
+
 const cell=(w)=>`<div class="cell">${w}<small>Вода</small></div>`;
 function home(inner,page){
   return `<div class="home"><div class="sbar"><span>${hm(S.now)}</span><span>●●● ▮</span></div><div class="grid">${inner}</div>
@@ -853,6 +968,11 @@ function render(){
   paceRow.innerHTML=['a','b','c','d'].map(v=>`<div style="width:364px"><div class="frame-cap">${PACE[v]}</div>${wRhythm2(st,'a',v)}<div class="frame-note">${PACE_NOTE[v]}</div></div>`).join('');
   const otherRow=document.getElementById('otherRow');otherRow.className=th7;
   otherRow.innerHTML=['a','b','c'].map(v=>`<div style="width:364px"><div class="frame-cap">${OTHER[v]}</div>${wQuick2(st,v)}<div class="frame-note">${OTHER_NOTE[v]}</div></div>`).join('');
+  const nightRow=document.getElementById('nightRow');nightRow.className=th7;
+  nightRow.innerHTML=['a','b','c'].map(v=>nightState(ns=>{const w=NIGHT_FN[v](ns);
+    return `<div style="width:364px"><div class="frame-cap">${NIGHT[v]}</div>
+      <div style="display:flex;flex-direction:column;gap:14px">${w.m}<div style="display:flex;gap:24px">${w.s}${w.part}</div>${w.lock}</div>
+      <div class="frame-note">${NIGHT_NOTE[v]}</div></div>`;})).join('');
   chart(st);
 }
 
@@ -872,6 +992,8 @@ function toast(s){const el=document.getElementById('toast');el.textContent=s;el.
 let undoT;
 let otherT;
 document.addEventListener('click',e=>{
+  const nt=e.target.closest('[data-night]');
+  if(nt){nightPhase=nt.dataset.night;document.querySelectorAll('[data-night]').forEach(b=>b.classList.toggle('on',b===nt));render();return;}
   const oc=e.target.closest('[data-other]');
   if(oc){const v=oc.dataset.other;if(v==='c'){toast('Відкриє застосунок зі шторкою «Інше»');return;}
     otherOpen[v]=true;clearTimeout(otherT);otherT=setTimeout(()=>{otherOpen={a:false,b:false,c:false};render();},60000);render();return;}
