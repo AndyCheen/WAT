@@ -168,6 +168,12 @@ extension WidgetSnapshot {
 
     public var hints: [Int] { (customHints?.isEmpty == false ? customHints : nil) ?? Self.defaultCustomHints }
 
+    /// Типова друга кнопка «Двох кнопок» — перша кнопка головного, більша за склянку («склянка й пляшка»), а без
+    /// такої — перша інша: дві однакові кнопки поруч нічого не дають. `nil` — усі кнопки головного як склянка.
+    public var pairSecondHomeIndex: Int? {
+        homeButtons.firstIndex { $0 > glassMl } ?? homeButtons.firstIndex { $0 != glassMl }
+    }
+
     /// Скільки «Скасувати» лишається на віджетах після тапу (SPEC-WIDGETS §4.1).
     public static let undoWindow: TimeInterval = 60
 

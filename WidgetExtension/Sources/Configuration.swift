@@ -56,25 +56,82 @@ struct PortionChoiceQuery: EntityQuery {
 
     func suggestedEntities() async throws -> [PortionChoice] {
         let snapshot = WidgetSnapshotStore.shared.read()
-        let linked = [PortionChoice.glassId] + (0..<max(1, min(3, snapshot?.homeButtons.count ?? 3))).map { "home.\($0)" }
-        return (linked + PortionChoice.grid.map { "ml.\($0)" }).map { PortionChoice.make(id: $0, snapshot: snapshot) }
+        return Self.suggestedIds(snapshot).map { PortionChoice.make(id: $0, snapshot: snapshot) }
     }
 
     func defaultResult() async -> PortionChoice? {
         PortionChoice.make(id: PortionChoice.glassId, snapshot: WidgetSnapshotStore.shared.read())
     }
+
+    static func suggestedIds(_ snapshot: WidgetSnapshot?) -> [String] {
+        let linked = [PortionChoice.glassId] + (0..<max(1, min(3, snapshot?.homeButtons.count ?? 3))).map { "home.\($0)" }
+        return linked + PortionChoice.grid.map { "ml.\($0)" }
+    }
 }
 
+/// Друга кнопка «Двох кнопок». Окремий тип лише заради свого типового значення: iOS бере типове значення
+/// параметра з `defaultResult()` запиту — одне на тип, — і з одним типом на обидві кнопки кожен новий віджет
+/// показував дві однакові «Моя склянка» (250 + 250).
+struct SecondPortionChoice: AppEntity {
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Об'єм"
+    static let defaultQuery = SecondPortionChoiceQuery()
+
+    let id: String
+    let title: String
+
+    var displayRepresentation: DisplayRepresentation { DisplayRepresentation(title: "\(title)") }
+
+    func milliliters(in snapshot: WidgetSnapshot?) -> Int { PortionChoice.milliliters(id: id, in: snapshot) }
+
+    static func make(id: String, snapshot: WidgetSnapshot?) -> SecondPortionChoice {
+        let choice = PortionChoice.make(id: id, snapshot: snapshot)
+        return SecondPortionChoice(id: choice.id, title: choice.title)
+    }
+
+    /// Склянка й перша більша кнопка головного (`WidgetSnapshot.pairSecondHomeIndex`).
+    static func defaultId(_ snapshot: WidgetSnapshot?) -> String {
+        guard let snapshot else { return "home.1" }
+        return snapshot.pairSecondHomeIndex.map { "home.\($0)" } ?? PortionChoice.glassId
+    }
+}
+
+struct SecondPortionChoiceQuery: EntityQuery {
+    func entities(for identifiers: [String]) async throws -> [SecondPortionChoice] {
+        let snapshot = WidgetSnapshotStore.shared.read()
+        return identifiers.map { SecondPortionChoice.make(id: $0, snapshot: snapshot) }
+    }
+
+    func suggestedEntities() async throws -> [SecondPortionChoice] {
+        let snapshot = WidgetSnapshotStore.shared.read()
+        return PortionChoiceQuery.suggestedIds(snapshot).map { SecondPortionChoice.make(id: $0, snapshot: snapshot) }
+    }
+
+    func defaultResult() async -> SecondPortionChoice? {
+        let snapshot = WidgetSnapshotStore.shared.read()
+        return SecondPortionChoice.make(id: SecondPortionChoice.defaultId(snapshot), snapshot: snapshot)
+    }
+}
+
+/// «Кнопка» — одна (рішення від 12.10.2026): дві — окремий віджет «Дві кнопки». Налаштування «Кнопка 2» тут
+/// ніхто б не знайшов, а з типовою склянкою на обох кожен новий віджет мав дві однакові кнопки. Назва `first`
+/// лишилась від тих часів — щоб уже поставлені віджети зберегли обраний об'єм.
 struct ButtonConfigurationIntent: WidgetConfigurationIntent {
     static let title: LocalizedStringResource = "Кнопка"
-    static let description = IntentDescription("Одна чи дві кнопки, що одразу додають порцію.")
+    static let description = IntentDescription("Одна кнопка, що одразу додає порцію.")
+
+    @Parameter(title: "Об'єм")
+    var first: PortionChoice?
+}
+
+struct ButtonPairConfigurationIntent: WidgetConfigurationIntent {
+    static let title: LocalizedStringResource = "Дві кнопки"
+    static let description = IntentDescription("Дві кнопки, що одразу додають порцію.")
 
     @Parameter(title: "Кнопка 1")
     var first: PortionChoice?
 
-    /// Порожньо — одна велика кнопка.
     @Parameter(title: "Кнопка 2")
-    var second: PortionChoice?
+    var second: SecondPortionChoice?
 }
 
 /// Вигляд «Запасу води» — обидва погоджені в макеті (рішення від 08.10.2026).

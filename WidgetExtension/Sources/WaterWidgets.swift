@@ -13,6 +13,7 @@ struct WaterWidgets: WidgetBundle {
         ReserveWidget()
         QuickAddWidget()
         ButtonWidget()
+        ButtonPairWidget()
         ProgressWidget()
         OverviewWidget()
         if #available(iOS 18.0, *) {
@@ -110,14 +111,34 @@ struct ButtonWidget: Widget {
                 if family == .accessoryCircular {
                     ButtonCircularView(ml: first)
                 } else {
-                    ButtonWidgetView(content, first: first, second: entry.configuration.second?.milliliters(in: snapshot))
+                    ButtonWidgetView(content, first: first, second: nil)
                 }
             }
             .widgetURL(WidgetLink.home.url)
         }
         .configurationDisplayName("Кнопка")
-        .description("Одна чи дві кнопки зі своїм об'ємом — змінюється в налаштуваннях віджета.")
+        .description("Одна кнопка зі своїм об'ємом — змінюється в налаштуваннях віджета.")
         .supportedFamilies([.systemSmall, .accessoryCircular])
+    }
+}
+
+struct ButtonPairWidget: Widget {
+    var body: some WidgetConfiguration {
+        AppIntentConfiguration(kind: WidgetKind.buttonPair.identifier, intent: ButtonPairConfigurationIntent.self,
+                               provider: ConfiguredProvider<ButtonPairConfigurationIntent>(kind: .buttonPair)) { entry in
+            WidgetEntryView(entry: entry.base) { content in
+                let snapshot = content.snapshot
+                let first = entry.configuration.first?.milliliters(in: snapshot) ?? snapshot.glassMl
+                let second = entry.configuration.second?.milliliters(in: snapshot)
+                    ?? SecondPortionChoice.make(id: SecondPortionChoice.defaultId(snapshot), snapshot: snapshot)
+                        .milliliters(in: snapshot)
+                ButtonWidgetView(content, first: first, second: second)
+            }
+            .widgetURL(WidgetLink.home.url)
+        }
+        .configurationDisplayName("Дві кнопки")
+        .description("Дві кнопки зі своїми об'ємами — змінюються в налаштуваннях віджета.")
+        .supportedFamilies([.systemSmall])
     }
 }
 

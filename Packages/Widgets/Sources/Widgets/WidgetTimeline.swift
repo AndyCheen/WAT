@@ -10,6 +10,8 @@ public enum WidgetKind: String, CaseIterable, Sendable {
     case reserve
     case quickAdd
     case button
+    /// «Дві кнопки» — окремо від «Кнопки» (рішення від 12.10.2026, SPEC-WIDGETS §4.2).
+    case buttonPair
     case progress
     case overview
 
@@ -21,7 +23,7 @@ public enum WidgetKind: String, CaseIterable, Sendable {
         switch self {
         case .reserve, .dayPart: return 5 * 60
         case .rhythm, .overview: return 15 * 60
-        case .today, .quickAdd, .button, .progress: return nil
+        case .today, .quickAdd, .button, .buttonPair, .progress: return nil
         }
     }
 }

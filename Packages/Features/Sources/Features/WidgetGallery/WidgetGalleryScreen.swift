@@ -47,6 +47,11 @@ struct WidgetGalleryScreen: View {
                     item("Кнопка", id: "button", size: WidgetMetrics.small) {
                         ButtonWidgetView(content, first: content.snapshot.glassMl, second: nil)
                     }
+                    item("Дві кнопки", id: "buttonPair", size: WidgetMetrics.small) {
+                        ButtonWidgetView(content, first: content.snapshot.glassMl,
+                                         second: content.snapshot.pairSecondHomeIndex.map { content.snapshot.homeButtons[$0] }
+                                             ?? content.snapshot.glassMl)
+                    }
                     item("Прогрес", id: "progress", size: WidgetMetrics.medium) { ProgressWidgetView(content) }
                     item("Огляд дня", id: "overview", size: WidgetMetrics.large) { OverviewWidgetView(picking(.overview)) }
                     lockScreen(content)

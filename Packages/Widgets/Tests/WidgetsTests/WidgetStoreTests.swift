@@ -47,6 +47,16 @@ final class WidgetStoreTests: XCTestCase {
         XCTAssertFalse(a.sameContent(as: b))
     }
 
+    /// «Дві кнопки» типово — склянка й перша інша кнопка головного, а не дві однакові.
+    func testPairSecondButton() {
+        var snapshot = Fixture.snapshot()
+        XCTAssertEqual(snapshot.pairSecondHomeIndex, 1, "склянка 250 — тоді 500, а не 200")
+        snapshot.homeButtons = [150, 200, 250]
+        XCTAssertEqual(snapshot.pairSecondHomeIndex, 0, "більшої немає — перша інша")
+        snapshot.homeButtons = [250]
+        XCTAssertNil(snapshot.pairSecondHomeIndex)
+    }
+
     func testLinkRoundTrip() {
         for link in WidgetLink.allCases {
             XCTAssertEqual(WidgetLink(url: link.url), link)

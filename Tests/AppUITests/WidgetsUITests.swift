@@ -25,7 +25,7 @@ final class WidgetsUITests: XCTestCase {
         let first = app.staticTexts["widgetGallery.title.today"]
         XCTAssertTrue(first.waitForExistence(timeout: 15))
         XCTAssertTrue(first.isHittable)
-        for id in ["dayPart", "rhythm", "reserve.water", "reserve.flask", "quickAdd", "button", "progress", "overview"] {
+        for id in ["dayPart", "rhythm", "reserve.water", "reserve.flask", "quickAdd", "button", "buttonPair", "progress", "overview"] {
             XCTAssertTrue(app.staticTexts["widgetGallery.title.\(id)"].exists, id)
         }
         // Порожній день: «Запас води» просить почати.
