@@ -19,7 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 563 unit-тести 10 пакетів, без симулятора — швидкий цикл
+make test-packages  # 564 unit-тести 10 пакетів, без симулятора — швидкий цикл
 make test-ui        # 47 e2e-сценаріїв (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
@@ -193,6 +193,9 @@ Features → Widgets → DesignSystem → Core
   `widgetRenderingMode`), акцентним (`widgetAccentable`) робити лише тло, не текст поверх нього; галочки — `CheckBadge`.
   Тло віджета (`containerBackground`) у тонованому режимі прибирається — усе, що несе зміст (вода «Запасу»), малювати
   у вмісті. Зеленого «закрито» у віджетах немає — пігулка `DonePill` кольору акценту.
+- **Ніч** (після відбою й до підйому) — «Запас води», «Частина доби» й кільце «Запасу» на екрані блокування стають
+  нічним небом (`Views/WidgetNight.swift`: `NightSky`, `NightMoon`, палітра `WTTheme.night`) без відсотків запасу:
+  «0%» уночі читалося як «води немає». Фаза ночі в `WidgetPresenter.part` — раніше за «норму закрито».
 - Переходи — `watertracker://home|custom|stats|progress` (`WidgetLink`) → `.onOpenURL` → `AppServices.open(_:)`.
 
 ### Ритм дня (WAT-42, SPEC-NOTIFICATIONS §28)
