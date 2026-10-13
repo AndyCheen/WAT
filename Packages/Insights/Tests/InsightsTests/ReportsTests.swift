@@ -136,7 +136,7 @@ final class ReportsTests: XCTestCase {
     }
 
     /// «Рівномірність» і звіт рахують той самий день однаково: ранок 138 + полудень 551 = 689
-    /// до 12:00, ніч без ризки, сума цілей — норма.
+    /// до 12:00, ніч без цілі, сума цілей — норма.
     func testEvennessUsesReportModel() {
         drink("2026-10-04", 8, 30, 300)
         drink("2026-10-04", 13, 0, 520)
@@ -149,8 +149,9 @@ final class ReportsTests: XCTestCase {
         XCTAssertEqual(rows[0].idealMl + rows[1].idealMl, blocks[0].targetMl)
         XCTAssertEqual(rows[2].idealMl, blocks[1].targetMl)
         XCTAssertEqual(rows[3].idealMl, blocks[2].targetMl)
-        XCTAssertNil(rows[DayPart.night.rawValue].tickFraction, "ніч поза активними годинами — без ризки")
-        XCTAssertTrue(rows.dropLast().allSatisfy { $0.tickFraction != nil })
+        XCTAssertFalse(rows[DayPart.night.rawValue].hasGoal, "ніч поза активними годинами — без цілі")
+        XCTAssertTrue(rows.dropLast().allSatisfy(\.hasGoal))
+        XCTAssertEqual(rows.map(\.isReached), [true, false, false, false, false], "ранок 300 з 138 — закрито")
         XCTAssertEqual(insights.dayDetail(for: day)?.rhythm.map(\.idealMl), rows.map(\.idealMl))
     }
 
@@ -217,6 +218,20 @@ final class ReportsTests: XCTestCase {
         XCTAssertTrue(day.blocks.isEmpty)
         XCTAssertNil(day.thought, "думка дня — про найсильнішу частину, без ритму її немає")
         XCTAssertEqual(day.portions.count, 3, "порції лишаються — для слайда «випито за день»")
+    }
+
+    /// «Рівномірність» без ритму (WAT-47): прапорець доходить до графіка, смуги — ті самі.
+    func testEvennessCarriesDayRhythmFlag() {
+        drink("2026-10-04", 8, 30, 300)
+        let day = DayKey(rawValue: "2026-10-04")
+        let withRhythm = insights.evenness(for: day)
+        XCTAssertTrue(withRhythm.dayRhythmEnabled)
+
+        profiles.profile().dayRhythmEnabled = false
+        profiles.save()
+        let plain = insights.evenness(for: day)
+        XCTAssertFalse(plain.dayRhythmEnabled)
+        XCTAssertEqual(plain.rows, withRhythm.rows, "смуга — частка кривої, графік довідковий (§28, п. 9)")
     }
 
     private func forgetfulEvening(_ day: String) {

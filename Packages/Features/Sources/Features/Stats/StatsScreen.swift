@@ -83,22 +83,31 @@ public struct StatsScreen: View {
 
                 VStack(spacing: 16) {
                     ForEach(report.rows) { row in
-                        WTEvennessRowView(
-                            label: row.label,
-                            valueLabel: "\(row.ml) мл",
-                            fraction: row.fraction,
-                            tickFraction: row.tickFraction
-                        )
+                        WTEvennessRowView(label: row.label, fraction: row.fraction, hasGoal: row.hasGoal) {
+                            evennessValue(row, rhythm: report.dayRhythmEnabled)
+                        }
                     }
                 }
                 .padding(.bottom, 16)
 
-                WTLegend(items: [
-                    (.square(theme.accent), "випито"),
-                    (.tick(WTColor.textTertiary), "ціль")
-                ])
-                .frame(maxWidth: .infinity)
+                Text("Повна смуга — ціль частини доби")
+                    .font(WTFont.text(11, .bold))
+                    .foregroundStyle(theme.textMuted)
+                    .frame(maxWidth: .infinity)
             }
+        }
+    }
+
+    /// Як рядки «Ритму дня» у великому віджеті: «138 / 200», закрито — «✓ 210»; без ритму й без цілі — «N мл».
+    @ViewBuilder
+    private func evennessValue(_ row: EvennessRow, rhythm: Bool) -> some View {
+        if rhythm && row.isReached {
+            WTDonePill(text: "\(row.ml)")
+                .accessibilityIdentifier("stats.evenness.done.\(row.id)")
+        } else {
+            Text(rhythm && row.hasGoal ? "\(row.ml) / \(row.idealMl)" : "\(row.ml) мл")
+                .font(WTFont.text(12, .bold))
+                .foregroundStyle(theme.textMuted)
         }
     }
 

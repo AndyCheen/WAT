@@ -6,22 +6,32 @@ public struct EvennessRow: Equatable, Identifiable, Sendable {
     public let part: DayPart
     public let ml: Int
     public let idealMl: Int
-    /// Частка від максимуму на графіку — ширина синьої смуги.
+    /// Частка цілі частини — ширина синьої смуги: повна смуга і є ціль (WAT-47), понад ціль — теж повна.
+    /// Поза активними годинами цілі немає — 0.
     public let fraction: Double
-    /// Позиція ризки «ціль» у тих самих координатах; `nil` — частина поза активними годинами,
-    /// цілі в неї немає (WAT-39).
-    public let tickFraction: Double?
 
     public var id: Int { part.rawValue }
     public var label: String { part.title }
+    /// Ніч поза активними годинами цілі не має (WAT-39): випите показується, смуга — ні.
+    public var hasGoal: Bool { idealMl > 0 }
+    public var isReached: Bool { hasGoal && ml >= idealMl }
 }
 
 public struct EvennessReport: Equatable, Sendable {
     public let score: Int
     public let rows: [EvennessRow]
     public let totalMl: Int
+    /// «Ритм дня» вимкнено (§28) — як у віджетах: без «✓» і без «з цілі», лише мілілітри.
+    public let dayRhythmEnabled: Bool
 
-    public static let empty = EvennessReport(score: 0, rows: [], totalMl: 0)
+    public init(score: Int, rows: [EvennessRow], totalMl: Int, dayRhythmEnabled: Bool) {
+        self.score = score
+        self.rows = rows
+        self.totalMl = totalMl
+        self.dayRhythmEnabled = dayRhythmEnabled
+    }
+
+    public static let empty = EvennessReport(score: 0, rows: [], totalMl: 0, dayRhythmEnabled: true)
 }
 
 /// Рядок графіка «Типова доба — медіана і розкид» (макет 4a).

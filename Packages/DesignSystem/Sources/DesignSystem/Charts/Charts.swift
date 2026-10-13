@@ -98,51 +98,49 @@ struct Line: Shape {
     }
 }
 
-/// Рядок «Рівномірність за день»: смуга випитого + ризка цілі. `tickFraction == nil` — цілі
-/// в частини немає (поза активними годинами), ризка не малюється.
-public struct WTEvennessRowView: View {
+/// Рядок «Рівномірність за день»: повна смуга — ціль частини доби (WAT-47), ризки цілі немає.
+/// Праворуч — підпис або `WTDonePill`, як у віджетах. `hasGoal == false` (ніч поза активними годинами) —
+/// смуга приглушена: цілі в неї немає, випите видно лише в підписі.
+public struct WTEvennessRowView<Trailing: View>: View {
     @Environment(\.wtTheme) private var theme
     private let label: String
-    private let valueLabel: String
     private let fraction: Double
-    private let tickFraction: Double?
+    private let hasGoal: Bool
+    private let trailing: Trailing
 
-    public init(label: String, valueLabel: String, fraction: Double, tickFraction: Double?) {
+    public init(label: String, fraction: Double, hasGoal: Bool, @ViewBuilder trailing: () -> Trailing) {
         self.label = label
-        self.valueLabel = valueLabel
         self.fraction = fraction
-        self.tickFraction = tickFraction
+        self.hasGoal = hasGoal
+        self.trailing = trailing()
     }
 
     public var body: some View {
         HStack(spacing: 10) {
             Text(label)
                 .font(WTFont.text(13, .bold))
-                .foregroundStyle(WTColor.textSecondary)
+                .foregroundStyle(theme.textPrimary)
                 .frame(width: 66, alignment: .leading)
 
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
+                    // Тема, не `WTColor.neutralTrack`: порожня доріжка тепер і є «скільки до цілі», а світла
+                    // в темній темі вона світилась ярче за воду.
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(WTColor.neutralTrack)
+                        .fill(theme.track)
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(theme.accent)
                         .frame(width: proxy.size.width * max(0, min(1, fraction)))
-                    if let tickFraction {
-                        Rectangle()
-                            .fill(WTColor.textTertiary)
-                            .frame(width: 2)
-                            .padding(.vertical, -3)
-                            .offset(x: proxy.size.width * max(0, min(1, tickFraction)) - 1)
-                    }
                 }
             }
             .frame(height: 16)
+            .opacity(hasGoal ? 1 : 0.55)
 
-            Text(valueLabel)
-                .font(WTFont.text(12, .bold))
-                .foregroundStyle(theme.textMuted)
-                .frame(width: 58, alignment: .trailing)
+            // Ширина — під «1050 / 1200», як у рядках великого віджета.
+            trailing
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(width: 84, alignment: .trailing)
         }
     }
 }

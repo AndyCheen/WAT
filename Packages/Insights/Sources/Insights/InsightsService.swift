@@ -28,12 +28,14 @@ public final class InsightsService {
     public func evenness(for day: DayKey? = nil) -> EvennessReport {
         let key = day ?? calendar.today
         let log = dayLogs.existingDayLog(for: key)
-        let curve = dayCurve(log, day: key, profile: profiles.profile())
+        let profile = profiles.profile()
+        let curve = dayCurve(log, day: key, profile: profile)
         let totals = log?.partTotals ?? [0, 0, 0, 0, 0]
         return EvennessReport(
             score: InsightsCalculators.evennessScore(partTotals: totals, shares: curve.partShares()),
             rows: InsightsCalculators.evennessRows(partTotals: totals, targetsMl: curve.partTargetsMl()),
-            totalMl: log?.totalMl ?? 0
+            totalMl: log?.totalMl ?? 0,
+            dayRhythmEnabled: profile.dayRhythmEnabled
         )
     }
 

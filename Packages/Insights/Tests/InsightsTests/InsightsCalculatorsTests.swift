@@ -39,15 +39,34 @@ final class InsightsCalculatorsTests: XCTestCase {
         }
     }
 
-    func testEvennessRowsAreScaledToCommonMaximum() {
+    /// Повна смуга — ціль частини (WAT-47): кожен рядок у своїх координатах, понад ціль — не ширше.
+    func testEvennessRowFillsTowardsPartGoal() {
         let rows = InsightsCalculators.evennessRows(partTotals: [0, 250, 1200, 900, 150], targetsMl: curve.partTargetsMl())
         XCTAssertEqual(rows.count, 5)
         XCTAssertEqual(rows[0].ml, 0)
-        XCTAssertEqual(rows[2].fraction, 1.0, accuracy: 0.001, "найбільша смуга займає всю ширину")
-        XCTAssertTrue(rows.allSatisfy { $0.fraction <= 1 && ($0.tickFraction ?? 0) <= 1 })
+        XCTAssertEqual(rows[0].fraction, 0)
         XCTAssertEqual(rows[2].idealMl, 826, "«День» — шматок кривої 12–17")
-        XCTAssertNil(rows[4].tickFraction, "ніч — без ризки")
+        XCTAssertEqual(rows[2].fraction, 1, "понад ціль — смуга повна, не ширша")
+        XCTAssertTrue(rows[2].isReached)
+        XCTAssertEqual(rows[1].fraction, 250.0 / Double(rows[1].idealMl), accuracy: 0.001)
+        XCTAssertFalse(rows[1].isReached)
+        XCTAssertTrue(rows.allSatisfy { (0...1).contains($0.fraction) })
+    }
+
+    func testNightRowHasNoGoal() {
+        let rows = InsightsCalculators.evennessRows(partTotals: [0, 250, 1200, 900, 150], targetsMl: curve.partTargetsMl())
+        XCTAssertFalse(rows[4].hasGoal, "ніч — без цілі")
+        XCTAssertFalse(rows[4].isReached, "без цілі нема й «закрито»")
+        XCTAssertEqual(rows[4].fraction, 0)
         XCTAssertEqual(rows[4].ml, 150, "випите вночі все одно показується")
+    }
+
+    func testRowReachedExactlyAtGoal() {
+        let targets = curve.partTargetsMl()
+        let rows = InsightsCalculators.evennessRows(partTotals: [targets[0], targets[1] - 1, 0, 0, 0], targetsMl: targets)
+        XCTAssertTrue(rows[0].isReached)
+        XCTAssertEqual(rows[0].fraction, 1)
+        XCTAssertFalse(rows[1].isReached, "на 1 мл менше — ще не закрито")
     }
 
     // MARK: - Типова доба

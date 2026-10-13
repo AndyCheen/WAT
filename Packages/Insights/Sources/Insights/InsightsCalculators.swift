@@ -24,16 +24,18 @@ public enum InsightsCalculators {
     }
 
     /// `targetsMl` — `PaceCurve.partTargetsMl()`: ті самі мілілітри, що в цілях частин доби звіту.
+    ///
+    /// Кожна смуга — у своїх координатах: повна = ціль частини (WAT-47). Спільний максимум із ризкою
+    /// «ціль» змушував порівнювати ризки різної довжини між собою, а «закрито» читалося лише з підпису.
     public static func evennessRows(partTotals: [Int], targetsMl: [Int]) -> [EvennessRow] {
-        let maxValue = max(partTotals.max() ?? 0, targetsMl.max() ?? 0, 1)
-        return DayPart.allCases.map { part in
+        DayPart.allCases.map { part in
+            let ml = partTotals[part.rawValue]
             let target = targetsMl[part.rawValue]
             return EvennessRow(
                 part: part,
-                ml: partTotals[part.rawValue],
+                ml: ml,
                 idealMl: target,
-                fraction: Double(partTotals[part.rawValue]) / Double(maxValue),
-                tickFraction: target > 0 ? Double(target) / Double(maxValue) : nil
+                fraction: target > 0 ? min(1, Double(ml) / Double(target)) : 0
             )
         }
     }
