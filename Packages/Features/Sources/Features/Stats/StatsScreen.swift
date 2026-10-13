@@ -81,19 +81,13 @@ public struct StatsScreen: View {
                 }
                 .padding(.bottom, 18)
 
-                VStack(spacing: 16) {
+                VStack(spacing: 14) {
                     ForEach(report.rows) { row in
                         WTEvennessRowView(label: row.label, fraction: row.fraction, hasGoal: row.hasGoal) {
                             evennessValue(row, rhythm: report.dayRhythmEnabled)
                         }
                     }
                 }
-                .padding(.bottom, 16)
-
-                Text("Повна смуга — ціль частини доби")
-                    .font(WTFont.text(11, .bold))
-                    .foregroundStyle(theme.textMuted)
-                    .frame(maxWidth: .infinity)
             }
         }
     }

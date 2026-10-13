@@ -99,8 +99,9 @@ struct Line: Shape {
 }
 
 /// Рядок «Рівномірність за день»: повна смуга — ціль частини доби (WAT-47), ризки цілі немає.
-/// Праворуч — підпис або `WTDonePill`, як у віджетах. `hasGoal == false` (ніч поза активними годинами) —
-/// смуга приглушена: цілі в неї немає, випите видно лише в підписі.
+/// Назва й підпис — над смугою, а не по боках: колонки по боках з'їдали половину ширини, і смуга
+/// виходила куцою. Праворуч — підпис або `WTDonePill`, як у віджетах. `hasGoal == false` (ніч поза
+/// активними годинами) — смуга приглушена: цілі в неї немає, випите видно лише в підписі.
 public struct WTEvennessRowView<Trailing: View>: View {
     @Environment(\.wtTheme) private var theme
     private let label: String
@@ -116,31 +117,28 @@ public struct WTEvennessRowView<Trailing: View>: View {
     }
 
     public var body: some View {
-        HStack(spacing: 10) {
-            Text(label)
-                .font(WTFont.text(13, .bold))
-                .foregroundStyle(theme.textPrimary)
-                .frame(width: 66, alignment: .leading)
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Text(label)
+                    .font(WTFont.text(13, .bold))
+                    .foregroundStyle(theme.textPrimary)
+                Spacer(minLength: 8)
+                trailing
+                    .lineLimit(1)
+            }
 
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
                     // Тема, не `WTColor.neutralTrack`: порожня доріжка тепер і є «скільки до цілі», а світла
                     // в темній темі вона світилась ярче за воду.
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(theme.track)
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    Capsule().fill(theme.track)
+                    Capsule()
                         .fill(theme.accent)
                         .frame(width: proxy.size.width * max(0, min(1, fraction)))
                 }
             }
-            .frame(height: 16)
+            .frame(height: 12)
             .opacity(hasGoal ? 1 : 0.55)
-
-            // Ширина — під «1050 / 1200», як у рядках великого віджета.
-            trailing
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .frame(width: 84, alignment: .trailing)
         }
     }
 }
