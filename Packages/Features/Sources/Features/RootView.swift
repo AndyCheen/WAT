@@ -23,6 +23,8 @@ public enum AppRoute: Hashable {
     case notificationPlan
     /// Звіт-історія (§11.3). Кілька періодів — злите «Підсумки тижня й місяця» грає їх підряд.
     case report([ReportPeriod])
+    /// DEBUG: усі віджети в системних розмірах — для e2e й перевірки без домашнього екрана (WAT-30).
+    case widgetGallery
 }
 
 /// Кореневий екран: стек навігації 1a → 3f → 2e, 1a → 3f → «Призи», 1a → 4a (PLAN.md §8).
@@ -105,6 +107,8 @@ public struct RootView: View {
             NotificationPlanScreen(services: services, onBack: { path.removeLast() })
         case .report(let periods):
             ReportScreen(services: services, periods: periods, onClose: { path.removeLast() })
+        case .widgetGallery:
+            WidgetGalleryScreen(services: services, onBack: { path.removeLast() })
         }
     }
 }

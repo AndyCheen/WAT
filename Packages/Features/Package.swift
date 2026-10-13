@@ -17,6 +17,7 @@ let package = Package(
         .package(path: "../Insights"),
         .package(path: "../Notifications"),
         .package(path: "../DesignSystem"),
+        .package(path: "../Widgets"),
     ],
     targets: [
         .target(
@@ -30,6 +31,7 @@ let package = Package(
                 .product(name: "Insights", package: "Insights"),
                 .product(name: "Notifications", package: "Notifications"),
                 .product(name: "DesignSystem", package: "DesignSystem"),
+                .product(name: "Widgets", package: "Widgets"),
             ]
         ),
         .testTarget(name: "FeaturesTests", dependencies: ["Features"])

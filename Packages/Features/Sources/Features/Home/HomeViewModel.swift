@@ -7,6 +7,7 @@ import Hydration
 import Gamification
 import Insights
 import DesignSystem
+import Widgets
 
 /// Шторки головного. Досягнень серед них немає: шторка-дубль екрана 2e з гіршим
 /// набором функцій прибрана, до досягнень веде лише екран (SPEC-ACHIEVEMENTS §1). Налаштування —

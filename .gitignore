@@ -22,3 +22,6 @@ Package.resolved
 
 # Генерується XcodeGen разом з проєктом
 App/Info.plist
+App/WaterTracker.entitlements
+WidgetExtension/Info.plist
+WidgetExtension/WaterTrackerWidgets.entitlements

@@ -4,7 +4,7 @@ SCHEME ?= WaterTracker
 # у проєкті лишається зі старою збіркою. Далі `find DerivedData -name '*.app'` віддає
 # застарілий бінарник — і в симулятор їде код, якого вже давно немає в репозиторії.
 DERIVED ?= DerivedData
-PACKAGES := Core Persistence Metrics Hydration Gamification Insights Notifications DesignSystem Features
+PACKAGES := Core Persistence Metrics Hydration Gamification Insights Notifications DesignSystem Widgets Features
 
 .PHONY: project build install test test-packages test-ui clean
 
