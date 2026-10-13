@@ -98,30 +98,32 @@ struct Line: Shape {
     }
 }
 
-/// Рядок «Рівномірність за день»: повна смуга — ціль частини доби (WAT-47), ризки цілі немає.
-/// Назва й підпис — над смугою, а не по боках: колонки по боках з'їдали половину ширини, і смуга
-/// виходила куцою. Праворуч — підпис або `WTDonePill`, як у віджетах. `hasGoal == false` (ніч поза
-/// активними годинами) — смуга приглушена: цілі в неї немає, випите видно лише в підписі.
+/// Рядок «Рівномірність за день»: блок цілі частини доби, повна смуга — його ціль (WAT-47), ризки немає.
+/// Назва з годинами й підпис — над смугою, а не по боках: колонки по боках з'їдали половину ширини, і
+/// смуга виходила куцою. Праворуч — підпис або `WTDonePill`, як у віджетах.
 public struct WTEvennessRowView<Trailing: View>: View {
     @Environment(\.wtTheme) private var theme
     private let label: String
+    private let hours: String
     private let fraction: Double
-    private let hasGoal: Bool
     private let trailing: Trailing
 
-    public init(label: String, fraction: Double, hasGoal: Bool, @ViewBuilder trailing: () -> Trailing) {
+    public init(label: String, hours: String, fraction: Double, @ViewBuilder trailing: () -> Trailing) {
         self.label = label
+        self.hours = hours
         self.fraction = fraction
-        self.hasGoal = hasGoal
         self.trailing = trailing()
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 7) {
-            HStack {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(label)
                     .font(WTFont.text(13, .bold))
                     .foregroundStyle(theme.textPrimary)
+                Text(hours)
+                    .font(WTFont.text(11, .bold))
+                    .foregroundStyle(theme.textMuted)
                 Spacer(minLength: 8)
                 trailing
                     .lineLimit(1)
@@ -138,7 +140,6 @@ public struct WTEvennessRowView<Trailing: View>: View {
                 }
             }
             .frame(height: 12)
-            .opacity(hasGoal ? 1 : 0.55)
         }
     }
 }

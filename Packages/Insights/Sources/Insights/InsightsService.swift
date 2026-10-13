@@ -33,7 +33,7 @@ public final class InsightsService {
         let totals = log?.partTotals ?? [0, 0, 0, 0, 0]
         return EvennessReport(
             score: InsightsCalculators.evennessScore(partTotals: totals, shares: curve.partShares()),
-            rows: InsightsCalculators.evennessRows(partTotals: totals, targetsMl: curve.partTargetsMl()),
+            rows: InsightsCalculators.evennessRows(blocks: curve.goalBlocks(), portions: log.map(portions(of:)) ?? []),
             totalMl: log?.totalMl ?? 0,
             dayRhythmEnabled: profile.dayRhythmEnabled
         )
@@ -155,10 +155,7 @@ public final class InsightsService {
             totalMl: log.totalMl,
             goalMl: log.goalMlSnapshot,
             completionPct: log.completionPct,
-            rhythm: InsightsCalculators.evennessRows(
-                partTotals: log.partTotals,
-                targetsMl: dayCurve(log, day: day, profile: profiles.profile()).partTargetsMl()
-            ),
+            rhythm: DayPart.allCases.map { DayPartTotal(part: $0, ml: log.partTotals[$0.rawValue]) },
             entries: entries
         )
     }

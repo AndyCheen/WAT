@@ -39,34 +39,45 @@ final class InsightsCalculatorsTests: XCTestCase {
         }
     }
 
-    /// Повна смуга — ціль частини (WAT-47): кожен рядок у своїх координатах, понад ціль — не ширше.
-    func testEvennessRowFillsTowardsPartGoal() {
-        let rows = InsightsCalculators.evennessRows(partTotals: [0, 250, 1200, 900, 150], targetsMl: curve.partTargetsMl())
-        XCTAssertEqual(rows.count, 5)
-        XCTAssertEqual(rows[0].ml, 0)
-        XCTAssertEqual(rows[0].fraction, 0)
-        XCTAssertEqual(rows[2].idealMl, 826, "«День» — шматок кривої 12–17")
-        XCTAssertEqual(rows[2].fraction, 1, "понад ціль — смуга повна, не ширша")
-        XCTAssertTrue(rows[2].isReached)
-        XCTAssertEqual(rows[1].fraction, 250.0 / Double(rows[1].idealMl), accuracy: 0.001)
-        XCTAssertFalse(rows[1].isReached)
-        XCTAssertTrue(rows.allSatisfy { (0...1).contains($0.fraction) })
+    // MARK: - Рядки «Рівномірності» — блоки цілей (WAT-47)
+
+    private func at(_ hour: Int, _ minute: Int = 0, _ ml: Int) -> TimedPortion {
+        TimedPortion(minute: hour * 60 + minute, ml: ml)
     }
 
-    func testNightRowHasNoGoal() {
-        let rows = InsightsCalculators.evennessRows(partTotals: [0, 250, 1200, 900, 150], targetsMl: curve.partTargetsMl())
-        XCTAssertFalse(rows[4].hasGoal, "ніч — без цілі")
-        XCTAssertFalse(rows[4].isReached, "без цілі нема й «закрито»")
-        XCTAssertEqual(rows[4].fraction, 0)
-        XCTAssertEqual(rows[4].ml, 150, "випите вночі все одно показується")
+    /// 08:00–22:00: годинний «ранок» злитий із «полуднем» — три блоки, як у віджета й звіту.
+    func testRowsAreGoalBlocks() {
+        let rows = InsightsCalculators.evennessRows(blocks: curve.goalBlocks(), portions: [])
+        XCTAssertEqual(rows.map(\.targetMl), [689, 826, 485])
+        XCTAssertEqual(rows.map(\.label), ["Ранок", "День", "Вечір"])
+        XCTAssertEqual(rows.map(\.hoursLabel), ["08–12", "12–17", "17–22"])
+        XCTAssertEqual(rows[0].parts, [.morning, .noon])
     }
 
-    func testRowReachedExactlyAtGoal() {
-        let targets = curve.partTargetsMl()
-        let rows = InsightsCalculators.evennessRows(partTotals: [targets[0], targets[1] - 1, 0, 0, 0], targetsMl: targets)
-        XCTAssertTrue(rows[0].isReached)
-        XCTAssertEqual(rows[0].fraction, 1)
-        XCTAssertFalse(rows[1].isReached, "на 1 мл менше — ще не закрито")
+    /// Ранній підйом робить «ранок» довшим за 2 год — він стає окремим блоком.
+    func testEarlyWakeGivesFourRows() {
+        let early = PaceCurve(goalMl: 2000, wakeMinutes: 6 * 60, sleepMinutes: 22 * 60)
+        let rows = InsightsCalculators.evennessRows(blocks: early.goalBlocks(), portions: [])
+        XCTAssertEqual(rows.map(\.label), ["Ранок", "Полудень", "День", "Вечір"])
+        XCTAssertEqual(rows.map(\.targetMl).reduce(0, +), 2000)
+    }
+
+    /// Повна смуга — ціль блоку: понад ціль — не ширше, рівно на цілі — закрито.
+    func testRowFillsTowardsBlockGoal() {
+        let rows = InsightsCalculators.evennessRows(
+            blocks: curve.goalBlocks(),
+            portions: [at(8, 30, 250), at(10, 0, 500), at(13, 0, 826), at(18, 0, 200)]
+        )
+        XCTAssertEqual(rows.map(\.ml), [750, 826, 200])
+        XCTAssertEqual(rows.map(\.isReached), [true, true, false])
+        XCTAssertEqual(rows[0].fraction, 1, "понад ціль — смуга повна, не ширша")
+        XCTAssertEqual(rows[2].fraction, 200.0 / 485, accuracy: 0.001)
+    }
+
+    /// Порція до підйому — першому блоку, після відбою — останньому (§25): ночі як рядка немає.
+    func testPortionsOutsideActiveHoursGoToEdgeBlocks() {
+        let rows = InsightsCalculators.evennessRows(blocks: curve.goalBlocks(), portions: [at(6, 30, 300), at(23, 0, 150)])
+        XCTAssertEqual(rows.map(\.ml), [300, 0, 150])
     }
 
     // MARK: - Типова доба

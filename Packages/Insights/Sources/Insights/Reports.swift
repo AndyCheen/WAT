@@ -267,7 +267,7 @@ extension InsightsService {
         }
     }
 
-    private func portions(of log: DayLog) -> [TimedPortion] {
+    func portions(of log: DayLog) -> [TimedPortion] {
         (log.intakes ?? []).filter { !$0.isDeleted }.sorted { $0.createdAt < $1.createdAt }.map { intake in
             let parts = calendar.calendar.dateComponents([.hour, .minute], from: intake.createdAt)
             return TimedPortion(minute: (parts.hour ?? 0) * 60 + (parts.minute ?? 0), ml: intake.amountMl)

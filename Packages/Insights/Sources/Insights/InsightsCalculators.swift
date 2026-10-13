@@ -23,19 +23,22 @@ public enum InsightsCalculators {
         return Int(((1 - distance / 2) * 100).rounded())
     }
 
-    /// `targetsMl` — `PaceCurve.partTargetsMl()`: ті самі мілілітри, що в цілях частин доби звіту.
+    /// `blocks` — `PaceCurve.goalBlocks()`, `portions` — порції дня з часом: випите рахується так само, як
+    /// у звіті й чекпоінта (`GoalBlock.drunkMl(of:)`), тож порція до підйому — першому блоку, після відбою —
+    /// останньому (§25).
     ///
-    /// Кожна смуга — у своїх координатах: повна = ціль частини (WAT-47). Спільний максимум із ризкою
+    /// Кожна смуга — у своїх координатах: повна = ціль блоку (WAT-47). Спільний максимум із ризкою
     /// «ціль» змушував порівнювати ризки різної довжини між собою, а «закрито» читалося лише з підпису.
-    public static func evennessRows(partTotals: [Int], targetsMl: [Int]) -> [EvennessRow] {
-        DayPart.allCases.map { part in
-            let ml = partTotals[part.rawValue]
-            let target = targetsMl[part.rawValue]
+    public static func evennessRows(blocks: [GoalBlock], portions: [TimedPortion]) -> [EvennessRow] {
+        blocks.map { block in
+            let ml = block.drunkMl(of: portions)
             return EvennessRow(
-                part: part,
+                parts: block.parts,
+                fromMinute: block.fromMinute,
+                toMinute: block.toMinute,
                 ml: ml,
-                idealMl: target,
-                fraction: target > 0 ? min(1, Double(ml) / Double(target)) : 0
+                targetMl: block.targetMl,
+                fraction: block.targetMl > 0 ? min(1, Double(ml) / Double(block.targetMl)) : 0
             )
         }
     }

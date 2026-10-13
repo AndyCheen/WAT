@@ -120,7 +120,7 @@ final class ReportsTests: XCTestCase {
         XCTAssertEqual(after.blocks, before.blocks)
         XCTAssertEqual(after.schedule, DaySchedule(wakeMinutes: 8 * 60, sleepMinutes: 22 * 60))
         XCTAssertEqual(after.blocks.first?.isReached, true)
-        XCTAssertEqual(insights.evenness(for: DayKey(rawValue: "2026-10-04")).rows.map(\.idealMl), [138, 551, 826, 485, 0])
+        XCTAssertEqual(insights.evenness(for: DayKey(rawValue: "2026-10-04")).rows.map(\.targetMl), [689, 826, 485])
     }
 
     /// Дні без знімка (історія до WAT-39) — розклад із профілю.
@@ -135,24 +135,22 @@ final class ReportsTests: XCTestCase {
         XCTAssertEqual(report.blocks.first?.fromMinute, 6 * 60)
     }
 
-    /// «Рівномірність» і звіт рахують той самий день однаково: ранок 138 + полудень 551 = 689
-    /// до 12:00, ніч без цілі, сума цілей — норма.
+    /// «Рівномірність» і звіт рахують той самий день однаково (WAT-47): ті самі блоки, ті самі цілі й
+    /// те саме «випито», тож «✓» на графіку — та сама, що у звіті й віджета.
     func testEvennessUsesReportModel() {
         drink("2026-10-04", 8, 30, 300)
+        drink("2026-10-04", 11, 0, 400)
         drink("2026-10-04", 13, 0, 520)
         let day = DayKey(rawValue: "2026-10-04")
         let rows = insights.evenness(for: day).rows
         let blocks = insights.report(for: .day(day)).blocks
 
-        XCTAssertEqual(rows.map(\.idealMl), [138, 551, 826, 485, 0])
-        XCTAssertEqual(rows.map(\.idealMl).reduce(0, +), 2000)
-        XCTAssertEqual(rows[0].idealMl + rows[1].idealMl, blocks[0].targetMl)
-        XCTAssertEqual(rows[2].idealMl, blocks[1].targetMl)
-        XCTAssertEqual(rows[3].idealMl, blocks[2].targetMl)
-        XCTAssertFalse(rows[DayPart.night.rawValue].hasGoal, "ніч поза активними годинами — без цілі")
-        XCTAssertTrue(rows.dropLast().allSatisfy(\.hasGoal))
-        XCTAssertEqual(rows.map(\.isReached), [true, false, false, false, false], "ранок 300 з 138 — закрито")
-        XCTAssertEqual(insights.dayDetail(for: day)?.rhythm.map(\.idealMl), rows.map(\.idealMl))
+        XCTAssertEqual(rows.map(\.targetMl), blocks.map(\.targetMl))
+        XCTAssertEqual(rows.map(\.targetMl).reduce(0, +), 2000)
+        XCTAssertEqual(rows.map(\.ml), blocks.map { $0.drunkMl ?? -1 })
+        XCTAssertEqual(rows.map(\.isReached), blocks.map(\.isReached))
+        XCTAssertEqual(rows.map(\.isReached), [true, false, false], "до 12 — 700 з 689")
+        XCTAssertEqual(insights.dayDetail(for: day)?.rhythm.map(\.ml), [300, 400, 520, 0, 0], "деталі дня — 5 частин")
     }
 
     /// «Типова доба»: ризка — частка кривої; ніч без неї.
