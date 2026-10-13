@@ -40,7 +40,19 @@ final class WidgetPresenterTests: XCTestCase {
         let full = Fixture.snapshot(portions: [Fixture.portion(9, 0, 1000, id: 1), Fixture.portion(12, 0, 1000, id: 2)])
         XCTAssertEqual(WidgetPresenter.part(day(13, 0, full), xp: 10).kind, .goalMet)
         XCTAssertEqual(WidgetPresenter.part(day(7, 0), xp: 10).value, "08:00")
-        XCTAssertEqual(WidgetPresenter.part(day(22, 30), xp: 10).caption, "Добраніч")
+        let night = WidgetPresenter.part(day(22, 30), xp: 10)
+        XCTAssertEqual(night.kind, .afterSleep)
+        XCTAssertEqual(night.caption, "Ніч")
+        XCTAssertEqual(night.headline, "норми за день")
+    }
+
+    /// Уночі — нічне небо з підсумком навіть із закритою нормою: «Норму закрито» о 23:00 сховало б, що настала ніч.
+    func testNightWinsOverGoalMet() {
+        let full = Fixture.snapshot(portions: [Fixture.portion(9, 0, 1000, id: 1), Fixture.portion(12, 0, 1000, id: 2)])
+        let part = WidgetPresenter.part(day(22, 30, full), xp: 10)
+        XCTAssertEqual(part.kind, .afterSleep)
+        XCTAssertEqual(part.value, "100%")
+        XCTAssertEqual(part.headline, "норму закрито")
     }
 
     /// «Просто норма за день» (WAT-42): ціль — уся норма, дедлайн — відбій, без XP.
@@ -73,7 +85,10 @@ final class WidgetPresenterTests: XCTestCase {
         XCTAssertEqual(WidgetPresenter.reserve(day(15, 20, Fixture.snapshot(reserve: planned))),
                        .init(headline: "Час пити", footnote: "нагадаю о 15:24", isUrgent: true))
         XCTAssertEqual(WidgetPresenter.reserve(day(8, 30, Fixture.snapshot(portions: []))).headline, "Почни зі склянки")
-        XCTAssertEqual(WidgetPresenter.reserve(day(23, 0, snapshot)).headline, "Добраніч")
+        // Уночі запас не ведеться — так і сказано, а не «0%» (§7).
+        XCTAssertEqual(WidgetPresenter.reserve(day(23, 0, snapshot)),
+                       .init(headline: "Добраніч", footnote: "запас рахую з 08:00", isUrgent: false))
+        XCTAssertEqual(WidgetPresenter.reserve(day(7, 0, snapshot)).headline, "Сон")
     }
 
     func testInlineAndStreakWord() {

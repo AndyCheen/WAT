@@ -76,29 +76,40 @@ public struct DayPartWidgetView: View {
     public var body: some View {
         let part = WidgetPresenter.part(content.day, xp: content.snapshot.dayPartXp)
         let done = part.kind == .closed || part.kind == .goalMet
+        // Уночі — нічне небо, як у «Запасу» (§7): частини доби вже немає, тож і смужки до цілі теж.
+        let isNight = part.kind == .beforeWake || part.kind == .afterSleep
+        let palette = isNight ? theme.night : theme
         VStack(alignment: .leading, spacing: 6) {
-            WidgetCaption(text: part.caption)
+            HStack(spacing: 4) {
+                WidgetCaption(text: part.caption, color: palette.textMuted)
+                Spacer(minLength: 0)
+                if isNight {
+                    NightMoon(size: 15)
+                }
+            }
             Spacer(minLength: 0)
             if done {
                 CheckBadge(size: 30)
             } else {
                 HStack(alignment: .firstTextBaseline, spacing: 3) {
-                    Text(part.value).font(WTFont.number(32)).foregroundStyle(theme.textPrimary).invalidatableContent()
+                    Text(part.value).font(WTFont.number(32)).foregroundStyle(palette.textPrimary).invalidatableContent()
                     if let unit = part.unit {
-                        Text(unit).font(WTFont.text(15, .bold)).foregroundStyle(theme.textMuted)
+                        Text(unit).font(WTFont.text(15, .bold)).foregroundStyle(palette.textMuted)
                     }
                 }
             }
             Text(part.headline)
                 .font(WTFont.text(15, .heavy))
-                .foregroundStyle(done ? WTColor.successText : theme.textPrimary)
+                .foregroundStyle(done ? WTColor.successText : palette.textPrimary)
             Spacer(minLength: 0)
-            WidgetBar(fraction: part.fraction)
+            if !isNight {
+                WidgetBar(fraction: part.fraction)
+            }
             HStack(spacing: 4) {
-                Text(part.footnote).foregroundStyle(theme.textMuted)
+                Text(part.footnote).foregroundStyle(palette.textMuted)
                 if let xp = part.xp {
-                    Text("·").foregroundStyle(theme.textMuted)
-                    Text(xp).foregroundStyle(theme.textButton)
+                    Text("·").foregroundStyle(palette.textMuted)
+                    Text(xp).foregroundStyle(palette.textButton)
                 }
             }
             .font(WTFont.text(12, .heavy))
@@ -106,7 +117,14 @@ public struct DayPartWidgetView: View {
         .lineLimit(1)
         .minimumScaleFactor(0.75)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .wtWidgetContainer { theme.card }
+        .environment(\.wtTheme, palette)
+        .wtWidgetContainer {
+            if isNight {
+                NightSky(isMedium: false)
+            } else {
+                theme.card
+            }
+        }
     }
 }
 
@@ -240,20 +258,26 @@ public struct ReserveWidgetView: View {
     public var body: some View {
         let day = content.day
         let text = WidgetPresenter.reserve(day)
-        let fraction = day.phase == .active ? day.reserveFraction : 0
+        // Уночі запас не ведеться — нічне небо замість рівня й відсотків, однакове для обох виглядів (§7).
+        let isNight = day.phase != .active
+        let fraction = isNight ? 0 : day.reserveFraction
         HStack(spacing: 12) {
             if isMedium && content.showsCustomPicker {
                 // Колонка кнопок завузька для чотирьох підказок — на час вибору вони займають увесь віджет.
                 CustomPickerPanel(kind: .reserve, hints: content.snapshot.hints, columns: 4, buttonHeight: 56)
             } else {
-                switch style {
-                case .water:
-                    waterText(text, fraction: fraction)
-                case .flask:
-                    flaskText(text, fraction: fraction)
+                if isNight {
+                    nightText(text)
+                } else {
+                    switch style {
+                    case .water:
+                        waterText(text, fraction: fraction)
+                    case .flask:
+                        flaskText(text, fraction: fraction)
+                    }
                 }
                 if isMedium {
-                    buttons
+                    buttons(onDeep: isNight || style == .flask)
                 }
             }
         }
@@ -263,7 +287,7 @@ public struct ReserveWidgetView: View {
         // Вода — у вмісті, а не в тлі віджета: тонований режим iOS 18 тло прибирає, і рівень зникав разом із ним.
         // Від'ємні поля доводять її до країв віджета, як було з тлом.
         .background {
-            if style == .water {
+            if style == .water && !isNight {
                 WidgetWaterShape(fraction: fraction)
                     .fill(LinearGradient(colors: waterColors, startPoint: .top, endPoint: .bottom))
                     .opacity(theme.isTinted ? 0.35 : 1)
@@ -271,7 +295,14 @@ public struct ReserveWidgetView: View {
                     .padding(-WidgetMetrics.margin)
             }
         }
-        .wtWidgetContainer { background }
+        .environment(\.wtTheme, isNight ? theme.night : theme)
+        .wtWidgetContainer {
+            if isNight {
+                NightSky(isMedium: isMedium)
+            } else {
+                background
+            }
+        }
     }
 
     @ViewBuilder
@@ -281,6 +312,34 @@ public struct ReserveWidgetView: View {
             theme.card
         case .flask:
             LinearGradient(colors: [theme.ringEnd, theme.waterDeep], startPoint: .topLeading, endPoint: .bottomTrailing)
+        }
+    }
+
+    /// «Добраніч · запас рахую з 08:00» під місяцем. Кнопки поруч працюють і вночі: порція до підйому рахується
+    /// першій частині доби (WAT-39).
+    @ViewBuilder
+    private func nightText(_ text: WidgetPresenter.Reserve) -> some View {
+        let night = theme.night
+        if isMedium {
+            VStack(alignment: .leading, spacing: 0) {
+                WidgetCaption(text: "Запас води", color: night.textMuted)
+                Spacer(minLength: 0)
+                HStack(spacing: 12) {
+                    NightMoon(size: 38)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(text.headline).font(WTFont.text(20, .black)).foregroundStyle(night.textPrimary)
+                        Text(text.footnote).font(WTFont.text(12, .bold)).foregroundStyle(night.textMuted)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        } else {
+            VStack(spacing: 4) {
+                NightMoon(size: 44)
+                Text(text.headline).font(WTFont.text(17, .black)).foregroundStyle(night.textPrimary).padding(.top, 6)
+                Text(text.footnote).font(WTFont.text(12, .bold)).foregroundStyle(night.textMuted)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -336,10 +395,11 @@ public struct ReserveWidgetView: View {
         .foregroundStyle(Color.white)
     }
 
+    /// - Parameter onDeep: тло темне — колба чи нічне небо: кнопки напівпрозорі білі, а не світлі плашки.
     @ViewBuilder
-    private var buttons: some View {
+    private func buttons(onDeep: Bool) -> some View {
         if let undo = content.day.undo {
-            UndoPanel(undo: undo, compact: true, onDeep: style == .flask)
+            UndoPanel(undo: undo, compact: true, onDeep: onDeep)
                 .frame(width: 104)
         } else {
             // Дві кнопки з головного й «Інше» третьою (правка після перевірки, 09.10.2026): свій об'єм тут
@@ -347,11 +407,11 @@ public struct ReserveWidgetView: View {
             VStack(spacing: WidgetMetrics.gap) {
                 ForEach(Array(content.snapshot.homeButtons.prefix(2).enumerated()), id: \.offset) { _, ml in
                     WidgetActionButton(.add(ml: ml, source: .widget)) {
-                        reserveButton(WidgetPresenter.addTitle(ml), prominent: false)
+                        reserveButton(WidgetPresenter.addTitle(ml), prominent: false, onDeep: onDeep)
                     }
                 }
                 WidgetActionButton(.showCustomPicker(.reserve)) {
-                    reserveButton("Інше", prominent: true)
+                    reserveButton("Інше", prominent: true, onDeep: onDeep)
                 }
             }
             .frame(width: 96)
@@ -359,8 +419,8 @@ public struct ReserveWidgetView: View {
     }
 
     @ViewBuilder
-    private func reserveButton(_ title: String, prominent: Bool) -> some View {
-        if style == .flask {
+    private func reserveButton(_ title: String, prominent: Bool, onDeep: Bool) -> some View {
+        if onDeep {
             Text(title)
                 .font(WTFont.text(14, .heavy))
                 .foregroundStyle(Color.white)
@@ -784,13 +844,19 @@ public struct ReserveCircularView: View {
 
     public var body: some View {
         let day = content.day
-        let active = day.phase == .active
-        Gauge(value: active ? day.reserveFraction : 0) {
-            EmptyView()
-        } currentValueLabel: {
-            Image(systemName: active ? (day.reserveIsEmpty ? "drop" : "drop.fill") : "moon.zzz.fill")
+        Group {
+            if day.phase == .active {
+                Gauge(value: day.reserveFraction) {
+                    EmptyView()
+                } currentValueLabel: {
+                    Image(systemName: day.reserveIsEmpty ? "drop" : "drop.fill")
+                }
+                .gaugeStyle(.accessoryCircularCapacity)
+            } else {
+                // Уночі — лише місяць: порожнє кільце читалося як «запас на нулі» (§7).
+                Image(systemName: "moon.fill").font(.system(size: 24, weight: .semibold))
+            }
         }
-        .gaugeStyle(.accessoryCircularCapacity)
         .widgetAccentable()
         .containerBackground(for: .widget) { AccessoryWidgetBackground() }
     }

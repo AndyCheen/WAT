@@ -61,10 +61,7 @@ public enum WidgetPresenter {
     }
 
     public static func part(_ day: WidgetDay, xp: Int) -> Part {
-        if day.goalMet {
-            return Part(kind: .goalMet, caption: "Сьогодні", value: "", unit: nil, headline: "Норму закрито",
-                        fraction: 1, footnote: "\(liters(day.countedMl)) л за день", xp: nil, deadlineMinute: nil)
-        }
+        // Ніч — раніше за «норму закрито»: уночі віджет — нічне небо з підсумком дня (рішення від 13.10.2026, §7).
         switch day.phase {
         case .beforeWake:
             let first = day.blocks.first?.goal.targetMl ?? 0
@@ -72,11 +69,15 @@ public enum WidgetPresenter {
                         unit: nil, headline: "підйом", fraction: 0,
                         footnote: "ціль ранку — \(DayPartPresenter.volume(first))", xp: nil, deadlineMinute: nil)
         case .afterSleep:
-            return Part(kind: .afterSleep, caption: "Добраніч", value: "\(day.percent)%", unit: nil,
-                        headline: "норми за день", fraction: day.fraction,
+            return Part(kind: .afterSleep, caption: "Ніч", value: "\(day.percent)%", unit: nil,
+                        headline: day.goalMet ? "норму закрито" : "норми за день", fraction: day.fraction,
                         footnote: "завтра з \(DayPartPresenter.clock(day.schedule.wakeMinutes))", xp: nil, deadlineMinute: nil)
         case .active:
             break
+        }
+        if day.goalMet {
+            return Part(kind: .goalMet, caption: "Сьогодні", value: "", unit: nil, headline: "Норму закрито",
+                        fraction: 1, footnote: "\(liters(day.countedMl)) л за день", xp: nil, deadlineMinute: nil)
         }
         let left = DayPartPresenter.roundedUp(day.leftMl)
         guard day.dayRhythmEnabled, let part = day.part else {
@@ -133,10 +134,11 @@ public enum WidgetPresenter {
 
     public static func reserve(_ day: WidgetDay) -> Reserve {
         switch day.phase {
+        // Уночі запас не ведеться — так і кажемо, а не «0%» (рішення від 13.10.2026, §7).
         case .beforeWake:
-            return Reserve(headline: "Сон", footnote: "підйом о \(DayPartPresenter.clock(day.schedule.wakeMinutes))", isUrgent: false)
+            return Reserve(headline: "Сон", footnote: "запас рахую з \(DayPartPresenter.clock(day.schedule.wakeMinutes))", isUrgent: false)
         case .afterSleep:
-            return Reserve(headline: "Добраніч", footnote: "завтра з \(DayPartPresenter.clock(day.schedule.wakeMinutes))", isUrgent: false)
+            return Reserve(headline: "Добраніч", footnote: "запас рахую з \(DayPartPresenter.clock(day.schedule.wakeMinutes))", isUrgent: false)
         case .active:
             break
         }

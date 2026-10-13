@@ -139,6 +139,11 @@ public enum WTColor {
     public static let futureText = Color(hex: "#c3cddb")
     public static let scrim = Color(hex: "#081020").opacity(0.35)
     public static let modalScrim = Color(hex: "#0f2038").opacity(0.45)
+    /// Нічне небо віджетів (рішення від 13.10.2026, SPEC-WIDGETS §7) — однакове у світлій і темній темі:
+    /// це ніч, а не тема.
+    public static let nightSkyTop = Color(hex: "#24489e")
+    public static let nightSkyBottom = Color(hex: "#0f1f45")
+    public static let moon = Color(hex: "#e3f6ff")
 
     /// Заливка комірки календаря за відсотком норми (макет 4a).
     public static func calendarFill(pct: Int) -> Color {
