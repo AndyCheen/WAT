@@ -378,7 +378,7 @@ struct ReportPresenter {
             .sorted { $0.positive && !$1.positive }
             .prefix(2).map { $0 }
         } else if let strongest, let weakest, strongest.key != weakest.key {
-            // Без дієслова: «ранок і полудень просідає» не узгоджувалось би з множиною.
+            // Без дієслова: до WAT-48 назва бувала множиною («ранок і полудень просідає» не узгоджувалось).
             title = "\(strongest.title.capitalizedFirst) — твоя суперсила, найслабше — \(weakest.title)"
         } else {
             title = "Рівно весь день — частини доби в темпі"
@@ -551,6 +551,6 @@ enum ReportFormat {
 }
 
 extension String {
-    /// «ранок і полудень» → «Ранок і полудень».
+    /// «ранок» → «Ранок».
     var capitalizedFirst: String { prefix(1).uppercased() + dropFirst() }
 }

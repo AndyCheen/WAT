@@ -217,7 +217,7 @@ public struct WTDayPartPill: View {
     public enum Content: Equatable, Sendable {
         /// «До 12:00 — ще 100 мл» · «+10 XP» · «35 хв».
         case pending(fraction: Double, title: String, xp: String, timeLeft: String)
-        /// «Ранок і полудень закрито».
+        /// «Ранок закрито».
         case closed(title: String)
     }
 

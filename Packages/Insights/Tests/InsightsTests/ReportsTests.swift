@@ -84,13 +84,13 @@ final class ReportsTests: XCTestCase {
         drink("2026-10-04", 18, 0, 460)
         let report = insights.report(for: .day(DayKey(rawValue: "2026-10-04")))
 
-        XCTAssertEqual(report.blocks.map(\.title), ["ранок і полудень", "день", "вечір"])
+        XCTAssertEqual(report.blocks.map(\.title), ["ранок", "день", "вечір"])
         XCTAssertEqual(report.blocks.map(\.targetMl), [689, 826, 485])
         XCTAssertEqual(report.blocks.compactMap(\.drunkMl), [720, 520, 460])
         XCTAssertEqual(report.blocks.map(\.isReached), [true, false, false])
         XCTAssertEqual(report.weakestBlock?.title, "день")
         XCTAssertEqual(report.portions.map(\.minute), [510, 600, 780, 1080])
-        XCTAssertEqual(report.thought, .strongestPart(title: "ранок і полудень", percent: 104))
+        XCTAssertEqual(report.thought, .strongestPart(title: "ранок", percent: 104))
     }
 
     // MARK: - Одна модель частин доби (WAT-39)

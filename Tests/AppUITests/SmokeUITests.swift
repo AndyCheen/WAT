@@ -69,7 +69,7 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(pill.isHittable, "капсулу справді видно, а не лише в дереві")
 
         app.buttons["home.add.200"].tap()
-        XCTAssertEqual(pill.label, "Ранок і полудень закрито", "порція, що закриває частину, одразу дає ✓")
+        XCTAssertEqual(pill.label, "Ранок закрито", "порція, що закриває частину, одразу дає ✓")
     }
 
     /// «Ритм дня» (WAT-42): вимикання прибирає капсулу частини доби, разово пропонує «Рівні інтервали»,

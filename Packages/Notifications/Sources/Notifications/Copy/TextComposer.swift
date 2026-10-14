@@ -104,7 +104,7 @@ struct TextComposer {
         case .checkpoint(let left, let deadline, let part, let xp):
             text = text.replacingOccurrences(of: "{left}", with: NotificationFormat.left(left))
             text = text.replacingOccurrences(of: "{deadline}", with: clockLabel(deadline))
-            text = text.replacingOccurrences(of: "{part}", with: part.title.lowercased())
+            text = text.replacingOccurrences(of: "{part}", with: part)
             text = text.replacingOccurrences(of: "{xp}", with: "\(xp)")
         case .reportDay(let digest, let streak):
             text = text.replacingOccurrences(of: "{report}", with: ReportText.day(digest, streak: streak))

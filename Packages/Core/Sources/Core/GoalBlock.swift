@@ -15,14 +15,55 @@ public struct TimedPortion: Sendable, Equatable {
 /// `dayPartGoal` і ставиться ✓ у денному звіті. Одне визначення на всіх, інакше «ранок» у
 /// сповіщенні, у XP і в звіті означав би різні години.
 ///
-/// Межі — ті самі `DayPart`, обрізані активними годинами. Частина, що після обрізання коротша
-/// за `minSegmentMinutes`, зливається з наступною (остання — з попередньою): при 08:00–22:00
-/// «ранок» 08–09 іде разом із «полуднем», і цілі виходять до 12:00, 12–17 і 17–22.
+/// Блоків завжди три — ранок до 12:00, день 12–17, вечір від 17:00 (рішення від 13.10.2026, WAT-48,
+/// §32), межі обрізані активними годинами. Раніше блоком була кожна з 5 `DayPart`, і від розкладу
+/// залежало, скільки їх: 4 при підйомі о 06:00, 5 при 06:00–24:00, а відбій о 24:00 давав «ніч 22–24»
+/// з ціллю 29 мл, закриту одним ковтком. Блок, коротший за `minSegmentMinutes` (підйом після 10:00,
+/// відбій до 19:00), зливається з сусідом — нічні графіки мають два блоки.
 ///
 /// Порції поза активними годинами не губляться: до підйому — у першому блоці, після відбою —
 /// в останньому (рішення від 05.10.2026, WAT-39). Хто почав пити о 06:30 при підйомі о 08:00,
 /// той пив уранці, і ранкову ціль закрито, хоча графік каже інакше.
 public struct GoalBlock: Sendable, Equatable {
+    public enum Kind: Int, CaseIterable, Sendable {
+        case morning, day, evening
+
+        /// Межі ранку й дня (12:00) і дня й вечора (17:00) — це межі `DayPart`, тож частина доби
+        /// завжди цілком в одному блоці, і групувати можна відрізками. Лишається розвести ніч.
+        static let dayStartMinute = 12 * 60
+
+        public var title: String {
+            switch self {
+            case .morning: return "Ранок"
+            case .day: return "День"
+            case .evening: return "Вечір"
+            }
+        }
+
+        /// Ключ у `refId` XP, id чекпоінта й медіанах звіту. Це ключі частин, якими блоки закінчувались
+        /// при типовому 08:00–22:00 до WAT-48: так XP за вже закритий сьогодні блок не видається вдруге
+        /// після оновлення, а заплановані чекпоінти зберігають id. Не залежить від розкладу — раніше
+        /// вечір при відбої о 23:00 мав ключ `night`, і тижневі медіани ділились на два «вечори».
+        public var key: String {
+            switch self {
+            case .morning: return DayPart.noon.key
+            case .day: return DayPart.afternoon.key
+            case .evening: return DayPart.evening.key
+            }
+        }
+
+        /// Ніч до полудня — це ранок до підйому, після — вечір до відбою.
+        static func of(_ part: DayPart, fromMinute: Int) -> Kind {
+            switch part {
+            case .morning, .noon: return .morning
+            case .afternoon: return .day
+            case .evening: return .evening
+            case .night: return fromMinute < dayStartMinute ? .morning : .evening
+            }
+        }
+    }
+
+    public let kind: Kind
     public let parts: [DayPart]
     /// Межі за розкладом — від них рахується ціль і дедлайн чекпоінта.
     public let fromMinute: Int
@@ -33,7 +74,8 @@ public struct GoalBlock: Sendable, Equatable {
     let countsFromMinute: Int
     let countsToMinute: Int
 
-    init(parts: [DayPart], fromMinute: Int, toMinute: Int, targetMl: Int, opensDay: Bool, closesDay: Bool) {
+    init(kind: Kind, parts: [DayPart], fromMinute: Int, toMinute: Int, targetMl: Int, opensDay: Bool, closesDay: Bool) {
+        self.kind = kind
         self.parts = parts
         self.fromMinute = fromMinute
         self.toMinute = toMinute
@@ -42,8 +84,9 @@ public struct GoalBlock: Sendable, Equatable {
         countsToMinute = closesDay ? 24 * 60 : toMinute
     }
 
-    /// Частина, якою блок закінчується: її кінець — дедлайн чекпоінта, її назва — у тексті.
-    public var deadlinePart: DayPart { parts[parts.count - 1] }
+    public var key: String { kind.key }
+    /// «ранок» — для тексту посеред речення: «і ранок закрито».
+    public var title: String { kind.title.lowercased() }
 
     /// Чи зараховується блоку порція цієї хвилини — з урахуванням країв дня.
     public func contains(minute: Int) -> Bool { minute >= countsFromMinute && minute < countsToMinute }
@@ -58,33 +101,38 @@ public struct GoalBlock: Sendable, Equatable {
     public func isReached(by portions: [TimedPortion]) -> Bool {
         drunkMl(of: portions) >= targetMl
     }
-
-    /// «ранок і полудень», «день» — для підписів у звіті.
-    public var title: String {
-        let names = parts.map { $0.title.lowercased() }
-        guard names.count > 1 else { return names.first ?? "" }
-        return names.dropLast().joined(separator: ", ") + " і " + names[names.count - 1]
-    }
 }
 
 extension PaceCurve {
-    /// Мінімальна тривалість частини доби в межах активних годин (`minSegment`, §15.2).
+    /// Мінімальна тривалість блоку в межах активних годин (`minSegment`, §15.2).
     public static let minGoalBlockMinutes = 120
 
-    /// Цілі частин доби за зростанням часу (§9).
+    /// Цілі частин доби за зростанням часу (§9, §32): ранок, день і вечір.
     public func goalBlocks(minSegmentMinutes: Int = PaceCurve.minGoalBlockMinutes) -> [GoalBlock] {
-        var blocks: [(parts: [DayPart], from: Int, to: Int)] = segments.map { ([$0.part], $0.fromMinute, $0.toMinute) }
-        // Зливаємо найпершу коротку з сусідом, поки коротких не лишиться: злиття може
-        // зробити сусіда достатньо довгим, тож один прохід не завжди дає остаточний результат.
+        typealias Draft = (kind: GoalBlock.Kind, parts: [DayPart], from: Int, to: Int)
+        // Відрізки частин доби вже обрізані розкладом і йдуть за часом — лишається зібрати їх по видах.
+        var blocks: [Draft] = []
+        for segment in segments {
+            let kind = GoalBlock.Kind.of(segment.part, fromMinute: segment.fromMinute)
+            if let last = blocks.last, last.kind == kind {
+                blocks[blocks.count - 1] = (kind, last.parts + [segment.part], last.from, segment.toMinute)
+            } else {
+                blocks.append((kind, [segment.part], segment.fromMinute, segment.toMinute))
+            }
+        }
+        // Короткий зливається з сусідом (останній — з попереднім), поки коротких не лишиться. Назву
+        // бере довший: підйом об 11:00 дає «день 11–17», а не «ранок 11–17».
         while blocks.count > 1,
               let index = blocks.firstIndex(where: { $0.to - $0.from < minSegmentMinutes }) {
             let other = index < blocks.count - 1 ? index + 1 : index - 1
             let (first, second) = (min(index, other), max(index, other))
-            blocks[first] = (blocks[first].parts + blocks[second].parts, blocks[first].from, blocks[second].to)
+            let kind = blocks[other].to - blocks[other].from >= blocks[index].to - blocks[index].from
+                ? blocks[other].kind : blocks[index].kind
+            blocks[first] = (kind, blocks[first].parts + blocks[second].parts, blocks[first].from, blocks[second].to)
             blocks.remove(at: second)
         }
         return blocks.enumerated().map { index, block in
-            GoalBlock(parts: block.parts, fromMinute: block.from, toMinute: block.to,
+            GoalBlock(kind: block.kind, parts: block.parts, fromMinute: block.from, toMinute: block.to,
                       targetMl: roundedTarget(fromMinute: block.from, toMinute: block.to),
                       opensDay: index == 0, closesDay: index == blocks.count - 1)
         }

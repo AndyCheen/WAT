@@ -1,7 +1,7 @@
 import XCTest
 @testable import Core
 
-/// Цілі частин доби — SPEC-NOTIFICATIONS §9: при 08:00–22:00 чекпоінти «до 12:00» і «до 17:00»,
+/// Цілі частин доби — SPEC-NOTIFICATIONS §9, §32: завжди ранок, день і вечір; при 08:00–22:00 чекпоінти «до 12:00» і «до 17:00»,
 /// цілі 689 і 826 мл (різниці округлених E: 1515 − 689), разом із вечором — рівно норма.
 final class GoalBlockTests: XCTestCase {
     private func blocks(_ wake: Int, _ sleep: Int, goal: Int = 2000) -> [GoalBlock] {
@@ -15,31 +15,65 @@ final class GoalBlockTests: XCTestCase {
         XCTAssertEqual(result.map(\.toMinute), [12 * 60, 17 * 60, 22 * 60])
         XCTAssertEqual(result.map(\.targetMl), [689, 826, 485])
         XCTAssertEqual(result.map(\.targetMl).reduce(0, +), 2000)
-        XCTAssertEqual(result[0].deadlinePart, .noon)
-        XCTAssertEqual(result[0].title, "ранок і полудень")
+        XCTAssertEqual(result.map(\.kind), [.morning, .day, .evening])
+        XCTAssertEqual(result.map(\.title), ["ранок", "день", "вечір"])
     }
 
-    /// Короткий хвіст ночі (22–23) зливається з попередньою частиною — останньою немає з ким іще.
-    func testShortLastPartMergesBackwards() {
-        let result = blocks(6 * 60, 23 * 60)
-        XCTAssertEqual(result.map(\.parts), [[.morning], [.noon], [.afternoon], [.evening, .night]])
-        XCTAssertEqual(result.last?.toMinute, 23 * 60)
+    // MARK: - Завжди ранок, день і вечір (WAT-48, §32)
+
+    /// Ранній підйом подовжує ранок, а не додає блок: раніше 06:00–22:00 давало окремий «ранок 06–09».
+    func testEarlyWakeExtendsMorning() {
+        let result = blocks(6 * 60, 22 * 60)
+        XCTAssertEqual(result.map(\.kind), [.morning, .day, .evening])
+        XCTAssertEqual(result.map(\.parts), [[.morning, .noon], [.afternoon], [.evening]])
+        XCTAssertEqual(result.map(\.fromMinute), [6 * 60, 12 * 60, 17 * 60])
     }
 
-    func testLateWakeMergesNoonIntoAfternoon() {
+    /// Пізній відбій подовжує вечір: «ніч 22–24» з ціллю 29 мл закривалась одним ковтком.
+    func testLateSleepExtendsEvening() {
+        let result = blocks(8 * 60, 24 * 60)
+        XCTAssertEqual(result.map(\.kind), [.morning, .day, .evening])
+        XCTAssertEqual(result.last?.parts, [.evening, .night])
+        XCTAssertEqual(result.last?.toMinute, 24 * 60)
+        XCTAssertEqual(result.last?.key, "evening", "ключ вечора не залежить від відбою")
+    }
+
+    /// Будь-який звичайний розклад — рівно три блоки.
+    func testUsualSchedulesAlwaysGiveThreeBlocks() {
+        for (wake, sleep) in [(4 * 60, 22 * 60), (6 * 60, 24 * 60), (7 * 60, 22 * 60), (7 * 60 + 15, 22 * 60),
+                              (8 * 60, 23 * 60), (9 * 60, 23 * 60), (10 * 60, 24 * 60)] {
+            XCTAssertEqual(blocks(wake, sleep).map(\.kind), [.morning, .day, .evening], "\(wake)–\(sleep)")
+        }
+    }
+
+    /// Ключі — ті, якими блоки закінчувались при 08:00–22:00 до WAT-48: XP за сьогодні не дублюється.
+    func testKeysKeepPreviousDefaultValues() {
+        XCTAssertEqual(blocks(8 * 60, 22 * 60).map(\.key), ["noon", "afternoon", "evening"])
+    }
+
+    /// Підйом після 10:00 — ранок коротший за 2 год зливається з днем і бере його назву.
+    func testLateWakeMergesMorningIntoDay() {
         let result = blocks(10 * 60 + 30, 21 * 60)
+        XCTAssertEqual(result.map(\.kind), [.day, .evening])
         XCTAssertEqual(result.map(\.parts), [[.noon, .afternoon], [.evening]])
         XCTAssertEqual(result.map(\.targetMl).reduce(0, +), 2000)
     }
 
-    /// Підйом о 04:00 і відбій о 24:00: ніч дає два відрізки — на початку й наприкінці доби.
-    func testNightOnBothEndsStaysSeparate() {
+    /// Відбій до 19:00 — вечір коротший за 2 год зливається з днем.
+    func testEarlySleepMergesEveningIntoDay() {
+        let result = blocks(6 * 60, 18 * 60)
+        XCTAssertEqual(result.map(\.kind), [.morning, .day])
+        XCTAssertEqual(result.last?.toMinute, 18 * 60)
+    }
+
+    /// Підйом о 04:00 і відбій о 24:00: ніч на початку доби — ранок, наприкінці — вечір.
+    func testNightOnBothEndsGoesToEdgeBlocks() {
         let result = blocks(4 * 60, 24 * 60)
-        XCTAssertEqual(result.map(\.parts), [[.night, .morning], [.noon], [.afternoon], [.evening], [.night]])
-        // Порція о 23:00 належить останньому блоку, а не ранковому.
+        XCTAssertEqual(result.map(\.parts), [[.night, .morning, .noon], [.afternoon], [.evening, .night]])
+        // Порція о 23:00 належить вечору, а не ранку.
         let late = [TimedPortion(minute: 23 * 60, ml: 300)]
         XCTAssertEqual(result[0].drunkMl(of: late), 0)
-        XCTAssertEqual(result[4].drunkMl(of: late), 300)
+        XCTAssertEqual(result[2].drunkMl(of: late), 300)
     }
 
     func testDrunkCountsOnlyPortionsInsideBlock() {
@@ -89,10 +123,10 @@ final class GoalBlockTests: XCTestCase {
 
     func testBlockContainingMinute() {
         let curve = PaceCurve(goalMl: 2000, wakeMinutes: 8 * 60, sleepMinutes: 22 * 60)
-        XCTAssertEqual(curve.goalBlock(containing: 13 * 60)?.deadlinePart, .afternoon)
-        XCTAssertEqual(curve.goalBlock(containing: 23 * 60)?.deadlinePart, .evening, "після відбою — останній блок")
-        XCTAssertEqual(curve.goalBlock(containing: 7 * 60)?.deadlinePart, .noon, "до підйому — перший блок")
-        XCTAssertEqual(curve.goalBlock(containing: 0)?.deadlinePart, .noon)
+        XCTAssertEqual(curve.goalBlock(containing: 13 * 60)?.kind, .day)
+        XCTAssertEqual(curve.goalBlock(containing: 23 * 60)?.kind, .evening, "після відбою — останній блок")
+        XCTAssertEqual(curve.goalBlock(containing: 7 * 60)?.kind, .morning, "до підйому — перший блок")
+        XCTAssertEqual(curve.goalBlock(containing: 0)?.kind, .morning)
     }
 
     func testNoBlocksWithoutActiveHours() {

@@ -559,7 +559,8 @@ public struct WTDayArc: View {
                     .stroke(color(segment.ratio), style: StrokeStyle(lineWidth: 8 + min(segment.ratio, 1.2) * 20, lineCap: .round))
                     .animation(.easeOut(duration: 0.8).delay(0.2 + Double(index) * 0.25), value: drawn)
                     let middle = (start + end) / 2
-                    // Довгі назви («Ранок і полудень») — у два рядки й не ближче за 46 pt до краю.
+                    // Назва — у два рядки й не ближче за 46 pt до краю: короткі «ранок / день / вечір» (§32)
+                    // так і лишаються в одному, а довшим, як «ранок і полудень» до WAT-48, вистачає місця.
                     Text(segment.title)
                         .font(WTFont.text(12, .heavy))
                         .foregroundStyle(theme.textMuted)

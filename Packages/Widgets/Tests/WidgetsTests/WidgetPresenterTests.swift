@@ -31,7 +31,7 @@ final class WidgetPresenterTests: XCTestCase {
     func testClosedPartTellsWhatIsNext() {
         let part = WidgetPresenter.part(day(11, 45), xp: 10)
         XCTAssertEqual(part.kind, .closed)
-        XCTAssertEqual(part.headline, "Ранок і полудень закрито")
+        XCTAssertEqual(part.headline, "Ранок закрито")
         XCTAssertEqual(part.footnote, "далі день — 826 мл")
         XCTAssertNil(part.xp)
     }
