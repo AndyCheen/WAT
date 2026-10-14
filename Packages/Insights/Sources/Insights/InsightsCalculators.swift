@@ -33,7 +33,7 @@ public enum InsightsCalculators {
         blocks.map { block in
             let ml = block.drunkMl(of: portions)
             return EvennessRow(
-                parts: block.parts,
+                kind: block.kind,
                 fromMinute: block.fromMinute,
                 toMinute: block.toMinute,
                 ml: ml,

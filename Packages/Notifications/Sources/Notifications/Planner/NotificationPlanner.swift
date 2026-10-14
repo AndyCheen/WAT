@@ -62,7 +62,8 @@ enum CopyKind: Equatable {
     case rescueEvening(streak: Int)
     case rescueMorning(streak: Int)
     case comeback(number: Int, giftAvailable: Bool)
-    case checkpoint(leftMl: Int, deadline: Date, part: DayPart, xp: Int)
+    /// `part` — назва блоку посеред речення: «і ранок закрито» (§32).
+    case checkpoint(leftMl: Int, deadline: Date, part: String, xp: Int)
     case reportDay(ReportDigest, streak: Int)
     case reportWeek(ReportDigest)
     case reportMonth(ReportDigest)
@@ -297,13 +298,12 @@ struct PlanBuilder {
             guard behind >= lag, left >= rules.checkpointMinLeftMl, Double(left) <= closable else { return nil }
 
             let boosted = context.boostExpiresAt.map { $0 > at } ?? false
-            let part = block.deadlinePart
             let item = PlannedNotification(
-                id: "wt.checkpoint.\(day.day.rawValue).\(part.key)", type: .checkpoint, slot: part.key, dayKey: day.day,
+                id: "wt.checkpoint.\(day.day.rawValue).\(block.key)", type: .checkpoint, slot: block.key, dayKey: day.day,
                 fireAt: at, isFloating: true, priority: .checkpoint, category: .reminder,
                 tapRoute: .customAmount(ml: portion)
             )
-            let copy = CopyKind.checkpoint(leftMl: left, deadline: deadline, part: part,
+            let copy = CopyKind.checkpoint(leftMl: left, deadline: deadline, part: block.title,
                                            xp: context.dayPartXp * (boosted ? 2 : 1))
             return Candidate(item: item, copy: copy, rel: day.rel)
         }

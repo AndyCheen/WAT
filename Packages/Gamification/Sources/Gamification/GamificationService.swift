@@ -550,9 +550,9 @@ public final class GamificationService: MetricsSubscriber {
         return (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
     }
 
-    /// Ключ XP за ціль частини доби — день і частина, якою блок закінчується.
+    /// Ключ XP за ціль частини доби — день і стабільний ключ блоку (`GoalBlock.Kind.key`, §32).
     public static func dayPartGoalRef(_ day: DayKey, _ block: GoalBlock) -> UUID {
-        DeterministicID.uuid(from: "dayPartGoal:\(day.rawValue):\(block.deadlinePart.key)")
+        DeterministicID.uuid(from: "dayPartGoal:\(day.rawValue):\(block.key)")
     }
 
     private static func prizeState(_ item: RewardItem, at date: Date) -> PrizeState {

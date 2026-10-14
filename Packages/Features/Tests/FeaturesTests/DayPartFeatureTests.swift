@@ -61,12 +61,12 @@ final class DayPartFeatureTests: XCTestCase {
         add(250, at: 11, 40, to: model)
 
         let closed = try XCTUnwrap(model.dayPartLine())
-        XCTAssertEqual(closed.content, .closed(title: "Ранок і полудень закрито"))
-        XCTAssertEqual(closed.accessibilityLabel, "Ранок і полудень закрито")
+        XCTAssertEqual(closed.content, .closed(title: "Ранок закрито"))
+        XCTAssertEqual(closed.accessibilityLabel, "Ранок закрито")
 
         // ✓ тримається до кінця частини, з 12:00 — уже наступна.
         clock.set(Self.date(11, 59))
-        XCTAssertEqual(model.dayPartLine()?.content, .closed(title: "Ранок і полудень закрито"))
+        XCTAssertEqual(model.dayPartLine()?.content, .closed(title: "Ранок закрито"))
         clock.set(Self.date(12, 0))
         guard case let .pending(_, title, _, timeLeft) = try XCTUnwrap(model.dayPartLine()).content else {
             return XCTFail("о 12:00 почалась нова частина")

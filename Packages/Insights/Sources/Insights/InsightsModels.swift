@@ -6,7 +6,7 @@ import Core
 /// XP `dayPartGoal` і звіту. Годинний «ранок» 08–09 із ціллю 138 мл закривався першою склянкою, а
 /// віджет показував «до 12 — ✓», коли графік казав «полудень не закрито».
 public struct EvennessRow: Equatable, Identifiable, Sendable {
-    public let parts: [DayPart]
+    public let kind: GoalBlock.Kind
     public let fromMinute: Int
     public let toMinute: Int
     public let ml: Int
@@ -15,8 +15,7 @@ public struct EvennessRow: Equatable, Identifiable, Sendable {
     public let fraction: Double
 
     public var id: Int { fromMinute }
-    /// Злитий блок «ранок і полудень» 08–12 — «Ранок»: години поруч кажуть решту.
-    public var label: String { parts[0].title }
+    public var label: String { kind.title }
     /// «08–12» — як у віджеті «Ритм дня».
     public var hoursLabel: String { "\(Self.hour(fromMinute))–\(Self.hour(toMinute))" }
     public var isReached: Bool { targetMl > 0 && ml >= targetMl }

@@ -23,7 +23,8 @@ public struct ReportDay: Equatable, Sendable {
 
 /// Ціль частини доби в звіті (§9): та сама, за яку чекпоінт і +10 XP.
 public struct ReportBlock: Equatable, Sendable {
-    public let parts: [DayPart]
+    /// `GoalBlock.key` — стабільний для блоку незалежно від розкладу дня (§32).
+    public let key: String
     public let title: String
     public let fromMinute: Int
     public let toMinute: Int
@@ -35,8 +36,6 @@ public struct ReportBlock: Equatable, Sendable {
     /// Медіана попереднього періоду — для «вечір підтягнувся на 12 %».
     public let previousRatio: Double?
 
-    public var deadlinePart: DayPart { parts[parts.count - 1] }
-    public var key: String { deadlinePart.key }
     public var isReached: Bool { ratio >= 1 }
 }
 
@@ -148,8 +147,8 @@ extension InsightsService {
         let curve = templateCurve(for: period)
         let goalBlocks = profile.dayRhythmEnabled ? curve.goalBlocks() : []
         let blocks: [ReportBlock] = goalBlocks.map { block in
-            let ratios = snapshot.blockRatios[block.deadlinePart.key] ?? []
-            let previousRatios = previous.blockRatios[block.deadlinePart.key] ?? []
+            let ratios = snapshot.blockRatios[block.key] ?? []
+            let previousRatios = previous.blockRatios[block.key] ?? []
             let drunk: Int? = period.kind == .day ? block.drunkMl(of: snapshot.portions) : nil
             let ratio: Double
             if let drunk {
@@ -158,7 +157,7 @@ extension InsightsService {
                 ratio = InsightsCalculators.percentile(ratios.sorted(), 0.5)
             }
             return ReportBlock(
-                parts: block.parts, title: block.title, fromMinute: block.fromMinute, toMinute: block.toMinute,
+                key: block.key, title: block.title, fromMinute: block.fromMinute, toMinute: block.toMinute,
                 targetMl: block.targetMl, drunkMl: drunk, ratio: ratio,
                 previousRatio: previousRatios.isEmpty ? nil : InsightsCalculators.percentile(previousRatios.sorted(), 0.5)
             )
@@ -200,8 +199,8 @@ extension InsightsService {
         for log in logs {
             let day = DayKey(rawValue: log.dayKey)
             for (block, ratio) in blockRatios(log: log, day: day) {
-                ratios[block.deadlinePart.key, default: []].append(ratio)
-                meta[block.deadlinePart.key] = meta[block.deadlinePart.key] ?? block
+                ratios[block.key, default: []].append(ratio)
+                meta[block.key] = meta[block.key] ?? block
             }
         }
         return ratios.compactMap { key, values -> WeakPart? in
@@ -243,7 +242,7 @@ extension InsightsService {
             ))
             guard let log, log.entriesCount > 0 else { continue }
             for (block, ratio) in blockRatios(log: log, day: key) {
-                snapshot.blockRatios[block.deadlinePart.key, default: []].append(ratio)
+                snapshot.blockRatios[block.key, default: []].append(ratio)
             }
             if period.kind == .day { snapshot.portions = portions(of: log) }
         }

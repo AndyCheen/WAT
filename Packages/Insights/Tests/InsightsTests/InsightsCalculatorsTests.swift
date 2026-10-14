@@ -51,14 +51,15 @@ final class InsightsCalculatorsTests: XCTestCase {
         XCTAssertEqual(rows.map(\.targetMl), [689, 826, 485])
         XCTAssertEqual(rows.map(\.label), ["Ранок", "День", "Вечір"])
         XCTAssertEqual(rows.map(\.hoursLabel), ["08–12", "12–17", "17–22"])
-        XCTAssertEqual(rows[0].parts, [.morning, .noon])
+        XCTAssertEqual(rows.map(\.kind), [.morning, .day, .evening])
     }
 
-    /// Ранній підйом робить «ранок» довшим за 2 год — він стає окремим блоком.
-    func testEarlyWakeGivesFourRows() {
+    /// Ранній підйом лише подовжує «ранок» — рядків так само три (WAT-48).
+    func testEarlyWakeKeepsThreeRows() {
         let early = PaceCurve(goalMl: 2000, wakeMinutes: 6 * 60, sleepMinutes: 22 * 60)
         let rows = InsightsCalculators.evennessRows(blocks: early.goalBlocks(), portions: [])
-        XCTAssertEqual(rows.map(\.label), ["Ранок", "Полудень", "День", "Вечір"])
+        XCTAssertEqual(rows.map(\.label), ["Ранок", "День", "Вечір"])
+        XCTAssertEqual(rows.map(\.hoursLabel), ["06–12", "12–17", "17–22"])
         XCTAssertEqual(rows.map(\.targetMl).reduce(0, +), 2000)
     }
 
