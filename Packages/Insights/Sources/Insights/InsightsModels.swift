@@ -1,16 +1,33 @@
 import Foundation
 import Core
 
-/// Рядок графіка «Рівномірність за день» (макет 4a).
+/// Рядок графіка «Рівномірність за день» (макет 4a) — блок цілі частини доби (`GoalBlock`), а не
+/// одна з 5 `DayPart` (рішення від 13.10.2026, WAT-47): «✓» тут — та сама, що у віджета, чекпоінта,
+/// XP `dayPartGoal` і звіту. Годинний «ранок» 08–09 із ціллю 138 мл закривався першою склянкою, а
+/// віджет показував «до 12 — ✓», коли графік казав «полудень не закрито».
 public struct EvennessRow: Equatable, Identifiable, Sendable {
+    public let parts: [DayPart]
+    public let fromMinute: Int
+    public let toMinute: Int
+    public let ml: Int
+    public let targetMl: Int
+    /// Частка цілі блоку — ширина синьої смуги: повна смуга і є ціль, понад ціль — теж повна.
+    public let fraction: Double
+
+    public var id: Int { fromMinute }
+    /// Злитий блок «ранок і полудень» 08–12 — «Ранок»: години поруч кажуть решту.
+    public var label: String { parts[0].title }
+    /// «08–12» — як у віджеті «Ритм дня».
+    public var hoursLabel: String { "\(Self.hour(fromMinute))–\(Self.hour(toMinute))" }
+    public var isReached: Bool { targetMl > 0 && ml >= targetMl }
+
+    private static func hour(_ minute: Int) -> String { String(format: "%02d", (minute / 60) % 24) }
+}
+
+/// Випите в частині доби — стовпчики «Деталей дня». Тут лишаються 5 частин: це розподіл, а не оцінка.
+public struct DayPartTotal: Equatable, Identifiable, Sendable {
     public let part: DayPart
     public let ml: Int
-    public let idealMl: Int
-    /// Частка від максимуму на графіку — ширина синьої смуги.
-    public let fraction: Double
-    /// Позиція ризки «ціль» у тих самих координатах; `nil` — частина поза активними годинами,
-    /// цілі в неї немає (WAT-39).
-    public let tickFraction: Double?
 
     public var id: Int { part.rawValue }
     public var label: String { part.title }
@@ -20,8 +37,17 @@ public struct EvennessReport: Equatable, Sendable {
     public let score: Int
     public let rows: [EvennessRow]
     public let totalMl: Int
+    /// «Ритм дня» вимкнено (§28) — як у віджетах: без «✓» і без «з цілі», лише мілілітри.
+    public let dayRhythmEnabled: Bool
 
-    public static let empty = EvennessReport(score: 0, rows: [], totalMl: 0)
+    public init(score: Int, rows: [EvennessRow], totalMl: Int, dayRhythmEnabled: Bool) {
+        self.score = score
+        self.rows = rows
+        self.totalMl = totalMl
+        self.dayRhythmEnabled = dayRhythmEnabled
+    }
+
+    public static let empty = EvennessReport(score: 0, rows: [], totalMl: 0, dayRhythmEnabled: true)
 }
 
 /// Рядок графіка «Типова доба — медіана і розкид» (макет 4a).
@@ -139,7 +165,7 @@ public struct DayDetailReport: Equatable, Sendable {
     public let totalMl: Int
     public let goalMl: Int
     public let completionPct: Int
-    public let rhythm: [EvennessRow]
+    public let rhythm: [DayPartTotal]
     public let entries: [Entry]
 
     public var hasEntries: Bool { !entries.isEmpty }

@@ -290,3 +290,26 @@ public struct WTDayPartPill: View {
         .frame(width: 24, height: 24)
     }
 }
+
+/// «✓ 800» — ціль частини доби закрито: пігулка кольору акценту біля смужки (рішення від 09.10.2026,
+/// варіант A). Колір води не змінюється — змінюється лише підпис. Одна для віджетів і «Рівномірності» 4a
+/// (WAT-47); тонований віджет передає білий `foreground`.
+public struct WTDonePill: View {
+    @Environment(\.wtTheme) private var theme
+    private let text: String
+    private let foreground: Color?
+
+    public init(text: String, foreground: Color? = nil) {
+        self.text = text
+        self.foreground = foreground
+    }
+
+    public var body: some View {
+        Text("✓ " + text)
+            .font(WTFont.text(11, .black))
+            .foregroundStyle(foreground ?? theme.accent)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 1)
+            .background(theme.button, in: Capsule())
+    }
+}

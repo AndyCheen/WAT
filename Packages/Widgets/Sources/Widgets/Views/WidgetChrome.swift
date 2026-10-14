@@ -204,19 +204,13 @@ struct PortionLabel: View {
     }
 }
 
-/// «✓ 800» — ціль частини доби закрито: пігулка кольору акценту над стовпчиком чи біля смужки (рішення від
-/// 09.10.2026, варіант A). Колір води не змінюється — змінюється лише підпис.
+/// `WTDonePill` у віджеті: у тонованому режимі текст білий, пігулка — акцентна.
 struct DonePill: View {
     @Environment(\.wtTheme) private var theme
     let text: String
 
     var body: some View {
-        Text("✓ " + text)
-            .font(WTFont.text(11, .black))
-            .foregroundStyle(theme.isTinted ? Color.white : theme.accent)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 1)
-            .background(theme.button, in: Capsule())
+        WTDonePill(text: text, foreground: theme.isTinted ? Color.white : nil)
             .widgetAccentable()
     }
 }

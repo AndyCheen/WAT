@@ -98,51 +98,48 @@ struct Line: Shape {
     }
 }
 
-/// Рядок «Рівномірність за день»: смуга випитого + ризка цілі. `tickFraction == nil` — цілі
-/// в частини немає (поза активними годинами), ризка не малюється.
-public struct WTEvennessRowView: View {
+/// Рядок «Рівномірність за день»: блок цілі частини доби, повна смуга — його ціль (WAT-47), ризки немає.
+/// Назва з годинами й підпис — над смугою, а не по боках: колонки по боках з'їдали половину ширини, і
+/// смуга виходила куцою. Праворуч — підпис або `WTDonePill`, як у віджетах.
+public struct WTEvennessRowView<Trailing: View>: View {
     @Environment(\.wtTheme) private var theme
     private let label: String
-    private let valueLabel: String
+    private let hours: String
     private let fraction: Double
-    private let tickFraction: Double?
+    private let trailing: Trailing
 
-    public init(label: String, valueLabel: String, fraction: Double, tickFraction: Double?) {
+    public init(label: String, hours: String, fraction: Double, @ViewBuilder trailing: () -> Trailing) {
         self.label = label
-        self.valueLabel = valueLabel
+        self.hours = hours
         self.fraction = fraction
-        self.tickFraction = tickFraction
+        self.trailing = trailing()
     }
 
     public var body: some View {
-        HStack(spacing: 10) {
-            Text(label)
-                .font(WTFont.text(13, .bold))
-                .foregroundStyle(WTColor.textSecondary)
-                .frame(width: 66, alignment: .leading)
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(label)
+                    .font(WTFont.text(13, .bold))
+                    .foregroundStyle(theme.textPrimary)
+                Text(hours)
+                    .font(WTFont.text(11, .bold))
+                    .foregroundStyle(theme.textMuted)
+                Spacer(minLength: 8)
+                trailing
+                    .lineLimit(1)
+            }
 
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(WTColor.neutralTrack)
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    // Тема, не `WTColor.neutralTrack`: порожня доріжка тепер і є «скільки до цілі», а світла
+                    // в темній темі вона світилась ярче за воду.
+                    Capsule().fill(theme.track)
+                    Capsule()
                         .fill(theme.accent)
                         .frame(width: proxy.size.width * max(0, min(1, fraction)))
-                    if let tickFraction {
-                        Rectangle()
-                            .fill(WTColor.textTertiary)
-                            .frame(width: 2)
-                            .padding(.vertical, -3)
-                            .offset(x: proxy.size.width * max(0, min(1, tickFraction)) - 1)
-                    }
                 }
             }
-            .frame(height: 16)
-
-            Text(valueLabel)
-                .font(WTFont.text(12, .bold))
-                .foregroundStyle(theme.textMuted)
-                .frame(width: 58, alignment: .trailing)
+            .frame(height: 12)
         }
     }
 }

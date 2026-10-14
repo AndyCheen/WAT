@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Рівномірність за день — WAT-47</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Токени — DESIGN-TOKENS.md §2, як у DayPart.html. Кадр 402 pt, 1px = 1pt. Нових кольорів немає. */
+:root{
+  --screen:#f7fbff; --card:#fff; --chip:#eaf4ff; --button:#eaf4ff;
+  --text:#1f4a72; --muted:#8aa1bd; --btn-text:#3d8fd6; --accent:#5aa9f0;
+  --track:#e4f0fb; --orange:#ff8a3d; --r1:#bfe3ff; --r2:#6bb6f2;
+  --warn-bg:#fff1d6; --warn-text:#b07a12;
+}
+.dark{
+  --screen:#0c1524; --card:#161f33; --chip:#17233a; --button:#17233a;
+  --text:#eaf2ff; --muted:#8ba0bd; --btn-text:#bcd8ff; --accent:#7cc4ff;
+  --track:rgba(255,255,255,.08); --r1:#8fd0ff; --r2:#3b6ef5;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#e9eef5;font-family:Nunito,system-ui,sans-serif;color:#1f4a72;padding:40px 28px 80px}
+body.dark-page{background:#05090f;color:#c9d6ea}
+h1{font-size:20px;font-weight:800;margin-bottom:6px}
+h2{font-size:16px;font-weight:800;margin:44px 0 8px}
+.lead{font-size:13px;font-weight:700;color:#5c7291;margin-bottom:18px;max-width:980px;line-height:1.55}
+.lead b{color:inherit}
+code{font-size:12px}
+.num{font-family:Fredoka,Nunito,sans-serif}
+
+/* ---------- панель ---------- */
+.ctl{background:#fff;border-radius:18px;padding:14px 18px;max-width:1720px;display:flex;flex-wrap:wrap;gap:14px 34px;
+     box-shadow:0 6px 20px rgba(31,74,114,.08);margin-bottom:26px}
+.ctl label{font-size:11px;font-weight:900;color:#5c7291;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:6px}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+.btns button{height:30px;padding:0 12px;border-radius:999px;border:0;background:#dbe6f3;color:#1f4a72;font:800 13px Nunito;cursor:pointer}
+.btns button.on{background:#5aa9f0;color:#fff}
+
+/* ---------- кадри ---------- */
+.row{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+.wrap{width:402px}
+.cap{font-size:12px;font-weight:900;letter-spacing:.3px;color:#5c7291;margin-bottom:8px;text-transform:uppercase}
+.note{font-size:12px;font-weight:700;color:#5c7291;margin-top:10px;line-height:1.5}
+.frame{width:402px;background:var(--screen);border-radius:30px;padding:26px 20px 24px;box-shadow:0 18px 50px rgba(31,74,114,.16);color:var(--text)}
+.card{background:var(--card);border-radius:24px;padding:20px 18px;box-shadow:0 6px 18px rgba(31,74,114,.06)}
+.head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.head h3{font:600 16px Nunito;font-weight:800}
+.score{font:900 13px Nunito;color:var(--warn-text);background:var(--warn-bg);padding:5px 12px;border-radius:999px}
+
+.pill{display:inline-block;font:900 11px Nunito;color:var(--accent);background:var(--button);padding:1px 7px;border-radius:999px;white-space:nowrap}
+.val{font:700 12px Nunito;color:var(--muted);white-space:nowrap}
+.lbl{font:700 13px Nunito;color:var(--text);white-space:nowrap}
+.hrs{font:700 11px Nunito;color:var(--muted);white-space:nowrap}
+.dim{opacity:.55}
+.fill{transition:width .5s cubic-bezier(.22,1,.36,1),height .5s cubic-bezier(.22,1,.36,1),stroke-dashoffset .5s}
+
+/* A. Смуги */
+.a-row{margin-bottom:14px}
+.a-row:last-child{margin-bottom:0}
+.a-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;gap:8px}
+.a-top .lbl .hrs{margin-left:6px}
+.a-bar{height:12px;border-radius:99px;background:var(--track);overflow:hidden}
+.a-bar i{display:block;height:100%;background:var(--accent);border-radius:99px}
+
+/* B. Стовпчики */
+.b-cols{display:flex;gap:10px}
+.b-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.b-col .v{height:18px;display:flex;align-items:center}
+.b-box{width:100%;height:132px;border-radius:14px;background:var(--track);position:relative;overflow:hidden;display:flex;align-items:flex-end}
+.b-box i{display:block;width:100%;background:linear-gradient(var(--r1),var(--r2));border-radius:12px}
+.b-col.cur .b-box{outline:2px solid var(--accent);outline-offset:-2px}
+.b-col .lbl{font-size:12px;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+
+/* C. Стрічка доби */
+.c-strip{display:flex;gap:4px;position:relative}
+.c-seg{position:relative;min-width:0}
+.c-bar{height:34px;border-radius:10px;background:var(--track);overflow:hidden;position:relative}
+.c-bar i{display:block;height:100%;background:var(--accent)}
+.c-bar .chk{position:absolute;right:7px;top:7px;width:20px;height:20px;border-radius:50%;background:#fff;color:var(--accent);
+            font:900 12px Nunito;display:flex;align-items:center;justify-content:center}
+.dark .c-bar .chk{background:var(--card)}
+.c-under{margin-top:8px;display:flex;flex-direction:column;gap:3px;overflow:hidden}
+.c-under .lbl{font-size:12px;overflow:hidden;text-overflow:ellipsis}
+.c-now{position:absolute;top:-5px;width:3px;height:44px;border-radius:2px;background:var(--orange);transform:translateX(-50%);z-index:2}
+.c-axis{position:relative;height:16px;margin-top:10px}
+.c-axis span{position:absolute;transform:translateX(-50%);font:800 10px Nunito;color:var(--muted)}
+.c-night{margin-top:12px;font:700 12px Nunito;color:var(--muted)}
+
+/* D. Кільця */
+.d-rings{display:flex;justify-content:space-around;gap:6px}
+.d-ring{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.d-ring svg{transform:rotate(-90deg);display:block}
+.d-c{position:relative}
+.d-in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05}
+.d-in b{font-family:Fredoka;font-weight:600;color:var(--text)}
+.d-in small{font:800 10px Nunito;color:var(--muted)}
+.d-in b.ok{color:var(--accent)}
+.d-ring .lbl{font-size:12px}
+
+/* аналіз */
+table{border-collapse:collapse;max-width:1100px;font-size:13px;font-weight:700;margin-top:8px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid rgba(31,74,114,.12);vertical-align:top;line-height:1.45}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:#5c7291;font-weight:900}
+.dark-page th,.dark-page td{border-color:rgba(255,255,255,.1)}
+.rec{max-width:1100px;background:#fff;border-radius:16px;padding:16px 18px;margin-top:16px;font-size:13px;font-weight:700;line-height:1.6;color:#1f4a72}
+.dark-page .rec{background:#161f33;color:#eaf2ff}
+.rec b{font-weight:900}
+</style>
+</head>
+<body>
+
+<h1>«Рівномірність за день» — варіанти вигляду й поділ доби (WAT-47)</h1>
+<p class="lead">
+  Скрізь повна смуга — це ціль частини доби, а «✓ N» — закрито, як у віджетах. Розклад 08:00–22:00, норма 2000 мл.
+  Цілі — з <code>PaceCurve</code>, як у коді: 5 частин — 138 / 551 / 826 / 485 / ніч без цілі; 3 блоки
+  (<code>goalBlocks()</code>) — 689 / 826 / 485. Перемикай поділ, сценарій і тему.<br>
+  <b>Погоджено 13.10.2026: A «Смуги» на 3 блоках цілей</b> (SPEC-NOTIFICATIONS §31).
+</p>
+
+<div class="ctl">
+  <div><label>Поділ доби</label><div class="btns" id="modeBtns">
+    <button data-v="5">5 частин</button><button data-v="3" class="on">3 блоки (як віджети)</button></div></div>
+  <div><label>Сценарій</label><div class="btns" id="scenBtns"></div></div>
+  <div><label>Тема</label><div class="btns" id="themeBtns">
+    <button data-v="light" class="on">Світла</button><button data-v="dark">Темна</button></div></div>
+</div>
+
+<div class="row" id="frames"></div>
+
+<h2>5 частин чи 3 блоки</h2>
+<table>
+  <tr><th></th><th>5 частин (зараз)</th><th>3 блоки цілей</th></tr>
+  <tr><td>Збіг з рештою застосунку</td>
+      <td>Лише графіки 4a. Чекпоінт, XP за частину доби, віджети, капсула на головному й звіт рахують блоки</td>
+      <td>Ті самі числа й та сама «✓», що на віджеті, у сповіщенні-чекпоінті й у звіті</td></tr>
+  <tr><td>Суперечності</td>
+      <td>Сценарій «Зараз 14:30»: на віджеті «до 12 — ✓ 750», а тут «Ранок ✓», «Полудень 500 / 551» без «✓». XP за «до 12» нараховано, а графік каже «не закрито»</td>
+      <td>Немає: «✓» тут = XP <code>dayPartGoal</code> = пігулка віджета</td></tr>
+  <tr><td>Короткі шматки</td>
+      <td>Підйом о 08:00 → «Ранок» триває 1 год і має ціль 138 мл: закривається першою ж склянкою, нічого не означає</td>
+      <td>Шматки коротші за 2 год зливаються з сусідом — кожна ціль досяжна, але не тривіальна</td></tr>
+  <tr><td>Ніч</td>
+      <td>Окремий рядок без цілі, майже завжди «0 мл»</td>
+      <td>Рядка немає: порція після відбою йде в останній блок, до підйому — у перший (§25)</td></tr>
+  <tr><td>Кількість рядків</td>
+      <td>Завжди 5</td>
+      <td>Залежить від розкладу: 3 при 08:00–22:00, 4 при підйомі о 06:00 (06–09 стає окремим блоком). Назва — перша частина блоку й години: «Ранок · 08–12»</td></tr>
+  <tr><td>Деталізація</td>
+      <td>Видно, чи пив людина о 9-й чи об 11-й</td>
+      <td>Дрібніше видно в «Типовій добі» й теплокарті «Коли ти п'єш» — там 5 частин і години лишаються</td></tr>
+</table>
+<div class="rec">
+  <b>Рекомендація — 3 блоки.</b> Графік з «✓» — це вже не довідка, а оцінка: «закрито / ні». Оцінка мусить
+  збігатися з тим, за що дають XP і що показує віджет, інакше людина бачить дві різні відповіді на одне питання.
+  Детальний розподіл по 5 частинах лишається в «Типовій добі» й теплокарті, бо там «✓» немає.
+  Бал 0–100 пропоную не міняти: він рахує 5 часток і штрафує воду вночі (§13.6), а рядків на екрані це не стосується.
+</div>
+
+<script>
+// ---- дані: розклад 08:00–22:00, норма 2000, цілі — з PaceCurve (зі спадом перед сном, §29) ----
+const PARTS = [
+  {t:'Ранок',    from:480,  to:540,  target:138},
+  {t:'Полудень', from:540,  to:720,  target:551},
+  {t:'День',     from:720,  to:1020, target:826},
+  {t:'Вечір',    from:1020, to:1320, target:485},
+  {t:'Ніч',      from:1320, to:1920, target:0},
+];
+// Блоки goalBlocks(): «Ранок» (1 год) злився з «Полуднем»; ніч поза активними годинами — до останнього блоку (§25).
+const BLOCKS = [
+  {t:'Ранок', parts:[0,1], from:480,  to:720,  target:689},
+  {t:'День',  parts:[2],   from:720,  to:1020, target:826},
+  {t:'Вечір', parts:[3,4], from:1020, to:1320, target:485},
+];
+const SCENS = [
+  {name:'Зараз 14:30',          drunk:[250,500,500,0,0],   now:870},
+  {name:'Вечір — усе закрито',  drunk:[200,600,900,520,0], now:1300},
+  {name:'Пропущений полудень',  drunk:[300,0,900,300,150], now:1350},
+  {name:'Порожній ранок',       drunk:[0,0,0,0,0],         now:560},
+];
+let mode = '3', scen = 0, theme = 'light';
+
+const hh = m => String(Math.floor((m % 1440) / 60)).padStart(2,'0');
+function rows(){
+  const d = SCENS[scen].drunk, now = SCENS[scen].now;
+  const list = mode === '5'
+    ? PARTS.map((p,i) => ({...p, ml:d[i]}))
+    : BLOCKS.map(b => ({...b, ml:b.parts.reduce((s,i)=>s+d[i],0)}));
+  return list.map(r => ({
+    ...r,
+    hasGoal: r.target > 0,
+    done: r.target > 0 && r.ml >= r.target,
+    frac: r.target > 0 ? Math.min(1, r.ml / r.target) : 0,
+    pos: now >= r.to ? 'past' : now >= r.from ? 'cur' : 'future',
+    hours: `${hh(r.from)}–${hh(r.to)}`,
+  }));
+}
+function score(){
+  const d = SCENS[scen].drunk, sum = d.reduce((a,b)=>a+b,0);
+  if (!sum) return 0;
+  const dist = PARTS.reduce((s,p,i)=>s + Math.abs(d[i]/sum - p.target/2000), 0);
+  return Math.round((1 - dist/2) * 100);
+}
+const value = r => r.done ? `<span class="pill">✓ ${r.ml}</span>`
+  : `<span class="val">${r.hasGoal ? `${r.ml} / ${r.target}` : `${r.ml} мл`}</span>`;
+const head = () => `<div class="head"><h3>Рівномірність за день</h3><span class="score">${score()} / 100</span></div>`;
+
+// A. Смуги — як зараз у PR
+function A(rs){
+  return rs.map(r => `<div class="a-row">
+    <div class="a-top"><span class="lbl">${r.t}${mode==='3'?`<span class="hrs">${r.hours}</span>`:''}</span>${value(r)}</div>
+    <div class="a-bar ${r.hasGoal?'':'dim'}"><i class="fill" style="width:${r.frac*100}%"></i></div></div>`).join('');
+}
+// B. Стовпчики — як «Огляд дня» у віджеті
+function B(rs){
+  return `<div class="b-cols">` + rs.map(r => `<div class="b-col ${r.pos==='cur'?'cur':''} ${r.pos==='future'||!r.hasGoal?'dim':''}">
+    <div class="v">${value(r)}</div>
+    <div class="b-box"><i class="fill" style="height:${r.frac*100}%"></i></div>
+    <span class="lbl">${r.t}</span><span class="hrs">${r.hours}</span></div>`).join('') + `</div>`;
+}
+// C. Стрічка доби — ширина шматка = його тривалість, помаранчева риска — «зараз»
+function C(rs){
+  const act = rs.filter(r => r.to <= 1320), start = 480, end = 1320, now = SCENS[scen].now;
+  const night = rs.find(r => !r.hasGoal);
+  let h = `<div class="c-strip">`;
+  h += act.map(r => `<div class="c-seg ${r.pos==='future'?'dim':''}" style="flex:${r.to-r.from}">
+      <div class="c-bar"><i class="fill" style="width:${r.frac*100}%"></i>${r.done?'<span class="chk">✓</span>':''}</div>
+      <div class="c-under"><span class="lbl">${r.t}</span>${r.done?`<span class="val">${r.ml} мл</span>`:value(r)}</div></div>`).join('');
+  if (now > start && now < end) h += `<div class="c-now" style="left:calc(${(now-start)/(end-start)*100}%)"></div>`;
+  h += `</div><div class="c-axis">` + [480,720,1020,1320].map(m=>`<span style="left:${(m-start)/(end-start)*100}%">${hh(m)}</span>`).join('') + `</div>`;
+  if (night) h += `<div class="c-night">Вночі: ${night.ml} мл</div>`;
+  return h;
+}
+// D. Кільця — як кільце головного, по одному на частину
+function D(rs){
+  const size = rs.length > 3 ? 62 : 92, w = rs.length > 3 ? 7 : 10, R = (size - w) / 2, L = 2*Math.PI*R;
+  return `<div class="d-rings">` + rs.map(r => `<div class="d-ring ${r.pos==='future'||!r.hasGoal?'dim':''}">
+    <div class="d-c" style="width:${size}px;height:${size}px">
+      <svg width="${size}" height="${size}"><circle cx="${size/2}" cy="${size/2}" r="${R}" fill="none" stroke="var(--track)" stroke-width="${w}"/>
+      <circle class="fill" cx="${size/2}" cy="${size/2}" r="${R}" fill="none" stroke="var(--accent)" stroke-width="${w}" stroke-linecap="round"
+        stroke-dasharray="${L}" stroke-dashoffset="${L*(1-r.frac)}" ${r.frac===0?'stroke-opacity="0"':''}/></svg>
+      <div class="d-in"><b class="${r.done?'ok':''}" style="font-size:${size>70?20:14}px">${r.done?'✓':''}${r.ml}</b>
+        ${r.hasGoal && !r.done ? `<small>з ${r.target}</small>` : r.hasGoal ? '' : '<small>мл</small>'}</div>
+    </div><span class="lbl">${r.t}</span><span class="hrs">${r.hours}</span></div>`).join('') + `</div>`;
+}
+
+const VARIANTS = [
+  ['A · Смуги', A, 'Як зараз у PR: назва й підпис над смугою, смуга на всю ширину. Найспокійніший, читається списком.'],
+  ['B · Стовпчики', B, 'Як віджет «Огляд дня»: поточний блок у рамці, майбутні приглушені. Найближчий до віджета, тож людина впізнає його одразу. Для 5 частин стовпчики стають вузькими.'],
+  ['C · Стрічка доби', C, 'Одна смуга від підйому до відбою, ширина шматка — його тривалість, «зараз» позначено рискою. Видно ритм дня як шкалу часу. Для 5 частин годинний «Ранок» ледве видно.'],
+  ['D · Кільця', D, 'Кільця, як на головному. Найігровіший і найкомпактніший по висоті. Для 5 частин кільця дрібні, а цифри — на межі читабельності.'],
+];
+
+function render(){
+  const rs = rows();
+  document.getElementById('frames').innerHTML = VARIANTS.map(([cap, fn, note]) => `<div class="wrap">
+    <div class="cap">${cap}</div>
+    <div class="frame ${theme==='dark'?'dark':''}"><div class="card">${head()}${fn(rs)}</div></div>
+    <div class="note">${note}</div></div>`).join('');
+  document.body.classList.toggle('dark-page', theme === 'dark');
+}
+function group(id, items, get, set){
+  const el = document.getElementById(id);
+  if (items) el.innerHTML = items.map((s,i)=>`<button data-v="${i}" class="${i===get()?'on':''}">${s.name}</button>`).join('');
+  el.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    set(b.dataset.v); el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); render();
+  });
+}
+group('modeBtns', null, null, v => mode = v);
+group('scenBtns', SCENS, () => scen, v => scen = +v);
+group('themeBtns', null, null, v => theme = v);
+render();
+</script>
+</body>
+</html>
