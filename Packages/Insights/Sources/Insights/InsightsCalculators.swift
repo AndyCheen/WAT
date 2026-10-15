@@ -6,21 +6,10 @@ public enum InsightsCalculators {
 
     // MARK: - Рівномірність
 
-    /// Бал рівномірності 0…100.
-    ///
-    /// Рахуємо відстань фактичного розподілу по частинах доби від цільового: `score = 100 × (1 −
-    /// ½·Σ|факт − ціль|)`. Цільові частки — з кривої темпу дня (`PaceCurve.partShares`), а не
-    /// фіксовані 20/20/30/22/8 %: ніч поза активними годинами має частку 0, і вода там знижує бал
-    /// (§13.6), а обрізаний підйомом ранок не вимагає повних 20 % (WAT-39).
-    /// 100 — розподіл точно за кривою, 0 — уся вода в частині, де її не чекали.
+    /// Бал рівномірності 0…100. Формула — `Evenness.score` у `Core`: її ж рахують досягнення
+    /// «Рівна» й «Ідеальна крива» (WAT-24).
     public static func evennessScore(partTotals: [Int], shares: [Double]) -> Int {
-        let total = partTotals.reduce(0, +)
-        guard total > 0 else { return 0 }
-        let distance = DayPart.allCases.reduce(0.0) { sum, part in
-            let actual = Double(partTotals[part.rawValue]) / Double(total)
-            return sum + abs(actual - shares[part.rawValue])
-        }
-        return Int(((1 - distance / 2) * 100).rounded())
+        Evenness.score(partTotals: partTotals, shares: shares)
     }
 
     /// `blocks` — `PaceCurve.goalBlocks()`, `portions` — порції дня з часом: випите рахується так само, як
