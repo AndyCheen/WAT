@@ -58,9 +58,18 @@ public final class AchievementsViewModel {
     }
 
     /// Рахунок глобальний, а не в поточному фільтрі: «скільки я зібрав» не має
-    /// стрибати від натиснутого чипа (§5.2).
-    public var unlockedCount: Int { items.filter(\.isUnlocked).count }
-    public var totalCount: Int { items.count }
+    /// стрибати від натиснутого чипа (§5.2). Пасхалки — окремо, «🥚 N» (SPEC-ACHIEVEMENTS-CATALOG §4.10).
+    public var tally: AchievementTally { items.tally }
+    public var unlockedCount: Int { tally.unlocked }
+    public var totalCount: Int { tally.total }
+
+    /// «🥚 2» поруч із лічильником — лише після першої знайденої пасхалки.
+    public var eggLabel: String? { tally.eggs > 0 ? "🥚 \(tally.eggs)" : nil }
+
+    var counterAccessibilityValue: String {
+        let base = "\(unlockedCount) з \(totalCount) відкрито"
+        return tally.eggs > 0 ? "\(base), пасхалок знайдено: \(tally.eggs)" : base
+    }
 
     public func selectState(_ filter: AchievementStateFilter) {
         withAnimation(WTAnimation.fade) { stateFilter = filter }
@@ -117,9 +126,11 @@ public struct AchievementsScreen: View {
                     WTNavBar(title: "Досягнення", onBack: onBack)
                         .padding(.bottom, 16)
 
-                    WTStatCounter(label: "ВІДКРИТО", value: model.unlockedCount, total: model.totalCount)
+                    WTStatCounter(
+                        label: "ВІДКРИТО", value: model.unlockedCount, total: model.totalCount, extra: model.eggLabel
+                    )
                         .accessibilityLabel("Прогрес нагород")
-                        .accessibilityValue("\(model.unlockedCount) з \(model.totalCount) відкрито")
+                        .accessibilityValue(model.counterAccessibilityValue)
                         .accessibilityIdentifier("achievements.counter")
                         .padding(.bottom, 20)
 
@@ -188,7 +199,7 @@ public struct AchievementsScreen: View {
         )
     }
 
-    /// `general` / `streak` / `volume` — стабільні ключі для e2e, не залежні від заголовків.
+    /// `water` / `streak` / `regularity`… — стабільні ключі для e2e, не залежні від заголовків.
     private static func key(for category: AchievementCategory) -> String {
         String(describing: category)
     }
@@ -213,10 +224,8 @@ public struct AchievementsScreen: View {
                 WTAchievementTile(
                     emoji: item.emoji,
                     title: item.title,
-                    isUnlocked: item.isUnlocked,
+                    status: item.tileStatus,
                     isNew: item.isNew,
-                    fraction: item.fraction,
-                    progressLabel: item.progressLabel,
                     accessibilityValue: item.progressAccessibilityValue,
                     onTap: { model.select(item) }
                 )

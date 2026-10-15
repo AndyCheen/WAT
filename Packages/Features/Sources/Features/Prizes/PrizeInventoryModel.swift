@@ -138,6 +138,8 @@ public final class PrizeInventoryModel {
         }
         feedback = PrizeFeedback(serial: (feedback?.serial ?? 0) + 1, feedback: haptic)
         services.touch()
+        // «Порятунок», «Подвійна гра».
+        services.announceUnlocks()
         inventoryAtAction = inventory
         withAnimation(WTAnimation.toast) {
             success = confirmation

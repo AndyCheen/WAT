@@ -67,17 +67,20 @@ public final class GamificationService: MetricsSubscriber {
         self.achievements = AchievementEngine(store: store, metrics: metrics)
     }
 
-    /// Підписка на шину + початкова синхронізація стану.
-    public func bootstrap() {
+    /// Підписка на шину + початкова синхронізація стану. Повертає ключі досягнень, відкритих заднім числом.
+    @discardableResult
+    public func bootstrap() -> [String] {
         achievements.bootstrap()
         xp.recalculateFromJournal(at: calendar.now)
         metrics.subscribe(self)
-        refresh(at: calendar.now)
+        return refresh(at: calendar.now)
     }
 
     /// Повний перерахунок стану — на старті застосунку та при зміні доби. Досягнення тут відкриваються й
-    /// заднім числом з історії (§6): тост за них не показується — це не заслуга жодної дії.
-    public func refresh(at date: Date) {
+    /// заднім числом з історії (§6) — у чергу тоста дії вони не йдуть: це не заслуга жодної дії. Повертає їхні
+    /// ключі — один спільний тост показує композиційний корінь.
+    @discardableResult
+    public func refresh(at date: Date) -> [String] {
         history.reload()
         invalidateAchievementCaches()
         grantLevelRewards(at: date)
@@ -87,9 +90,10 @@ public final class GamificationService: MetricsSubscriber {
         let completed = quests.evaluate(context: context, triggerRef: nil)
         awardQuestXP(completed, at: date)
         recordAllDailyQuestsIfDone(completed, at: date)
-        evaluateAchievements(at: date, triggerRef: nil, announce: false)
+        let unlocked = evaluateAchievements(at: date, triggerRef: nil, announce: false)
         // Поза дією користувача, тож і `metrics.commit()` тут ніхто не зробить: відкрите заднім числом — зберегти.
         store.save()
+        return unlocked.map(\.key)
     }
 
     // MARK: - MetricsSubscriber

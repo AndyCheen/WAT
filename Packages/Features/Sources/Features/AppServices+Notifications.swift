@@ -184,7 +184,8 @@ struct EchoContent: Equatable {
         switch unlocks.achievements.count {
         case 0: break
         case 1:
-            let text = EchoText.achievement(unlocks.achievements[0].title)
+            let item = unlocks.achievements[0]
+            let text = item.isEgg ? EchoText.egg(item.title) : EchoText.achievement(item.title)
             return EchoContent(title: text.title, body: text.body,
                                route: .achievement(key: unlocks.achievements[0].key), intakeId: intakeId)
         default:

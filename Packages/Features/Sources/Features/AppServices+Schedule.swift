@@ -40,6 +40,8 @@ extension AppServices {
         profile.scheduleOfferOutcome = .accepted
         profiles.save()
         hydration.scheduleDidChange()
+        // Тост «Свій ритм» показує головний — після тоста про новий графік.
+        record(.scheduleOfferAccepted, announce: false)
         touch()
     }
 

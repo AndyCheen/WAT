@@ -134,6 +134,8 @@ public final class HomeViewModel {
     /// Остання подія для гаптики. Читається екраном, не скидається вручну.
     public private(set) var pulse: HomePulse?
     public private(set) var toast: HomeToast?
+    /// Тост, що чекає, поки зникне поточний: дві новини однієї дії по черзі, а не одна поверх одної.
+    private var queuedToast: HomeToast?
 
     public var sheet: HomeSheet?
     /// Картка досягнення, відкрита з тоста — поверх головного, без переходу.
@@ -192,10 +194,12 @@ public final class HomeViewModel {
 
     // MARK: - Дії
 
-    public func add(_ ml: Int) {
+    public func add(_ ml: Int, viaCustom: Bool = false) {
         let levelBefore = level.level
         _ = services.gamification.takeRecentUnlocks()
         let result = services.hydration.addIntake(amountMl: ml)
+        // «Своя мірка» — частина тієї самої дії, тож і тост у неї спільний.
+        if viaCustom, let result { services.record(.customPortion(result.intakeId), announce: false) }
         let unlocked = services.gamification.takeRecentUnlocks()
         services.touch()
         withAnimation(WTAnimation.fade) { reload() }
@@ -235,7 +239,7 @@ public final class HomeViewModel {
     public func confirmCustom() {
         let amount = Intake.clamp(customAmount)
         services.hydration.rememberCustomAmount(amount)
-        add(amount)
+        add(amount, viaCustom: true)
         dismissSheet()
     }
 
@@ -244,7 +248,10 @@ public final class HomeViewModel {
     }
 
     public func remove(id: UUID) {
+        _ = services.gamification.takeRecentUnlocks()
         guard services.hydration.removeIntake(id: id) != nil else { return }
+        // «Друга думка», «Нерішучість» — після тоста зі «Скасувати»: повернути порцію важливіше.
+        queuedToast = Self.achievementToast(services.gamification.takeRecentUnlocks().achievements)
         openHistoryId = nil
         services.touch()
         withAnimation(WTAnimation.fade) { reload() }
@@ -282,6 +289,11 @@ public final class HomeViewModel {
 
     public func dismissToast() {
         withAnimation(WTAnimation.toast) { toast = nil }
+        if let next = queuedToast {
+            queuedToast = nil
+            showToast(next)
+            return
+        }
         presentPendingPermissionOffer()
     }
 
@@ -335,22 +347,14 @@ public final class HomeViewModel {
         }
     }
 
-    /// «🏅 Досягнення: Перша крапля» або «🏅 Нові досягнення: 2» (SPEC-ACHIEVEMENTS §8).
+    /// «🏅 Досягнення: Перша крапля», «🥚 Пасхалка: Пі» або «🏅 Нові досягнення: 2» (SPEC-ACHIEVEMENTS §8,
+    /// SPEC-ACHIEVEMENTS-CATALOG §4.10).
     static func achievementToast(_ unlocked: [AchievementSnapshot]) -> HomeToast? {
-        switch unlocked.count {
-        case 0:
-            return nil
-        case 1:
-            return HomeToast(
-                message: "🏅 Досягнення: \(unlocked[0].title)",
-                actionTitle: "Подивитись", action: .showAchievement(unlocked[0].key)
-            )
-        default:
-            return HomeToast(
-                message: "🏅 Нові досягнення: \(unlocked.count)",
-                actionTitle: "Подивитись", action: .showAllAchievements
-            )
-        }
+        guard let message = UnlockText.message(unlocked) else { return nil }
+        return HomeToast(
+            message: message, actionTitle: "Подивитись",
+            action: unlocked.count == 1 ? .showAchievement(unlocked[0].key) : .showAllAchievements
+        )
     }
 
     /// Крапка «нове» гасне саме на переглянутому досягненні.
@@ -502,10 +506,14 @@ public final class HomeViewModel {
     public func acceptSchedule() {
         guard let offer = scheduleOffer else { return }
         let schedule = scheduleDraft
+        _ = services.gamification.takeRecentUnlocks()
         services.acceptScheduleOffer(offer, schedule: schedule)
+        let unlocked = services.gamification.takeRecentUnlocks()
         dismissSheet()
         withAnimation(WTAnimation.fade) { reload() }
         showToast(HomeToast(message: SchedulePresenter.toast(offer, schedule: schedule)))
+        // Таємне «Свій ритм» — наступним тостом: новий графік важливіший, і два тости разом не читаються.
+        queuedToast = Self.achievementToast(unlocked.achievements)
     }
 
     public func declineSchedule() {

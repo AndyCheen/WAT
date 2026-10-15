@@ -23,6 +23,9 @@ public enum FixtureSeeder {
             effectiveFrom: calendar.dayKey(offsetDays: -days - 1, from: today),
             at: calendar.now
         )
+        // Зерно таємних призів — мить створення профілю. Від неї залежить «Щаслива зірка» (WAT-24), тож демо
+        // ставить профіль на початок історії: однакові дати — однаковий вміст 🎁 і той самий XP.
+        services.profile.createdAt = calendar.date(from: calendar.dayKey(offsetDays: -days - 1, from: today))
 
         // Історія: у кожен день кілька порцій за псевдовипадковим, але стабільним патерном.
         for offset in stride(from: days, through: 1, by: -1) {

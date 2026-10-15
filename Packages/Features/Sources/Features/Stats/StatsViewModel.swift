@@ -89,6 +89,7 @@ public final class StatsViewModel {
 
     public func select(day: DayKey?) {
         selectedDay = selectedDay == day ? nil : day
+        if let selectedDay, selectedDay < services.calendar.today { services.record(.pastDayOpened) }
     }
 
     public func stepWeight(_ delta: Double) {

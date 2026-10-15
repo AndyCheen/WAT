@@ -91,5 +91,8 @@ public final class SettingsModel {
     public func setThemeMode(_ mode: ThemeMode) {
         services.profile.themeMode = mode
         services.profiles.save()
+        services.record(.themeChanged)
+        // Системну темну тему відмічає `RootView`; перемикач — тут, не чекаючи, поки тема дійде до середовища.
+        if mode == .dark { services.record(.darkTheme) }
     }
 }
