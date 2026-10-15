@@ -11,10 +11,13 @@ final class AchievementPresentationTests: XCTestCase {
 
     // MARK: - Категорії (§3.1)
 
-    func testCategoriesHaveNoPseudoAllAndGeneralHasOwnTitle() {
-        XCTAssertEqual(AchievementCatalog.categories, [.general, .streak, .volume])
-        XCTAssertEqual(AchievementCategory.general.title, "Загальні", "«Всі» — псевдо-таб, не категорія")
-        XCTAssertFalse(AchievementCatalog.categories.contains(.secret), "порожня категорія в меню не потрапляє")
+    func testCategoriesAreTheEightFiltersWithoutPseudoAll() {
+        XCTAssertEqual(AchievementCatalog.categories, [
+            .water, .streak, .regularity, .dayRhythm, .stats, .game, .discovery, .special
+        ], "8 фільтрів у фіксованому порядку (SPEC-ACHIEVEMENTS-CATALOG §3)")
+        XCTAssertEqual(AchievementCatalog.categories.map(\.title), [
+            "Вода", "Серії", "Регулярність", "Ритм дня", "Статистика", "Гра", "Відкриття", "Особливі"
+        ])
     }
 
     // MARK: - Знімок (§2)
@@ -112,17 +115,17 @@ final class AchievementPresentationTests: XCTestCase {
         XCTAssertTrue(env.game.takeRecentUnlocks().isEmpty, "стартовий refresh у чергу не потрапляє")
 
         env.addIntakeEvent(1000)
-        XCTAssertEqual(Set(env.game.takeRecentUnlocks().achievements.map(\.key)), ["first.drop", "big.gulp"])
+        XCTAssertEqual(Set(env.game.takeRecentUnlocks().achievements.map(\.key)), ["first.drop", "big.gulp", "volume.1l"])
         XCTAssertTrue(env.game.takeRecentUnlocks().isEmpty, "черга очищається після читання")
     }
 
     func testRevertedUnlockLeavesTheQueue() {
         let env = GameEnv()
-        env.addIntakeEvent(200)
+        env.addIntake(200, hour: 9)
         _ = env.game.takeRecentUnlocks()
 
-        let ref = env.addIntakeEvent(1000)
-        env.metrics.revert(sourceRef: ref, at: env.clock.now)
+        let ref = env.addIntake(1000, hour: 10)
+        env.removeIntake(ref)
 
         XCTAssertTrue(env.game.takeRecentUnlocks().isEmpty, "відкочене досягнення тосту не заслуговує")
     }
@@ -134,7 +137,7 @@ final class AchievementPresentationTests: XCTestCase {
         unlocked: Bool = false, at date: Date? = nil, isNew: Bool = false
     ) -> AchievementSnapshot {
         AchievementSnapshot(
-            key: key, title: key, details: "", emoji: "💧", category: .general,
+            key: key, title: key, details: "", emoji: "💧", category: .water,
             value: value, target: target, isUnlocked: unlocked, isSecret: false,
             rewardXp: 10, unlockedAt: unlocked ? (date ?? Date(timeIntervalSince1970: 0)) : nil,
             isNew: isNew
