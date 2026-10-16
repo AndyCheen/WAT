@@ -177,12 +177,12 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
 
         app.buttons["home.add.custom"].tap()
-        let value = app.staticTexts["custom.value"]
+        let value = app.textFields["custom.value"]
         XCTAssertTrue(value.waitForExistence(timeout: 5))
-        XCTAssertEqual(value.label, "300")
+        XCTAssertEqual(value.value as? String, "300")
 
         app.buttons["500"].tap()
-        XCTAssertEqual(value.label, "500")
+        XCTAssertEqual(value.value as? String, "500")
 
         app.buttons["custom.confirm"].tap()
         XCTAssertEqual(app.staticTexts["home.percent"].label, "25%")
@@ -202,9 +202,50 @@ final class SmokeUITests: XCTestCase {
         waitForToastToHide(app)
 
         app.buttons["home.add.custom"].tap()
-        let value = app.staticTexts["custom.value"]
+        let value = app.textFields["custom.value"]
         XCTAssertTrue(value.waitForExistence(timeout: 5))
-        XCTAssertEqual(value.label, "350")
+        XCTAssertEqual(value.value as? String, "350")
+    }
+
+    /// Тап по числу в «Інше» — цифрова клавіатура, і точний об'єм, якого немає на сітці 50 мл (WAT-50).
+    /// 314 мл — ще й пасхалка «Пі»: годинник закріплено, щоб порція не припала на повню чи 11:11.
+    func testCustomSheetAcceptsExactAmountFromKeyboard() {
+        let app = launch(["--uitest-empty", "--uitest-now", "2026-10-01T09:00:00+03:00"])
+        XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
+        // Перша порція через «Інше» — окремо: «Перша крапля» й «Своя мірка» інакше злилися б із пасхалкою
+        // в один тост.
+        let confirm = app.buttons["custom.confirm"]
+        app.buttons["home.add.custom"].tap()
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
+        XCTAssertTrue(confirm.waitForNonExistence(timeout: 5))
+        waitForToastToHide(app)
+
+        app.buttons["home.add.custom"].tap()
+        let value = app.textFields["custom.value"]
+        XCTAssertTrue(value.waitForExistence(timeout: 5))
+        value.tap()
+
+        // `typeText` сам падає, якщо фокуса ніде немає: тап по числу мав поставити курсор у поле.
+        app.typeText("5")
+        XCTAssertEqual(app.staticTexts["custom.unit"].label, "від 50 до 2000 мл")
+        XCTAssertFalse(confirm.isEnabled, "поза межами порції «Додати» неактивна")
+        app.typeText(XCUIKeyboardKey.delete.rawValue)
+        app.typeText("314")
+        XCTAssertEqual(value.value as? String, "314")
+        XCTAssertTrue(confirm.isEnabled)
+        let keyboard = app.keyboards.firstMatch
+        XCTAssertTrue(keyboard.exists, "цифрова клавіатура")
+        XCTAssertLessThanOrEqual(confirm.frame.maxY, keyboard.frame.minY,
+                                 "шторка піднялася над клавіатурою, а не сховала кнопку під нею")
+        XCTAssertTrue(confirm.isHittable)
+
+        confirm.tap()
+        XCTAssertTrue(confirm.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["314 мл"].exists, "порція зʼявилась в історії")
+        let message = app.staticTexts["toast.message"]
+        XCTAssertTrue(message.waitForExistence(timeout: 3))
+        XCTAssertEqual(message.label, "🥚 Пасхалка: Пі")
     }
 
     func testGoalChangeInSettingsRecalculatesProgress() {

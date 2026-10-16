@@ -65,7 +65,9 @@ public struct WTSheet<Content: View>: View {
                 .transition(.move(edge: .bottom))
             }
         }
-        .ignoresSafeArea()
+        // Лише контейнер, не клавіатуру: шторка з полем (точний ввід у «Інше», WAT-50) має підніматися над нею,
+        // а не ховати під нею кнопку дії. Решта шторок клавіатури не викликає — для них нічого не змінюється.
+        .ignoresSafeArea(.container)
     }
 
     private var scrimOpacity: Double {
