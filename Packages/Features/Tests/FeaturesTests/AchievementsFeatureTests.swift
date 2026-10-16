@@ -163,6 +163,26 @@ final class AchievementsFeatureTests: XCTestCase {
         XCTAssertNil(model.eggLabel, "до першої пасхалки «🥚» немає")
     }
 
+    /// Ціль в одну дію — ні смуги, ні «0/1» (WAT-51): досягнення або є, або ні. Багатокрокові — як і були.
+    func testOneStepAchievementShowsNoProgress() {
+        let model = AchievementsViewModel(services: services)
+        let once = model.items.first { $0.key == "first.drop" }!
+        XCTAssertTrue(once.isOneStep)
+        XCTAssertFalse(once.showsProgress)
+        XCTAssertEqual(once.tileStatus, .locked)
+        XCTAssertEqual(once.detailStatus, .locked, "у картці лишається лише рядок нагороди")
+        XCTAssertEqual(once.progressAccessibilityValue, "Ще не відкрито")
+        XCTAssertEqual(once.detailAccessibilityValue, "\(once.details). Ще не відкрито. \(once.rewardLabel)")
+
+        let ladder = model.items.first { $0.key == "volume.10l" }!
+        XCTAssertFalse(ladder.isOneStep)
+        XCTAssertEqual(ladder.tileStatus, .progress(fraction: 0, label: ladder.progressLabel))
+
+        services.hydration.addIntake(amountMl: 200)
+        model.reload()
+        XCTAssertEqual(model.items.first { $0.key == "first.drop" }?.tileStatus, .unlocked)
+    }
+
     func testDisabledFeatureShowsCaptionInsteadOfProgress() {
         services.profile.dayRhythmEnabled = false
         let model = AchievementsViewModel(services: services)

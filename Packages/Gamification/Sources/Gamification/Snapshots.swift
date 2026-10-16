@@ -138,8 +138,12 @@ public struct AchievementSnapshot: Equatable, Identifiable, Sendable {
         return fraction > 0 ? .inProgress : .locked
     }
 
-    /// Чи показувати прогрес: не в відкритого, не в таємного й не там, де замість нього підпис.
-    public var showsProgress: Bool { !isUnlocked && !isMasked && lockedCaption == nil }
+    /// Ціль в одну дію: «Відкриття», календарні, більшість таємних (WAT-51). Прогресу в них немає —
+    /// досягнення або є, або ні, тож смуга й «0/1» нічого не міряють.
+    public var isOneStep: Bool { target <= 1 }
+
+    /// Чи показувати прогрес: не в відкритого, не в таємного, не в разового й не там, де замість нього підпис.
+    public var showsProgress: Bool { !isUnlocked && !isMasked && !isOneStep && lockedCaption == nil }
 
     /// «5/7» — компактний підпис під смугою плитки.
     public var progressLabel: String {
