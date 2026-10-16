@@ -157,6 +157,9 @@ public struct WTHistoryStaticRow: View {
 public enum WTAchievementStatus: Equatable, Sendable {
     case unlocked
     case progress(fraction: Double, label: String)
+    /// Закрите разове — ціль в одну дію (WAT-51): ні смуги, ні «0/1». Таке досягнення або є, або ні,
+    /// і порожня смуга з «0/1» нічого не міряє. У картці лишається рядок нагороди.
+    case locked
     /// Функцію вимкнено — підпис замість прогресу («Увімкни сповіщення»).
     case caption(String)
     /// Таємне ще не відкрите: ні умови, ні прогресу (SPEC-ACHIEVEMENTS-CATALOG §4.9).
@@ -227,7 +230,7 @@ public struct WTAchievementTile: View {
                         .multilineTextAlignment(.center)
                         .lineLimit(3)
                         .minimumScaleFactor(0.9)
-                case .unlocked, .hidden:
+                case .unlocked, .locked, .hidden:
                     EmptyView()
                 }
             }

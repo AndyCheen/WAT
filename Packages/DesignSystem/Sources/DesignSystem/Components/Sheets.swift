@@ -310,6 +310,8 @@ public struct WTAchievementDetail: View {
                 .foregroundStyle(theme.textMuted)
                 .multilineTextAlignment(.center)
                 .frame(minHeight: 30)
+        case .locked:
+            reward
         case .hidden:
             EmptyView()
         }

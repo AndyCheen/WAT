@@ -27,11 +27,12 @@ struct AchievementDetailModal: View {
 extension AchievementSnapshot {
     var rewardLabel: String { "+\(rewardXp) XP за виконання" }
 
-    /// Під назвою плитки: прогрес, підпис вимкненої функції чи нічого — у відкритого й таємного.
+    /// Під назвою плитки: прогрес, підпис вимкненої функції чи нічого — у відкритого, таємного й разового.
     var tileStatus: WTAchievementStatus {
         if isUnlocked { return .unlocked }
         if isMasked { return .hidden }
         if let lockedCaption { return .caption(lockedCaption) }
+        if isOneStep { return .locked }
         return .progress(fraction: fraction, label: progressLabel)
     }
 
@@ -41,11 +42,13 @@ extension AchievementSnapshot {
         return tileStatus
     }
 
-    /// «Відкрито» / «Прогрес 5 із 7» — VoiceOver читає «5/7» як «5 слеш 7». Таємне — «Таємне досягнення».
+    /// «Відкрито» / «Прогрес 5 із 7» — VoiceOver читає «5/7» як «5 слеш 7». Таємне — «Таємне досягнення»,
+    /// разове — «Ще не відкрито»: «прогрес 0 із 1» про досягнення, що або є, або ні, нічого не каже.
     var progressAccessibilityValue: String {
         if isUnlocked { return "Відкрито" }
         if isMasked { return "Таємне досягнення" }
         if let lockedCaption { return lockedCaption }
+        if isOneStep { return "Ще не відкрито" }
         return "Прогрес \(Int(min(value, target))) із \(Int(target))"
     }
 
