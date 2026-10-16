@@ -37,6 +37,9 @@ public final class AppServices {
     /// від півночі чи дії зі сповіщення у фоні: пропозиція графіка (WAT-41) — лише на відкритті.
     public private(set) var activation: Int = 0
 
+    /// Тост про досягнення, відкрите поза головним (`record(_:)`): показує `RootView` поверх будь-якого екрана.
+    public internal(set) var unlockAnnouncement: UnlockAnnouncement?
+
     /// Застосунок на екрані. Порція з дії сповіщення, поки його немає, — «поза застосунком»:
     /// розблокування від неї ніхто не побачить, тож потрібне відлуння (SPEC-NOTIFICATIONS §12.1).
     public private(set) var isForeground = false
@@ -109,6 +112,9 @@ public final class AppServices {
             calendar: calendar, center: notificationCenter ?? InMemoryNotificationCenter(),
             bubbleSoundAvailable: bubbleSoundAvailable
         )
+        // Досягнення «Увімкни сповіщення» рахуються, лише коли система дозволила (SPEC-ACHIEVEMENTS-CATALOG §4.4).
+        let notifications = self.notifications
+        gamification.notificationsAuthorized = { notifications.authorization == .authorized }
     }
 
     /// Перший запуск: профіль, норма, пресети, підписка гейміфікації й сповіщень.
@@ -119,7 +125,8 @@ public final class AppServices {
             profiles.setGoal(2000, source: .onboarding, effectiveFrom: calendar.today, at: calendar.now)
         }
         PresetPlace.allCases.forEach { _ = profiles.quickAddPresets($0) }
-        gamification.bootstrap()
+        // Після оновлення досягнення відкриваються з історії — один тост на всі (SPEC-ACHIEVEMENTS-CATALOG §6).
+        announceUnlocks(keys: gamification.bootstrap())
         notifications.bootstrap()
         notifications.contextProvider = { [unowned self] in self.makeNotificationContext() }
         publishedWidgetSnapshot = widgetStore.read()
@@ -170,8 +177,10 @@ public final class AppServices {
         let today = calendar.today
         guard today != lastRefreshedDay else { return }
         lastRefreshedDay = today
-        gamification.refresh(at: calendar.now)
+        // Нова доба завершила вчорашній день: «В яблучко», «Влучність», «Рівна крива» — тостом на відкритті.
+        let unlocked = gamification.refresh(at: calendar.now)
         metrics.commit()
+        announceUnlocks(keys: unlocked)
     }
 
     public var profile: UserProfile { profiles.profile() }

@@ -14,10 +14,9 @@ struct AchievementDetailModal: View {
             emoji: item.emoji,
             title: item.title,
             details: item.details,
-            isUnlocked: item.isUnlocked,
+            status: item.detailStatus,
             rewardLabel: item.rewardLabel,
-            fraction: item.fraction,
-            valueLabel: item.valueLabel,
+            note: item.note,
             accessibilityValue: item.detailAccessibilityValue,
             onClose: onClose
         )
@@ -28,15 +27,32 @@ struct AchievementDetailModal: View {
 extension AchievementSnapshot {
     var rewardLabel: String { "+\(rewardXp) XP за виконання" }
 
-    /// «Відкрито» / «Прогрес 5 із 7» — VoiceOver читає «5/7» як «5 слеш 7».
+    /// Під назвою плитки: прогрес, підпис вимкненої функції чи нічого — у відкритого й таємного.
+    var tileStatus: WTAchievementStatus {
+        if isUnlocked { return .unlocked }
+        if isMasked { return .hidden }
+        if let lockedCaption { return .caption(lockedCaption) }
+        return .progress(fraction: fraction, label: progressLabel)
+    }
+
+    /// Нижній слот картки — той самий розклад, лише з «5 / 7» замість «5/7».
+    var detailStatus: WTAchievementStatus {
+        if case .progress = tileStatus { return .progress(fraction: fraction, label: valueLabel) }
+        return tileStatus
+    }
+
+    /// «Відкрито» / «Прогрес 5 із 7» — VoiceOver читає «5/7» як «5 слеш 7». Таємне — «Таємне досягнення».
     var progressAccessibilityValue: String {
-        isUnlocked ? "Відкрито" : "Прогрес \(Int(min(value, target))) із \(Int(target))"
+        if isUnlocked { return "Відкрито" }
+        if isMasked { return "Таємне досягнення" }
+        if let lockedCaption { return lockedCaption }
+        return "Прогрес \(Int(min(value, target))) із \(Int(target))"
     }
 
     /// Опис, стан і нагорода одним рядком — картка для VoiceOver один елемент.
     var detailAccessibilityValue: String {
-        isUnlocked
-            ? "\(details). Відкрито"
-            : "\(details). \(progressAccessibilityValue). \(rewardLabel)"
+        if isUnlocked { return [details, note, "Відкрито"].compactMap { $0 }.joined(separator: ". ") }
+        if isMasked { return "\(details). \(progressAccessibilityValue)" }
+        return "\(details). \(progressAccessibilityValue). \(rewardLabel)"
     }
 }

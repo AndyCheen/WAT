@@ -110,6 +110,7 @@ public final class NotificationService: MetricsSubscriber {
     private func performReschedule() async {
         authorization = await center.authorization()
         let now = calendar.now
+        recordAuthorizationIfGranted(at: now)
         markDelivered(before: now)
         if intakeSinceLastPass {
             intakeSinceLastPass = false
@@ -287,9 +288,42 @@ public final class NotificationService: MetricsSubscriber {
         return log
     }
 
+    // MARK: - Досягнення (SPEC-ACHIEVEMENTS-CATALOG §4.4, §4.7)
+
+    /// «На звʼязку» — один раз на установку. Ref сталий, тож повтор на кожному проході шина відкидає.
+    private func recordAuthorizationIfGranted(at date: Date) {
+        guard authorization == .authorized else { return }
+        metrics.record(MetricEvent(
+            name: .notificationAuthorized, value: 1, occurredAt: date,
+            sourceRef: DeterministicID.uuid(from: "notification.authorized")
+        ))
+    }
+
+    /// Норму закрито: чи після «порятунку серії» («Вчасно») і чи без жодного нагадування («На крок попереду»).
+    /// Ref — той самий, що в `day.goalMet`: норму відкотили — відкотились і ці події.
+    private func noteGoalMet(_ event: RecordedMetricEvent) {
+        let at = event.occurredAt
+        let today = store.logs(firingFrom: calendar.startOfDay(at), to: at.addingTimeInterval(1))
+            .filter { $0.dayKey == event.dayKey && $0.fireAt <= at && $0.cancelledAt == nil }
+
+        if today.contains(where: { $0.type == .rescue }) {
+            metrics.record(MetricEvent(name: .streakRescued, value: 1, occurredAt: at, sourceRef: event.sourceRef))
+        }
+
+        // Рахуються лише дні, коли нагадування справді могли прийти: інакше «попереду» був би кожен день
+        // із вимкненими сповіщеннями. Придушене при відкритому застосунку — не доставлене (§16.7).
+        let settings = store.settings()
+        let remindersOn = authorization == .authorized && profiles.profile().notificationsEnabled
+            && settings.remindersEnabled && !isPaused(at: at)
+        if remindersOn, !today.contains(where: { $0.type == .reminder && $0.suppressedAt == nil }) {
+            metrics.record(MetricEvent(name: .dayGoalAhead, value: 1, occurredAt: at, sourceRef: event.sourceRef))
+        }
+    }
+
     // MARK: - Атрибуція порції (§3.2)
 
     public func metricsDidRecord(_ event: RecordedMetricEvent, service: MetricsService) {
+        if event.name == .dayGoalMet { noteGoalMet(event) }
         guard event.name == .intakeAdded else { return }
         intakeSinceLastPass = true
         let at = event.occurredAt
@@ -311,6 +345,10 @@ public final class NotificationService: MetricsSubscriber {
         log.intakeId = event.sourceRef
         let minutes = max(0, at.timeIntervalSince(log.fireAt) / 60)
         metrics.record(MetricEvent(name: .reminderResponded, value: minutes.rounded(), occurredAt: at, sourceRef: log.id))
+        // «Чуйність» — порція за 15 хв. Окрема подія, бо лічильник не вміє рахувати «значення ≤ 15».
+        if minutes <= Double(rules.quickResponseMinutes) {
+            metrics.record(MetricEvent(name: .reminderQuick, value: 1, occurredAt: at, sourceRef: log.id))
+        }
     }
 
     // MARK: - Відлуння (§12.1, тип 8)

@@ -152,7 +152,9 @@ final class LevelRoadServiceTests: XCTestCase {
         env.game.xp.revert(refId: ref, at: env.clock.now)
 
         XCTAssertEqual(env.game.levelProgress().level, 1)
-        XCTAssertEqual(env.game.prizes().filter { $0.key == RewardCatalog.boostKey }.count, 1)
+        // Лише приз вузла: «Перехрестя» (WAT-24) після вибору видає й звичайні призи пройдених рівнів 2–3.
+        let claimed = env.store.rewardItems().filter { $0.acquiredByRef == GamificationService.levelNodeRef(4) }
+        XCTAssertEqual(claimed.map(\.defKey), [RewardCatalog.boostKey])
         XCTAssertTrue(env.game.levelRoad().pending.isEmpty)
     }
 

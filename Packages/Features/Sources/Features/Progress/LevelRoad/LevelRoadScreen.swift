@@ -44,6 +44,8 @@ struct LevelRoadScreen: View {
             }
         }
         .wtFeedback(trigger: model.feedback) { $0?.feedback }
+        // «Шлях рівнів» — вікно, а не маршрут стека, тож для «Як риба у воді» відмічається тут.
+        .onAppear { model.services.record(.screenOpened(.levelRoad)) }
     }
 
     // MARK: - Шапка

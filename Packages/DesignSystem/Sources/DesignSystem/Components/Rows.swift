@@ -153,6 +153,18 @@ public struct WTHistoryStaticRow: View {
     }
 }
 
+/// Стан досягнення для плитки й картки — що показувати під назвою чи в нижньому слоті.
+public enum WTAchievementStatus: Equatable, Sendable {
+    case unlocked
+    case progress(fraction: Double, label: String)
+    /// Функцію вимкнено — підпис замість прогресу («Увімкни сповіщення»).
+    case caption(String)
+    /// Таємне ще не відкрите: ні умови, ні прогресу (SPEC-ACHIEVEMENTS-CATALOG §4.9).
+    case hidden
+
+    var isUnlocked: Bool { self == .unlocked }
+}
+
 /// Плитка досягнення для сітки 3×N (макет 2e, SPEC-ACHIEVEMENTS §5.3).
 ///
 /// Відкрита плитка під назвою не показує нічого — ні смуги, ні XP: у сітці з двох
@@ -161,27 +173,24 @@ public struct WTAchievementTile: View {
     @Environment(\.wtTheme) private var theme
     private let emoji: String
     private let title: String
-    private let isUnlocked: Bool
+    private let status: WTAchievementStatus
     private let isNew: Bool
-    private let fraction: Double
-    private let progressLabel: String
     private let accessibilityValue: String
     private let onTap: () -> Void
 
     public init(
-        emoji: String, title: String, isUnlocked: Bool, isNew: Bool = false,
-        fraction: Double, progressLabel: String, accessibilityValue: String,
-        onTap: @escaping () -> Void
+        emoji: String, title: String, status: WTAchievementStatus, isNew: Bool = false,
+        accessibilityValue: String, onTap: @escaping () -> Void
     ) {
         self.emoji = emoji
         self.title = title
-        self.isUnlocked = isUnlocked
+        self.status = status
         self.isNew = isNew
-        self.fraction = fraction
-        self.progressLabel = progressLabel
         self.accessibilityValue = accessibilityValue
         self.onTap = onTap
     }
+
+    private var isUnlocked: Bool { status.isUnlocked }
 
     public var body: some View {
         Button(action: onTap) {
@@ -202,14 +211,24 @@ public struct WTAchievementTile: View {
                     .lineLimit(2)
                     .minimumScaleFactor(0.9)
 
-                if !isUnlocked {
+                switch status {
+                case .progress(let fraction, let label):
                     WTProgressBar(
                         fraction: fraction, height: 6,
                         fill: Color(hex: "#b9d4ee"), track: theme.track
                     )
-                    Text(progressLabel)
+                    Text(label)
                         .font(WTFont.text(11, .heavy))
                         .foregroundStyle(theme.textMuted)
+                case .caption(let caption):
+                    Text(caption)
+                        .font(WTFont.text(10, .bold))
+                        .foregroundStyle(theme.textMuted)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                        .minimumScaleFactor(0.9)
+                case .unlocked, .hidden:
+                    EmptyView()
                 }
             }
             // Плитки в одному рядку сітки мають різну висоту (у закритих є прогрес-бар),

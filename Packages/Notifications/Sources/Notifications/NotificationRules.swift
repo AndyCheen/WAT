@@ -38,6 +38,8 @@ public struct NotificationRules: Sendable {
     public var minSpacingMinutes = 30
     /// Порція протягом цього часу після доставки — сповіщення виконане (§3.2).
     public var responseWindowMinutes = 60
+    /// Відповідь за стільки хвилин — «швидка»: досягнення «Чуйність» (SPEC-ACHIEVEMENTS-CATALOG §4.4).
+    public var quickResponseMinutes = 15
 
     /// «Можна закрити» ввечері: бракує ≤ min(2·P, 600 мл) (§8).
     public var closableMultiplier = 2.0

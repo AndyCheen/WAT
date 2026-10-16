@@ -76,6 +76,8 @@ public enum AchievementState: Equatable, Sendable {
     case unlocked
 }
 
+/// Знімок досягнення для UI. `title`, `details` і `emoji` — уже те, що можна показати: у закритого
+/// таємного це «???», підказка й 🤫, справжніх значень знімок не несе зовсім (SPEC-ACHIEVEMENTS §6).
 public struct AchievementSnapshot: Equatable, Identifiable, Sendable {
     public let key: String
     public let title: String
@@ -90,14 +92,26 @@ public struct AchievementSnapshot: Equatable, Identifiable, Sendable {
     public let unlockedAt: Date?
     /// Відкрите, але ще не переглянуте — помаранчева крапка на бейджі й плитці.
     public let isNew: Bool
+    /// 🤫 Таємне ще не відкрите: сіра плитка «???», у картці — лише підказка (§4.9).
+    public let isMasked: Bool
+    /// 🥚 Знайдена пасхалка. Незнайдених у знімку немає (§4.10).
+    public let isEgg: Bool
+    /// «Увімкни сповіщення» — функцію вимкнено, і досягнення не рахується (§4.4). Замість прогресу.
+    public let lockedCaption: String?
+    /// Додатковий рядок картки — «Пасхалка! Тут їх більше» у першої знайденої.
+    public let note: String?
 
     public var id: String { key }
+
+    public static let maskedTitle = "???"
+    public static let maskedEmoji = "🤫"
 
     public init(
         key: String, title: String, details: String, emoji: String,
         category: AchievementCategory, value: Double, target: Double,
         isUnlocked: Bool, isSecret: Bool,
-        rewardXp: Int = 0, unlockedAt: Date? = nil, isNew: Bool = false
+        rewardXp: Int = 0, unlockedAt: Date? = nil, isNew: Bool = false,
+        isMasked: Bool = false, isEgg: Bool = false, lockedCaption: String? = nil, note: String? = nil
     ) {
         self.key = key
         self.title = title
@@ -111,6 +125,10 @@ public struct AchievementSnapshot: Equatable, Identifiable, Sendable {
         self.rewardXp = rewardXp
         self.unlockedAt = unlockedAt
         self.isNew = isNew
+        self.isMasked = isMasked
+        self.isEgg = isEgg
+        self.lockedCaption = lockedCaption
+        self.note = note
     }
 
     public var fraction: Double { target > 0 ? min(1, value / target) : 0 }
@@ -120,6 +138,9 @@ public struct AchievementSnapshot: Equatable, Identifiable, Sendable {
         return fraction > 0 ? .inProgress : .locked
     }
 
+    /// Чи показувати прогрес: не в відкритого, не в таємного й не там, де замість нього підпис.
+    public var showsProgress: Bool { !isUnlocked && !isMasked && lockedCaption == nil }
+
     /// «5/7» — компактний підпис під смугою плитки.
     public var progressLabel: String {
         isUnlocked ? "Готово" : "\(Int(min(value, target)))/\(Int(target))"
@@ -127,6 +148,14 @@ public struct AchievementSnapshot: Equatable, Identifiable, Sendable {
 
     /// «5 / 7» — у картці деталей, де під числом є місце дихати.
     public var valueLabel: String { "\(Int(min(value, target))) / \(Int(target))" }
+}
+
+/// Лічильник екрана 2e: «Відкрито N / M» — лише видимий каталог, а знайдені пасхалки окремо, «🥚 N»,
+/// без загального числа — скільки їх усього, теж секрет (§4.10).
+public struct AchievementTally: Equatable, Sendable {
+    public let unlocked: Int
+    public let total: Int
+    public let eggs: Int
 }
 
 /// Зріз за станом — чипи на екрані 2e (SPEC-ACHIEVEMENTS §3.2).
@@ -157,11 +186,12 @@ public enum AchievementStateFilter: String, CaseIterable, Sendable {
 /// Єдиний порядок досягнень для екрана 2e і блоку 3f (SPEC-ACHIEVEMENTS §3.4).
 ///
 /// Екран має відповідати на «що я можу взяти наступним», а не бути вітриною минулого:
-/// щойно відкриті → найближчі до розблокування → решта відкритих → не розпочаті.
+/// щойно відкриті → найближчі до розблокування → решта відкритих → не розпочаті → закриті таємні.
 extension Collection where Element == AchievementSnapshot {
     public var sortedForDisplay: [AchievementSnapshot] {
         func group(_ item: AchievementSnapshot) -> Int {
             if item.isNew { return 0 }
+            if item.isMasked { return 4 }
             switch item.state {
             case .inProgress: return 1
             case .unlocked: return 2
@@ -186,6 +216,13 @@ extension Collection where Element == AchievementSnapshot {
                 return lhs.offset < rhs.offset
             }
             .map(\.element)
+    }
+
+    public var tally: AchievementTally {
+        let visible = filter { !$0.isEgg }
+        return AchievementTally(
+            unlocked: visible.filter(\.isUnlocked).count, total: visible.count, eggs: filter(\.isEgg).count
+        )
     }
 
     /// Вітрина блоку 3f: лише відкриті й ті, що в процесі, не більше двох рядів по 4.

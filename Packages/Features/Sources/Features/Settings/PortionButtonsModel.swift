@@ -29,8 +29,10 @@ public final class PortionButtonsModel {
     }
 
     public func step(_ place: PresetPlace, at index: Int, up: Bool) {
+        let before = amounts(place)
         services.hydration.stepPreset(place, at: index, up: up)
         reload()
+        if amounts(place) != before { services.record(.presetsChanged) }
     }
 
     /// «Повернути типові» — лише коли є що повертати.

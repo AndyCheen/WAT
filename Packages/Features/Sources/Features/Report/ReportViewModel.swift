@@ -15,7 +15,9 @@ final class ReportViewModel {
     /// Злите «Підсумки тижня й місяця» — два періоди: тиждень, потім «Далі: травень ›».
     private(set) var periods: [ReportPeriod]
     private(set) var position = 0
-    var slideIndex = 0
+    var slideIndex = 0 {
+        didSet { noteFinishedIfLastSlide() }
+    }
     private(set) var slides: [ReportSlide] = []
     private(set) var header = ""
     private(set) var previousTitle = ""
@@ -51,6 +53,17 @@ final class ReportViewModel {
     func showPrevious() {
         periods[position] = services.calendar.shifted(period, by: -1)
         restart()
+    }
+
+    /// Звіт дочитано до останнього слайда — «Історія тижня» / «Підсумки місяця» (SPEC-ACHIEVEMENTS-CATALOG §4.7).
+    /// Тост — після закриття (`ReportScreen`): поверх історії він ліг би на «Готово».
+    private func noteFinishedIfLastSlide() {
+        guard !slides.isEmpty, slideIndex == slides.count - 1 else { return }
+        services.record(.reportFinished(period), announce: false)
+    }
+
+    func announceUnlocks() {
+        services.announceUnlocks()
     }
 
     private func restart() {

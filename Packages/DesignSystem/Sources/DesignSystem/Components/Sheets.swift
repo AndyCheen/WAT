@@ -208,30 +208,32 @@ public struct WTAchievementDetail: View {
     private let emoji: String
     private let title: String
     private let details: String
-    private let isUnlocked: Bool
+    private let status: WTAchievementStatus
     private let rewardLabel: String
-    private let fraction: Double
-    private let valueLabel: String
+    private let note: String?
     private let accessibilityValue: String
     private let onClose: () -> Void
 
     /// - Parameter rewardLabel: «+100 XP за виконання» — лише для закритого: після
-    ///   розблокування XP уже нараховані й на поведінку не впливають (§7.1).
+    ///   розблокування XP уже нараховані й на поведінку не впливають (§7.1). У таємного немає й його:
+    ///   там лише підказка.
+    /// - Parameter note: рядок під описом — «Пасхалка! Тут їх більше» у першої знайденої.
     public init(
-        emoji: String, title: String, details: String, isUnlocked: Bool,
-        rewardLabel: String, fraction: Double, valueLabel: String,
+        emoji: String, title: String, details: String, status: WTAchievementStatus,
+        rewardLabel: String, note: String? = nil,
         accessibilityValue: String, onClose: @escaping () -> Void
     ) {
         self.emoji = emoji
         self.title = title
         self.details = details
-        self.isUnlocked = isUnlocked
+        self.status = status
         self.rewardLabel = rewardLabel
-        self.fraction = fraction
-        self.valueLabel = valueLabel
+        self.note = note
         self.accessibilityValue = accessibilityValue
         self.onClose = onClose
     }
+
+    private var isUnlocked: Bool { status.isUnlocked }
 
     public var body: some View {
         WTModal(
@@ -250,7 +252,13 @@ public struct WTAchievementDetail: View {
                     .foregroundStyle(theme.textMuted)
                     .multilineTextAlignment(.center)
                     .lineLimit(3)
-                status
+                if let note {
+                    Text(note)
+                        .font(WTFont.text(13, .heavy))
+                        .foregroundStyle(WTColor.orange)
+                        .multilineTextAlignment(.center)
+                }
+                statusSlot
             }
             .frame(maxWidth: .infinity)
             // Уся картка — один елемент для VoiceOver; хрестик лишається окремим.
@@ -273,8 +281,9 @@ public struct WTAchievementDetail: View {
     }
 
     @ViewBuilder
-    private var status: some View {
-        if isUnlocked {
+    private var statusSlot: some View {
+        switch status {
+        case .unlocked:
             HStack(spacing: 6) {
                 WTIcons.check(color: WTColor.successText, size: 12)
                 Text("Отримано")
@@ -284,18 +293,32 @@ public struct WTAchievementDetail: View {
             .padding(.horizontal, 14)
             .frame(height: 30)
             .background(WTColor.success.opacity(0.12), in: Capsule())
-        } else {
+        case .progress(let fraction, let label):
             // Спершу «навіщо мені це», потім «скільки лишилось».
-            Text(rewardLabel)
-                .font(WTFont.text(13, .heavy))
-                .foregroundStyle(theme.accent)
+            reward
             VStack(spacing: 4) {
                 WTProgressBar(fraction: fraction, height: 8)
-                Text(valueLabel)
+                Text(label)
                     .font(WTFont.number(12, .semibold))
                     .foregroundStyle(theme.textMuted)
             }
+        case .caption(let caption):
+            reward
+            // Нижній слот той самий, лише замість прогресу — що ввімкнути (SPEC-ACHIEVEMENTS-CATALOG §4.4).
+            Text(caption)
+                .font(WTFont.text(13, .heavy))
+                .foregroundStyle(theme.textMuted)
+                .multilineTextAlignment(.center)
+                .frame(minHeight: 30)
+        case .hidden:
+            EmptyView()
         }
+    }
+
+    private var reward: some View {
+        Text(rewardLabel)
+            .font(WTFont.text(13, .heavy))
+            .foregroundStyle(theme.accent)
     }
 }
 
