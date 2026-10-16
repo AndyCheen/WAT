@@ -19,8 +19,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 644 unit-тести 10 пакетів, без симулятора — швидкий цикл
-make test-ui        # 50 e2e-сценаріїв (XCUITest) у симуляторі
+make test-packages  # 650 unit-тестів 10 пакетів, без симулятора — швидкий цикл
+make test-ui        # 51 e2e-сценарій (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
 make clean
