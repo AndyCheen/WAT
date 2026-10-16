@@ -360,6 +360,26 @@ final class SmokeUITests: XCTestCase {
         XCTAssertEqual(card.value as? String, "«Ні краплі зайвої». Таємне досягнення", "ні умови, ні прогресу")
     }
 
+    /// Разове досягнення — без смуги й «0/1» і на плитці, і в картці (WAT-51); багатокрокове — з прогресом.
+    func testOneStepAchievementHasNoProgressBar() {
+        let app = launch(["--uitest-empty", "--notifications-auth", "notDetermined", "--start-screen", "achievements"])
+        XCTAssertTrue(app.otherElements["achievements.counter"].waitForExistence(timeout: 20))
+
+        selectCategory(app, "water")
+        let once = app.buttons["achievements.tile.first.drop"]
+        XCTAssertTrue(once.waitForExistence(timeout: 5))
+        XCTAssertEqual(once.value as? String, "Ще не відкрито")
+        XCTAssertFalse(app.staticTexts["0/1"].exists, "у жодної плитки сітки")
+        XCTAssertEqual(app.buttons["achievements.tile.volume.10l"].value as? String, "Прогрес 0 із 10000")
+
+        once.tap()
+        let card = app.otherElements["achievements.detail"]
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        XCTAssertTrue((card.value as? String)?.hasPrefix("Перший запис води. Ще не відкрито. +") ?? false,
+                      card.value as? String ?? "картка без значення")
+        XCTAssertFalse(app.staticTexts["0 / 1"].exists, "і в картці — лише нагорода")
+    }
+
     /// Пасхалка: до знахідки її не видно, знахідка — свій тост, а потім «🥚 1» поруч із лічильником і рядок
     /// «Пасхалка! Тут їх більше» в картці. «Дискотека» — п'ять змін теми за хвилину.
     func testEasterEggIsFoundWithItsOwnToast() {
