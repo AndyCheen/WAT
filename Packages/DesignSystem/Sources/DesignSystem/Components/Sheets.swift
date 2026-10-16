@@ -293,13 +293,14 @@ public struct WTAchievementDetail: View {
             .padding(.horizontal, 14)
             .frame(height: 30)
             .background(WTColor.success.opacity(0.12), in: Capsule())
-        case .progress(let fraction, let label):
+        case .progress(let fraction, let label, let unit):
             // Спершу «навіщо мені це», потім «скільки лишилось».
             reward
             VStack(spacing: 4) {
                 WTProgressBar(fraction: fraction, height: 8)
-                Text(label)
-                    .font(WTFont.number(12, .semibold))
+                // Числа — Fredoka (§11), одиниця — Nunito: у Fredoka немає кирилиці, і «л» упало б у системний.
+                (Text(label).font(WTFont.number(12, .semibold))
+                    + Text(unit.map { " \($0)" } ?? "").font(WTFont.text(12, .heavy)))
                     .foregroundStyle(theme.textMuted)
             }
         case .caption(let caption):
