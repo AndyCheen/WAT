@@ -19,8 +19,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 564 unit-тести 10 пакетів, без симулятора — швидкий цикл
-make test-ui        # 47 e2e-сценаріїв (XCUITest) у симуляторі
+make test-packages  # 643 unit-тести 10 пакетів, без симулятора — швидкий цикл
+make test-ui        # 49 e2e-сценаріїв (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
 make clean
@@ -79,6 +79,22 @@ Features → Widgets → DesignSystem → Core
 єдине джерело правди і для квестів, і для досягнень, і для графіків. Квести й
 досягнення декларативні: `metricKey + comparator + target` у `Gamification/Catalogs.swift`,
 нова умова додається рядком у каталог, без коду.
+
+**Досягнення** (WAT-24, `SPEC-ACHIEVEMENTS-CATALOG.md`): 115 у `AchievementCatalog` (`Catalogs.swift`), ключі наявних семи
+не міняти — на них прогрес. Правило — `AchievementRule`: лічильник шини, рівень, факт шляху рівнів, колекція або
+`HistoryFact` — факт **історії днів** (`DayHistory`: кеш `DayRecord` з точковим оновленням сьогоднішнього дня й
+запам'ятовуванням фактів; `DayKey.ordinal` замість `Calendar`). Обʼєм — лише зарахований. Умови, які зіпсувало б
+доливання («Влучність», «В яблучко», «Дзеркало», «Рівна крива»), дивляться **лише на завершені дні** — інакше доливання
+й перший-ліпший відкат зняли б відкрите. Сонцестояння й повня — `SkyCalendar`. XP — від складності
+(`AchievementDifficulty`), остаточні числа — WAT-25. Таємні — прапорець `AchievementSecrecy`: 🤫 у знімку вже «???»,
+підказка й без прогресу; 🥚 до знахідки у знімку немає зовсім, лічильник — `tally` (105 + «🥚 N»). Маскування — лише в
+`AchievementEngine.snapshots`, не у в'юсі. Залежні від «Ритму дня» й сповіщень (`AchievementGate`) поки функцію вимкнено
+не рахуються ні в проході, ні у відкаті й мають `lockedCaption`. Прохід — лише на подіях із `AchievementCatalog.triggers`
+(частини доби пропускаються), повторюється, поки XP за досягнення піднімає рівень. Факти сповіщень («Чуйність»,
+«Вчасно», «На крок попереду», «На звʼязку») публікує `NotificationService` з ref `day.goalMet` — відкат норми їх знімає.
+Дії «Відкриттів» і пасхалок — `AppServices.record(_:)`: подія на шину й тост `unlockAnnouncement` поверх будь-якого
+екрана (`RootView`); головний показує свій і ставить наступний у чергу (`queuedToast`), звіт і довідник XP — після
+закриття. Відкрите `refresh` (після оновлення, нова доба) — один тост на відкритті.
 
 **Призи** (SPEC-PRIZES): у каталозі 🧊 `streak.freeze`, ⚡ `xp.double` і 🌟 `xp.triple` (лише з таємних).
 Приз **і є** жетон — дія лише з картки: `useFreeze(prizeId:)` / `activateBoost(prizeId:)` (будь-який буст, один на раз).
@@ -278,6 +294,9 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
   зеленим. Для тостів і оверлеїв додатково перевіряти `isHittable` і межі вікна.
 - Позначення «переглянуто» — лише в `reload()` з `onAppear`, не в `init` моделі: інакше
   друге читання вже не бачить нових, і крапки «нове» не з'являються зовсім (WAT-23).
+- Сітка 2e лінива, а досягнень 105: плитку шукати після фільтра категорії (`achievements.category.option.<key>`),
+  інакше вона може бути ще не на екрані. Тост досягнень на справжньому годиннику нестабільний (повня, 11:11, 1 квітня
+  відкривають таємні) — закріплюй `--uitest-now`.
 - Прапорці запуску (`App/Sources/WaterTrackerApp.swift`, `LaunchConfiguration`):
   `--uitest-empty` (чиста in-memory БД), `--uitest-demo` (демо-історія),
   `--seed-demo`, `--start-screen progress|level-road|achievements|prizes|stats|settings|portion-buttons|notifications|notification-plan|report|schedule-suggestion|widgets`

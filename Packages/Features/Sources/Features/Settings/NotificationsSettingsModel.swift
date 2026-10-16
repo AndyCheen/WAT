@@ -68,6 +68,7 @@ public final class NotificationsSettingsModel {
     private func scheduleChanged() {
         services.profiles.save()
         services.hydration.scheduleDidChange()
+        services.record(.scheduleEdited)
         changed()
     }
 

@@ -63,7 +63,8 @@ final class NotificationsFeatureTests: XCTestCase {
     func testEchoForUnlockOutsideTheApp() async {
         await respond(.addGlass, to: firstReminder)
         let echo = center.scheduled.first { $0.identifier.hasPrefix("wt.echo.2026-10-01.") }
-        XCTAssertEqual(echo?.title, "🏅 Досягнення: Перша крапля")
+        // «Перша крапля» і «Склянка зі сповіщення» (SPEC-ACHIEVEMENTS-CATALOG §4.7).
+        XCTAssertEqual(echo?.title, "🏅 Нові досягнення: 2")
         XCTAssertEqual(echo?.trigger, .immediate)
     }
 

@@ -12,7 +12,7 @@ public final class GamificationService: MetricsSubscriber {
     let store: GamificationStoreProtocol
     private let dayLogs: DayLogRepositoryProtocol
     private let profiles: ProfileRepositoryProtocol
-    private let metrics: MetricsService
+    let metrics: MetricsService
     let calendar: CalendarService
 
     public let xp: XPEngine
@@ -22,15 +22,28 @@ public final class GamificationService: MetricsSubscriber {
     public var revertPolicy: RevertPolicy
 
     /// Захист від рекурсії: внутрішні події (XP, розблокування) не запускають новий цикл.
-    private var isEvaluating = false
+    var isEvaluating = false
 
     /// Досягнення, відкриті діями користувача з моменту останнього `takeRecentUnlocks()`.
     /// Черга, а не повернене значення: `HydrationService` про гейміфікацію не знає,
     /// тож дізнатись «що відкрила ця порція» екран може лише тут.
-    private var recentUnlocks: [String] = []
+    var recentUnlocks: [String] = []
     /// Подарунок за повернення й «Знову в ритмі» з тієї самої дії — та сама черга (§12.5).
     private var pendingComebackGift: UUID?
     private var pendingBounceBackXp: Int?
+
+    /// Чи дозволено сповіщення в системі — ставить `AppServices`: пакет сповіщень звідси не видно.
+    /// Головний вимикач — у профілі. Разом вони вирішують, чи рахуються досягнення «Увімкни сповіщення».
+    public var notificationsAuthorized: () -> Bool = { true }
+
+    /// Історія днів для правил досягнень — кеш із точковим оновленням (WAT-24).
+    lazy var history = DayHistory(dayLogs: dayLogs, calendar: calendar, profile: { [unowned self] in self.profile })
+    /// Дні, коли вмикали буст, — «Подвійна гра». Скидається на дії з бустом і новій добі.
+    var boostDaysCache: Set<String>?
+    /// Факти шляху рівнів — скидаються на вибір, таємний приз і новій добі.
+    var gameFactsCache: [GameFact: Double]?
+    /// «N подій за хвилину» — скидається, коли приходить подія цієї метрики.
+    var burstCache: [String: Double] = [:]
 
     public init(
         store: GamificationStoreProtocol,
@@ -54,24 +67,33 @@ public final class GamificationService: MetricsSubscriber {
         self.achievements = AchievementEngine(store: store, metrics: metrics)
     }
 
-    /// Підписка на шину + початкова синхронізація стану.
-    public func bootstrap() {
+    /// Підписка на шину + початкова синхронізація стану. Повертає ключі досягнень, відкритих заднім числом.
+    @discardableResult
+    public func bootstrap() -> [String] {
         achievements.bootstrap()
         xp.recalculateFromJournal(at: calendar.now)
         metrics.subscribe(self)
-        refresh(at: calendar.now)
+        return refresh(at: calendar.now)
     }
 
-    /// Повний перерахунок стану — на старті застосунку та при зміні доби.
-    public func refresh(at date: Date) {
+    /// Повний перерахунок стану — на старті застосунку та при зміні доби. Досягнення тут відкриваються й
+    /// заднім числом з історії (§6) — у чергу тоста дії вони не йдуть: це не заслуга жодної дії. Повертає їхні
+    /// ключі — один спільний тост показує композиційний корінь.
+    @discardableResult
+    public func refresh(at date: Date) -> [String] {
+        history.reload()
+        invalidateAchievementCaches()
         grantLevelRewards(at: date)
         recomputeStreaks(at: date)
         let context = makeContext(at: date)
         quests.ensureInstances(context: context, level: xp.progress().level, dayRhythm: profile.dayRhythmEnabled)
         let completed = quests.evaluate(context: context, triggerRef: nil)
         awardQuestXP(completed, at: date)
-        let unlocked = achievements.evaluate(context: makeContext(at: date), triggerRef: nil)
-        awardAchievementXP(unlocked, at: date)
+        recordAllDailyQuestsIfDone(completed, at: date)
+        let unlocked = evaluateAchievements(at: date, triggerRef: nil, announce: false)
+        // Поза дією користувача, тож і `metrics.commit()` тут ніхто не зробить: відкрите заднім числом — зберегти.
+        store.save()
+        return unlocked.map(\.key)
     }
 
     // MARK: - MetricsSubscriber
@@ -82,6 +104,7 @@ public final class GamificationService: MetricsSubscriber {
         defer { isEvaluating = false }
 
         let date = event.occurredAt
+        noteAchievementInputs(changedBy: [event])
 
         if event.name == .dayGoalMet {
             recomputeStreaks(at: date)
@@ -104,12 +127,16 @@ public final class GamificationService: MetricsSubscriber {
 
         let context = makeContext(at: date)
         quests.ensureInstances(context: context, level: xp.progress().level, dayRhythm: profile.dayRhythmEnabled)
+        let levelBefore = xp.progress().level
         let completed = quests.evaluate(context: context, triggerRef: event.sourceRef)
         awardQuestXP(completed, at: date)
+        recordAllDailyQuestsIfDone(completed, at: date)
 
-        let unlocked = achievements.evaluate(context: makeContext(at: date), triggerRef: event.sourceRef)
-        awardAchievementXP(unlocked, at: date)
-        recentUnlocks.append(contentsOf: unlocked.map(\.key))
+        // Подія частини доби нічого з умов не змінює — прохід лише коли могло: сотня правил на кожну подію
+        // порції помітна на `PerformanceTests`.
+        if AchievementCatalog.triggers.contains(event.name) || !completed.isEmpty || xp.progress().level != levelBefore {
+            evaluateAchievements(at: date, triggerRef: event.sourceRef, announce: true)
+        }
 
         grantLevelRewards(at: date)
     }
@@ -142,6 +169,7 @@ public final class GamificationService: MetricsSubscriber {
         defer { isEvaluating = false }
 
         let date = events.first?.occurredAt ?? calendar.now
+        noteAchievementInputs(changedBy: events)
         // 1. Забираємо XP, нарахований саме цією дією.
         xp.revert(refId: sourceRef, at: date)
         // 2. Серія перераховується з денних логів — вона вже врахувала зміну.
@@ -152,9 +180,13 @@ public final class GamificationService: MetricsSubscriber {
         let reopened = quests.revert(context: context, sourceRef: sourceRef, policy: revertPolicy)
         for quest in reopened {
             xp.revert(refId: quest.id, at: date)
+            // «Усе на сьогодні» трималось на цьому завданні.
+            if quest.periodKey.count == 10 {
+                metrics.revert(sourceRef: Self.allDailyQuestsRef(DayKey(rawValue: quest.periodKey)), at: date)
+            }
         }
-        for key in achievements.revert(context: context, sourceRef: sourceRef, policy: revertPolicy, at: date) {
-            xp.revert(refId: DeterministicID.uuid(from: "achievement:\(key)"), at: date)
+        for key in achievements.revert(achievementInputs(at: date), policy: revertPolicy, at: date) {
+            xp.revert(refId: AchievementEngine.ref(key), at: date)
             recentUnlocks.removeAll { $0 == key }
         }
         // 4. «Знову в ритмі» тримається на закритій нормі дня: норму відкотили — і бонус теж.
@@ -188,7 +220,7 @@ public final class GamificationService: MetricsSubscriber {
     public func weeklyQuests(at date: Date? = nil) -> [QuestSnapshot] {
         quests.snapshots(scope: .weekly, at: date ?? calendar.now)
     }
-    public func achievementSnapshots() -> [AchievementSnapshot] { achievements.snapshots() }
+    public func achievementSnapshots() -> [AchievementSnapshot] { achievements.snapshots(gates: achievementGates) }
     public var hasUnseenAchievements: Bool { achievements.hasUnseenUnlocks }
     public func markAchievementsSeen() { achievements.markAllSeen(at: calendar.now) }
     public func markAchievementSeen(key: String) { achievements.markSeen(key: key, at: calendar.now) }
@@ -204,7 +236,7 @@ public final class GamificationService: MetricsSubscriber {
         }
         var result = RecentUnlocks(bounceBackXp: pendingBounceBackXp)
         if !recentUnlocks.isEmpty {
-            let snapshots = achievements.snapshots().filter(\.isUnlocked)
+            let snapshots = achievementSnapshots().filter(\.isUnlocked)
             result.achievements = recentUnlocks.compactMap { key in snapshots.first { $0.key == key } }
         }
         if let giftId = pendingComebackGift {
@@ -310,6 +342,7 @@ public final class GamificationService: MetricsSubscriber {
         // Заморожений учорашній день зарахований — ритм не обривався, і «Знову в ритмі»,
         // нарахований сьогодні раніше, вже не заслужений (SPEC-NOTIFICATIONS §12.5 Б).
         if day != today { xp.revert(refId: Self.bounceBackRef(today), at: now) }
+        evaluateAchievements(at: now, triggerRef: item.id, announce: true)
         recordActivation(item, at: now)
         return true
     }
@@ -327,6 +360,8 @@ public final class GamificationService: MetricsSubscriber {
         item.expiresAt = boostExpiry(activatedAt: now)
         store.save()
         xp.invalidateBoosts()
+        boostDaysCache = nil
+        evaluateAchievements(at: now, triggerRef: item.id, announce: true)
         recordActivation(item, at: now)
         return true
     }
@@ -347,8 +382,12 @@ public final class GamificationService: MetricsSubscriber {
               case .choice(let options)? = LevelRoadCatalog.node(forLevel: level),
               let grant = options.first(where: { $0.key == key }),
               levelClaims()[level] == nil else { return false }
-        insert([grant], source: .level, ref: Self.levelNodeRef(level), at: date ?? calendar.now)
+        let now = date ?? calendar.now
+        insert([grant], source: .level, ref: Self.levelNodeRef(level), at: now)
         store.save()
+        gameFactsCache = nil
+        evaluateAchievements(at: now, triggerRef: Self.levelNodeRef(level), announce: true)
+        metrics.commit()
         return true
     }
 
@@ -359,9 +398,13 @@ public final class GamificationService: MetricsSubscriber {
         guard level <= xp.progress().level,
               case .mystery(let pool)? = LevelRoadCatalog.node(forLevel: level),
               levelClaims()[level] == nil else { return nil }
+        let now = date ?? calendar.now
         let grants = MysteryRoll.outcome(level: level, seed: mysterySeed, pool: pool)
-        insert(grants, source: .level, ref: Self.levelNodeRef(level), at: date ?? calendar.now)
+        insert(grants, source: .level, ref: Self.levelNodeRef(level), at: now)
         store.save()
+        gameFactsCache = nil
+        evaluateAchievements(at: now, triggerRef: Self.levelNodeRef(level), announce: true)
+        metrics.commit()
         return grants
     }
 
@@ -388,7 +431,7 @@ public final class GamificationService: MetricsSubscriber {
     }
 
     /// Що видано за кожен рівень — за будь-яким із `levelRefs`.
-    private func levelClaims() -> [Int: [RewardGrant]] {
+    func levelClaims() -> [Int: [RewardGrant]] {
         let items = store.rewardItems().filter { $0.source == .level }
         guard !items.isEmpty else { return [:] }
         let level = xp.progress().level
@@ -436,9 +479,10 @@ public final class GamificationService: MetricsSubscriber {
 
     /// Події, на які гейміфікація не реагує. Сповіщення сюди обов'язково: «доставлено»
     /// пишеться на кожне перепланування, і без цього кожна позначка ганяла б квести й досягнення.
+    /// `notification.paused` — ні: пауза рідкісна й відкриває пасхалку «Набрати в рот води».
     private static let internalMetrics: Set<MetricKey> = [
         .xpEarned, .levelReached, .achievementUnlocked, .questCompleted, .streakCurrent, .prizeActivated,
-        .reminderResponded, .notificationDelivered, .notificationOpened, .notificationSnoozed, .notificationPaused
+        .reminderResponded, .notificationDelivered, .notificationOpened, .notificationSnoozed
     ]
 
     // MARK: - Нагороди за повернення (SPEC-NOTIFICATIONS §12.5)
@@ -543,7 +587,7 @@ public final class GamificationService: MetricsSubscriber {
 
     /// Профіль — живий об'єкт SwiftData: зміни розкладу він бачить сам, а вибірка на кожну
     /// порцію коштувала б помітно на шляху, який міряє `PerformanceTests`.
-    private lazy var profile: UserProfile = profiles.profile()
+    lazy var profile: UserProfile = profiles.profile()
 
     private func minuteOfDay(_ date: Date) -> Int {
         let parts = calendar.calendar.dateComponents([.hour, .minute], from: date)
@@ -601,7 +645,7 @@ public final class GamificationService: MetricsSubscriber {
         }
     }
 
-    private func makeContext(at date: Date) -> RuleContext {
+    func makeContext(at date: Date) -> RuleContext {
         let streak = streaks.summary()
         return RuleContext(
             metrics: metrics,
@@ -634,11 +678,11 @@ public final class GamificationService: MetricsSubscriber {
         }
     }
 
-    private func awardAchievementXP(_ definitions: [AchievementDefinition], at date: Date) {
+    func awardAchievementXP(_ definitions: [AchievementDefinition], at date: Date) {
         for definition in definitions {
             xp.award(
                 amount: definition.rewardXp, reason: .achievementUnlocked,
-                refId: DeterministicID.uuid(from: "achievement:\(definition.key)"), at: date
+                refId: AchievementEngine.ref(definition.key), at: date
             )
         }
     }

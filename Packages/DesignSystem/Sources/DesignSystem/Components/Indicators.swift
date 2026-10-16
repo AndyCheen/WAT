@@ -151,11 +151,15 @@ public struct WTStatCounter: View {
     private let label: String
     private let value: Int
     private let total: Int
+    private let extra: String?
 
-    public init(label: String, value: Int, total: Int) {
+    /// - Parameter extra: окреме число поруч, без загального — «🥚 2» знайдених пасхалок
+    ///   (SPEC-ACHIEVEMENTS-CATALOG §4.10): скільки їх усього, теж секрет.
+    public init(label: String, value: Int, total: Int, extra: String? = nil) {
         self.label = label
         self.value = value
         self.total = total
+        self.extra = extra
     }
 
     public var body: some View {
@@ -172,6 +176,13 @@ public struct WTStatCounter: View {
                 Text("/ \(total)")
                     .font(WTFont.number(20, .medium))
                     .foregroundStyle(theme.textMuted)
+                if let extra {
+                    Text(extra)
+                        .font(WTFont.number(20, .medium))
+                        .foregroundStyle(theme.textMuted)
+                        .padding(.leading, 10)
+                        .transition(.opacity)
+                }
             }
         }
         .frame(maxWidth: .infinity)

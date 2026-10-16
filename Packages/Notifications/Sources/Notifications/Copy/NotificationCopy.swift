@@ -155,6 +155,13 @@ public enum EchoText {
         return ("🏅 Нове досягнення", "«\(title)» — відкрито щойно, подивись у застосунку")
     }
 
+    /// Пасхалка має звучати інакше, ніж досягнення (SPEC-ACHIEVEMENTS-CATALOG §4.10).
+    public static func egg(_ title: String) -> (title: String, body: String) {
+        let full = "🥚 Пасхалка: \(title)"
+        if full.count <= 30 { return (full, body) }
+        return ("🥚 Пасхалка", "«\(title)» — знайдено щойно, подивись у застосунку")
+    }
+
     public static func achievements(count: Int) -> (title: String, body: String) {
         ("🏅 Нові досягнення: \(count)", body)
     }

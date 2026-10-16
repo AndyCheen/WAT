@@ -89,7 +89,8 @@ final class WidgetsFeatureTests: XCTestCase {
     /// Порція з віджета, поки застосунку немає на екрані, — відлуння розблокувань (SPEC-NOTIFICATIONS §12.1).
     func testEchoOutsideTheApp() async {
         await services.perform(.add(ml: 250, source: .widget)).value
-        XCTAssertEqual(center.scheduled.first { $0.identifier.hasPrefix("wt.echo.") }?.title, "🏅 Досягнення: Перша крапля")
+        // «Перша крапля» і «На робочому столі» (SPEC-ACHIEVEMENTS-CATALOG §4.7).
+        XCTAssertEqual(center.scheduled.first { $0.identifier.hasPrefix("wt.echo.") }?.title, "🏅 Нові досягнення: 2")
     }
 
     func testNoEchoWhileAppIsOpen() async {
@@ -108,7 +109,9 @@ final class WidgetsFeatureTests: XCTestCase {
         await services.perform(.undo(intakeId: id)).value
 
         XCTAssertTrue(services.dayLogs.activeIntakes(for: services.calendar.today).isEmpty)
-        XCTAssertEqual(services.gamification.levelProgress().totalXp, xpBefore)
+        // Лишається тільки «Друга думка» — за саме скасування.
+        XCTAssertEqual(services.gamification.levelProgress().totalXp,
+                       xpBefore + AchievementCatalog.definition("discover.undo")!.rewardXp)
         let snapshot = try XCTUnwrap(store.read())
         XCTAssertNil(snapshot.lastAction)
         XCTAssertNil(snapshot.reserve)

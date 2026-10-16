@@ -24,6 +24,9 @@ public final class MetricStore: MetricStoreProtocol {
     private var counterCache: [String: MetricCounterRecord] = [:]
     /// Події за `sourceRef` перевіряються на кожен запис (ідемпотентність) і при відкаті.
     private var eventsBySource: [UUID: [MetricEventRecord]] = [:]
+    /// Лічильники, яких ще немає. Правил досягнень сотня (WAT-24), і метрики багатьох «Відкриттів»
+    /// у людини так і не з'являються — без цього кожна подія давала б десятки порожніх вибірок.
+    private var missingCounters: Set<String> = []
 
     public init(context: ModelContext) {
         self.context = context
@@ -73,6 +76,7 @@ public final class MetricStore: MetricStoreProtocol {
     public func counter(metricKey: String, periodType: MetricPeriodType, periodKey: String) -> MetricCounterRecord? {
         let cacheKey = Self.cacheKey(metricKey, periodType, periodKey)
         if let cached = counterCache[cacheKey] { return cached }
+        if missingCounters.contains(cacheKey) { return nil }
         let raw = periodType.rawValue
         var descriptor = FetchDescriptor<MetricCounterRecord>(
             predicate: #Predicate {
@@ -81,7 +85,7 @@ public final class MetricStore: MetricStoreProtocol {
         )
         descriptor.fetchLimit = 1
         let found = (try? context.fetch(descriptor))?.first
-        if let found { counterCache[cacheKey] = found }
+        if let found { counterCache[cacheKey] = found } else { missingCounters.insert(cacheKey) }
         return found
     }
 
@@ -91,7 +95,9 @@ public final class MetricStore: MetricStoreProtocol {
         }
         let created = MetricCounterRecord(metricKey: metricKey, periodType: periodType, periodKey: periodKey)
         context.insert(created)
-        counterCache[Self.cacheKey(metricKey, periodType, periodKey)] = created
+        let cacheKey = Self.cacheKey(metricKey, periodType, periodKey)
+        counterCache[cacheKey] = created
+        missingCounters.remove(cacheKey)
         return created
     }
 
@@ -107,6 +113,7 @@ public final class MetricStore: MetricStoreProtocol {
     public func deleteAllCounters() {
         counterCache.removeAll()
         eventsBySource.removeAll()
+        missingCounters.removeAll()
         // Видаляємо поштучно: `delete(model:)` не бачить ще не збережених обʼєктів,
         // а лічильники навмисно зберігаються лише на межі дії.
         for counter in (try? context.fetch(FetchDescriptor<MetricCounterRecord>())) ?? [] {

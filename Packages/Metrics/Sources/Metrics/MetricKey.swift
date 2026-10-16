@@ -44,6 +44,39 @@ public struct MetricKey: RawRepresentable, Hashable, Codable, Sendable, Expressi
     public static let notificationOpened: MetricKey = "notification.opened"
     public static let notificationSnoozed: MetricKey = "notification.snoozed"
     public static let notificationPaused: MetricKey = "notification.paused"
+    /// Дозвіл на сповіщення є — один раз на установку (досягнення «На звʼязку»).
+    public static let notificationAuthorized: MetricKey = "notification.authorized"
+    /// Порція за 15 хв після нагадування (досягнення «Чуйність»). `sourceRef` — рядок журналу, як у
+    /// `reminder.responded`: одна відповідь — одна подія.
+    public static let reminderQuick: MetricKey = "reminder.quick"
+    /// Норма закрита після вечірнього «порятунку серії» (досягнення «Вчасно»). `sourceRef` — той самий,
+    /// що в `day.goalMet`: відкотили норму — відкотилось і це.
+    public static let streakRescued: MetricKey = "streak.rescued"
+    /// Норма закрита без жодного доставленого нагадування, коли нагадування ввімкнені («На крок
+    /// попереду»). `sourceRef` — як у `day.goalMet`.
+    public static let dayGoalAhead: MetricKey = "day.goalAhead"
+
+    // Гра (SPEC-ACHIEVEMENTS-CATALOG §4.6)
+    /// Виконано всі щоденні завдання дня. `sourceRef` — детермінований від дня: завдання знову
+    /// відкрилось — подію відкочує `GamificationService`.
+    public static let questsAllDaily: MetricKey = "quest.allDaily"
+
+    // Відкриття функцій і пасхалки (SPEC-ACHIEVEMENTS-CATALOG §4.7, §4.10). Разові дії мають
+    // детермінований `sourceRef` — повтор ідемпотентністю шини нічого не додає.
+    /// Порція власного об'єму через «Інше». `sourceRef` — порція: її скасували — подія теж зникла.
+    public static let customPortion: MetricKey = "portion.custom"
+    public static let presetsChanged: MetricKey = "presets.changed"
+    public static let scheduleEdited: MetricKey = "schedule.edited"
+    public static let scheduleOfferAccepted: MetricKey = "schedule.offerAccepted"
+    public static let weekReportFinished: MetricKey = "report.weekFinished"
+    public static let monthReportFinished: MetricKey = "report.monthFinished"
+    public static let pastDayOpened: MetricKey = "history.pastDayOpened"
+    public static let darkTheme: MetricKey = "theme.dark"
+    /// Кожна зміна теми — без `sourceRef`: «Дискотека» рахує зміни за хвилину.
+    public static let themeChanged: MetricKey = "theme.changed"
+    /// Екран відкрито — `sourceRef` від назви екрана, тож лічильник = кількість різних екранів.
+    public static let screenOpened: MetricKey = "screen.opened"
+    public static let xpGuideOpened: MetricKey = "guide.xpOpened"
 
     public static func part(_ index: Int) -> MetricKey {
         dayParts[max(0, min(4, index))]

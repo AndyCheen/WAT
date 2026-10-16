@@ -73,17 +73,25 @@ public enum RewardItemState: Int, Codable, Sendable {
     case ready = 0, active, used, expired
 }
 
-/// «Всі» тут свідомо немає: це псевдо-таб фільтра, а не категорія. Коли він був
-/// заголовком `.general`, «Першу краплю» й «Марафонця» не можна було відфільтрувати окремо.
+/// Категорії-фільтри каталогу досягнень (SPEC-ACHIEVEMENTS-CATALOG §3): типів 11, а фільтрів 8 —
+/// понад 8 рядків меню вже скролиться. «Повернення» живуть у `.streak`, «Календар» і «Фанові» —
+/// в `.special`, «Рівні» — у `.game`. Таємні — прапорець, а не категорія.
+///
+/// «Всі» тут свідомо немає: це псевдо-таб фільтра, а не категорія. Raw ніде не зберігається —
+/// категорію дає визначення в каталозі, тож порядок можна міняти.
 public enum AchievementCategory: Int, Codable, CaseIterable, Sendable {
-    case general = 0, streak, volume, secret
+    case water = 0, streak, regularity, dayRhythm, stats, game, discovery, special
 
     public var title: String {
         switch self {
-        case .general: return "Загальні"
-        case .streak: return "Стріки"
-        case .volume: return "Обʼєм"
-        case .secret: return "Секретні"
+        case .water: return "Вода"
+        case .streak: return "Серії"
+        case .regularity: return "Регулярність"
+        case .dayRhythm: return "Ритм дня"
+        case .stats: return "Статистика"
+        case .game: return "Гра"
+        case .discovery: return "Відкриття"
+        case .special: return "Особливі"
         }
     }
 }

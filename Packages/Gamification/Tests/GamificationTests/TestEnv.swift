@@ -129,3 +129,89 @@ extension GameEnv {
         game.grantLevelRewards(at: date ?? clock.now)
     }
 }
+
+// MARK: - Досягнення (WAT-24)
+
+extension GameEnv {
+    /// Мить у будь-який день `yyyy-MM-dd` за Києвом.
+    static func date(_ key: String, hour: Int = 12, minute: Int = 0) -> Date {
+        let day = DayKey(rawValue: key)
+        return date(day: day.day, hour: hour, minute: minute, month: day.month, year: day.year)
+    }
+
+    /// Порція в будь-який день — повністю як `HydrationService`: запис дня з усіма полями, події порції
+    /// й «норму закрито», коли саме ця порція її закрила.
+    @discardableResult
+    func drink(_ ml: Int, on key: String, hour: Int = 12, minute: Int = 0, source: IntakeSource = .app,
+               goalMl: Int = 2000, timeZoneId: String = "Europe/Kyiv") -> UUID {
+        let day = DayKey(rawValue: key)
+        let at = Self.date(key, hour: hour, minute: minute)
+        let log = dayLogs.dayLog(for: day, goalMl: goalMl, timeZoneId: timeZoneId)
+        log.goalMlSnapshot = goalMl
+        log.scheduleSnapshot = profiles.profile().schedule(isWeekend: calendar.isWeekend(day))
+        let wasMet = log.goalMet
+        let intake = Intake(amountMl: ml, createdAt: at, source: source)
+        dayLogs.insert(intake, into: log)
+        recomputeAll(log)
+        dayLogs.save()
+        metrics.record(MetricEvent(name: .intakeAdded, value: Double(ml), occurredAt: at, sourceRef: intake.id))
+        metrics.record(MetricEvent(name: .intakeCount, value: 1, occurredAt: at, sourceRef: intake.id))
+        if !wasMet, log.goalMet {
+            metrics.record(MetricEvent(
+                name: .dayGoalMet, value: 1, occurredAt: at, sourceRef: DeterministicID.uuid(from: "day.goalMet:\(key)")
+            ))
+        }
+        metrics.commit()
+        return intake.id
+    }
+
+    /// Закрита норма дня однією порцією.
+    func goalDay(_ key: String, ml: Int = 2000, hour: Int = 12) {
+        drink(ml, on: key, hour: hour)
+    }
+
+    /// Скасування порції — як `HydrationService.removeIntake`: м'яке видалення, відкат подій і норми.
+    func undo(_ id: UUID, at date: Date) {
+        guard let intake = dayLogs.intake(id: id), let log = intake.dayLog else { return }
+        intake.deletedAt = date
+        recomputeAll(log)
+        dayLogs.save()
+        metrics.revert(sourceRef: id, at: date)
+        metrics.record(MetricEvent(name: .intakeRemoved, value: Double(intake.amountMl), occurredAt: date))
+        if !log.goalMet {
+            metrics.revert(sourceRef: DeterministicID.uuid(from: "day.goalMet:\(log.dayKey)"), at: date)
+        }
+        metrics.commit()
+    }
+
+    /// Дні від `from` до `to` включно, `yyyy-MM-dd`.
+    func days(from: String, to: String) -> [String] {
+        let start = DayKey(rawValue: from).ordinal
+        let end = DayKey(rawValue: to).ordinal
+        return (start...end).map { DayKey(ordinal: $0).rawValue }
+    }
+
+    func achievement(_ key: String) -> AchievementSnapshot? {
+        game.achievementSnapshots().first { $0.key == key }
+    }
+
+    func isUnlocked(_ key: String) -> Bool { achievement(key)?.isUnlocked ?? false }
+
+    /// Значення правила прямо з прогресу — і для таємних, чий знімок прогрес ховає.
+    func progressValue(_ key: String) -> Double {
+        store.achievementProgress(defKey: key)?.value ?? 0
+    }
+
+    private func recomputeAll(_ log: DayLog) {
+        let active = (log.intakes ?? []).filter { !$0.isDeleted }
+        let total = active.reduce(0) { $0 + $1.amountMl }
+        var parts = [0, 0, 0, 0, 0]
+        for intake in active { parts[DayPart.from(hour: calendar.hour(of: intake.createdAt)).rawValue] += intake.amountMl }
+        log.totalMl = total
+        log.countedMl = min(total, log.capMl)
+        log.entriesCount = active.count
+        log.partTotals = parts
+        log.firstIntakeAt = active.map(\.createdAt).min()
+        log.lastIntakeAt = active.map(\.createdAt).max()
+    }
+}

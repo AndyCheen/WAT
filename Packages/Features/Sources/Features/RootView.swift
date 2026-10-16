@@ -29,6 +29,7 @@ public enum AppRoute: Hashable {
 
 /// Кореневий екран: стек навігації 1a → 3f → 2e, 1a → 3f → «Призи», 1a → 4a (PLAN.md §8).
 public struct RootView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @State private var services: AppServices
     @State private var path: [AppRoute] = []
     @State private var themeMode: ThemeMode
@@ -59,11 +60,56 @@ public struct RootView: View {
                     destination(route).wtHideNavigationBar()
                 }
             }
+            // Усередині контейнера: тема (`wtTheme`) діє лише на його вміст.
+            .overlay(alignment: .bottom) { unlockToast }
         }
         // Тап по сповіщенню, зокрема той, що запустив застосунок: `initial` — бо при холодному
         // старті маршрут з'являється раніше за перший кадр.
         .onChange(of: services.router.pendingPath, initial: true) {
             if let route = services.router.takePath() { path = route }
+        }
+        // «Як риба у воді» (SPEC-ACHIEVEMENTS-CATALOG §4.10): кожен відкритий екран — раз назавжди.
+        .onChange(of: path, initial: true) {
+            if let screen = Self.screen(for: path.last) { services.record(.screenOpened(screen)) }
+        }
+        // «Темна сторона» — і з системною темою, і з перемикачем у налаштуваннях.
+        .onChange(of: colorScheme, initial: true) {
+            if colorScheme == .dark { services.record(.darkTheme) }
+        }
+    }
+
+    // MARK: - Тост розблокувань поза головним
+
+    /// «Відкриття» й пасхалки трапляються де завгодно — тост поверх стека. Головний показує свій.
+    @ViewBuilder
+    private var unlockToast: some View {
+        if let announcement = services.unlockAnnouncement {
+            WTToast(
+                announcement.message,
+                // На екрані досягнень «Подивитись» відкривало б його вдруге.
+                actionTitle: path.last == .achievements ? nil : "Подивитись",
+                onAction: path.last == .achievements ? nil : { path.append(.achievements) },
+                onDismiss: { withAnimation(WTAnimation.toast) { services.dismissUnlockAnnouncement() } }
+            )
+            .id(announcement.id)
+            .padding(.bottom, 28)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+
+    private static func screen(for route: AppRoute?) -> AppScreen? {
+        switch route {
+        case nil: return .home
+        case .progress?: return .progress
+        case .levelRoad?: return .levelRoad
+        case .achievements?: return .achievements
+        case .prizes?, .prizeCard?: return .prizes
+        case .stats?: return .stats
+        case .settings?: return .settings
+        case .portionButtons?: return .portionButtons
+        case .notifications?: return .notifications
+        case .report?: return .report
+        case .notificationPlan?, .widgetGallery?: return nil
         }
     }
 

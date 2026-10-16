@@ -235,7 +235,21 @@ final class SmokeUITests: XCTestCase {
 
         app.buttons["progress.allAchievements"].tap()
         XCTAssertTrue(app.otherElements["achievements.counter"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["achievements.tile.first.drop"].exists)
+        XCTAssertTrue(tiles(app).firstMatch.exists)
+    }
+
+    /// Плитки сітки 2e. Сітка лінива, а досягнень 105: шукати конкретну плитку без фільтра — гадати, чи вона
+    /// вже на екрані.
+    private func tiles(_ app: XCUIApplication, _ predicate: String = "TRUEPREDICATE") -> XCUIElementQuery {
+        app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'achievements.tile.' AND (\(predicate))"))
+    }
+
+    private func selectCategory(_ app: XCUIApplication, _ key: String) {
+        app.buttons["achievements.category"].tap()
+        let option = app.buttons["achievements.category.option.\(key)"]
+        XCTAssertTrue(option.waitForExistence(timeout: 5))
+        option.tap()
+        XCTAssertTrue(app.buttons["achievements.category.clear"].waitForExistence(timeout: 5))
     }
 
     // MARK: - Досягнення (SPEC-ACHIEVEMENTS §13)
@@ -245,14 +259,15 @@ final class SmokeUITests: XCTestCase {
         let counter = app.otherElements["achievements.counter"]
         XCTAssertTrue(counter.waitForExistence(timeout: 20))
         let counterValue = counter.value as? String
+        selectCategory(app, "streak")
 
         app.buttons["achievements.state.inProgress"].tap()
         XCTAssertTrue(app.buttons["achievements.tile.streak.7"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["achievements.tile.first.drop"].exists, "відкрите не «в процесі»")
+        XCTAssertEqual(tiles(app, "value == 'Відкрито'").count, 0, "відкрите не «в процесі»")
         XCTAssertEqual(counter.value as? String, counterValue, "лічильник глобальний — чип його не змінює")
 
         app.buttons["achievements.state.unlocked"].tap()
-        XCTAssertTrue(app.buttons["achievements.tile.first.drop"].waitForExistence(timeout: 5))
+        XCTAssertTrue(tiles(app, "value == 'Відкрито'").firstMatch.waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["achievements.tile.streak.7"].exists)
     }
 
@@ -275,29 +290,36 @@ final class SmokeUITests: XCTestCase {
         XCTAssertFalse(app.buttons["achievements.tile.first.drop"].exists)
 
         clear.tap()
-        XCTAssertTrue(app.buttons["achievements.tile.first.drop"].waitForExistence(timeout: 5), "хрестик повертає «Всі»")
+        XCTAssertTrue(
+            tiles(app, "NOT identifier BEGINSWITH 'achievements.tile.streak.' AND NOT identifier BEGINSWITH 'achievements.tile.comeback.'")
+                .firstMatch.waitForExistence(timeout: 5),
+            "хрестик повертає «Всі»"
+        )
     }
 
     func testBadgeOnProgressOpensTheDetailCard() {
         let app = launch(["--uitest-demo", "--start-screen", "progress"])
         XCTAssertTrue(app.staticTexts["РІВЕНЬ"].waitForExistence(timeout: 20))
 
-        // Блок досягнень — останній на екрані, під призами.
-        let badge = app.buttons["progress.achievements.badge.streak.7"]
+        // Блок досягнень — останній на екрані, під призами. Що саме у вітрині, залежить від дати демо-історії,
+        // тож беремо перший бейдж.
+        let badge = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'progress.achievements.badge.'")).firstMatch
         for _ in 0..<8 where !(badge.exists && badge.isHittable) { app.swipeUp() }
-        XCTAssertTrue(badge.isHittable, "бейдж у процесі потрапляє у вітрину")
+        XCTAssertTrue(badge.isHittable, "вітрина не порожня")
+        let title = badge.label.replacingOccurrences(of: "Досягнення: ", with: "")
         badge.tap()
 
         let card = app.otherElements["achievements.detail"]
         XCTAssertTrue(card.waitForExistence(timeout: 5))
-        XCTAssertEqual(card.label, "Тиждень поспіль")
+        XCTAssertEqual(card.label, title, "та сама картка, що й на 2e")
 
         app.buttons["achievements.detail.close"].tap()
         XCTAssertFalse(card.waitForExistence(timeout: 1), "хрестик закриває картку")
     }
 
+    /// Годинник закріплено: на справжньому порція могла б припасти на повню чи 11:11 і відкрити ще й таємне.
     func testFirstIntakeShowsAchievementToastLeadingToTheCard() {
-        let app = launch(["--uitest-empty"])
+        let app = launch(["--uitest-empty", "--uitest-now", "2026-10-01T09:00:00+03:00"])
         XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
 
         app.buttons["home.add.200"].tap()
@@ -312,6 +334,58 @@ final class SmokeUITests: XCTestCase {
         let card = app.otherElements["achievements.detail"]
         XCTAssertTrue(card.waitForExistence(timeout: 5), "«Подивитись» відкриває картку одразу")
         XCTAssertEqual(card.label, "Перша крапля")
+    }
+
+    // MARK: - Таємні й пасхалки (SPEC-ACHIEVEMENTS-CATALOG §4.9–4.10)
+
+    /// Таємне з підказкою — сіра плитка «???», у картці лише підказка; пасхалок у лічильнику немає.
+    /// Без дозволу на сповіщення: інакше «На звʼязку» відкривалось би на старті, у фоні, і лічильник
+    /// залежав би від того, чи встигло.
+    func testSecretTileShowsOnlyTheHint() {
+        let app = launch(["--uitest-empty", "--notifications-auth", "notDetermined", "--start-screen", "achievements"])
+        let counter = app.otherElements["achievements.counter"]
+        XCTAssertTrue(counter.waitForExistence(timeout: 20))
+        XCTAssertEqual(counter.value as? String, "0 з 105 відкрито", "пасхалки невидимі й у лічильнику")
+
+        selectCategory(app, "stats")
+        let tile = app.buttons["achievements.tile.stats.bullseye"]
+        XCTAssertTrue(tile.waitForExistence(timeout: 5))
+        XCTAssertEqual(tile.label, "Досягнення: ???", "справжня назва не їде в дерево доступності")
+        XCTAssertEqual(tile.value as? String, "Таємне досягнення")
+        tile.tap()
+
+        let card = app.otherElements["achievements.detail"]
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        XCTAssertEqual(card.label, "???")
+        XCTAssertEqual(card.value as? String, "«Ні краплі зайвої». Таємне досягнення", "ні умови, ні прогресу")
+    }
+
+    /// Пасхалка: до знахідки її не видно, знахідка — свій тост, а потім «🥚 1» поруч із лічильником і рядок
+    /// «Пасхалка! Тут їх більше» в картці. «Дискотека» — п'ять змін теми за хвилину.
+    func testEasterEggIsFoundWithItsOwnToast() {
+        let app = launch(["--uitest-empty", "--notifications-auth", "notDetermined", "--start-screen", "settings"])
+        let theme = app.buttons["settings.theme"]
+        XCTAssertTrue(theme.waitForExistence(timeout: 20))
+        for _ in 0..<5 { theme.tap() }
+
+        let message = app.staticTexts["toast.message"]
+        let egg = expectation(for: NSPredicate(format: "label == %@", "🥚 Пасхалка: Дискотека"), evaluatedWith: message)
+        wait(for: [egg], timeout: 5)
+        let action = app.buttons["toast.action"]
+        XCTAssertTrue(action.isHittable, "тост на екрані, а не лише в дереві")
+        action.tap()
+
+        let counter = app.otherElements["achievements.counter"]
+        XCTAssertTrue(counter.waitForExistence(timeout: 5))
+        XCTAssertEqual(counter.value as? String, "1 з 105 відкрито, пасхалок знайдено: 1",
+                       "«Темна сторона» — у лічильнику, пасхалка — окремо")
+        let tile = app.buttons["achievements.tile.egg.disco"]
+        XCTAssertTrue(tile.waitForExistence(timeout: 5))
+        tile.tap()
+        let card = app.otherElements["achievements.detail"]
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        XCTAssertEqual(card.label, "Дискотека")
+        XCTAssertTrue((card.value as? String)?.contains("Пасхалка! Тут їх більше") ?? false)
     }
 
     func testStatsScreenShowsAllCards() {

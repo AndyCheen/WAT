@@ -48,6 +48,7 @@ final class CopyCatalogTests: XCTestCase {
             NotificationCopy.bounceBackInsert(xp: 25), EchoText.body,
             EchoText.comebackGift.title, EchoText.comebackGift.body,
             EchoText.achievement("Тиждень поспіль").title, EchoText.level(12).title,
+            EchoText.egg("Як риба у воді").title, EchoText.egg("Вивести на чисту воду").body,
             EchoText.bounceBack(xp: 50).title, EchoText.bounceBack(xp: 50).body
         ]
         for text in NotificationCopy.all.flatMap({ [$0.title, $0.body] }) + inserts {
@@ -72,6 +73,15 @@ final class CopyCatalogTests: XCTestCase {
         let long = EchoText.achievement("Знавець гідратації рівня 10")
         XCTAssertLessThanOrEqual(long.title.count, 30)
         XCTAssertTrue(long.body.contains("Знавець гідратації рівня 10"))
+    }
+
+    /// Пасхалка звучить інакше, ніж досягнення, і так само вміщається (SPEC-ACHIEVEMENTS-CATALOG §4.10).
+    func testEggEchoFitsAndSoundsLikeAnEgg() {
+        XCTAssertEqual(EchoText.egg("Пі").title, "🥚 Пасхалка: Пі")
+        let long = EchoText.egg("Вивести на чисту воду")
+        XCTAssertEqual(long.title, "🥚 Пасхалка")
+        XCTAssertTrue(long.body.contains("Вивести на чисту воду"))
+        XCTAssertLessThanOrEqual(long.body.count, 100)
     }
 
     func testVariantIdsAreUniquePerType() {
