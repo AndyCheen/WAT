@@ -9,6 +9,7 @@ import Insights
 struct CustomAmountSheet: View {
     @Environment(\.wtTheme) private var theme
     @Bindable var model: HomeViewModel
+    @FocusState private var typing: Bool
 
     var body: some View {
         WTSheet(onDismiss: { model.dismissSheet() }) {
@@ -21,15 +22,16 @@ struct CustomAmountSheet: View {
                 HStack(spacing: 22) {
                     WTStepperButton("–") { model.stepCustom(-50) }
                     VStack(spacing: 0) {
-                        Text("\(model.customAmount)")
-                            .font(WTFont.number(52, .semibold))
-                            .foregroundStyle(theme.textPrimary)
-                            .accessibilityIdentifier("custom.value")
-                        Text("мл")
+                        amountField
+                        Text(model.customUnitCaption)
                             .font(WTFont.text(15, .bold))
                             .foregroundStyle(theme.textMuted)
+                            .accessibilityIdentifier("custom.unit")
                     }
                     .frame(minWidth: 120)
+                    // Уся колонка — ціль для тапу: саме число вузьке, а «мл» під ним — частина того ж поля.
+                    .contentShape(Rectangle())
+                    .onTapGesture { typing = true }
                     WTStepperButton("+") { model.stepCustom(50) }
                 }
                 .padding(.bottom, 22)
@@ -37,16 +39,46 @@ struct CustomAmountSheet: View {
                 HStack(spacing: 8) {
                     ForEach(Array(model.customChips.enumerated()), id: \.offset) { _, value in
                         WTChip("\(value)", isSelected: model.customAmount == value) {
-                            model.customAmount = value
+                            model.selectCustom(value)
                         }
                     }
                 }
                 .padding(.bottom, 24)
 
-                WTPrimaryButton("Додати") { model.confirmCustom() }
+                WTPrimaryButton("Додати", isEnabled: model.isCustomAmountValid) { model.confirmCustom() }
                     .accessibilityIdentifier("custom.confirm")
             }
         }
+        .onChange(of: typing) { _, now in
+            if now { model.beginCustomTyping() } else { model.endCustomTyping() }
+        }
+        // Степер і чип завершують ввід у моделі — клавіатура ховається слідом.
+        .onChange(of: model.customTyped == nil) { _, ended in
+            if ended { typing = false }
+        }
+    }
+
+    /// Тап по числу — цифрова клавіатура (WAT-50). Набране замінює значення, тож поки нічого не набрано,
+    /// попереднє видно сірим підказом. Підказ — свій текст, а не `prompt`: той бере колір самого поля й виглядав
+    /// би як уже введене число. Прихований він тримає ширину набраного (`customAmount` іде за цифрами), тож
+    /// колонка не стрибає. `fixedSize` — інакше поле розтягнулось би й розсунуло степери до країв.
+    private var amountField: some View {
+        ZStack(alignment: .leading) {
+            Text(verbatim: "\(model.customAmount)")
+                .foregroundStyle(theme.textMuted)
+                .opacity(model.customFieldText.isEmpty ? 1 : 0)
+                .accessibilityHidden(true)
+            TextField("", text: Binding(get: { model.customFieldText }, set: { model.typeCustom($0) }))
+                .foregroundStyle(theme.textPrimary)
+                .multilineTextAlignment(.center)
+                .wtNumberPad()
+                .focused($typing)
+                .tint(theme.accent)
+                .fixedSize()
+                .accessibilityLabel("Скільки води, мл")
+                .accessibilityIdentifier("custom.value")
+        }
+        .font(WTFont.number(52, .semibold))
     }
 }
 
