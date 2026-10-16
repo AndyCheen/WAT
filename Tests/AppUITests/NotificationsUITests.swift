@@ -97,9 +97,9 @@ final class NotificationsUITests: XCTestCase {
     /// Тап по нагадуванню — головний зі шторкою «Інше» на типову порцію (§6.4).
     func testReminderTapOpensCustomAmountWithTypicalPortion() {
         let app = launch(["--uitest-empty", "--notification-tap", "reminder"])
-        let value = app.staticTexts["custom.value"]
+        let value = app.textFields["custom.value"]
         XCTAssertTrue(value.waitForExistence(timeout: 15))
-        XCTAssertEqual(value.label, "250", "без історії P = моя склянка")
+        XCTAssertEqual(value.value as? String, "250", "без історії P = моя склянка")
         XCTAssertTrue(app.staticTexts["Скільки води?"].exists, "звертання без роду (§14.1)")
     }
 
