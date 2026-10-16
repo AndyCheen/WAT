@@ -86,6 +86,8 @@ public struct AchievementSnapshot: Equatable, Identifiable, Sendable {
     public let category: AchievementCategory
     public let value: Double
     public let target: Double
+    /// Штуки чи мілілітри — від правила в каталозі (WAT-52).
+    public let unit: AchievementUnit
     public let isUnlocked: Bool
     public let isSecret: Bool
     public let rewardXp: Int
@@ -108,7 +110,7 @@ public struct AchievementSnapshot: Equatable, Identifiable, Sendable {
 
     public init(
         key: String, title: String, details: String, emoji: String,
-        category: AchievementCategory, value: Double, target: Double,
+        category: AchievementCategory, value: Double, target: Double, unit: AchievementUnit = .count,
         isUnlocked: Bool, isSecret: Bool,
         rewardXp: Int = 0, unlockedAt: Date? = nil, isNew: Bool = false,
         isMasked: Bool = false, isEgg: Bool = false, lockedCaption: String? = nil, note: String? = nil
@@ -120,6 +122,7 @@ public struct AchievementSnapshot: Equatable, Identifiable, Sendable {
         self.category = category
         self.value = value
         self.target = target
+        self.unit = unit
         self.isUnlocked = isUnlocked
         self.isSecret = isSecret
         self.rewardXp = rewardXp
@@ -145,13 +148,64 @@ public struct AchievementSnapshot: Equatable, Identifiable, Sendable {
     /// Чи показувати прогрес: не в відкритого, не в таємного, не в разового й не там, де замість нього підпис.
     public var showsProgress: Bool { !isUnlocked && !isMasked && !isOneStep && lockedCaption == nil }
 
-    /// «5/7» — компактний підпис під смугою плитки.
+    /// «5/7», «950/1000», «3.4/10» — компактний підпис під смугою плитки; одиниця — `unitLabel`.
     public var progressLabel: String {
-        isUnlocked ? "Готово" : "\(Int(min(value, target)))/\(Int(target))"
+        if isUnlocked { return "Готово" }
+        let shown = shownNumbers
+        return "\(shown.value)/\(shown.target)"
     }
 
-    /// «5 / 7» — у картці деталей, де під числом є місце дихати.
-    public var valueLabel: String { "\(Int(min(value, target))) / \(Int(target))" }
+    /// «5 / 7», «3.4 / 10» — у картці деталей, де під числом є місце дихати.
+    public var valueLabel: String {
+        let shown = shownNumbers
+        return "\(shown.value) / \(shown.target)"
+    }
+
+    /// «мл» / «л» після чисел, у штук — `nil`. Окремо від чисел: у картці вони — Fredoka, а в неї
+    /// немає кирилиці (`WTFont`), тож одиниця йде своїм шрифтом.
+    public var unitLabel: String? {
+        switch unit {
+        case .count: return nil
+        case .milliliters: return inLiters ? "л" : "мл"
+        }
+    }
+
+    /// «5 із 7», «3,4 із 10 літрів» — для VoiceOver: «5/7» він читає як «5 слеш 7», а «л» — літерою.
+    public var spokenProgress: String {
+        let shown = shownNumbers
+        let numbers = "\(shown.value) із \(shown.target)".replacingOccurrences(of: ".", with: ",")
+        guard unit == .milliliters else { return numbers }
+        // Слово узгоджується з ціллю — останнім числом фрази: «із 10 літрів», «із 2,5 літра».
+        let goal = inLiters ? target / 1000 : target
+        let word: String
+        if goal.rounded() != goal {
+            word = "літра"
+        } else if inLiters {
+            word = Plural.uk(Int(goal), one: "літр", few: "літри", many: "літрів")
+        } else {
+            word = Plural.uk(Int(goal), one: "мілілітр", few: "мілілітри", many: "мілілітрів")
+        }
+        return "\(numbers) \(word)"
+    }
+
+    // MARK: Об'єм (WAT-52)
+
+    /// Як на кнопках порцій: ціль до 1 л — мілілітри, більша — літри. Одиниця одна на весь підпис:
+    /// поки досягнення закрите, значення менше за ціль, тож «950/1000 мл» не мішає мл і л.
+    private var inLiters: Bool { unit == .milliliters && target > 1000 }
+
+    /// Значення й ціль в одиницях показу — одне округлення на плитку, картку й VoiceOver. Літри — вниз
+    /// до 0.1 л, від 10 л — до цілих: у закритого «9.9/10 л», а не «10/10 л», і без «123.4/250 л»,
+    /// де десяті — шум. Крапка, як на кнопках порцій і кільці («1.05 л»), а не кома зі сповіщень.
+    private var shownNumbers: (value: String, target: String) {
+        let shown = Int(min(value, target))
+        guard inLiters else { return ("\(shown)", "\(Int(target))") }
+        let liters = shown < 10_000 ? Double(shown / 100) / 10 : Double(shown / 1000)
+        return (Self.number(liters), Self.number(target / 1000))
+    }
+
+    /// «3.4», «10», «2.5» — без хвостових нулів.
+    private static func number(_ value: Double) -> String { String(format: "%g", value) }
 }
 
 /// Лічильник екрана 2e: «Відкрито N / M» — лише видимий каталог, а знайдені пасхалки окремо, «🥚 N»,

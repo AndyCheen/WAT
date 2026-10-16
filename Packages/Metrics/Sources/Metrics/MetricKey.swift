@@ -83,4 +83,8 @@ public struct MetricKey: RawRepresentable, Hashable, Codable, Sendable, Expressi
     }
 
     public static let dayParts: [MetricKey] = [partMorning, partNoon, partAfternoon, partEvening, partNight]
+
+    /// Значення цих метрик — мілілітри: прогрес на них показується в мл / л, а не штуками (WAT-52).
+    /// Кількість подій (`aggregate: .count`) лишається штуками й тут.
+    public static let volume: Set<MetricKey> = Set([intakeAdded, intakeRemoved, intakeRestored, dayTotal] + dayParts)
 }

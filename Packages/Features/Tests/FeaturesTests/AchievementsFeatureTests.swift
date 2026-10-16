@@ -176,11 +176,31 @@ final class AchievementsFeatureTests: XCTestCase {
 
         let ladder = model.items.first { $0.key == "volume.10l" }!
         XCTAssertFalse(ladder.isOneStep)
-        XCTAssertEqual(ladder.tileStatus, .progress(fraction: 0, label: ladder.progressLabel))
+        XCTAssertEqual(ladder.tileStatus, .progress(fraction: 0, label: ladder.progressLabel, unit: ladder.unitLabel))
 
         services.hydration.addIntake(amountMl: 200)
         model.reload()
         XCTAssertEqual(model.items.first { $0.key == "first.drop" }?.tileStatus, .unlocked)
+    }
+
+    /// Об'єм — у літрах, як на кнопках порцій (WAT-52): плитка «0.2/10 л», картка «0.2 / 10 л», VoiceOver словами.
+    func testVolumeLadderShowsLitresOnTileCardAndVoiceOver() {
+        services.hydration.addIntake(amountMl: 250)
+        let model = AchievementsViewModel(services: services)
+
+        let bucket = model.items.first { $0.key == "volume.10l" }!
+        XCTAssertEqual(bucket.tileStatus, .progress(fraction: 0.025, label: "0.2/10", unit: "л"))
+        XCTAssertEqual(bucket.detailStatus, .progress(fraction: 0.025, label: "0.2 / 10", unit: "л"))
+        XCTAssertEqual(bucket.progressAccessibilityValue, "Прогрес 0,2 із 10 літрів")
+        XCTAssertEqual(bucket.detailAccessibilityValue, "10 л води загалом. Прогрес 0,2 із 10 літрів. \(bucket.rewardLabel)")
+
+        let gulp = model.items.first { $0.key == "big.gulp" }!
+        XCTAssertEqual(gulp.tileStatus, .progress(fraction: 0.25, label: "250/1000", unit: "мл"), "ціль до 1 л — мл")
+        XCTAssertEqual(gulp.progressAccessibilityValue, "Прогрес 250 із 1000 мілілітрів")
+
+        let portions = model.items.first { $0.key == "portions.10" }!
+        XCTAssertEqual(portions.tileStatus, .progress(fraction: 0.1, label: "1/10"), "штуки — без одиниці")
+        XCTAssertEqual(portions.progressAccessibilityValue, "Прогрес 1 із 10")
     }
 
     func testDisabledFeatureShowsCaptionInsteadOfProgress() {

@@ -31,6 +31,28 @@ public enum AchievementRule: Sendable {
         if case .collection = self { return true }
         return false
     }
+
+    /// Що міряє прогрес — від правила, а не позначкою в рядку каталогу (WAT-52): нова драбина
+    /// на `.history(.countedMl)` дістане літри сама, і забути позначку нема як.
+    var unit: AchievementUnit {
+        switch self {
+        case .history(.countedMl):
+            return .milliliters
+        case .metric(let rule):
+            guard case let .metric(key, _, aggregate) = rule.source, aggregate != .count else { return .count }
+            return MetricKey.volume.contains(key) ? .milliliters : .count
+        case .burst, .level, .history, .game, .collection:
+            return .count
+        }
+    }
+}
+
+/// Одиниця прогресу досягнення — як його підписати на плитці, в картці й для VoiceOver.
+public enum AchievementUnit: Sendable, Equatable {
+    /// Дні, порції, рівні — «5/7».
+    case count
+    /// Об'єм: «950/1000 мл», «3.4/10 л» (`AchievementSnapshot.progressLabel`).
+    case milliliters
 }
 
 public enum GameFact: Sendable, Hashable {
@@ -124,6 +146,7 @@ public struct AchievementDefinition: Sendable, Identifiable {
 
     public var id: String { key }
     public var rewardXp: Int { difficulty.rewardXp(category: category) }
+    public var unit: AchievementUnit { rule.unit }
     public var isSecret: Bool { secrecy != .none }
 
     /// Підказка таємного 🤫 — її показує знімок замість умови, поки не відкрито (§4.9).

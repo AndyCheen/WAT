@@ -411,7 +411,7 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(once.waitForExistence(timeout: 5))
         XCTAssertEqual(once.value as? String, "Ще не відкрито")
         XCTAssertFalse(app.staticTexts["0/1"].exists, "у жодної плитки сітки")
-        XCTAssertEqual(app.buttons["achievements.tile.volume.10l"].value as? String, "Прогрес 0 із 10000")
+        XCTAssertEqual(app.buttons["achievements.tile.volume.10l"].value as? String, "Прогрес 0 із 10 літрів")
 
         once.tap()
         let card = app.otherElements["achievements.detail"]
@@ -419,6 +419,31 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue((card.value as? String)?.hasPrefix("Перший запис води. Ще не відкрито. +") ?? false,
                       card.value as? String ?? "картка без значення")
         XCTAssertFalse(app.staticTexts["0 / 1"].exists, "і в картці — лише нагорода")
+    }
+
+    /// Об'єм — у літрах, як на кнопках порцій (WAT-52): «Відро» після склянки — «0.2/10 л», а не «250/10000».
+    /// Порція — з віджета: так вона доходить і до вже відкритого екрана 2e (`epoch`), без переходів.
+    func testVolumeAchievementShowsLitres() {
+        let app = launch([
+            "--uitest-empty", "--notifications-auth", "notDetermined", "--uitest-now", "2026-10-01T11:25:00+03:00",
+            "--widget-action", "add:250", "--start-screen", "achievements"
+        ])
+        XCTAssertTrue(app.otherElements["achievements.counter"].waitForExistence(timeout: 20))
+
+        selectCategory(app, "water")
+        let bucket = app.buttons["achievements.tile.volume.10l"]
+        XCTAssertTrue(bucket.waitForExistence(timeout: 5))
+        let counted = NSPredicate(format: "value == %@", "Прогрес 0,2 із 10 літрів")
+        wait(for: [expectation(for: counted, evaluatedWith: bucket)], timeout: 10)
+        XCTAssertEqual(app.buttons["achievements.tile.big.gulp"].value as? String,
+                       "Прогрес 250 із 1000 мілілітрів", "ціль до 1 л — мілілітри")
+
+        waitForToastToHide(app)
+        bucket.tap()
+        let card = app.otherElements["achievements.detail"]
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        XCTAssertTrue((card.value as? String)?.hasPrefix("10 л води загалом. Прогрес 0,2 із 10 літрів. +") ?? false,
+                      card.value as? String ?? "картка без значення")
     }
 
     /// Пасхалка: до знахідки її не видно, знахідка — свій тост, а потім «🥚 1» поруч із лічильником і рядок
