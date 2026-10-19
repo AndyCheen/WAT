@@ -53,6 +53,16 @@ final class UnitsTests: XCTestCase {
         XCTAssertEqual(VolumeUnit.usFluidOunces.units(VolumeUnit.usFluidOunces.snapped(300, grid: VolumeGrid(step: 1))), 10)
     }
 
+    /// Об'єм для показу (WAT-58): до 1 л — мілілітри, далі літри без зайвих нулів; в унціях — «унц.».
+    func testLabelSwitchesToLitresFromOneLitre() {
+        XCTAssertEqual(VolumeUnit.milliliters.label(850), "850 мл")
+        XCTAssertEqual(VolumeUnit.milliliters.label(1000), "1 л")
+        XCTAssertEqual(VolumeUnit.milliliters.label(1050), "1.05 л")
+        XCTAssertEqual(VolumeUnit.milliliters.label(1500), "1.5 л")
+        XCTAssertEqual(VolumeUnit.usFluidOunces.label(1000), "34 унц.")
+        XCTAssertEqual(VolumeUnit.usFluidOunces.label(237), "8 унц.")
+    }
+
     func testLitersLabelMatchesMockup() {
         // Макет 1a: «1.25 / 2.0 л»
         XCTAssertEqual(Volume.litersLabel(1250), "1.25")

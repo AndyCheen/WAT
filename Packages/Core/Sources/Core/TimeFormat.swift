@@ -19,6 +19,25 @@ public enum TimeFormat: Int, Codable, CaseIterable, Sendable {
             return String(format: "%d:%02d %@", hour12, minutes % 60, hour < 12 ? "дп" : "пп")
         }
     }
+
+    /// Години блоку без хвилин — «08–12» / «8–11 дп», «11 дп–4 пп» (WAT-58): так у «Рівномірності» й віджеті
+    /// «Ритм дня», де рядок вузький. Пів доби одна — «дп / пп» один раз у кінці; 24:00 — «12 дп», як у `clock`.
+    public func hourRange(_ fromMinute: Int, _ toMinute: Int) -> String {
+        switch self {
+        case .hours24:
+            return String(format: "%02d–%02d", (fromMinute / 60) % 24, (toMinute / 60) % 24)
+        case .hours12:
+            let (from, to) = (Self.hour12(fromMinute), Self.hour12(toMinute))
+            return from.half == to.half
+                ? "\(from.hour)–\(to.hour) \(to.half)"
+                : "\(from.hour) \(from.half)–\(to.hour) \(to.half)"
+        }
+    }
+
+    private static func hour12(_ minute: Int) -> (hour: Int, half: String) {
+        let hour = (minute / 60) % 24
+        return (hour % 12 == 0 ? 12 : hour % 12, hour < 12 ? "дп" : "пп")
+    }
 }
 
 public extension Mass {

@@ -52,6 +52,19 @@ public enum VolumeUnit: Int, Codable, CaseIterable, Sendable {
         isMetric ? metric(ml) : "\(units(ml)) \(Self.ounceSymbol)"
     }
 
+    /// Об'єм так, як його бачить людина (WAT-58): у метричній до 1 л — мілілітри, далі літри з тими знаками,
+    /// що потрібні, — «850 мл», «1 л», «1.05 л», «1.5 л» (як на кнопках порцій, WAT-45); в унціях — «8 унц.».
+    /// Місця з власним метричним форматом («1,05 л» у сповіщенні) кличуть `format(_:metric:)`.
+    public func label(_ ml: Int) -> String {
+        format(ml) { ml in
+            guard ml >= 1000 else { return "\(ml) мл" }
+            var liters = Volume.litersLabel(ml, fractionDigits: 2)
+            while liters.hasSuffix("0") { liters.removeLast() }
+            if liters.hasSuffix(".") { liters.removeLast() }
+            return "\(liters) л"
+        }
+    }
+
     /// Позначення «унц.» уже має крапку: «ще 17 унц.. Почни» — зайва від кінця речення.
     public static func tidy(_ text: String) -> String {
         text.replacingOccurrences(of: ounceSymbol + ".", with: ounceSymbol)
@@ -118,6 +131,22 @@ public enum MassUnit: Int, Codable, CaseIterable, Sendable {
         case .kilograms: return "кг"
         case .pounds: return "lb"
         }
+    }
+}
+
+public extension MassUnit {
+    /// Вага в одиницях людини, ціла (WAT-58).
+    func units(_ kg: Double) -> Int { Mass.display(kg, in: self) }
+
+    /// «70 кг», «154 фунти» — фунти словом: скорочення «фн» в українському тексті майже не трапляється,
+    /// а «lb» — латиниця посеред кирилиці (WAT-56).
+    func word(_ value: Int) -> String {
+        self == .kilograms ? "кг" : Plural.uk(value, one: "фунт", few: "фунти", many: "фунтів")
+    }
+
+    func label(_ kg: Double) -> String {
+        let value = units(kg)
+        return "\(value) \(word(value))"
     }
 }
 
