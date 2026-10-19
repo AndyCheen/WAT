@@ -187,18 +187,12 @@ enum OnboardingPresenter {
         return "\(parts.number) \(parts.unit)"
     }
 
-    static func weightNumber(_ kg: Double, _ unit: MassUnit) -> Int {
-        Mass.display(kg, in: unit)
-    }
+    static func weightNumber(_ kg: Double, _ unit: MassUnit) -> Int { unit.units(kg) }
 
-    static func weightUnit(_ value: Int, _ unit: MassUnit) -> String {
-        unit == .kilograms ? "кг" : Plural.uk(value, one: "фунт", few: "фунти", many: "фунтів")
-    }
+    static func weightUnit(_ value: Int, _ unit: MassUnit) -> String { unit.word(value) }
 
-    static func weight(_ kg: Double, _ unit: MassUnit) -> String {
-        let value = weightNumber(kg, unit)
-        return "\(value) \(weightUnit(value, unit))"
-    }
+    /// «70 кг» / «154 фунти» — той самий формат, що в калькуляторі норми (`MassUnit.label`, WAT-58).
+    static func weight(_ kg: Double, _ unit: MassUnit) -> String { unit.label(kg) }
 
     /// Межі лінійки ваги в одиницях людини.
     static func weightRange(_ unit: MassUnit) -> ClosedRange<Int> {

@@ -122,6 +122,8 @@ public final class HomeViewModel {
     public private(set) var customChips: [Int] = []
     /// Система об'єму (WAT-46); перечитується в `reload()` — зміна в налаштуваннях видна після «назад».
     public private(set) var volumeUnit: VolumeUnit = .milliliters
+    /// Формат годинника людини (WAT-58) — капсула частини доби, вікно «Графік дня».
+    public private(set) var timeFormat: TimeFormat = .hours24
     public private(set) var hasNewAchievements = false
     /// Крапка на кнопці «Знань» (SPEC-LEARN §3.1).
     public private(set) var hasLearnNews = false
@@ -190,6 +192,7 @@ public final class HomeViewModel {
         quickAmounts = services.hydration.quickAddAmounts()
         customChips = services.hydration.quickAddAmounts(.customSheet)
         volumeUnit = services.hydration.volumeUnit
+        timeFormat = services.profile.timeFormat
         hasNewAchievements = services.gamification.hasUnseenAchievements
         hasLearnNews = services.hasLearnNews
         // Вікно закріплене на першому закритому дні, поки їх менше семи, далі ковзає (WAT-11).
@@ -505,7 +508,7 @@ public final class HomeViewModel {
     }
 
     var scheduleContent: SchedulePresenter.Content? {
-        scheduleOffer.map { SchedulePresenter.content($0, draft: scheduleDraft) }
+        scheduleOffer.map { SchedulePresenter.content($0, draft: scheduleDraft, format: services.profile.timeFormat) }
     }
 
     /// «Налаштувати» — кроки часу прямо у вікні, без переходу в налаштування.
@@ -531,7 +534,7 @@ public final class HomeViewModel {
         let unlocked = services.gamification.takeRecentUnlocks()
         dismissSheet()
         withAnimation(WTAnimation.fade) { reload() }
-        showToast(HomeToast(message: SchedulePresenter.toast(offer, schedule: schedule)))
+        showToast(HomeToast(message: SchedulePresenter.toast(offer, schedule: schedule, format: services.profile.timeFormat)))
         // Таємне «Свій ритм» — наступним тостом: новий графік важливіший, і два тости разом не читаються.
         queuedToast = Self.achievementToast(unlocked.achievements)
     }
@@ -639,8 +642,10 @@ public final class HomeViewModel {
         let progress = dayCurve?.dayPartProgress(atMinute: services.calendar.minuteOfDay(now), portions: dayPortions)
         // XP — як нарахує `GamificationService`: серія на ціль частини не множить, буст — так.
         let xp = Int(Double(services.gamification.xp.rules.perDayPartGoal) * services.gamification.xp.boostMultiplier(at: now))
-        return DayPartPresenter.line(progress, goalMet: day.goalMet, xp: xp, unit: volumeUnit)
+        return DayPartPresenter.line(progress, goalMet: day.goalMet, xp: xp, unit: volumeUnit, format: timeFormat)
     }
+
+    func clock(_ minutes: Int) -> String { timeFormat.clock(minutes) }
 
     /// Пояснення до стелі 120 %: без нього незрозуміло, чому відсоток перестав рости.
     public var cappedNote: String? {

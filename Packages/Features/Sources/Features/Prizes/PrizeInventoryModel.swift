@@ -85,7 +85,8 @@ public final class PrizeInventoryModel {
     }
 
     var presenter: PrizePresenter {
-        PrizePresenter(calendar: services.calendar, boostExpiry: services.gamification.boostExpiry(activatedAt:))
+        PrizePresenter(calendar: services.calendar, boostExpiry: services.gamification.boostExpiry(activatedAt:),
+                       timeFormat: services.profile.timeFormat)
     }
 
     // MARK: - Картка

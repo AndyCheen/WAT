@@ -83,7 +83,7 @@ public struct StatsScreen: View {
 
                 VStack(spacing: 14) {
                     ForEach(report.rows) { row in
-                        WTEvennessRowView(label: row.label, hours: row.hoursLabel, fraction: row.fraction) {
+                        WTEvennessRowView(label: row.label, hours: row.hoursLabel(model.timeFormat), fraction: row.fraction) {
                             evennessValue(row, rhythm: report.dayRhythmEnabled)
                         }
                     }

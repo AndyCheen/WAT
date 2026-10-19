@@ -40,6 +40,13 @@ public enum TimeFormat: Int, Codable, CaseIterable, Sendable {
     }
 }
 
+public extension DaySchedule {
+    /// «06:30–22:00» / «6:30 дп–10:00 пп» — розклад у форматі людини (WAT-58).
+    func label(_ format: TimeFormat) -> String {
+        "\(format.clock(wakeMinutes))–\(format.clock(sleepMinutes))"
+    }
+}
+
 public extension Mass {
     /// Кілограми з цілого значення в одиницях людини — зворотне до `display(_:in:)`. Не округлюється:
     /// інакше 154 фунти після збереження й читання ставали б 155.

@@ -180,10 +180,10 @@ struct TextComposer {
         return options.first { $0.count <= Self.bodyLimit } ?? body
     }
 
-    /// «12:00» — дедлайн чекпоінта.
+    /// «12:00» / «12:00 пп» — дедлайн чекпоінта у форматі людини (WAT-58).
     private func clockLabel(_ date: Date) -> String {
         let parts = builder.service.calendar.dateComponents([.hour, .minute], from: date)
-        return String(format: "%02d:%02d", parts.hour ?? 0, parts.minute ?? 0)
+        return builder.preferences.timeFormat.clock((parts.hour ?? 0) * 60 + (parts.minute ?? 0))
     }
 
     private func clockSlot(_ date: Date) -> String {

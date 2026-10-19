@@ -17,11 +17,9 @@ public struct EvennessRow: Equatable, Identifiable, Sendable {
     public var id: Int { fromMinute }
     /// Злитий блок «ранок і полудень» 08–12 — «Ранок»: години поруч кажуть решту.
     public var label: String { parts[0].title }
-    /// «08–12» — як у віджеті «Ритм дня».
-    public var hoursLabel: String { "\(Self.hour(fromMinute))–\(Self.hour(toMinute))" }
+    /// «08–12» / «8–12 пп» — як у віджеті «Ритм дня», у форматі людини (WAT-58).
+    public func hoursLabel(_ format: TimeFormat = .hours24) -> String { format.hourRange(fromMinute, toMinute) }
     public var isReached: Bool { targetMl > 0 && ml >= targetMl }
-
-    private static func hour(_ minute: Int) -> String { String(format: "%02d", (minute / 60) % 24) }
 }
 
 /// Випите в частині доби — стовпчики «Деталей дня». Тут лишаються 5 частин: це розподіл, а не оцінка.

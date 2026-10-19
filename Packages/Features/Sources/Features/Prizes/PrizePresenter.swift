@@ -21,6 +21,8 @@ struct PrizePresenter {
     let calendar: CalendarService
     /// Кінець буста, увімкненого в цю мить, — `GamificationService.boostExpiry(activatedAt:)`.
     let boostExpiry: (Date) -> Date
+    /// «діє до 00:00» / «діє до 12:00 дп» — формат годинника людини (WAT-58).
+    var timeFormat: TimeFormat = .hours24
 
     /// «⚡×2» / «🌟×3» на індикаторі рівня, поки діє буст.
     static func boostBadge(_ prize: RewardSnapshot) -> String {
@@ -167,9 +169,8 @@ struct PrizePresenter {
 
     /// «00:00» у локальному часовому поясі застосунку.
     func clockTime(_ date: Date?) -> String {
-        guard let date else { return "00:00" }
-        let parts = calendar.calendar.dateComponents([.hour, .minute], from: date)
-        return String(format: "%02d:%02d", parts.hour ?? 0, parts.minute ?? 0)
+        guard let date else { return timeFormat.clock(0) }
+        return timeFormat.clock(calendar.minuteOfDay(date))
     }
 
     /// Хвилини округлюються вгору: за 30 с до кінця показуємо «0:01», а не «0:00», яке

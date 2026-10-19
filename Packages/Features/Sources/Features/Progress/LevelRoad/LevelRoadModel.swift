@@ -140,7 +140,7 @@ public final class LevelRoadModel {
 
     var guideRows: [WTXPGuideRow] {
         LevelRoadPresenter.guideRows(rules: services.gamification.xp.rules, dayRhythm: services.profile.dayRhythmEnabled,
-                                     unit: services.profile.volumeUnit)
+                                     unit: services.profile.volumeUnit, format: services.profile.timeFormat)
     }
 
     func setGuide(_ shown: Bool) {

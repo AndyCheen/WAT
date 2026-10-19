@@ -43,7 +43,9 @@ extension AppServices {
             level: gamification.levelProgress().level,
             rules: gamification.xp.rules,
             presets: hydration.quickAddAmounts(),
-            dailyCap: NotificationRules().dailyCap
+            dailyCap: NotificationRules().dailyCap,
+            volumeUnit: profile.volumeUnit,
+            timeFormat: profile.timeFormat
         )
     }
 }

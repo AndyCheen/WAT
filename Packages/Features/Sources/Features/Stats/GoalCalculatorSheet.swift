@@ -27,7 +27,7 @@ struct GoalCalculatorSheet: View {
                 WTSectionLabel("ВАГА").padding(.bottom, 10)
                 HStack(spacing: 20) {
                     WTStepperButton("−", size: 36) { model.stepWeight(-1) }
-                    Text("\(Int(model.weightKg)) кг")
+                    Text(model.weightLabel)
                         .font(WTFont.display(24, .bold))
                         .foregroundStyle(theme.textPrimary)
                         .frame(minWidth: 70)

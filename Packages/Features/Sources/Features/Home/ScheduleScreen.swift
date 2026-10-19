@@ -77,10 +77,10 @@ struct ScheduleScreen: View {
     private func times(_ content: SchedulePresenter.Content) -> some View {
         if model.scheduleAdjusting {
             VStack(spacing: 14) {
-                WTTimeStepper(glyph: SchedulePresenter.wakeGlyph, value: DaySchedule.clock(model.scheduleDraft.wakeMinutes),
+                WTTimeStepper(glyph: SchedulePresenter.wakeGlyph, value: model.clock(model.scheduleDraft.wakeMinutes),
                               title: "Підйом", identifier: "schedule.wake",
                               onDecrement: { model.stepScheduleWake(-1) }, onIncrement: { model.stepScheduleWake(1) })
-                WTTimeStepper(glyph: SchedulePresenter.sleepGlyph, value: DaySchedule.clock(model.scheduleDraft.sleepMinutes),
+                WTTimeStepper(glyph: SchedulePresenter.sleepGlyph, value: model.clock(model.scheduleDraft.sleepMinutes),
                               title: "Відбій", identifier: "schedule.sleep",
                               onDecrement: { model.stepScheduleSleep(-1) }, onIncrement: { model.stepScheduleSleep(1) })
             }

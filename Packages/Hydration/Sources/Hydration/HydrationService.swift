@@ -44,13 +44,15 @@ public final class HydrationService {
     /// добрав, серія починалася б з порожньої крапки.
     public func firstGoalMetDay() -> DayKey? { dayLogs.firstGoalMetDayKey() }
 
+    /// Час порції — у форматі людини (WAT-58): «07:30» / «7:30 дп».
     public func intakes(for day: DayKey) -> [IntakeSnapshot] {
-        dayLogs.activeIntakes(for: day).map { intake in
+        let format = profile.timeFormat
+        return dayLogs.activeIntakes(for: day).map { intake in
             IntakeSnapshot(
                 id: intake.id,
                 amountMl: intake.amountMl,
                 createdAt: intake.createdAt,
-                timeLabel: Self.timeFormatter(calendar).string(from: intake.createdAt)
+                timeLabel: format.clock(calendar.minuteOfDay(intake.createdAt))
             )
         }
     }
@@ -334,11 +336,4 @@ public final class HydrationService {
         )
     }
 
-    private static func timeFormatter(_ calendar: CalendarService) -> DateFormatter {
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm"
-        f.timeZone = calendar.calendar.timeZone
-        f.locale = Locale(identifier: "uk_UA")
-        return f
-    }
 }

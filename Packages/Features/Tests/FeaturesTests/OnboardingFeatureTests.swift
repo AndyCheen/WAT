@@ -277,6 +277,8 @@ final class OnboardingFeatureTests: XCTestCase {
         XCTAssertEqual(services.profile.volumeUnit, .usFluidOunces)
         XCTAssertEqual(services.profile.massUnit, .pounds)
         XCTAssertEqual(services.profile.timeFormat, .hours12)
+        // Через `HydrationService.setVolumeUnit` (WAT-58): типові кнопки стають типовими унцій, а не «7 унц.».
+        XCTAssertEqual(services.hydration.quickAddAmounts(), PresetPlace.home.defaults(for: .usFluidOunces))
     }
 
     // MARK: - Нагадування (§3.1)

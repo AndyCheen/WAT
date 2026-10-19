@@ -75,6 +75,9 @@ public final class StatsViewModel {
 
     /// Система об'єму людини (WAT-46).
     public var volumeUnit: VolumeUnit { services.profile.volumeUnit }
+    public var massUnit: MassUnit { services.profile.massUnit }
+    /// Години блоків «Рівномірності» — у форматі людини (WAT-58).
+    public var timeFormat: TimeFormat { services.profile.timeFormat }
 
     // MARK: - Дії
 
@@ -95,9 +98,15 @@ public final class StatsViewModel {
         if let selectedDay, selectedDay < services.calendar.today { services.record(.pastDayOpened) }
     }
 
-    public func stepWeight(_ delta: Double) {
-        weightKg = max(35, min(160, weightKg + delta))
+    /// Крок — одиниця людини: кілограм чи фунт. Від показаного числа, а не від кілограмів: інакше
+    /// «154 фунти» − 1 могли б знову показати 154 (WAT-58). Межі — 35…160 кг, як і були.
+    public func stepWeight(_ delta: Int) {
+        let shown = massUnit.units(weightKg) + delta
+        weightKg = max(35, min(160, Mass.kilograms(shown, from: massUnit)))
     }
+
+    /// «70 кг» / «154 фунти».
+    public var weightLabel: String { massUnit.label(weightKg) }
 
     public var calculatedGoal: Int {
         services.hydration.calculateGoal(

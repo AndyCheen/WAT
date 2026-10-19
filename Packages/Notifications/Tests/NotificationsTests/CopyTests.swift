@@ -14,13 +14,14 @@ final class CopyCatalogTests: XCTestCase {
 
     /// Найгірші значення плейсхолдерів — найдовші рядки, які реально можуть з'явитися.
     private func worstCase(_ text: String, ounces: Bool = false) -> String {
-        // В унціях (WAT-46) — норма до 5 л: «170 унц.», склянка до 500 мл: «18 унц.».
+        // В унціях (WAT-46) — норма до 5 л: «170 унц.», склянка до 500 мл: «18 унц.». Разом з унціями — найдовший
+        // годинник 12-годинного формату «12:00 пп» (WAT-58): обидва — «американська» система, і довші обидва.
         text.replacingOccurrences(of: "{left}", with: ounces ? "170 унц." : "1,95 л")
             .replacingOccurrences(of: "{glass}", with: ounces ? "18 унц." : "500 мл")
             .replacingOccurrences(of: "{streak}", with: Plural.days(365))
             .replacingOccurrences(of: "{since}", with: "11 год 55 хв")
             .replacingOccurrences(of: "{total}", with: ounces ? "170 унц." : "1,95 л")
-            .replacingOccurrences(of: "{deadline}", with: "12:00")
+            .replacingOccurrences(of: "{deadline}", with: ounces ? "12:00 пп" : "12:00")
             .replacingOccurrences(of: "{part}", with: "полудень")
             .replacingOccurrences(of: "{xp}", with: "20")
             .replacingOccurrences(of: "{goalDays}", with: "7")

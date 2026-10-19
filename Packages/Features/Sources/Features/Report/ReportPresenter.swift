@@ -75,6 +75,8 @@ struct ReportPresenter {
     let calendar: CalendarService
     /// Система об'єму людини (WAT-46); у мілілітрах звіт — як був.
     var unit: VolumeUnit = .milliliters
+    /// Формат годинника людини (WAT-58): шкала дня, межі блоків, «перша — о …».
+    var timeFormat: TimeFormat = .hours24
 
     // MARK: - Шапка й навігація
 
@@ -221,13 +223,13 @@ struct ReportPresenter {
         // Порції до підйому й після відбою — на краях шкали: вони зараховані першій і останній
         // частині (WAT-39), і зникнути зі шкали, яка показує ✓ за них, не можуть.
         let drops = report.portions.map { position($0.minute) }
-        var ticks = [(position: 0.0, label: ReportFormat.clock(schedule.wakeMinutes))]
-        ticks += report.blocks.dropLast().map { (position($0.toMinute), ReportFormat.clock($0.toMinute)) }
-        ticks.append((1, ReportFormat.clock(schedule.sleepMinutes)))
+        var ticks = [(position: 0.0, label: ReportFormat.clock(schedule.wakeMinutes, timeFormat))]
+        ticks += report.blocks.dropLast().map { (position($0.toMinute), ReportFormat.clock($0.toMinute, timeFormat)) }
+        ticks.append((1, ReportFormat.clock(schedule.sleepMinutes, timeFormat)))
 
         let rows = report.blocks.map { block in
             ReportSlide.GoalRow(reached: block.isReached,
-                                title: "\(ReportFormat.clock(block.fromMinute))–\(ReportFormat.clock(block.toMinute))",
+                                title: "\(ReportFormat.clock(block.fromMinute, timeFormat))–\(ReportFormat.clock(block.toMinute, timeFormat))",
                                 value: "\(unit.units(block.drunkMl ?? 0)) / \(unit.units(block.targetMl)) \(unit.symbol)")
         }
         let portions = report.days.first?.entries ?? report.portions.count
@@ -250,13 +252,13 @@ struct ReportPresenter {
     private var dayPortions: ReportSlide {
         let portions = report.portions
         let count = report.days.first?.entries ?? portions.count
-        let ticks = [(position: 0.0, label: ReportFormat.clock(schedule.wakeMinutes)),
-                     (position: 1.0, label: ReportFormat.clock(schedule.sleepMinutes))]
+        let ticks = [(position: 0.0, label: ReportFormat.clock(schedule.wakeMinutes, timeFormat)),
+                     (position: 1.0, label: ReportFormat.clock(schedule.sleepMinutes, timeFormat))]
         var foot: String?
         if let first = portions.first, let last = portions.last {
             foot = portions.count == 1
-                ? "О \(ReportFormat.clock(first.minute))."
-                : "Перша — о \(ReportFormat.clock(first.minute)), остання — о \(ReportFormat.clock(last.minute)). "
+                ? "О \(ReportFormat.clock(first.minute, timeFormat))."
+                : "Перша — о \(ReportFormat.clock(first.minute, timeFormat)), остання — о \(ReportFormat.clock(last.minute, timeFormat)). "
                     + "У середньому \(ReportFormat.volume(report.totalMl / portions.count, unit)) за раз."
         }
         return .timeline(kicker: "Випито за день",
@@ -396,7 +398,7 @@ struct ReportPresenter {
             }
         }
         return .rhythm(kicker: kicker, title: title, segments: segments, markIndex: markIndex,
-                       start: ReportFormat.clock(schedule.wakeMinutes), end: ReportFormat.clock(schedule.sleepMinutes),
+                       start: ReportFormat.clock(schedule.wakeMinutes, timeFormat), end: ReportFormat.clock(schedule.sleepMinutes, timeFormat),
                        legend: legend, foot: foot)
     }
 
@@ -455,7 +457,7 @@ struct ReportPresenter {
         switch report.thought {
         case .weakPart(let weak):
             headline = "\(weak.title.capitalizedFirst) — найслабше місце: у середньому \(ReportFormat.percent(weak.median)) % від потрібного"
-            detail = "Одна склянка до \(ReportFormat.clock(weak.toMinute)) — і \(weak.title) закрито."
+            detail = "Одна склянка до \(ReportFormat.clock(weak.toMinute, timeFormat)) — і \(weak.title) закрито."
         case .improvement(let percent):
             headline = "На \(percent) % більше води, ніж \(previousPeriodPhrase)"
             detail = "Новий ритм уже працює."
@@ -536,7 +538,8 @@ enum ReportFormat {
 
     static func percent(_ ratio: Double) -> Int { Int((ratio * 100).rounded()) }
 
-    static func clock(_ minutes: Int) -> String { String(format: "%02d:%02d", minutes / 60 % 24, minutes % 60) }
+    /// Відбій опівночі — «00:00» / «12:00 дп» (WAT-58).
+    static func clock(_ minutes: Int, _ format: TimeFormat = .hours24) -> String { format.clock(minutes % (24 * 60)) }
 
     /// «днів» або з числом — «12 днів».
     static func daysWord(_ n: Int, withNumber: Bool = false) -> String {

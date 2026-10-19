@@ -41,6 +41,16 @@ final class CheckpointTests: XCTestCase {
         XCTAssertTrue(text.contains("12:00"), text)
     }
 
+    /// 12-годинний формат (WAT-58): дедлайн — «12:00 пп», як на годиннику людини; ідентифікатор не змінюється.
+    func testCheckpointDeadlineInTwelveHourFormat() {
+        var preferences = NotificationPreferences.default
+        preferences.timeFormat = .hours12
+        let checkpoint = checkpoints(oneMorningGlass, preferences).first
+        XCTAssertEqual(checkpoint?.id, "wt.checkpoint.2026-10-01.noon")
+        let text = (checkpoint?.title ?? "") + " " + (checkpoint?.body ?? "")
+        XCTAssertTrue(text.contains("12:00 пп"), text)
+    }
+
     // MARK: - Умови §9
 
     /// «На темпі» з §6.1 (склянка кожні 1 год 45 хв): ранкову частину закриває сам, а в «дні»

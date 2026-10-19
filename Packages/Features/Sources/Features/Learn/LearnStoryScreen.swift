@@ -1,4 +1,5 @@
 import SwiftUI
+import Core
 import DesignSystem
 
 /// Історія «Знань» — повноекранні слайди з тапом, як звіт-історія (SPEC-LEARN §5; макет Design/Learn.html,
@@ -336,14 +337,17 @@ public struct LearnStoryScreen: View {
                 "Твої якорі: \(picked.joined(separator: " і ")). Постав склянку поруч."
             }
         case let .miniHome(goal, buttons):
-            WTLearnMiniHome(goal: goal, buttons: buttons.prefix(3).map { (HomeScreen.amountTitle($0), $0) },
-                            volume: { ReportFormat.volume($0) })
+            WTLearnMiniHome(goal: goal, buttons: buttons.prefix(3).map { (HomeScreen.amountTitle($0, unit), $0) },
+                            volume: { ReportFormat.volume($0, unit) })
         case let .factors(base, label, factors):
             WTLearnFactors(base: Double(base), baseLabel: label, factors: factors,
-                           format: { ReportFormat.volume(Int($0)) })
+                           format: { ReportFormat.volume(Int($0), unit) })
         case nil: EmptyView()
         }
     }
+
+    /// Живі об'єми слайдів — у системі людини (WAT-58), як і решта екранів.
+    private var unit: VolumeUnit { model.services.profile.volumeUnit }
 
     // MARK: - Будівельні блоки
 
