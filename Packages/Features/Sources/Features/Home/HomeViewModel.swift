@@ -121,6 +121,8 @@ public final class HomeViewModel {
     /// Підказки шторки «Інше» — свої, з екрана «Кнопки порцій» (WAT-45).
     public private(set) var customChips: [Int] = []
     public private(set) var hasNewAchievements = false
+    /// Крапка на кнопці «Знань» (SPEC-LEARN §3.1).
+    public private(set) var hasLearnNews = false
 
     /// Крива темпу й порції сьогодні — для капсули частини доби (WAT-40). Сам стан рахується
     /// на кожну хвилину в `dayPartLine()`: час іде без дії користувача, а таймера в моделі немає.
@@ -186,6 +188,7 @@ public final class HomeViewModel {
         quickAmounts = services.hydration.quickAddAmounts()
         customChips = services.hydration.quickAddAmounts(.customSheet)
         hasNewAchievements = services.gamification.hasUnseenAchievements
+        hasLearnNews = services.hasLearnNews
         // Вікно закріплене на першому закритому дні, поки їх менше семи, далі ковзає (WAT-11).
         weekDots = services.calendar
             .slidingWindow(7, anchor: services.hydration.firstGoalMetDay())

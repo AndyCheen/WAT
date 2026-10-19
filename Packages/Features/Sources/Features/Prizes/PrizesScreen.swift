@@ -13,11 +13,14 @@ public struct PrizesScreen: View {
     /// Картка, яку відкрити одразу — один раз, а не на кожне повернення на екран.
     @State private var focusKey: String?
     private let onBack: () -> Void
+    private let onOpenLearn: (String) -> Void
 
-    public init(services: AppServices, onBack: @escaping () -> Void, focusKey: String? = nil) {
+    public init(services: AppServices, onBack: @escaping () -> Void, focusKey: String? = nil,
+                onOpenLearn: @escaping (String) -> Void = { _ in }) {
         _model = State(initialValue: PrizeInventoryModel(services: services))
         _focusKey = State(initialValue: focusKey)
         self.onBack = onBack
+        self.onOpenLearn = onOpenLearn
     }
 
     public var body: some View {
@@ -35,6 +38,9 @@ public struct PrizesScreen: View {
                         activeSection
                         readySection
                     }
+                    // Контекстний вхід у «Знання» (SPEC-LEARN §3.2).
+                    WTLearnLink("Як працюють призи", identifier: "prizes.learn") { onOpenLearn("app.prizes") }
+                        .padding(.top, 24)
                 }
                 .wtScreenTopPadding()
                 .padding(.horizontal, WTSpacing.screenSide)

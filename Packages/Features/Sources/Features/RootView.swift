@@ -25,6 +25,18 @@ public enum AppRoute: Hashable {
     case report([ReportPeriod])
     /// DEBUG: усі віджети в системних розмірах — для e2e й перевірки без домашнього екрана (WAT-30).
     case widgetGallery
+    /// «Знання» — бібліотека історій (SPEC-LEARN §3).
+    case learn
+    /// Одна історія — з бібліотеки чи контекстного входу; `slide` — `--start-screen learn:<id>:<слайд>`.
+    case learnStory(String, slide: Int? = nil)
+
+    /// Бібліотека й історії — щоб кнопка «Що з цим робити» прибирала їх зі стека (`RootView.navigate`).
+    var isLearn: Bool {
+        switch self {
+        case .learn, .learnStory: return true
+        default: return false
+        }
+    }
 }
 
 /// Кореневий екран: стек навігації 1a → 3f → 2e, 1a → 3f → «Призи», 1a → 4a (PLAN.md §8).
@@ -53,6 +65,7 @@ public struct RootView: View {
                     onOpenStats: { path.append(.stats) },
                     onOpenAchievements: { path.append(.achievements) },
                     onOpenPrize: { path.append(.prizeCard($0)) },
+                    onOpenLearn: { path.append($0.map { .learnStory($0) } ?? .learn) },
                     isOnTop: { path.isEmpty }
                 )
                 .wtHideNavigationBar()
@@ -109,6 +122,7 @@ public struct RootView: View {
         case .portionButtons?: return .portionButtons
         case .notifications?: return .notifications
         case .report?: return .report
+        case .learn?, .learnStory?: return .learn
         case .notificationPlan?, .widgetGallery?: return nil
         }
     }
@@ -122,16 +136,18 @@ public struct RootView: View {
                 opensLevelRoad: route == .levelRoad,
                 onBack: { path.removeLast() },
                 onOpenAllAchievements: { path.append(.achievements) },
-                onOpenAllPrizes: { path.append(.prizes) }
+                onOpenAllPrizes: { path.append(.prizes) },
+                onOpenLearn: { path.append(.learnStory($0)) }
             )
         case .achievements:
             AchievementsScreen(services: services, onBack: { path.removeLast() })
         case .prizes:
-            PrizesScreen(services: services, onBack: { path.removeLast() })
+            PrizesScreen(services: services, onBack: { path.removeLast() }, onOpenLearn: { path.append(.learnStory($0)) })
         case .stats:
             StatsScreen(services: services, onBack: { path.removeLast() })
         case .prizeCard(let key):
-            PrizesScreen(services: services, onBack: { path.removeLast() }, focusKey: key)
+            PrizesScreen(services: services, onBack: { path.removeLast() }, focusKey: key,
+                         onOpenLearn: { path.append(.learnStory($0)) })
         case .settings:
             SettingsScreen(
                 services: services,
@@ -139,7 +155,8 @@ public struct RootView: View {
                 hapticsEnabled: $hapticsEnabled,
                 onBack: { path.removeLast() },
                 onOpenNotifications: { path.append(.notifications) },
-                onOpenPortionButtons: { path.append(.portionButtons) }
+                onOpenPortionButtons: { path.append(.portionButtons) },
+                onOpenLearn: { path.append(.learnStory($0)) }
             )
         case .portionButtons:
             PortionButtonsScreen(services: services, onBack: { path.removeLast() })
@@ -155,6 +172,36 @@ public struct RootView: View {
             ReportScreen(services: services, periods: periods, onClose: { path.removeLast() })
         case .widgetGallery:
             WidgetGalleryScreen(services: services, onBack: { path.removeLast() })
+        case .learn:
+            LearnScreen(services: services, onBack: { path.removeLast() }, onOpen: { path.append(.learnStory($0)) })
+        case let .learnStory(id, slide):
+            LearnStoryScreen(services: services, storyId: id, startSlide: slide, onClose: { path.removeLast() },
+                             onNavigate: navigate)
         }
+    }
+
+    /// «Що з цим робити» в історії «Знань»: історія дочитана, тож «назад» з екрана дії веде не в неї, а туди,
+    /// звідки людина прийшла в «Знання».
+    private func navigate(_ destination: LearnDestination) {
+        while path.last?.isLearn == true { path.removeLast() }
+        let route: AppRoute?
+        switch destination {
+        case .home:
+            path = []
+            route = nil
+        case .customAmount:
+            path = []
+            services.router.open(.customAmount(ml: services.hydration.customAmountStart()))
+            route = nil
+        case .stats: route = .stats
+        case .settings: route = .settings
+        case .portionButtons: route = .portionButtons
+        case .notifications: route = .notifications
+        case .levelRoad: route = .levelRoad
+        case .prizes: route = .prizes
+        case .story(let id): route = .learnStory(id)
+        }
+        // Прийшли зі «Шляху рівнів» чи «Призів» — повернутися туди, а не відкрити вдруге.
+        if let route, path.last != route { path.append(route) }
     }
 }

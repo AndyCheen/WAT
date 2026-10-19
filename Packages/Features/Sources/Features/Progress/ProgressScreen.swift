@@ -10,6 +10,7 @@ public struct ProgressScreen: View {
     private let onBack: () -> Void
     private let onOpenAllAchievements: () -> Void
     private let onOpenAllPrizes: () -> Void
+    private let onOpenLearn: (String) -> Void
 
     /// - Parameter opensLevelRoad: одразу з вікном «Шлях рівнів» — тост рівня з вибором чи 🎁 і
     ///   `--start-screen level-road`.
@@ -18,12 +19,14 @@ public struct ProgressScreen: View {
         opensLevelRoad: Bool = false,
         onBack: @escaping () -> Void,
         onOpenAllAchievements: @escaping () -> Void,
-        onOpenAllPrizes: @escaping () -> Void
+        onOpenAllPrizes: @escaping () -> Void,
+        onOpenLearn: @escaping (String) -> Void = { _ in }
     ) {
         _model = State(initialValue: ProgressViewModel(services: services, opensLevelRoad: opensLevelRoad))
         self.onBack = onBack
         self.onOpenAllAchievements = onOpenAllAchievements
         self.onOpenAllPrizes = onOpenAllPrizes
+        self.onOpenLearn = onOpenLearn
     }
 
     public var body: some View {
@@ -57,7 +60,7 @@ public struct ProgressScreen: View {
 
             // «Шлях рівнів» — вікно на весь екран, а не шторка: виїжджає знизу цілком (SPEC-PRIZES §16.5).
             if model.showLevelRoad, let road = model.levelRoad {
-                LevelRoadScreen(model: road, onClose: { model.closeLevelRoad() })
+                LevelRoadScreen(model: road, onClose: { model.closeLevelRoad() }, onOpenLearn: onOpenLearn)
                     .zIndex(11)
                     .transition(.move(edge: .bottom))
             }

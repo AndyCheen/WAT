@@ -13,6 +13,7 @@ public struct SettingsScreen: View {
     @Binding private var hapticsEnabled: Bool
     private let onBack: () -> Void
     private let onOpenNotifications: () -> Void
+    private let onOpenLearn: (String) -> Void
     private let onOpenPortionButtons: () -> Void
 
     public init(
@@ -21,7 +22,8 @@ public struct SettingsScreen: View {
         hapticsEnabled: Binding<Bool>,
         onBack: @escaping () -> Void,
         onOpenNotifications: @escaping () -> Void,
-        onOpenPortionButtons: @escaping () -> Void
+        onOpenPortionButtons: @escaping () -> Void,
+        onOpenLearn: @escaping (String) -> Void = { _ in }
     ) {
         _model = State(initialValue: SettingsModel(services: services))
         _themeMode = themeMode
@@ -29,6 +31,7 @@ public struct SettingsScreen: View {
         self.onBack = onBack
         self.onOpenNotifications = onOpenNotifications
         self.onOpenPortionButtons = onOpenPortionButtons
+        self.onOpenLearn = onOpenLearn
     }
 
     public var body: some View {
@@ -98,6 +101,10 @@ public struct SettingsScreen: View {
             WTSettingRow("Темна тема") {
                 WTToggle(isOn: isDark).accessibilityIdentifier("settings.theme")
             }
+            WTDivider()
+            // Контекстний вхід у «Знання» (SPEC-LEARN §3.2) — історія «Перші кроки».
+            WTNavigationRow("Як користуватися", action: { onOpenLearn("app.start") })
+                .accessibilityIdentifier("settings.learn")
         }
     }
 

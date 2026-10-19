@@ -13,6 +13,8 @@ struct LevelRoadScreen: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let model: LevelRoadModel
     let onClose: () -> Void
+    /// Історія «XP і рівні» — з довідника «Звідки XP» (SPEC-LEARN §3.2).
+    var onOpenLearn: (String) -> Void = { _ in }
 
     var body: some View {
         ZStack {
@@ -27,7 +29,8 @@ struct LevelRoadScreen: View {
             if model.showsGuide {
                 WTXPGuide(
                     title: LevelRoadPresenter.guideTitle, rows: model.guideRows,
-                    footnote: LevelRoadPresenter.guideFootnote, onClose: { model.setGuide(false) }
+                    footnote: LevelRoadPresenter.guideFootnote, onClose: { model.setGuide(false) },
+                    onMore: { model.setGuide(false); onOpenLearn("app.xp") }
                 )
                 .zIndex(3)
             }

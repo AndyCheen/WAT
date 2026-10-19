@@ -14,6 +14,8 @@ public struct HomeScreen: View {
     private let onOpenStats: () -> Void
     private let onOpenAchievements: () -> Void
     private let onOpenPrize: (String) -> Void
+    /// `nil` — бібліотека «Знань», інакше одразу історія (контекстний вхід з календаря серії).
+    private let onOpenLearn: (String?) -> Void
     /// Головний — верхній екран стека. Пропозиція графіка не з'являється під іншим екраном (WAT-41).
     private let isOnTop: () -> Bool
 
@@ -25,6 +27,7 @@ public struct HomeScreen: View {
         onOpenStats: @escaping () -> Void,
         onOpenAchievements: @escaping () -> Void,
         onOpenPrize: @escaping (String) -> Void = { _ in },
+        onOpenLearn: @escaping (String?) -> Void = { _ in },
         isOnTop: @escaping () -> Bool = { true }
     ) {
         self.services = services
@@ -35,6 +38,7 @@ public struct HomeScreen: View {
         self.onOpenStats = onOpenStats
         self.onOpenAchievements = onOpenAchievements
         self.onOpenPrize = onOpenPrize
+        self.onOpenLearn = onOpenLearn
         self.isOnTop = isOnTop
     }
 
@@ -106,6 +110,17 @@ public struct HomeScreen: View {
                 WTIcons.gear(color: theme.accent)
             }
             .accessibilityIdentifier("home.settings")
+
+            // «Знання» (SPEC-LEARN §3.1): крапка — до першого відкриття й для історій з оновлення.
+            WTCircleButton(size: 42, action: { onOpenLearn(nil) }) {
+                WTIcons.book(color: theme.accent)
+            }
+            .overlay(alignment: .topTrailing) {
+                if model.hasLearnNews { WTNewDot().offset(x: 1, y: -1) }
+            }
+            .accessibilityLabel("Знання")
+            .accessibilityValue(model.hasLearnNews ? "є нове" : "")
+            .accessibilityIdentifier("home.learn")
 
             Spacer()
 
@@ -329,7 +344,7 @@ public struct HomeScreen: View {
                 case .custom:
                     CustomAmountSheet(model: model)
                 case .calendar:
-                    StreakCalendarSheet(model: model)
+                    StreakCalendarSheet(model: model, onOpenLearn: { onOpenLearn("app.streak") })
                 case .stats:
                     WeekStatsSheet(model: model)
                 case .permission:

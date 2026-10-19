@@ -54,6 +54,8 @@ struct CustomAmountSheet: View {
 struct StreakCalendarSheet: View {
     @Environment(\.wtTheme) private var theme
     @Bindable var model: HomeViewModel
+    /// «Як працює серія» — історія «Знань» (SPEC-LEARN §3.2).
+    var onOpenLearn: () -> Void = {}
 
     var body: some View {
         WTSheet(onDismiss: { model.dismissSheet() }) {
@@ -75,6 +77,12 @@ struct StreakCalendarSheet: View {
                     .padding(.bottom, 20)
 
                 WTCalendarHeatmap(cells: report.days.map { CalendarCellMapper.cell($0) }, onSelect: { _ in })
+
+                WTLearnLink("Як працює серія й заморозка", identifier: "calendar.learn") {
+                    model.dismissSheet()
+                    onOpenLearn()
+                }
+                .padding(.top, 18)
             }
         }
     }
