@@ -19,8 +19,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 662 unit-тести 10 пакетів, без симулятора — швидкий цикл
-make test-ui        # 52 e2e-сценарії (XCUITest) у симуляторі
+make test-packages  # 688 unit-тестів 10 пакетів, без симулятора — швидкий цикл
+make test-ui        # 58 e2e-сценаріїв (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
 make clean
@@ -256,6 +256,27 @@ Features → Widgets → DesignSystem → Core
   робити» — `finishLearnStory`: події `learn.completed` і полиці з ref від історії, досягнення «Відкриттів»; XP за
   історію немає. Тексти — `LearnFeatureTests` (довжини, без роду, джерело в кожного факту полиці «Вода й тіло»).
 
+### Онбординг (WAT-56, SPEC-ONBOARDING)
+
+- **Чорновий**: тексти, графіку, фактчек і остаточний дизайн доводить WAT-57. Кроки — декларативний
+  `OnboardingCatalog` (одиниці → стать і стан → вік → вага → активність → норма → день → ритм → склянка → нагадування);
+  новий крок — рядок у каталозі плюс вигляд у `OnboardingStepBody` / `OnboardingSceneArt`.
+- Перший запуск — сам, лише коли `onboardingState == .notShown` **і** в базі немає жодної порції
+  (`AppServices.shouldOpenOnboarding`): хто оновився з історією, вікна поверх головного не бачить. Повторно — рядок
+  «Підібрати під себе» в «Налаштуваннях». Оверлей у `RootView` поверх стека; поки він відкритий, головний не «чистий».
+- `OnboardingModel` нічого не пише сама — `AppServices.applyOnboarding` одним проходом, один `touch()` і `epoch`.
+  Перший запуск: «Пропустити» на вітанні — нічого, далі — лише кроки, підтверджені «Далі»; норма — лише після кроку
+  «Норма». Повторний прохід: поточні значення з «Зараз», запис — лише «Зберегти» з переліком змін; ручну норму
+  (`GoalSource.manual`) мовчки не переписуємо; ✕ питає, лише якщо людина щось змінила сама.
+- Норма — `GoalFormulaRegistry.current` + надбавка стану (`GoalInputs.condition`, лише при «Жінка»); розклад для екрана —
+  `GoalFormula.breakdown`. Поправка ±50 мл — відносно розрахунку й скидається зі зміною вхідних даних.
+- Одиниці: `UserProfile.volumeUnit` / `massUnit` / `timeFormat` (12 год — «7:30 дп», `TimeFormat`). Поза онбордингом
+  поки діють лише у віджетах; налаштування одиниць і показ по застосунку — окремо.
+- Дизайн — **тимчасовий** перемикач `OnboardingDesign` («Сцена» / «Кроки») у `UserDefaults`, секція «Тимчасово» в
+  «Налаштуваннях»; прибрати в WAT-57. Обидва каркаси ділять `OnboardingStepBody`; тло сцен — стилі «Знань»
+  (`WTStoryStyle`), ілюстрації — `WTScene*` з «чорнилом» `WTLearnInk`. Прихованої верхньої панелі не має бути в дереві
+  доступності — не лише прозорої (друге «Пропустити» ламало e2e).
+
 ViewModel-и — `@MainActor @Observable`, кешують знімки в збережені властивості й
 перечитують їх у `reload()`. Весь доменний шар — `@MainActor`.
 
@@ -316,8 +337,10 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
   відкривають таємні) — закріплюй `--uitest-now`.
 - Прапорці запуску (`App/Sources/WaterTrackerApp.swift`, `LaunchConfiguration`):
   `--uitest-empty` (чиста in-memory БД), `--uitest-demo` (демо-історія),
-  `--seed-demo`, `--start-screen progress|level-road|achievements|prizes|stats|settings|portion-buttons|notifications|notification-plan|report|schedule-suggestion|widgets|learn`
-  (`learn:app.xp` — одразу історія, `learn:body.why:4` — з п'ятого слайда, вікторина)
+  `--seed-demo`, `--start-screen progress|level-road|achievements|prizes|stats|settings|portion-buttons|notifications|notification-plan|report|schedule-suggestion|widgets|learn|onboarding`
+  (`learn:app.xp` — одразу історія, `learn:body.why:4` — з п'ятого слайда, вікторина;
+  `onboarding` — перший запуск, `onboarding:revisit` — повторний прохід; `--onboarding-design scene|steps`, під
+  `--uitest-*` типово «Сцена»; сам онбординг під `--uitest-*` не відкривається)
   (`report` — минулий тиждень; період явно — `report:day:2026-10-04`, `report:month:2026-09`;
   `schedule-suggestion:wake-early|wake-late|sleep-late|sleep-early|both|weekend|weekdays` — вікно «Графік дня»
   повз правило частоти). `--seed-schedule-shift` — 10 днів із першою склянкою ≈ 06:30: вікно з'являється само.
@@ -345,8 +368,10 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
    (WAT-23); решта екранів має тільки `accessibilityIdentifier` для e2e.
 2. Рядки зашиті в коді українською — локалізація в `.xcstrings` не зроблена.
 3. `HomeSheet.stats` реалізований (`WeekStatsSheet`), але недосяжний з UI.
-4. `GoalCalculatorSheet` готовий і покритий тестами, але не підключений.
-5. Сповіщення: етап C (несподівані завдання) — WAT-38; повний редизайн екрана «Сповіщення» —
+4. `GoalCalculatorSheet` готовий і покритий тестами, але не підключений (норму рахує онбординг — WAT-56).
+5. Одиниці (унції, фунти, 12 год) обираються в онбордингу, але поза ним діють лише у віджетах; перемикача в
+   «Налаштуваннях» немає. Онбординг чорновий — фіналізація в WAT-57.
+6. Сповіщення: етап C (несподівані завдання) — WAT-38; повний редизайн екрана «Сповіщення» —
    WAT-18; ассету звуку «булькання» (`drop.caf`) немає — грає системний.
 
 ## Робота із задачами Linear
@@ -385,5 +410,7 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
 | `Design/Notifications.html` | інтерактивний макет етапу B (WAT-37): вікно «Склянка», звіт-історія дня / тижня / місяця, рядки B на екрані «Сповіщення» |
 | `SPEC-LEARN.md` | ТЗ розділу «Знання» (WAT-53): каталог 12 історій на трьох полицях, вхід із шапки головного й контекстні входи, правила формату, текстів, джерел і руху, прогрес читання, технічна схема |
 | `Design/Learn.html` | макет розділу «Знання» (WAT-53): три варіанти вигляду — історії, картки, лонгрід — на тих самих зразкових історіях; бібліотека, програвач, вікторина |
+| `SPEC-ONBOARDING.md` | ТЗ онбордингу (WAT-56): склад кроків і чого не питаємо, розрахунок норми зі станом, пропуск, повторний прохід із «Зараз» і «Що зміниться», застереження; рішення реалізації; фіналізація — WAT-57 |
+| `Design/Onboarding.html` | макет онбордингу (WAT-56): дизайни формату «Кроки» — A «Кроки», B «Вода», C «Сцена»; реалізовано «Сцену», «Кроки» — за тимчасовим перемикачем |
 | `DESIGN-TOKENS.md` | витяг токенів з макетів |
 | `WaterTracker.html` | оригінальні макети (1a, 3f, 2e, 4a) |
