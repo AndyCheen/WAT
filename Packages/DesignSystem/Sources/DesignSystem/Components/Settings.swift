@@ -96,6 +96,9 @@ public struct WTValueStepper: View {
                 .font(WTFont.number(18, .semibold))
                 .foregroundStyle(theme.textPrimary)
                 .monospacedDigit()
+                // «10:00 пп» у 12-годинному форматі ширше за «22:00» — переносити його не можна.
+                .lineLimit(1)
+                .fixedSize()
                 .frame(minWidth: 62)
                 .accessibilityIdentifier(identifier)
             WTStepperButton("+", size: 34, action: onIncrement)
