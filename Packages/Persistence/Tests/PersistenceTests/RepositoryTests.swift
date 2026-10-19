@@ -164,7 +164,7 @@ final class RepositoryTests: XCTestCase {
     }
 
     func testSchemaCoversEveryModel() {
-        XCTAssertEqual(Database.schema.entities.count, 16, "усі 16 таблиць у схемі (PLAN.md §3.2, SPEC-NOTIFICATIONS §16.8)")
+        XCTAssertEqual(Database.schema.entities.count, 17, "усі 17 таблиць у схемі (PLAN.md §3.2, SPEC-NOTIFICATIONS §16.8, SPEC-LEARN §6)")
     }
 
     // MARK: - Сповіщення (SPEC-NOTIFICATIONS §16.8)

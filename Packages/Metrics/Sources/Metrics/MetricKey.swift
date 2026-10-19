@@ -78,6 +78,14 @@ public struct MetricKey: RawRepresentable, Hashable, Codable, Sendable, Expressi
     public static let screenOpened: MetricKey = "screen.opened"
     public static let xpGuideOpened: MetricKey = "guide.xpOpened"
 
+    // Розділ «Знання» (SPEC-LEARN §7). `sourceRef` — детермінований від історії: перечитана історія
+    // лічильник не збільшує, тож лічильник = кількість різних дочитаних історій.
+    public static let learnCompleted: MetricKey = "learn.completed"
+    /// Дочитано історію полиці «Вода й тіло» — «Знавець води».
+    public static let learnBodyCompleted: MetricKey = "learn.bodyCompleted"
+    /// Дочитано історію полиці «Застосунок» — «Знаю, як усе працює».
+    public static let learnAppCompleted: MetricKey = "learn.appCompleted"
+
     public static func part(_ index: Int) -> MetricKey {
         dayParts[max(0, min(4, index))]
     }

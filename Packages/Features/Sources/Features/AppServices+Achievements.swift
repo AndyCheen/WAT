@@ -6,7 +6,7 @@ import Gamification
 /// Екрани для пасхалки «Як риба у воді» — усі, крім DEBUG (SPEC-ACHIEVEMENTS-CATALOG §4.10).
 /// Скільки їх, стільки й ціль пасхалки в каталозі — тест тримає обидва числа разом.
 public enum AppScreen: String, CaseIterable, Sendable {
-    case home, progress, achievements, prizes, levelRoad, stats, report, settings, notifications, portionButtons
+    case home, progress, achievements, prizes, levelRoad, stats, report, settings, notifications, portionButtons, learn
 }
 
 /// Дія з функцією, яку відмічають «Відкриття» й пасхалки (SPEC-ACHIEVEMENTS-CATALOG §4.7, §4.10).
