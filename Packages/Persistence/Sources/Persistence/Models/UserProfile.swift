@@ -70,11 +70,6 @@ public final class UserProfile {
         set { activityRaw = newValue.rawValue }
     }
 
-    public var volumeUnit: VolumeUnit {
-        get { VolumeUnit(rawValue: volumeUnitRaw) ?? .milliliters }
-        set { volumeUnitRaw = newValue.rawValue }
-    }
-
     public var massUnit: MassUnit {
         get { MassUnit(rawValue: massUnitRaw) ?? .kilograms }
         set { massUnitRaw = newValue.rawValue }

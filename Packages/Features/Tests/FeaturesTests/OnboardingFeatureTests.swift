@@ -117,12 +117,12 @@ final class OnboardingFeatureTests: XCTestCase {
     func testSkipMidwayKeepsOnlyConfirmedSteps() {
         let model = model(.firstRun)
         model.next()
-        model.draft.answers.volumeUnit = .fluidOunces
+        model.draft.answers.volumeUnit = .usFluidOunces
         model.next()
         model.draft.answers.gender = .female
         model.skip()
 
-        XCTAssertEqual(services.profile.volumeUnit, .fluidOunces)
+        XCTAssertEqual(services.profile.volumeUnit, .usFluidOunces)
         XCTAssertEqual(services.profile.gender, .unspecified, "стать не підтверджено «Далі»")
         XCTAssertEqual(services.hydration.currentGoal(), 2000, "числа, якого людина не бачила, не ставимо")
         XCTAssertEqual(services.profile.onboardingState, .skipped)
@@ -262,19 +262,19 @@ final class OnboardingFeatureTests: XCTestCase {
         XCTAssertEqual(model.draft.answers.weightKg, 72.57, accuracy: 0.01)
         XCTAssertEqual(OnboardingPresenter.weight(model.draft.answers.weightKg, .pounds), "160 фунтів")
         XCTAssertEqual(OnboardingPresenter.weight(Mass.kilograms(152, from: .pounds), .pounds), "152 фунти")
-        XCTAssertEqual(OnboardingPresenter.volume(250, .fluidOunces), "8 унц.")
+        XCTAssertEqual(OnboardingPresenter.volume(250, .usFluidOunces), "8 унц.")
         XCTAssertEqual(OnboardingPresenter.goal(2550, .milliliters), "2.55 л")
         XCTAssertEqual(OnboardingPresenter.goal(2500, .milliliters), "2.5 л")
     }
 
     func testUnitsAreSavedFromUnitsStep() {
         let model = model(.firstRun)
-        model.draft.answers.volumeUnit = .fluidOunces
+        model.draft.answers.volumeUnit = .usFluidOunces
         model.draft.answers.massUnit = .pounds
         model.draft.answers.timeFormat = .hours12
         go(model, to: .done)
         model.finish()
-        XCTAssertEqual(services.profile.volumeUnit, .fluidOunces)
+        XCTAssertEqual(services.profile.volumeUnit, .usFluidOunces)
         XCTAssertEqual(services.profile.massUnit, .pounds)
         XCTAssertEqual(services.profile.timeFormat, .hours12)
     }

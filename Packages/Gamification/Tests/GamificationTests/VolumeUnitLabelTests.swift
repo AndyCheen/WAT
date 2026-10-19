@@ -28,15 +28,22 @@ final class VolumeUnitLabelTests: XCTestCase {
         XCTAssertNil(env.game.dailyQuests().first { $0.key == "daily.goal" }?.ounces)
     }
 
-    func testBigGulpDescribedInOunces() {
+    /// Прогрес об'ємних досягнень — в унціях; опис із числом — лише в драбини «води загалом» (WAT-58:
+    /// у каталозі WAT-24 «Великий ковток» — «Літрова пляшка», без числа, тож опис лишається).
+    func testVolumeAchievementsInOunces() {
         let env = GameEnv()
         env.addIntakeEvent(500)
         env.profiles.profile().volumeUnit = .usFluidOunces
-        let gulp = env.game.achievementSnapshots().first { $0.key == "big.gulp" }!
-        XCTAssertEqual(gulp.details, "34 унц. за один раз")
+        let items = env.game.achievementSnapshots()
+        let gulp = items.first { $0.key == "big.gulp" }!
+        XCTAssertEqual(gulp.details, "Літрова пляшка одним записом")
         XCTAssertEqual(gulp.valueLabel, "17 / 34")
+        XCTAssertEqual(items.first { $0.key == "volume.10l" }!.details, "338 унц. води загалом")
+        XCTAssertNil(items.first { $0.key == "portions.10" }!.ounces, "порції — штуки")
 
         env.profiles.profile().volumeUnit = .milliliters
-        XCTAssertEqual(env.game.achievementSnapshots().first { $0.key == "big.gulp" }!.details, "1 л за один раз")
+        let metric = env.game.achievementSnapshots()
+        XCTAssertEqual(metric.first { $0.key == "volume.10l" }!.details, "10 л води загалом")
+        XCTAssertEqual(metric.first { $0.key == "big.gulp" }!.valueLabel, "500 / 1000")
     }
 }

@@ -20,7 +20,7 @@ struct LearnContext: Equatable {
     var dayRhythmEnabled = true
     var level = 1
     var rules = XPRules.default
-    var presets: [Int] = PresetPlace.home.defaults
+    var presets: [Int] = PresetPlace.home.defaults(for: .milliliters)
     var dailyCap = 8
 }
 

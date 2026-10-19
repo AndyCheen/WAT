@@ -172,16 +172,14 @@ enum OnboardingPresenter {
 
     // MARK: - Значення
 
-    /// «250 мл» / «8 унц.» — «унц.» кирилицею, як погоджено в WAT-46.
-    static func volume(_ ml: Int, _ unit: VolumeUnit) -> String {
-        unit == .milliliters ? "\(ml) мл" : "\(Volume.display(ml, in: .fluidOunces)) унц."
-    }
+    /// «250 мл», «1.5 л» / «8 унц.» — «унц.» кирилицею, як погоджено в WAT-46.
+    static func volume(_ ml: Int, _ unit: VolumeUnit) -> String { unit.label(ml) }
 
     /// Норма великим числом і одиницею окремо: «2.55» + «л», «86» + «унц.».
     static func goalParts(_ ml: Int, _ unit: VolumeUnit) -> (number: String, unit: String) {
         unit == .milliliters
             ? (Volume.litersLabel(ml, fractionDigits: ml % 100 == 0 ? 1 : 2), "л")
-            : ("\(Volume.display(ml, in: .fluidOunces))", "унц.")
+            : ("\(unit.units(ml))", VolumeUnit.ounceSymbol)
     }
 
     static func goal(_ ml: Int, _ unit: VolumeUnit) -> String {

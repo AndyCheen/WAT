@@ -50,13 +50,7 @@ public enum DayPartPresenter {
     }
 
     /// «850 мл», «1.5 л» — літри з крапкою, як на кільці (`Volume.litersLabel`).
-    public static func volume(_ ml: Int) -> String {
-        guard ml >= 1000 else { return "\(ml) мл" }
-        var text = Volume.litersLabel(ml)
-        while text.hasSuffix("0") { text.removeLast() }
-        if text.hasSuffix(".") { text.removeLast() }
-        return "\(text) л"
-    }
+    public static func volume(_ ml: Int) -> String { VolumeUnit.milliliters.label(ml) }
 
     /// «35 хв», «2 год», «1 год 20 хв». Менше хвилини не буває: межа частини — вже наступна.
     public static func duration(_ minutes: Int) -> String {

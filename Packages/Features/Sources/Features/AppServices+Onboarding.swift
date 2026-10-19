@@ -61,7 +61,8 @@ extension AppServices {
         let answers = draft.answers
 
         if steps.contains(.units) {
-            profile.volumeUnit = answers.volumeUnit
+            // Через `HydrationService`: він же переводить кнопки порцій на сітку нової системи (WAT-46).
+            hydration.setVolumeUnit(answers.volumeUnit)
             profile.massUnit = answers.massUnit
             profile.timeFormat = answers.timeFormat
         }
