@@ -1,0 +1,1352 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Онбординг — WAT-56</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Токени — DESIGN-TOKENS.md §2, як у Learn.html. Кадр 402×874, 1px = 1pt. Вода — градієнт кільця прогресу,
+   нічне небо — віджети (SPEC-WIDGETS §7), світанок — теплий фон призів, позначка «зараз» — помаранчевий акцент серії. */
+:root{
+  --screen:#f7fbff; --card:#fff; --chip:#eaf4ff; --button:#eaf4ff;
+  --text:#1f4a72; --muted:#8aa1bd; --btn-text:#3d8fd6; --accent:#5aa9f0;
+  --line:rgba(31,74,114,.10); --track:#e4f0fb; --dot-off:#dce8f3;
+  --orange:#ff8a3d; --success:#3ea86b; --sec:#5c7291; --sel:#eef7ff;
+  --w1:#bfe3ff; --w2:#6bb6f2; --deep:#3d8fd6;
+  --shadow:0 8px 24px rgba(30,60,120,.07);
+  --card-shadow:0 14px 40px rgba(31,74,114,.16);
+}
+.dark{
+  --screen:#0c1524; --card:#161f33; --chip:#17233a; --button:#17233a;
+  --text:#eaf2ff; --muted:#8ba0bd; --btn-text:#bcd8ff; --accent:#7cc4ff;
+  --line:rgba(255,255,255,.08); --track:rgba(255,255,255,.08); --dot-off:rgba(255,255,255,.16);
+  --sec:#8ba0bd; --sel:#14263f;
+  --w1:#8fd0ff; --w2:#3b6ef5; --deep:#2a55c9;
+  --shadow:0 8px 24px rgba(0,0,0,.25);
+  --card-shadow:0 14px 40px rgba(0,0,0,.45);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#e9eef5;font-family:Nunito,system-ui,sans-serif;color:#1f4a72;padding:40px 28px 90px}
+body.dark-page{background:#05090f;color:#c9d6ea}
+h1{font-size:22px;font-weight:900;margin-bottom:6px}
+h2{font-size:18px;font-weight:900;margin:52px 0 6px}
+h2 small{font-size:13px;font-weight:800;color:#5c7291;margin-left:8px}
+.lead{font-size:13px;font-weight:700;color:#5c7291;margin-bottom:20px;max-width:1000px;line-height:1.55}
+.dark-page .lead,.dark-page h2 small,.dark-page .note,.dark-page .cap{color:#8ba0bd}
+.lead b{color:inherit;font-weight:900}
+code{font-size:12px}
+.num{font-family:Fredoka,Nunito,sans-serif;font-weight:600}
+
+/* ---------- панель ---------- */
+.ctl{background:#fff;border-radius:18px;padding:14px 18px;max-width:1300px;display:flex;flex-wrap:wrap;gap:14px 34px;
+     box-shadow:0 6px 20px rgba(31,74,114,.08);margin-bottom:10px;position:sticky;top:10px;z-index:100}
+.dark-page .ctl{background:#161f33}
+.ctl label{font-size:11px;font-weight:900;color:#5c7291;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:6px}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+.btns button{height:30px;padding:0 12px;border-radius:999px;border:0;background:#dbe6f3;color:#1f4a72;font:800 13px Nunito;cursor:pointer}
+.dark-page .btns button{background:#22304a;color:#c9d6ea}
+.btns button.sel{background:#5aa9f0;color:#fff}
+
+/* ---------- кадри ---------- */
+.row{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+.wrap{width:402px}
+.cap{font-size:12px;font-weight:900;letter-spacing:.3px;color:#5c7291;margin-bottom:8px;text-transform:uppercase}
+.note{font-size:12px;font-weight:700;color:#5c7291;margin-top:10px;line-height:1.5}
+.note b{font-weight:900}
+.frame{width:402px;height:874px;background:var(--screen);border-radius:40px;position:relative;overflow:hidden;
+       box-shadow:0 18px 50px rgba(31,74,114,.18);color:var(--text);user-select:none;-webkit-user-select:none}
+.dark .frame{box-shadow:0 18px 50px rgba(0,0,0,.55)}
+.frame.crop{height:auto}
+.status{position:absolute;top:0;left:0;right:0;height:48px;display:flex;justify-content:space-between;align-items:center;
+        padding:0 32px;font-size:15px;font-weight:800;z-index:20;pointer-events:none}
+.status i{font-style:normal;letter-spacing:1px;font-size:12px}
+.hid{display:none!important}
+.inv{visibility:hidden}
+
+/* ---------- спільні елементи ---------- */
+.primary{width:100%;height:56px;border-radius:14px;border:0;background:var(--accent);color:#fff;font:800 17px Nunito;cursor:pointer;
+         transition:transform .12s;flex:none}
+.primary:active{transform:scale(.98)}
+.primary.sm{height:46px;font-size:16px;width:auto;padding:0 22px}
+.link{height:44px;border:0;background:none;font:800 15px Nunito;color:var(--btn-text);cursor:pointer;padding:0 10px}
+.link.quiet{color:var(--muted)}
+.round{width:46px;height:46px;border-radius:50%;border:0;background:var(--chip);color:var(--btn-text);font:800 26px Nunito;cursor:pointer;
+       flex:none;display:flex;align-items:center;justify-content:center;line-height:1;padding-bottom:3px}
+.rb{width:38px;height:38px;border-radius:50%;border:0;background:var(--chip);color:var(--accent);font:900 22px Nunito;cursor:pointer;flex:none;
+    display:flex;align-items:center;justify-content:center;padding-bottom:2px}
+.rb.x{font-size:15px;padding:0}
+.skip{border:0;background:none;font:800 15px Nunito;color:var(--muted);cursor:pointer;height:38px;padding:0 2px;flex:none}
+.now{display:inline-flex;align-items:center;height:20px;padding:0 8px;margin-left:8px;border-radius:999px;background:var(--chip);
+     color:var(--btn-text);font:900 10.5px Nunito;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap;flex:none}
+.chip.sel .now{background:rgba(255,255,255,.25);color:#fff}
+.rev{border:0;background:none;color:var(--btn-text);font:900 12.5px Nunito;cursor:pointer;padding:0 0 0 6px}
+.was2{color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips.c{justify-content:center}
+.chip{height:42px;padding:0 16px;border-radius:999px;border:0;background:var(--chip);color:var(--btn-text);font:800 15px Nunito;
+      display:inline-flex;align-items:center;cursor:pointer;transition:background .2s,color .2s,transform .12s;position:relative}
+.chip:active{transform:scale(.97)}
+.chip.sel,.chip.pri{background:var(--accent);color:#fff}
+.tg{width:52px;height:31px;border-radius:99px;border:0;background:var(--dot-off);position:relative;cursor:pointer;transition:background .2s;flex:none}
+.tg::after{content:'';position:absolute;top:3px;left:3px;width:25px;height:25px;border-radius:50%;background:#fff;
+           box-shadow:0 2px 6px rgba(0,0,0,.18);transition:left .2s}
+.tg.on{background:var(--accent)}
+.tg.on::after{left:24px}
+.stp{display:flex;align-items:center;gap:6px;flex:none}
+.stp button{width:34px;height:34px;border-radius:50%;border:0;background:var(--chip);color:var(--btn-text);font:800 21px Nunito;cursor:pointer;
+            line-height:1;padding-bottom:2px}
+.stp .num{min-width:64px;text-align:center;font-size:19px}
+.card{background:var(--card);border-radius:20px;box-shadow:var(--shadow)}
+.rows .tr{display:flex;align-items:center;gap:12px;min-height:62px;padding:6px 12px 6px 16px}
+.rows .tr + .tr,.rows .tr + div > .tr,.rows div > .tr + .tr{border-top:1px solid var(--line)}
+.tr .e{font-size:19px;width:24px;text-align:center;flex:none}
+.tr .l{flex:1;font-size:15.5px;font-weight:800;display:flex;flex-direction:column;min-width:0;text-align:left}
+.tr .sm{font-size:12px;font-weight:800;color:var(--muted);margin-top:2px;display:flex;align-items:center;min-height:16px}
+.tr .sm .now{margin-left:0}
+.tr .sm:empty{display:none}
+.note-in{font-size:13px;font-weight:800;color:var(--sec);text-align:center;animation:fall .35s cubic-bezier(.22,1,.36,1)}
+.mt{margin-top:18px}
+.c{text-align:center}
+@keyframes fall{from{opacity:0;transform:translateY(-8px)}}
+@keyframes fade{from{opacity:0}}
+.in-r{animation:inR .45s cubic-bezier(.22,1,.36,1)}
+.in-l{animation:inL .45s cubic-bezier(.22,1,.36,1)}
+@keyframes inR{from{transform:translateX(60px);opacity:0}}
+@keyframes inL{from{transform:translateX(-60px);opacity:0}}
+
+/* варіанти, лінійка, колесо */
+.opts{display:flex;flex-direction:column;gap:10px}
+.opt{display:flex;align-items:center;gap:14px;min-height:64px;padding:12px 16px 12px 18px;border-radius:18px;background:var(--card);text-align:left;
+     box-shadow:var(--shadow);border:2px solid transparent;cursor:pointer;transition:border-color .2s,background .2s,color .2s,transform .12s}
+.opt:active{transform:scale(.985)}
+.opt.sel{border-color:var(--accent);background:var(--sel)}
+.opt .em{width:46px;height:46px;border-radius:50%;background:var(--chip);display:flex;align-items:center;justify-content:center;font-size:23px;flex:none}
+.opt .tx{flex:1;display:flex;flex-direction:column;min-width:0}
+.opt .t{font-size:17px;font-weight:800;display:flex;align-items:center;flex-wrap:wrap;gap:4px 0}
+.opt .d{font-size:13px;font-weight:700;color:var(--muted);margin-top:3px;line-height:1.3}
+.opt .rad{width:24px;height:24px;border-radius:50%;border:2px solid var(--dot-off);flex:none;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.opt.sel .rad{border-color:var(--accent);background:var(--accent)}
+.opt.sel .rad::after{content:'✓';color:#fff;font:900 13px Nunito}
+.opt.big{padding:16px 16px 16px 18px;gap:16px}
+.opts.sm{gap:8px}
+.opts.sm .opt{min-height:54px;padding:8px 14px 8px 16px;gap:12px}
+.opts.sm .opt .em{width:38px;height:38px;font-size:19px}
+.opts.sm .opt .t{font-size:16px}
+.opts.sm .opt .d{font-size:12.5px;margin-top:1px}
+.subq{background:var(--card);border-radius:18px;padding:14px 16px 14px;box-shadow:var(--shadow);animation:fall .35s cubic-bezier(.22,1,.36,1);text-align:left}
+.subq .lbl{font-size:15px;font-weight:800;margin-bottom:10px}
+.subq .hint{font-size:12px;font-weight:700;color:var(--muted);margin-top:10px}
+.wheel{position:relative;height:260px;width:220px;margin:0 auto;flex:none}
+.wheel .band{position:absolute;left:0;right:0;top:104px;height:52px;border-radius:16px;background:var(--chip);transition:opacity .2s}
+.wheel .sc{position:absolute;inset:0;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;
+           -webkit-mask-image:linear-gradient(transparent,#000 32%,#000 68%,transparent);mask-image:linear-gradient(transparent,#000 32%,#000 68%,transparent)}
+.wheel .sc::-webkit-scrollbar{display:none}
+.wheel .pad{height:104px}
+.wheel .it{height:52px;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;font:600 28px Fredoka;color:var(--muted);
+           cursor:pointer;transition:color .15s,font-size .15s,opacity .2s}
+.wheel .it.c{color:var(--text);font-size:40px}
+.wheel .it.base::after{content:'зараз';font:900 10px Nunito;color:var(--btn-text);text-transform:uppercase;letter-spacing:.4px;margin-left:8px}
+.wheel.off .it{opacity:.3}
+.wheel.off .band{opacity:.4}
+.wheel.sm{height:156px}
+.wheel.sm .band{top:52px}
+.wheel.sm .pad{height:52px}
+.wheel.sm .sc{-webkit-mask-image:linear-gradient(transparent,#000 25%,#000 75%,transparent);mask-image:linear-gradient(transparent,#000 25%,#000 75%,transparent)}
+.ruler{position:relative;height:84px;margin:0 -26px;flex:none}
+.ruler .sc{overflow-x:scroll;scroll-snap-type:x mandatory;height:84px;scrollbar-width:none;display:flex;align-items:flex-start;padding-top:12px;
+           -webkit-mask-image:linear-gradient(90deg,transparent,#000 28%,#000 72%,transparent);mask-image:linear-gradient(90deg,transparent,#000 28%,#000 72%,transparent)}
+.ruler .sc::-webkit-scrollbar{display:none}
+.ruler .sp{flex:none;height:1px}
+.ruler .tk{flex:0 0 12px;height:60px;scroll-snap-align:center;position:relative}
+.ruler .tk::before{content:'';position:absolute;left:5px;top:0;width:2px;height:18px;border-radius:2px;background:var(--dot-off)}
+.ruler .tk.m5::before{height:28px}
+.ruler .tk.m10::before{height:38px;background:var(--muted)}
+.ruler .tk span{position:absolute;top:44px;left:6px;transform:translateX(-50%);font:600 13px Fredoka;color:var(--muted)}
+.ruler .tk.base::after{content:'';position:absolute;left:2px;top:-11px;width:8px;height:8px;border-radius:50%;background:var(--orange)}
+.ruler .needle{position:absolute;left:50%;top:6px;width:4px;height:46px;margin-left:-2px;border-radius:4px;background:var(--accent);z-index:2;pointer-events:none}
+.bignum{display:flex;align-items:center;justify-content:center;gap:20px}
+.bignum .num{font-size:78px;line-height:1}
+.bignum small{font-size:22px;font-weight:800;color:var(--muted);margin-left:6px}
+.was{text-align:center;font-size:13px;font-weight:800;color:var(--muted);min-height:22px;display:flex;align-items:center;justify-content:center}
+.was .now{margin-left:0}
+
+/* тост і вікна поверх */
+.toast{position:absolute;left:16px;right:16px;bottom:34px;z-index:60;background:var(--text);color:var(--screen);border-radius:16px;
+       padding:13px 16px;font-size:14px;font-weight:800;line-height:1.35;box-shadow:0 10px 30px rgba(0,0,0,.25);
+       animation:toastIn .35s cubic-bezier(.22,1.2,.36,1)}
+@keyframes toastIn{from{transform:translateY(30px);opacity:0}}
+.ov{position:absolute;inset:0;z-index:50;display:none}
+.ov.show{display:block}
+.ov .dim{position:absolute;inset:0;background:rgba(8,16,32,.38);animation:fade .2s}
+.sys{position:absolute;left:50%;top:50%;width:270px;transform:translate(-50%,-50%);background:rgba(242,242,247,.97);border-radius:14px;
+     text-align:center;color:#000;font-family:-apple-system,system-ui,sans-serif;animation:pop .25s;overflow:hidden}
+.dark .sys{background:rgba(44,44,46,.97);color:#fff}
+.sys .st{font-size:17px;font-weight:600;padding:19px 16px 3px;line-height:1.25}
+.sys .sb{font-size:13px;padding:4px 16px 18px;line-height:1.32}
+.sys .sbtn{display:flex;border-top:.5px solid rgba(60,60,67,.3)}
+.sys .sbtn button{flex:1;height:44px;border:0;background:none;font-size:17px;color:#0a84ff;cursor:pointer;font-family:inherit}
+.sys .sbtn button+button{border-left:.5px solid rgba(60,60,67,.3);font-weight:600}
+.dlg{position:absolute;left:24px;right:24px;top:50%;transform:translateY(-50%);background:var(--card);border-radius:24px;padding:22px 20px 16px;
+     box-shadow:var(--card-shadow);animation:pop2 .25s;text-align:left}
+.dlg b{font-size:20px;font-weight:800;display:block}
+.dlg p{font-size:14px;font-weight:700;color:var(--muted);margin:6px 0 16px;line-height:1.4}
+.dlg .dlg-b{display:flex;justify-content:flex-end;align-items:center;gap:6px}
+@keyframes pop{from{transform:translate(-50%,-50%) scale(1.12);opacity:0}}
+@keyframes pop2{from{transform:translateY(-50%) scale(.94);opacity:0}}
+
+/* ілюстрації: крапля, склянка, доба, сповіщення */
+.drop{width:120px;height:142px;display:block;filter:drop-shadow(0 12px 22px rgba(90,169,240,.28));flex:none}
+.drop .lvl{transition:transform 1.3s cubic-bezier(.22,1,.36,1)}
+.wv{animation:wave 3.2s linear infinite}
+@keyframes wave{to{transform:translateX(200px)}}
+.hello-art{position:relative;width:220px;height:226px;margin:0 auto 22px}
+.hello-art .drop{width:172px;height:204px;position:absolute;left:24px;top:10px}
+.hello-art i{position:absolute;border-radius:50%;background:var(--accent);opacity:.16;animation:float 5s ease-in-out infinite}
+.hello-art i:nth-child(1){width:26px;height:26px;left:0;top:118px}
+.hello-art i:nth-child(2){width:14px;height:14px;left:206px;top:70px;animation-delay:-1.2s}
+.hello-art i:nth-child(3){width:20px;height:20px;left:196px;top:170px;animation-delay:-2.4s}
+.hello-art i:nth-child(4){width:10px;height:10px;left:22px;top:44px;animation-delay:-3.1s}
+@keyframes float{50%{transform:translateY(-14px)}}
+.done-hero{position:relative;width:130px;height:154px;margin:0 auto 18px;flex:none}
+.done-hero .drop{width:130px;height:154px}
+.ck{position:absolute;left:50%;top:64%;width:50px;height:50px;margin:-25px 0 0 -25px;border-radius:50%;background:#fff;color:var(--accent);
+    font:900 26px Nunito;display:flex;align-items:center;justify-content:center;transform:scale(0);box-shadow:0 6px 16px rgba(31,74,114,.2);
+    animation:ck .5s .8s cubic-bezier(.22,1.5,.36,1) forwards}
+@keyframes ck{to{transform:scale(1)}}
+.glassw{display:flex;justify-content:center;align-items:flex-end;height:200px;flex:none}
+.glass svg{width:130px;height:169px;transform:scale(var(--s,1));transform-origin:50% 100%;transition:transform .5s cubic-bezier(.22,1.4,.36,1);display:block}
+.tl-row .lab{font-size:11px;font-weight:900;color:var(--muted);margin:0 0 6px;text-transform:uppercase;letter-spacing:.4px;text-align:left}
+.tl-row + .tl-row{margin-top:12px}
+.trk{position:relative;height:30px;border-radius:11px;background:var(--track)}
+.trk .win,.trk .blk{position:absolute;top:0;bottom:0;border-radius:11px;transition:left .35s,width .35s,opacity .3s;display:flex;align-items:center;
+                    justify-content:center;overflow:hidden;white-space:nowrap;font-size:11px;font-weight:900;color:#fff}
+.trk .win{background:linear-gradient(90deg,var(--w1),var(--w2))}
+.trk .blk{border-radius:8px;border:2px solid var(--card)}
+.trk .blk span,.trk .win span{transition:opacity .2s}
+.trk .b1 span{padding-left:14px}.trk .b3 span{padding-right:14px}
+.trk .b1{background:rgba(90,169,240,.5)} .trk .b2{background:rgba(90,169,240,.75)} .trk .b3{background:#3d8fd6}
+.trk .ic{position:absolute;top:50%;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;background:var(--card);
+         box-shadow:0 2px 8px rgba(0,0,0,.16);font-size:12px;display:flex;align-items:center;justify-content:center;transition:left .35s;z-index:2}
+.ax{position:relative;height:16px;margin-top:7px}
+.ax span{position:absolute;transform:translateX(-50%);font:600 11px Fredoka;color:var(--muted)}
+.ax span:first-child{transform:none}.ax span:last-child{transform:translateX(-100%)}
+.wall{border-radius:26px;padding:18px 14px 14px;background:linear-gradient(165deg,#8fd0ff 0%,#3b6ef5 58%,#24489e 100%);box-shadow:var(--card-shadow)}
+.wt{text-align:center;color:#fff;font:600 52px Fredoka;line-height:1;opacity:.96}
+.wd{text-align:center;color:rgba(255,255,255,.88);font-size:13px;font-weight:800;margin:3px 0 14px}
+.ntf{background:rgba(255,255,255,.8);border-radius:20px;padding:11px 13px 12px;color:#0b1a2e;text-align:left;width:100%}
+.dark .ntf{background:rgba(22,31,51,.86);color:#eaf2ff}
+.ntf-h{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;opacity:.72;margin-bottom:4px}
+.ntf-h .ico{width:20px;height:20px;border-radius:5px;background:linear-gradient(#6bb6f2,#3d8fd6);display:flex;align-items:center;justify-content:center}
+.ntf-h em{margin-left:auto;font-style:normal}
+.ntf-t{font-size:15px;font-weight:900}
+.ntf-b{font-size:14px;font-weight:700;line-height:1.3;margin-top:1px}
+.ntf-a{display:flex;gap:6px;margin-top:10px}
+.ntf-a span{flex:1;height:32px;border-radius:10px;background:rgba(31,74,114,.08);display:flex;align-items:center;justify-content:center;
+            font-size:13px;font-weight:800;color:#3d8fd6;transition:all .3s}
+.dark .ntf-a span{background:rgba(255,255,255,.08);color:#bcd8ff}
+.ntf-a span.p{background:#5aa9f0;color:#fff}
+.ra{display:flex;flex-direction:column;gap:6px;width:86px;flex:none}
+.ra i{position:relative;height:12px;border-radius:99px;background:var(--track);display:block}
+.ra i b{position:absolute;left:0;top:0;bottom:0;border-radius:99px;background:var(--accent)}
+.ra i s{position:absolute;right:-3px;top:50%;width:18px;height:18px;margin-top:-9px;border-radius:50%;background:var(--accent);color:#fff;
+        font:900 10px Nunito;text-decoration:none;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--card)}
+.ra.one{height:48px;justify-content:center}
+.ra.one i{height:18px}
+
+/* норма: розклад на складники */
+.bd{--bd1:var(--accent);--bd2:var(--w1);--bd3:var(--orange);background:var(--card);border-radius:18px;padding:14px 16px 10px;box-shadow:var(--shadow);text-align:left}
+.bd.mini{background:none;box-shadow:none;padding:12px 0 0}
+.bd-bar{display:flex;gap:3px;height:12px;border-radius:99px;overflow:hidden;margin-bottom:8px}
+.bd-bar i{display:block;transition:flex .5s cubic-bezier(.22,1,.36,1)}
+.bd-r{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:800;min-height:26px}
+.bd-r b{width:10px;height:10px;border-radius:3px;flex:none}
+.bd-r b.o{border:2px solid var(--dot-off)}
+.bd-r span{flex:1;color:var(--sec)}
+.bd-r em{font-style:normal;font-family:Fredoka,Nunito,sans-serif;font-weight:600;font-size:14px;color:var(--text)}
+
+/* підсумок і «що зміниться» */
+.sum{background:var(--card);border-radius:20px;box-shadow:var(--shadow);padding:2px 16px;text-align:left}
+.sr{display:flex;align-items:center;gap:12px;min-height:50px;border-top:1px solid var(--line);font-size:15px;font-weight:800;padding:6px 0;color:var(--text)}
+.sr:first-child{border-top:0}
+.sr .e{font-size:18px;width:24px;text-align:center;flex:none}
+.sr .l{flex:1;color:var(--muted)}
+.sr b{font-weight:800;text-align:right}
+.sr .vv{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:baseline;gap:4px 7px;max-width:66%;text-align:right}
+.sr .fr{color:var(--muted);text-decoration:line-through;text-decoration-thickness:1.5px;font-weight:700}
+.sr .ar{color:var(--muted)}
+.rest{font-size:13px;font-weight:800;color:var(--muted);text-align:center;margin-top:14px}
+.sm-rows .sr{min-height:44px;font-size:14.5px}
+
+/* ================= A · Кроки ================= */
+.a-top{position:absolute;top:50px;left:0;right:0;height:44px;display:flex;align-items:center;gap:12px;padding:0 18px;z-index:10}
+.a-prog{flex:1;display:flex;gap:6px}
+.a-prog i{height:6px;border-radius:99px;background:var(--track);overflow:hidden;display:block}
+.a-prog b{display:block;height:100%;width:0;background:var(--accent);border-radius:99px;transition:width .5s cubic-bezier(.22,1,.36,1)}
+.a-stage{position:absolute;inset:0;overflow:hidden}
+.a-scr{position:absolute;inset:0;display:flex;flex-direction:column;padding:112px 26px 28px}
+.a-scr.full{padding-top:72px}
+.a-ch{font:900 12px Nunito;letter-spacing:.6px;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+.a-title{font-size:29px;font-weight:800;line-height:1.14;letter-spacing:-.2px}
+.a-sub{font-size:15px;font-weight:700;color:var(--muted);margin-top:9px;line-height:1.4}
+.a-mid{flex:1;min-height:0;display:flex;flex-direction:column;overflow-y:auto;scrollbar-width:none;margin:0 -26px;padding:14px 26px}
+.a-mid::-webkit-scrollbar{display:none}
+.a-mid > .in{margin:auto 0;display:flex;flex-direction:column;gap:14px}
+.a-foot{display:flex;flex-direction:column;align-items:center;padding-top:10px;flex:none}
+.a-foot .link{margin-bottom:-10px}
+.goalw{display:flex;flex-direction:column;align-items:center}
+.gn{display:flex;align-items:center;gap:18px;margin-top:6px}
+.gn .val{text-align:center;min-width:170px}
+.gn .num{font-size:64px;line-height:1}
+.gn .val > small{font-size:24px;font-weight:800;margin-left:4px}
+.per{font-size:14px;font-weight:800;color:var(--muted);margin-top:4px;display:flex;align-items:center;justify-content:center}
+.optsm .opt{min-height:56px;padding:9px 14px 9px 16px}
+.optsm .opt .t{font-size:16px}
+
+/* ================= B · Вода ================= */
+.w-sea{position:absolute;left:0;right:0;bottom:0;height:200px;transition:height 1s cubic-bezier(.22,1,.36,1);z-index:1;pointer-events:none}
+.w-wave{position:absolute;left:0;width:804px;height:26px;animation:wsl 7s linear infinite}
+.w-wave.a{top:-22px}.w-wave.a path{fill:var(--w2)}
+.w-wave.b{top:-31px;opacity:.45;animation-duration:11s;animation-direction:reverse}.w-wave.b path{fill:var(--w2)}
+@keyframes wsl{to{transform:translateX(-402px)}}
+.w-fill{position:absolute;left:0;right:0;top:3px;bottom:0;background:linear-gradient(180deg,var(--w2) 0%,var(--deep) 100%);overflow:hidden}
+.w-fill i{position:absolute;bottom:-20px;border-radius:50%;background:#fff;opacity:.22;animation:rise linear infinite}
+.w-fill i:nth-child(1){left:12%;width:10px;height:10px;animation-duration:6s}
+.w-fill i:nth-child(2){left:34%;width:6px;height:6px;animation-duration:4.5s;animation-delay:-2s}
+.w-fill i:nth-child(3){left:58%;width:12px;height:12px;animation-duration:7s;animation-delay:-4s}
+.w-fill i:nth-child(4){left:76%;width:7px;height:7px;animation-duration:5s;animation-delay:-1s}
+.w-fill i:nth-child(5){left:90%;width:9px;height:9px;animation-duration:6.5s;animation-delay:-3s}
+@keyframes rise{to{transform:translateY(-900px)}}
+.w-top{position:absolute;top:50px;left:18px;right:18px;height:44px;display:flex;align-items:center;justify-content:space-between;z-index:10}
+.w-count{position:absolute;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;line-height:1.1}
+.w-count b{font:900 11px Nunito;letter-spacing:.6px;color:var(--accent);text-transform:uppercase}
+.w-count span{font-size:16px}
+.w-stage{position:absolute;inset:0;z-index:2;overflow:hidden}
+.w-scr{position:absolute;inset:0;display:flex;flex-direction:column;padding:108px 26px 28px;text-align:center}
+.w-scr.full{padding-top:72px}
+.w-title{font-size:30px;font-weight:800;line-height:1.14;letter-spacing:-.2px}
+.w-sub{font-size:15px;font-weight:700;color:var(--muted);margin:9px auto 0;line-height:1.4;max-width:330px}
+.w-mid{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;gap:14px;padding:16px 0 calc(var(--lvl, 200px) - 132px)}
+.w-foot{display:flex;flex-direction:column;align-items:center;flex:none}
+.w-foot .primary{background:#fff;color:var(--deep);box-shadow:0 8px 24px rgba(8,30,70,.18)}
+.w-foot .link{color:rgba(255,255,255,.95);margin-bottom:-10px}
+.wet .w-title,.wet .w-sub{color:#fff}
+.wet .w-mid{padding-bottom:16px}
+.frame.wetf .status{color:#fff}
+.w-bob{animation:bob 3.2s ease-in-out infinite;display:flex;justify-content:center}
+.w-bob .drop{width:150px;height:178px}
+@keyframes bob{50%{transform:translateY(-12px) rotate(-3deg)}}
+.frame[data-v="B"] .opt{border-radius:999px;justify-content:center;min-height:58px;padding:10px 22px;text-align:center}
+.frame[data-v="B"] .opt .tx{flex:none;align-items:center}
+.frame[data-v="B"] .opt .t{justify-content:center}
+.frame[data-v="B"] .opt .rad{display:none}
+.frame[data-v="B"] .opt.sel{background:var(--accent);border-color:var(--accent);color:#fff}
+.frame[data-v="B"] .opt.sel .d{color:rgba(255,255,255,.85)}
+.frame[data-v="B"] .opt.sel .now{background:rgba(255,255,255,.25);color:#fff}
+.w-acts{display:flex;justify-content:center;gap:12px}
+.w-act{flex:1;max-width:108px;display:flex;flex-direction:column;align-items:center;gap:8px;border:0;background:none;cursor:pointer;
+       font:800 15px Nunito;color:var(--text)}
+.w-act .c{width:88px;height:88px;border-radius:50%;background:var(--card);box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;
+          font-size:40px;transition:all .25s cubic-bezier(.22,1.4,.36,1);border:3px solid transparent}
+.w-act.sel .c{background:var(--sel);border-color:var(--accent);transform:scale(1.08)}
+.w-act .now{margin:0}
+.w-desc{font-size:14px;font-weight:700;color:var(--muted);min-height:20px}
+.w-days{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.w-tc{background:var(--card);border-radius:20px;box-shadow:var(--shadow);padding:10px 8px 12px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.w-tc .lb{font-size:13px;font-weight:800;color:var(--muted)}
+.w-tc .num{font-size:27px;line-height:1;min-width:76px}
+.w-pm{display:flex;align-items:center;gap:4px}
+.w-pm button{width:30px;height:30px;border-radius:50%;border:0;background:var(--chip);color:var(--btn-text);font:800 20px Nunito;cursor:pointer;line-height:1}
+.w-tc .mk{font-size:11.5px;font-weight:800;color:var(--muted);min-height:18px;display:flex;align-items:center}
+.w-tc .mk .now{margin:0}
+.w-tc .mk:empty{display:none}
+.w-wk{font-size:12px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:2px 0 8px}
+.w-tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.w-tile{background:var(--card);border-radius:22px;box-shadow:var(--shadow);padding:20px 12px 16px;display:flex;flex-direction:column;align-items:center;gap:10px;
+        border:2px solid transparent;cursor:pointer;transition:all .2s}
+.w-tile.sel{border-color:var(--accent);background:var(--sel)}
+.w-tile b{font-size:15.5px;font-weight:800;line-height:1.2}
+.w-tile .d{font-size:12.5px;font-weight:700;color:var(--muted);line-height:1.3}
+.w-tile .ra{width:100px}
+.w-tile .now{margin:0}
+.w-bell{width:100px;height:100px;border-radius:50%;background:var(--chip);margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:48px;
+        animation:ring 2.6s ease-in-out infinite}
+@keyframes ring{0%,55%,100%{transform:rotate(0)}62%{transform:rotate(14deg)}69%{transform:rotate(-12deg)}76%{transform:rotate(8deg)}83%{transform:rotate(-4deg)}}
+.w-ntf .ntf{background:var(--card);box-shadow:var(--card-shadow);color:var(--text);transform:rotate(-1.5deg)}
+.w-goal{position:absolute;left:26px;right:26px;bottom:130px;color:#fff;display:flex;flex-direction:column;align-items:center;gap:16px}
+.w-goal .round{background:rgba(255,255,255,.22);color:#fff}
+.w-goal .gn .num{font-size:72px}
+.w-goal .per{color:rgba(255,255,255,.88)}
+.w-goal .per .now,.wet .now{background:rgba(255,255,255,.25);color:#fff}
+.bd.glass{--bd1:#fff;--bd2:rgba(255,255,255,.5);--bd3:#ffc58f;background:rgba(255,255,255,.14);box-shadow:none;width:100%}
+.bd.glass .bd-r span{color:rgba(255,255,255,.9)}
+.bd.glass .bd-r em{color:#fff}
+.bd.glass .bd-r b.o{border-color:rgba(255,255,255,.6)}
+.w-check{width:96px;height:96px;border-radius:50%;background:#fff;color:var(--accent);font:900 46px Nunito;display:flex;align-items:center;justify-content:center;
+         margin:0 auto 18px;box-shadow:0 12px 30px rgba(8,30,70,.25);animation:ck .55s .5s cubic-bezier(.22,1.5,.36,1) both;transform:scale(0)}
+.wet .sum .now{background:var(--chip);color:var(--btn-text)}
+
+/* ================= C · Сцена ================= */
+.frame[data-v="C"] .status{color:#fff}
+.s-scene{position:absolute;top:0;left:0;right:0;height:400px;overflow:hidden;transition:height .55s cubic-bezier(.22,1,.36,1);color:#fff}
+.s-bgs i{position:absolute;inset:0;opacity:0;transition:opacity .7s}
+.s-bgs i.on{opacity:1}
+.s-bgs .g0{background:linear-gradient(170deg,#8fd0ff 0%,#5aa9f0 48%,#3d8fd6 100%)}
+.s-bgs .g1{background:linear-gradient(175deg,#ffc58f 0%,#f7a06a 30%,#86bdee 78%,#5aa9f0 100%)}
+.s-bgs .g2{background:linear-gradient(175deg,#3b6ef5 0%,#24489e 55%,#0f1f45 100%)}
+.dark .s-bgs{filter:brightness(.8) saturate(.95)}
+.s-bub i{position:absolute;border-radius:50%;background:#fff;opacity:.14;animation:float 6s ease-in-out infinite}
+.s-bub i:nth-child(1){width:60px;height:60px;left:-14px;top:150px}
+.s-bub i:nth-child(2){width:22px;height:22px;right:40px;top:110px;animation-delay:-2s}
+.s-bub i:nth-child(3){width:36px;height:36px;right:-8px;top:250px;animation-delay:-4s}
+.s-art{position:absolute;left:0;right:0;top:100px;bottom:46px;display:flex;align-items:center;justify-content:center}
+.s-artin{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;padding:0 30px}
+.s-artin.fade{animation:sfade .55s cubic-bezier(.22,1,.36,1)}
+@keyframes sfade{from{opacity:0;transform:scale(.92)}}
+.s-k{font-size:76px;line-height:1;display:flex;align-items:baseline;gap:6px}
+.s-k small{font-size:24px;font-weight:800;font-family:Nunito}
+.s-k.md{font-size:52px}
+.s-k.sm2{font-size:40px}
+.s-cap{font-size:15px;font-weight:800;opacity:.92;margin-top:8px;text-align:center;display:flex;align-items:center}
+.s-cap .now{background:rgba(255,255,255,.25);color:#fff}
+.s-badge{margin-top:14px;height:34px;padding:0 15px;border-radius:99px;background:rgba(255,255,255,.22);display:inline-flex;align-items:center;font-size:14px;font-weight:900}
+.s-em{width:136px;height:136px;border-radius:50%;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;font-size:70px;
+      box-shadow:0 0 0 16px rgba(255,255,255,.08);transition:transform .3s}
+.s-scale{width:170px;height:102px;margin-bottom:12px;overflow:visible}
+.s-scale .needle{transition:transform .45s cubic-bezier(.22,1.3,.36,1)}
+.ag{position:relative;display:flex;gap:4px;width:100%;margin-top:22px}
+.ag-s{height:34px;border-radius:10px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font:600 14px Fredoka;transition:background .3s,color .3s}
+.ag-s.on{background:#fff;color:var(--deep)}
+.ag-m{position:absolute;top:-15px;width:0;height:0;margin-left:-8px;border:8px solid transparent;border-top-color:#fff;transition:left .3s}
+.ag-ax{position:relative;width:100%;height:18px;margin-top:6px;font:600 12px Fredoka;opacity:.85}
+.ag-ax span{position:absolute;transform:translateX(-50%)}
+.s-tl{width:100%;margin-top:20px}
+.s-tl .trk{background:rgba(255,255,255,.22)}
+.s-tl .win{background:#fff}
+.s-tl .win span{color:var(--deep)}
+.s-tl .blk{border:2px solid transparent;background-clip:padding-box}
+.s-tl .b1{background-color:rgba(255,255,255,.55)}.s-tl .b2{background-color:rgba(255,255,255,.78)}.s-tl .b3{background-color:#fff}
+.s-tl .blk span{color:#24489e}
+.s-tl .ic{background:#fff}
+.s-tl .ax span,.s-tl .lab{color:rgba(255,255,255,.88)}
+.s-ntf{width:100%}
+.s-ntf .ntf{background:rgba(255,255,255,.88)}
+.dark .s-ntf .ntf{background:rgba(22,31,51,.9)}
+.s-glass .glass svg{width:150px;height:195px}
+.s-art .drop{width:96px;height:114px}
+.s-art .drop.big{width:176px;height:208px}
+.s-top{position:absolute;top:50px;left:18px;right:18px;height:44px;display:flex;align-items:center;justify-content:space-between;z-index:10}
+.s-top .rb{background:rgba(255,255,255,.24);color:#fff}
+.s-top .skip{color:#fff}
+.s-dots{position:absolute;left:50%;transform:translateX(-50%);display:flex;gap:5px}
+.s-dots i{width:7px;height:7px;border-radius:99px;background:rgba(255,255,255,.38);transition:width .35s,background .35s}
+.s-dots i.done{background:rgba(255,255,255,.85)}
+.s-dots i.on{width:22px;background:#fff}
+.s-panel{position:absolute;left:0;right:0;bottom:0;top:370px;background:var(--screen);border-radius:30px 30px 0 0;box-shadow:0 -10px 30px rgba(8,16,32,.14);
+         transition:top .55s cubic-bezier(.22,1,.36,1);overflow:hidden;z-index:5}
+.s-stage{position:absolute;inset:0}
+.s-scr{position:absolute;inset:0;display:flex;flex-direction:column;padding:24px 24px 28px}
+.s-title{font-size:25px;font-weight:800;line-height:1.16;letter-spacing:-.2px}
+.s-mid{flex:1;min-height:0;overflow-y:auto;scrollbar-width:none;margin:0 -24px;padding:12px 24px;display:flex;flex-direction:column}
+.s-mid::-webkit-scrollbar{display:none}
+.s-mid > .in{margin:auto 0;display:flex;flex-direction:column;gap:12px}
+.s-adj{display:flex;align-items:center;justify-content:space-between;font-size:15px;font-weight:800;padding:2px 2px}
+
+/* ---------- вхід: налаштування ---------- */
+.set{padding:58px 24px 24px}
+.set-nav{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.set-nav b{font-size:20px;font-weight:800}
+.set-sec{font-size:13px;font-weight:900;color:var(--muted);letter-spacing:.4px;margin:16px 0 8px 4px}
+.set .tr.hl{background:var(--sel)}
+.set .tr.hl .l{color:var(--btn-text)}
+.set .tr .val{font-size:15px;font-weight:700;color:var(--muted)}
+.chev{color:var(--muted);font-size:20px;font-weight:800}
+.newb{display:inline-flex;align-self:flex-start;height:18px;padding:0 7px;border-radius:99px;background:var(--orange);color:#fff;font:900 10px Nunito;
+      letter-spacing:.4px;text-transform:uppercase;align-items:center;margin-bottom:3px}
+
+/* ---------- порівняння ---------- */
+table{border-collapse:collapse;margin-top:12px;font-size:13px;font-weight:700;color:#1f4a72;max-width:1300px}
+.dark-page table{color:#c9d6ea}
+td,th{padding:9px 12px;border-bottom:1px solid rgba(31,74,114,.12);text-align:left;vertical-align:top;line-height:1.45}
+th{font-size:12px;font-weight:900;color:#5c7291;text-transform:uppercase;letter-spacing:.3px}
+td:first-child{font-weight:900;white-space:nowrap}
+.rec{margin-top:18px;background:#fff;border-radius:18px;padding:16px 20px;max-width:1300px;font-size:14px;font-weight:700;line-height:1.55;
+     box-shadow:0 6px 20px rgba(31,74,114,.08)}
+.dark-page .rec{background:#161f33;color:#eaf2ff}
+.rec b{font-weight:900}
+
+/* ---------- Reduce Motion ---------- */
+.rm .frame *,.rm .frame *::before,.rm .frame *::after{animation:none!important;transition:none!important}
+.rm .ck,.rm .w-check{transform:scale(1)}
+</style>
+</head>
+<body>
+
+<h1>Онбординг — три дизайни «Кроків» (WAT-56)</h1>
+<p class="lead">
+  Склад кроків, правила пропуску й повторного проходу — <code>SPEC-ONBOARDING.md</code>. <b>Погоджено формат «Кроки»: одне питання —
+  один екран.</b> Тут — три дизайни цього формату. A — як був, B «Вода» і C «Сцена» — нові. Кроки, тексти й логіка однакові: стать
+  (і особливий стан), вік, вага, активність → норма → режим дня, ритм → склянка, нагадування.<br>
+  <b>Усе клікабельне.</b> У кожного варіанта два кадри: <b>перший запуск</b> і <b>повторний прохід із «Налаштувань»</b>. Повторний — на профілі
+  «чоловік, 34 роки, 78 кг, помірно; норма 2.5 л задана вручну; день 07:00–22:30, у вихідні 09:00–23:30; ритм — ранок, день і вечір;
+  склянка 300 мл; нагадування дозволені». За розрахунком для нього виходить 2.95 л — так видно, як онбординг поводиться з ручною нормою.
+  Змінюй будь-що й дійди до кінця, щоб побачити «Що зміниться». Панель «Крок» перемикає всі кадри на той самий крок.<br>
+  <b>Погоджено 19.10.2026: реалізовано C «Сцена», A «Кроки» — за тимчасовим перемикачем «Налаштування → Дизайн онбордингу»;
+  остаточний вибір — WAT-57.</b> До реалізації додано крок «Одиниці» (об'єм, вага, час) і застереження — SPEC-ONBOARDING §3.1.
+</p>
+
+<div class="ctl">
+  <div><label>Тема</label><div class="btns" id="themeBtns">
+    <button data-v="light" class="sel">Світла</button><button data-v="dark">Темна</button></div></div>
+  <div><label>Рух</label><div class="btns" id="motionBtns">
+    <button data-v="on" class="sel">Анімації</button><button data-v="rm">Reduce Motion</button></div></div>
+  <div><label>Крок у всіх кадрах</label><div class="btns" id="jumpBtns">
+    <button data-v="hello">Вітання</button><button data-v="gender">Стать</button><button data-v="age">Вік</button>
+    <button data-v="weight">Вага</button><button data-v="act">Активність</button><button data-v="goal">Норма</button>
+    <button data-v="day">День</button><button data-v="rhythm">Ритм</button><button data-v="glass">Склянка</button>
+    <button data-v="notif">Нагадування</button><button data-v="done">Фініш</button></div></div>
+  <div><label>Кадри</label><div class="btns" id="resetBtns"><button data-v="reset">Скинути всі</button></div></div>
+</div>
+
+<div id="app">
+
+<h2>Вхід <small>спільний для всіх варіантів — SPEC-ONBOARDING §7.1, §8</small></h2>
+<div class="row">
+  <div class="wrap">
+    <div class="cap">«Налаштування» — повторний прохід</div>
+    <div class="frame crop">
+      <div class="status"><span>9:41</span><i>●●● ▮</i></div>
+      <div class="set">
+        <div class="set-nav"><span class="rb">‹</span><b>Налаштування</b></div>
+        <div class="set-sec">ВОДА</div>
+        <div class="card rows">
+          <div class="tr"><span class="l">Денна мета<span class="sm">Крок — 250 мл</span></span>
+            <div class="stp"><button>−</button><span class="num">2.5 л</span><button>+</button></div></div>
+          <div class="tr hl"><span class="l"><span class="newb">Нове</span>Підібрати під себе<span class="sm">Норма, день і нагадування за хвилину</span></span><span class="chev">›</span></div>
+          <div class="tr"><span class="l">Кнопки порцій</span><span class="val">200 мл · 500 мл · 1 л</span><span class="chev">›</span></div>
+        </div>
+        <div class="set-sec">РИТМ І НАГАДУВАННЯ</div>
+        <div class="card rows">
+          <div class="tr"><span class="l">Ритм дня<span class="sm">Цілі на ранок, день і вечір</span></span><span class="tg on"></span></div>
+          <div class="tr"><span class="l">Нагадування</span><span class="val">Увімк.</span><span class="chev">›</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Один вхід на весь онбординг — і «перерахувати норму», і «пропустив першого разу» ведуть сюди.
+      Нічого не пишеться, поки людина не побачить «Що зміниться» й не натисне «Зберегти».</p>
+  </div>
+  <div class="wrap" style="width:520px">
+    <div class="cap">Коли відкривається сам</div>
+    <p class="note" style="font-size:13px;margin-top:0">
+      <b>Перший запуск</b> — на весь екран до головного, якщо в базі немає жодної порції.<br><br>
+      <b>«Пропустити»</b> на вітанні — нічого не змінюється, типові значення. «Пропустити» на кроці — «закінчити зараз»: зберігаються
+      кроки, підтверджені «Далі». Норма змінюється, лише якщо людина дійшла до кроку «Норма» й побачила число.<br><br>
+      <b>Наявні користувачі після оновлення</b> онбординг самі не бачать: вікно поверх звичного головного виглядало б як скидання.
+      Їм лишається рядок «Підібрати під себе».<br><br>
+      <b>Дозвіл на сповіщення</b> — крок «Нагадування». «Не зараз» відкладає системний запит: шторка після першої порції спитає
+      ще раз через 3 дні (SPEC-NOTIFICATIONS §16.5).<br><br>
+      <b>Тексти</b> — на «ти», без роду, без минулого часу.
+    </p>
+  </div>
+</div>
+
+<h2>A · Кроки <small>світлий екран, картки варіантів, смуга з трьох розділів</small></h2>
+<p class="lead">Як був. Смуга прогресу з трьох розділів, «‹» назад, «Пропустити» (у повторному — ✕). Великі контроли: колесо віку,
+  лінійка ваги, картки активності. <b>Норма — окремий екран-винагорода:</b> крапля наповнюється, число рахується, під ним — з чого
+  воно складається. У повторному проході поточне значення має пігулку <b>«Зараз»</b>, під числами — «Було 78 кг · ↺ Як було».</p>
+<div class="row">
+  <div class="wrap"><div class="cap">Перший запуск</div><div class="frame" data-v="A" data-mode="first"></div></div>
+  <div class="wrap"><div class="cap">Повторно — з «Налаштувань»</div><div class="frame" data-v="A" data-mode="rerun"></div></div>
+</div>
+
+<h2>B · Вода <small>екран наповнюється водою з кожною відповіддю</small></h2>
+<p class="lead">Прогрес — сама вода: з кожним «Далі» рівень піднімається, кнопки пливуть по ній. Усе по центру, варіанти — пігулки,
+  активність — три круглі кнопки, день — дві картки з великим часом. <b>На кроці «Норма» вода піднімається до половини екрана</b>, а число
+  й розклад — у воді. На фініші вода заливає весь екран. Позначки повторного проходу ті самі, що в A.</p>
+<div class="row">
+  <div class="wrap"><div class="cap">Перший запуск</div><div class="frame" data-v="B" data-mode="first"></div></div>
+  <div class="wrap"><div class="cap">Повторно — з «Налаштувань»</div><div class="frame" data-v="B" data-mode="rerun"></div></div>
+</div>
+
+<h2>C · Сцена <small>угорі жива ілюстрація кроку, унизу — питання на панелі</small></h2>
+<p class="lead">Верхня половина — сцена в кольорі розділу: вода для «Норми», світанок для «Дня», нічне небо для «Нагадувань». <b>Сцена показує,
+  що робить відповідь:</b> мл на кілограм для статі, шкалу коефіцієнтів віку, ваги зі стрілкою й «78 × 35 мл», бонус активності, добу з
+  підйомом і відбоєм, блоки ранку, дня й вечора, склянку, екран блокування. Висота сцени підлаштовується під крок. Прогрес — крапки на сцені.</p>
+<div class="row">
+  <div class="wrap"><div class="cap">Перший запуск</div><div class="frame" data-v="C" data-mode="first"></div></div>
+  <div class="wrap"><div class="cap">Повторно — з «Налаштувань»</div><div class="frame" data-v="C" data-mode="rerun"></div></div>
+</div>
+
+</div>
+
+<h2>Порівняння</h2>
+<table>
+  <tr><th></th><th>A · Кроки</th><th>B · Вода</th><th>C · Сцена</th></tr>
+  <tr><td>Відчуття</td>
+      <td>Спокійно й ясно: світлий екран, картки варіантів, норма — окремий момент</td>
+      <td>Найбільше «води» й руху: відповідаєш — і стакан-екран наповнюється. Найсильніший фініш</td>
+      <td>Ілюстрована книжка: кожен крок має свою картинку й колір; найбільше пояснює</td></tr>
+  <tr><td>Прогрес</td>
+      <td>Смуга з трьох розділів</td>
+      <td>Рівень води + «4 / 9»</td>
+      <td>Крапки + колір розділу (вода → світанок → ніч)</td></tr>
+  <tr><td>Навіщо питаємо</td>
+      <td>Видно лише на кроці «Норма»</td>
+      <td>Теж на кроці «Норма» — число у воді</td>
+      <td>На кожному кроці: «35 мл на кілограм», «×0.95», «78 × 35 мл = 2 730 мл», «+350 мл до норми»</td></tr>
+  <tr><td>Місце під контроли</td>
+      <td>Найбільше — увесь екран</td>
+      <td>Вода забирає низ екрана; контроли — у сухій частині</td>
+      <td>Половина екрана — панель; день із вихідними доводиться гортати</td></tr>
+  <tr><td>Ризики</td>
+      <td>Найменше «вау»</td>
+      <td>Білий текст лише у воді — треба стежити, щоб контроли туди не заходили; на iPhone SE суха частина менша</td>
+      <td>Найбільше ілюстрацій — дев'ять сцен; тексти в сцені треба тримати короткими</td></tr>
+  <tr><td>Вартість у коді</td>
+      <td>Екран-кроки, колесо й лінійка; решта — наявні <code>WTPrimaryButton</code>, <code>WTValueStepper</code>, <code>WTToggle</code></td>
+      <td>+ шар води з хвилями (схожий є в «Запасі води» віджета й у вікні «Склянка»)</td>
+      <td>+ дев'ять сцен і перехід кольорів; сцени — чисті функції від чернетки, як ілюстрації «Знань»</td></tr>
+</table>
+<div class="rec">
+  <b>Рекомендація — C «Сцена».</b> Онбординг найкраще продає норму, коли видно, звідки вона береться. У C кожна відповідь одразу змінює
+  картинку: перемкнув стать — «35 → 30 мл на кілограм», додав кілограм — стрілка ваг рушила. Це та «жива інфографіка», яку ти обирав для
+  звітів і «Знань», а ілюстрації можна будувати на вже наявних <code>WTLearn*</code>. Якщо ближчий спокійний A, з B варто взяти <b>воду як
+  прогрес і заливку на фініші</b>: це дешево й дає онбордингу характер.
+</div>
+
+<script>
+// ===================== дані й правила (SPEC-ONBOARDING §3, §5) =====================
+const STATUS = '<div class="status"><span>9:41</span><i>●●● ▮</i></div>';
+const STEPS = ['hello','gender','age','weight','act','goal','day','rhythm','glass','notif','done'];
+const CH = {gender:0, age:0, weight:0, act:0, goal:0, day:1, rhythm:1, glass:2, notif:2};
+const CH_NAMES = ['Норма','День','Нагадування'];
+const CH_STEPS = [['gender','age','weight','act','goal'],['day','rhythm'],['glass','notif']];
+const ACT = [
+  {em:'🪑', t:'Мало руху', s:'мало руху', d:'Сидяча робота, мало ходиш'},
+  {em:'🚶', t:'Помірно', s:'помірно', d:'Прогулянки, 1–3 тренування на тиждень'},
+  {em:'🏃', t:'Багато', s:'багато', d:'Фізична робота чи тренування майже щодня'}];
+const GENDER = {m:'Чоловік', f:'Жінка'};
+const COND = {none:'Ні', preg:'Вагітність', feed:'Годування груддю'};
+const GLASSES = [200,250,300,350,400];
+
+// Типові значення першого запуску й профіль для повторного проходу.
+const TYPICAL = {gender:null, cond:'none', age:null, weight:70, act:1, goalMl:2000, goalSrc:'typical', pick:'calc',
+  wake:480, sleep:1320, wkEn:false, wWake:540, wSleep:1380, rhythm:true, glass:250, notif:'nd', remind:'pace'};
+const CURRENT = {gender:'m', cond:'none', age:34, weight:78, act:1, goalMl:2500, goalSrc:'manual', pick:'keep',
+  wake:420, sleep:1350, wkEn:true, wWake:540, wSleep:1410, rhythm:true, glass:300, notif:'on', remind:'pace'};
+
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const clampG = ml => clamp(ml, 500, 5000);
+const rm = () => document.body.classList.contains('rm');
+const T = m => String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+const lnum = ml => (ml/1000).toFixed(ml % 100 === 0 ? 1 : 2);
+const L = ml => lnum(ml) + ' л';
+const ML = x => Math.round(x).toLocaleString('uk-UA') + ' мл';
+const dayStr = (w,s) => `${T(w)}–${T(s)}`;
+let uid = 0;
+
+// SpecGoalFormula + бонус стану (EFSA 2010).
+function calc(d){
+  const kg = d.gender === 'm' ? 35 : d.gender === 'f' ? 30 : 32.5;
+  const ka = d.age == null ? .97 : d.age <= 30 ? 1 : d.age <= 55 ? .95 : .9;
+  const act = [200,350,500][d.act];
+  const cond = d.gender === 'f' ? {none:0, preg:300, feed:700}[d.cond] : 0;
+  const w = d.weight * kg, base = w * ka;
+  return {kg, ka, act, cond, w, base, total: clampG(Math.round((base + act + cond) / 50) * 50)};
+}
+const calcAdj = a => clampG(calc(a.d).total + a.d.adj);
+const goal = a => a.d.pick === 'keep' ? a.base.goalMl : calcAdj(a);
+const chooseGoal = a => a.mode === 'rerun' && calc(a.d).total !== a.base.goalMl;
+
+function fmtAny(key, v){
+  switch (key){
+    case 'gender': return v == null ? 'не вказано' : GENDER[v].toLowerCase();
+    case 'cond': return COND[v].toLowerCase();
+    case 'age': return v == null ? 'не вказано' : String(v);
+    case 'weight': return v + ' кг';
+    case 'act': return ACT[v].s;
+    case 'rhythm': return v ? 'ранок, день і вечір' : 'просто норма';
+    case 'glass': return v + ' мл';
+    default: return T(v);
+  }
+}
+
+function changes(app){
+  const b = app.base, d = app.d, out = [];
+  if (goal(app) !== b.goalMl) out.push(['🎯','Норма', L(b.goalMl), L(goal(app))]);
+  if (d.weight !== b.weight) out.push(['⚖️','Вага', b.weight + ' кг', d.weight + ' кг']);
+  if (d.age !== b.age) out.push(['🎂','Вік', fmtAny('age', b.age), fmtAny('age', d.age)]);
+  if (d.gender !== b.gender) out.push(['👤','Стать', fmtAny('gender', b.gender), fmtAny('gender', d.gender)]);
+  const bc = b.gender === 'f' ? b.cond : 'none', dc = d.gender === 'f' ? d.cond : 'none';
+  if (bc !== dc) out.push(['🤰','Особливий стан', COND[bc].toLowerCase(), COND[dc].toLowerCase()]);
+  if (d.act !== b.act) out.push(['🏃','Активність', ACT[b.act].s, ACT[d.act].s]);
+  if (d.wake !== b.wake || d.sleep !== b.sleep) out.push(['☀️','День', dayStr(b.wake, b.sleep), dayStr(d.wake, d.sleep)]);
+  const wk = x => x.wkEn ? dayStr(x.wWake, x.wSleep) : 'як будні';
+  if (wk(b) !== wk(d)) out.push(['🗓','Вихідні', wk(b), wk(d)]);
+  if (d.rhythm !== b.rhythm) out.push(['⏱','Ритм дня', fmtAny('rhythm', b.rhythm), fmtAny('rhythm', d.rhythm)]);
+  if (!d.rhythm && b.rhythm && b.remind === 'pace') out.push(['🔔','Нагадування', 'за темпом', 'рівні інтервали']);
+  if (d.glass !== b.glass) out.push(['🥛','Склянка', b.glass + ' мл', d.glass + ' мл']);
+  return out;
+}
+const pluralNom = n => n % 10 === 1 && n % 100 !== 11 ? 'зміна' : [2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100) ? 'зміни' : 'змін';
+const plural = n => n % 10 === 1 && n % 100 !== 11 ? 'зміну' : [2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100) ? 'зміни' : 'змін';
+
+// Тексти кроків — однакові для всіх варіантів.
+function q(app, id){
+  const r = app.mode === 'rerun', choose = chooseGoal(app);
+  switch (id){
+    case 'gender': return ['Вкажи стать', 'Лише для розрахунку норми — тексти від цього не залежать'];
+    case 'age': return ['Скільки тобі років?', 'Після 30 і після 55 норма трохи менша'];
+    case 'weight': return ['Скільки ти важиш?', 'Від ваги норма залежить найбільше'];
+    case 'act': return ['Скільки руху в звичайному дні?', 'Тренування й робота на ногах додають до норми'];
+    case 'goal': return [r ? 'Норма' : 'Твоя норма', !r ? 'Порахована з твоїх відповідей. Можна підправити по 50 мл'
+      : choose ? 'Розрахунок дає інше число, ніж зараз. Обери, яку норму лишити' : 'Розрахунок збігається з поточною нормою'];
+    case 'day': return ['Коли починається й закінчується твій день?', 'Нагадування приходять лише в ці години'];
+    case 'rhythm': return ['Як тобі зручніше?', 'Змінити можна будь-коли в налаштуваннях'];
+    case 'glass': return ['Скільки в твоїй склянці?', 'Кнопка «+склянка» в нагадуванні додаватиме стільки'];
+    case 'notif': return [app.d.notif === 'on' ? 'Нагадування увімкнені' : 'Нагадувати, коли забудеш про воду?',
+      'Лише коли відстаєш від свого темпу — хто п’є рівномірно, нагадувань не отримує'];
+  }
+}
+const stepLabel = id => `${CH_NAMES[CH[id]]} · ${CH_STEPS[CH[id]].indexOf(id) + 1} / ${CH_STEPS[CH[id]].length}`;
+
+// ===================== спільна розмітка =====================
+const DROP = 'M100 10C100 10 30 100 30 156A70 70 0 0 0 170 156C170 100 100 10 100 10Z';
+const WAVE = 'M0 13 Q100.5 0 201 13 T402 13 T603 13 T804 13 V26 H0Z';
+const lvlY = lv => 226 - clamp(lv, 0, 1) * 216;
+const goalLevel = ml => clamp(ml / 4000, .28, .94);
+function dropArt(level, cls = '', bindGoal = false){
+  const id = 'dr' + (++uid);
+  return `<svg class="drop ${cls}" ${bindGoal ? 'data-goal="1"' : ''} viewBox="0 0 200 236"><defs><clipPath id="${id}"><path d="${DROP}"/></clipPath>
+    <linearGradient id="${id}g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--w1)"/><stop offset="1" style="stop-color:var(--w2)"/></linearGradient></defs>
+    <path d="${DROP}" style="fill:var(--chip)"/>
+    <g clip-path="url(#${id})"><g class="lvl" data-y="${bindGoal ? '' : lvlY(level)}" style="transform:translateY(240px)">
+      <path class="wv" d="M-200 10 Q-150 -2 -100 10 T0 10 T100 10 T200 10 T300 10 T400 10 V320 H-200Z" fill="url(#${id}g)"/></g></g>
+    <path d="M70 66 Q60 84 56 102" stroke="#fff" stroke-width="9" stroke-linecap="round" fill="none" opacity=".55"/></svg>`;
+}
+const gScale = ml => (.72 + (ml - 200) / 200 * .42).toFixed(3);
+function glassArt(ml){
+  const id = 'gl' + (++uid), P = 'M16 10 L84 10 L76 120 Q75 125 70 125 L30 125 Q25 125 24 120 Z';
+  return `<div class="glass" style="--s:${gScale(ml)}"><svg viewBox="0 0 100 130"><defs><clipPath id="${id}"><path d="${P}"/></clipPath></defs>
+    <g clip-path="url(#${id})"><rect width="100" height="130" style="fill:var(--chip)"/>
+    <g style="transform:translateY(34px)"><path class="wv" d="M-200 10 Q-150 2 -100 10 T0 10 T100 10 T200 10 T300 10 T400 10 V200 H-200Z" style="fill:var(--accent)" opacity=".85"/></g></g>
+    <path d="${P}" fill="none" style="stroke:var(--accent)" stroke-width="3.5" stroke-linejoin="round"/>
+    <path d="M26 24 L22 70" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".7"/></svg></div>`;
+}
+const miniDrop = '<svg width="11" height="13" viewBox="0 0 200 236"><path d="' + DROP + '" fill="#fff"/></svg>';
+function ntfInner(d){
+  return `<div class="ntf"><div class="ntf-h"><span class="ico">${miniDrop}</span>WaterTracker<em>зараз</em></div>
+    <div class="ntf-t">💧 Вода чекає</div><div class="ntf-b">До цілі ще 1.2 л. Почни з однієї склянки</div>
+    <div class="ntf-a"><span class="p">+${d.glass} мл</span><span>Нагадати за годину</span></div></div>`;
+}
+const wallHtml = () => '<div class="wall"><div class="wt">10:41</div><div class="wd">понеділок, 19 жовтня</div><div data-ntf></div></div>';
+function rhythmArt(on){
+  return on
+    ? '<div class="ra"><i><b style="width:100%"></b><s>✓</s></i><i><b style="width:100%"></b><s>✓</s></i><i><b style="width:42%"></b></i></div>'
+    : '<div class="ra one"><i><b style="width:68%"></b></i></div>';
+}
+function bdInner(app){
+  const d = app.d, c = calc(d), ageDelta = Math.round(c.w - c.base);
+  const segs = [[c.base,'var(--bd1)'],[c.act,'var(--bd2)'],[c.cond,'var(--bd3)']].filter(s => s[0] > 0);
+  return `<div class="bd-bar">${segs.map(([v,col]) => `<i style="flex:${v};background:${col}"></i>`).join('')}</div>
+    <div class="bd-r"><b style="background:var(--bd1)"></b><span>Вага ${d.weight} кг × ${c.kg} мл</span><em>${ML(c.w)}</em></div>
+    ${c.ka !== 1 ? `<div class="bd-r"><b class="o"></b><span>Вік ${d.age == null ? 'не вказано' : d.age} · ×${c.ka}</span><em>−${ML(ageDelta)}</em></div>` : ''}
+    <div class="bd-r"><b style="background:var(--bd2)"></b><span>Активність — ${ACT[d.act].s}</span><em>+${ML(c.act)}</em></div>
+    ${c.cond ? `<div class="bd-r"><b style="background:var(--bd3)"></b><span>${COND[d.cond]}</span><em>+${ML(c.cond)}</em></div>` : ''}`;
+}
+function tlBuild(x){
+  x.innerHTML = ['wd','we'].map(k => `<div class="tl-row" data-row="${k}"><div class="lab">${k === 'wd' ? 'Будні' : 'Вихідні'}</div>
+    <div class="trk"><div class="win"><span>норма за день</span></div><div class="blk b1"><span>ранок</span></div><div class="blk b2"><span>день</span></div>
+    <div class="blk b3"><span>вечір</span></div><span class="ic s">☀️</span><span class="ic m">🌙</span></div></div>`).join('')
+    + `<div class="ax">${[0,6,12,18,24].map(h => `<span style="left:${h / 24 * 100}%">${String(h).padStart(2,'0')}:00</span>`).join('')}</div>`;
+  x._built = true;
+}
+function tlUpd(x, d){
+  if (!x._built) tlBuild(x);
+  const blocks = x.dataset.tl === 'blocks', P = m => m / 1440 * 100;
+  const put = (el, a, z) => { el.style.left = P(a) + '%'; el.style.width = Math.max(0, P(z) - P(a)) + '%'; };
+  [['wd', d.wake, d.sleep], ['we', d.wWake, d.wSleep]].forEach(([k, w, s]) => {
+    const row = x.querySelector(`[data-row="${k}"]`);
+    row.classList.toggle('hid', k === 'we' && !d.wkEn);
+    row.querySelector('.lab').classList.toggle('hid', !d.wkEn);
+    const showBlocks = blocks && d.rhythm;
+    const win = row.querySelector('.win');
+    put(win, w, s); win.style.opacity = showBlocks ? 0 : 1;
+    win.querySelector('span').style.opacity = blocks ? 1 : 0;
+    const b1 = Math.min(Math.max(720, w), s), b2 = Math.min(Math.max(1020, w), s);
+    row.querySelectorAll('.blk').forEach((el, i) => {
+      const [a, z] = [[w, b1], [b1, b2], [b2, s]][i];
+      put(el, a, z); el.style.opacity = showBlocks ? 1 : 0;
+      el.querySelector('span').style.opacity = z - a >= (i === 1 ? 150 : 200) ? 1 : 0;
+    });
+    row.querySelector('.ic.s').style.left = P(w) + '%';
+    row.querySelector('.ic.m').style.left = P(s) + '%';
+  });
+}
+function agesHtml(age){
+  const P = v => (v - 14) / 85 * 100;
+  const segs = [[14,30,'×1.0'],[31,55,'×0.95'],[56,99,'×0.9']];
+  return `<div class="ag">${segs.map(([a, z, k]) => `<div class="ag-s ${age != null && age >= a && age <= z ? 'on' : ''}" style="flex:${z - a + 1}">${k}</div>`).join('')}
+      ${age != null ? `<i class="ag-m" style="left:${P(age)}%"></i>` : ''}</div>
+    <div class="ag-ax">${[14,30,55,99].map(v => `<span style="left:${v === 14 ? 2 : v === 99 ? 97 : P(v + .5)}%">${v}</span>`).join('')}</div>`;
+}
+function scaleArt(){
+  return `<svg class="s-scale" viewBox="0 0 200 120"><rect x="8" y="6" width="184" height="108" rx="28" fill="rgba(255,255,255,.16)" stroke="rgba(255,255,255,.55)" stroke-width="3"/>
+    <path d="M44 78 A56 56 0 0 1 156 78" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="7" stroke-linecap="round" stroke-dasharray="2 9"/>
+    <g class="needle" data-needle style="transform-origin:100px 78px"><line x1="100" y1="78" x2="100" y2="32" stroke="#fff" stroke-width="5" stroke-linecap="round"/></g>
+    <circle cx="100" cy="78" r="8" fill="#fff"/></svg>`;
+}
+
+// Позначки повторного проходу: пігулка «Зараз» на поточному варіанті, «Було …» під числами.
+const isBase = (app, key, v) => app.mode === 'rerun' && app.base[key] === v;
+const nowPill = (app, key, v) => isBase(app, key, v) ? '<span class="now">Зараз</span>' : '';
+function opt(app, key, v, t, desc = '', em = '', cls = ''){
+  return `<div class="opt ${cls}" data-act="pick" data-k="${key}" data-v="${v}">${em ? (em.startsWith('<') ? em : `<span class="em">${em}</span>`) : ''}
+    <span class="tx"><span class="t">${t}${nowPill(app, key, v)}</span>${desc ? `<span class="d">${desc}</span>` : ''}</span><span class="rad"></span></div>`;
+}
+const chip = (app, key, v, t, cls = '') =>
+  `<button class="chip ${cls}" data-act="pick" data-k="${key}" data-v="${v}">${t}${nowPill(app, key, v)}</button>`;
+const toggle = key => `<button class="tg" data-act="tog" data-arg="${key}" data-tg="${key}"></button>`;
+const stepper = (key, d, show = key) =>
+  `<div class="stp"><button data-act="step" data-arg="${key}:-${d}">−</button><span class="num" data-show="${show}"></span><button data-act="step" data-arg="${key}:${d}">+</button></div>`;
+const timeRow = (key, em, label) =>
+  `<div class="tr"><span class="e">${em}</span><span class="l">${label}<span class="sm" data-mark="${key}"></span></span>${stepper(key, 15)}</div>`;
+
+function wasHtml(app, key){
+  const d = app.d, b = app.base;
+  if (app.mode !== 'rerun') return key === 'weight' && d.weight === b.weight ? 'Типове значення — зміни на своє' : '';
+  if (d[key] === b[key]) return '<span class="now">Зараз</span>';
+  return `Було ${fmtAny(key, b[key])} · <button class="rev" data-act="revert" data-arg="${key}">↺ Як було</button>`;
+}
+function markHtml(app, key){
+  if (app.mode !== 'rerun') return '';
+  if (app.d[key] === app.base[key]) return '<span class="now">Зараз</span>';
+  return `<span class="was2">було ${fmtAny(key, app.base[key])}</span><button class="rev" data-act="revert" data-arg="${key}">↺</button>`;
+}
+const row3 = ([e, l, v]) => `<div class="sr"><span class="e">${e}</span><span class="l">${l}</span><b>${v}</b></div>`;
+function summaryRows(app){
+  const d = app.d;
+  return [
+    ['🎯','Норма', L(goal(app)) + ' на день'],
+    ['☀️','День', dayStr(d.wake, d.sleep) + (d.wkEn ? `<br><span style="color:var(--muted);font-weight:700">вихідні ${dayStr(d.wWake, d.wSleep)}</span>` : '')],
+    ['⏱','Ритм', fmtAny('rhythm', d.rhythm)],
+    ['🥛','Склянка', d.glass + ' мл'],
+    ['🔔','Нагадування', d.notif === 'on' ? 'увімкнені' : d.notif === 'denied' ? 'вимкнені в iOS' : 'спитаємо після першої порції'],
+  ].map(row3).join('');
+}
+function nowRows(app){
+  const b = app.base;
+  return [
+    ['🎯','Норма', L(b.goalMl) + (b.goalSrc === 'manual' ? ' · вручну' : '')],
+    ['☀️','День', dayStr(b.wake, b.sleep)],
+    ['🗓','Вихідні', b.wkEn ? dayStr(b.wWake, b.wSleep) : 'як будні'],
+    ['⏱','Ритм', fmtAny('rhythm', b.rhythm)],
+    ['🥛','Склянка', b.glass + ' мл'],
+    ['🔔','Нагадування', b.notif === 'on' ? 'увімкнені' : 'вимкнені'],
+  ].map(row3).join('');
+}
+const diffRows = ch => ch.map(([e, l, f, t]) =>
+  `<div class="sr"><span class="e">${e}</span><span class="l">${l}</span><span class="vv"><span class="fr">${f}</span><span class="ar">→</span><b>${t}</b></span></div>`).join('');
+
+// Контроли кроків — одні для всіх варіантів, вигляд підлаштовує CSS варіанта.
+const CTL = {
+  gender: (app, cls = '') => `<div class="opts ${cls}">${opt(app,'gender','m','Чоловік')}${opt(app,'gender','f','Жінка')}${opt(app,'gender',null,'Не вказувати')}</div>
+    <div class="subq" data-vis="cond"><div class="lbl">Зараз щось із цього?</div>
+      <div class="chips">${chip(app,'cond','none','Ні')}${chip(app,'cond','preg','Вагітність')}${chip(app,'cond','feed','Годування груддю')}</div>
+      <div class="hint">Вагітність і годування груддю збільшують норму на 300 і 700 мл</div></div>`,
+  age: (app, cls = '') => `${wheelHtml(app,'age',14,99,cls)}<div class="chips c">${chip(app,'age',null,'Не вказувати')}</div><div class="was" data-was="age"></div>`,
+  ruler: app => `${rulerHtml(app,'weight',30,200)}<div class="was" data-was="weight"></div>`,
+  actOpts: (app, cls = '') => `<div class="opts ${cls}">${ACT.map((x, k) => opt(app,'act',k,x.t,x.d,x.em)).join('')}</div>`,
+  goalPick: app => {
+    const b = app.base;
+    return `<div class="opts optsm">${opt(app,'pick','keep','Залишити поточну', b.goalSrc === 'manual' ? 'Задано вручну' : 'Типова')}
+      ${opt(app,'pick','calc','Взяти розраховану','Вага, вік і активність')}</div>`;
+  },
+  dayRows: () => `<div class="card rows">${timeRow('wake','☀️','Підйом')}${timeRow('sleep','🌙','Відбій')}
+      <div class="tr"><span class="e">🗓</span><span class="l">У вихідні інакше</span>${toggle('wkEn')}</div>
+      <div data-vis="wk">${timeRow('wWake','☀️','Підйом у вихідні')}${timeRow('wSleep','🌙','Відбій у вихідні')}</div></div>`,
+  glassChips: app => `<div class="chips c">${GLASSES.map(v => chip(app,'glass',v,v + ' мл')).join('')}</div>`,
+  intv: '<div class="note-in" data-vis="intv">🔔 Нагадування підуть рівними інтервалами</div>',
+  notifFoot: app => app.d.notif === 'on' ? '<button class="primary" data-act="next">Далі</button>'
+    : '<button class="primary" data-act="allow">Увімкнути</button><button class="link quiet" data-act="later">Не зараз</button>',
+};
+
+// Фініш — однаковий зміст, різне оформлення.
+function doneParts(app){
+  if (app.mode === 'first') return {title:'Усе готово', sub:'Змінити можна будь-коли в «Налаштуваннях»', body:`<div class="sum">${summaryRows(app)}</div>`,
+    foot:'<button class="primary" data-act="finish">До першої склянки</button><button class="link" data-act="learn">📖 Як користуватися</button>'};
+  const ch = changes(app);
+  if (!ch.length) return {title:'Без змін', sub:'Усе лишається як було', body:'', foot:'<button class="primary" data-act="save">Готово</button>'};
+  return {title:'Що зміниться', sub:'Збережеться лише після «Зберегти»', body:`<div class="sum">${diffRows(ch)}</div><div class="rest">Решта — без змін</div>`,
+    foot:'<button class="primary" data-act="save">Зберегти</button><button class="link quiet" data-act="cancel">Скасувати</button>'};
+}
+
+// ===================== синхронізація значень на екрані =====================
+const SHOW = {
+  weight: a => a.d.weight, age: a => a.d.age == null ? '—' : a.d.age,
+  goal: a => lnum(goal(a)), calcL: a => L(calc(a.d).total),
+  wake: a => T(a.d.wake), sleep: a => T(a.d.sleep), wWake: a => T(a.d.wWake), wSleep: a => T(a.d.wSleep),
+  adj: a => a.d.adj ? (a.d.adj > 0 ? '+' : '−') + Math.abs(a.d.adj) + ' мл' : '0 мл',
+  actDesc: a => ACT[a.d.act].d,
+  kgK: a => calc(a.d).kg, ageK: a => '×' + calc(a.d).ka, baseL: a => `${a.d.weight} × ${calc(a.d).kg} мл = ${ML(calc(a.d).w)}`,
+  actEm: a => ACT[a.d.act].em, actBonus: a => `+${calc(a.d).act} мл до норми`,
+  condL: a => a.d.cond === 'preg' ? '+300 мл · вагітність' : '+700 мл · годування груддю',
+  dayRange: a => dayStr(a.d.wake, a.d.sleep), rhythmBig: a => a.d.rhythm ? '3 цілі' : '1 ціль',
+  rhythmCap: a => a.d.rhythm ? 'ранок, день і вечір' : 'просто норма за день',
+};
+const VIS = {
+  cond: a => a.d.gender === 'f', wk: a => a.d.wkEn, adj: a => a.d.pick === 'calc', keep: a => a.d.pick === 'keep',
+  intv: a => !a.d.rhythm && a.base.remind === 'pace', condOn: a => a.d.gender === 'f' && a.d.cond !== 'none',
+};
+function sync(app, o = {}){
+  const el = app.el, d = app.d;
+  el.querySelectorAll('[data-show]').forEach(x => {
+    if (x._cu) return;
+    const t = String(SHOW[x.dataset.show](app));
+    if (x.textContent !== t) x.textContent = t;
+  });
+  el.querySelectorAll('[data-was]').forEach(x => x.innerHTML = wasHtml(app, x.dataset.was));
+  el.querySelectorAll('[data-mark]').forEach(x => x.innerHTML = markHtml(app, x.dataset.mark));
+  el.querySelectorAll('[data-bd]').forEach(x => x.innerHTML = bdInner(app));
+  el.querySelectorAll('[data-tl]').forEach(x => tlUpd(x, d));
+  el.querySelectorAll('[data-ages]').forEach(x => x.innerHTML = agesHtml(d.age));
+  el.querySelectorAll('[data-needle]').forEach(x => x.style.transform = `rotate(${-80 + (d.weight - 30) / 170 * 160}deg)`);
+  el.querySelectorAll('[data-vis]').forEach(x => x.classList.toggle('hid', !VIS[x.dataset.vis](app)));
+  el.querySelectorAll('[data-inv]').forEach(x => x.classList.toggle('inv', !VIS[x.dataset.inv](app)));
+  el.querySelectorAll('[data-act="pick"]').forEach(x => x.classList.toggle('sel', String(d[x.dataset.k]) === x.dataset.v));
+  el.querySelectorAll('[data-tg]').forEach(x => x.classList.toggle('on', !!d[x.dataset.tg]));
+  el.querySelectorAll('[data-tgc]').forEach(x => x.classList.toggle('pri', !!d[x.dataset.tgc]));
+  el.querySelectorAll('[data-wheel]').forEach(x => x.classList.toggle('off', d[x.dataset.wheel] == null));
+  el.querySelectorAll('.glass').forEach(x => x.style.setProperty('--s', gScale(d.glass)));
+  el.querySelectorAll('[data-ntf]').forEach(x => x.innerHTML = ntfInner(d));
+  el.querySelectorAll('.drop[data-goal] .lvl').forEach(x => { if (x._init) x.style.transform = `translateY(${lvlY(goalLevel(goal(app)))}px)`; });
+  if (o.pos) el.querySelectorAll('[data-wheel],[data-ruler]').forEach(x => x._place && x._place(true));
+}
+
+// Колесо віку й лінійка ваги: значення — з позиції прокрутки.
+function wheelHtml(app, key, min, max, cls = ''){
+  let h = '';
+  for (let v = min; v <= max; v++) h += `<div class="it ${isBase(app, key, v) ? 'base' : ''}" data-n="${v}">${v}</div>`;
+  return `<div class="wheel ${cls}" data-wheel="${key}" data-min="${min}" data-max="${max}"><div class="band"></div><div class="sc"><div class="pad"></div>${h}<div class="pad"></div></div></div>`;
+}
+function mountWheel(app, w){
+  const sc = w.querySelector('.sc'), key = w.dataset.wheel, min = +w.dataset.min, max = +w.dataset.max, H = 52;
+  const mark = () => { const v = app.d[key] ?? 30; sc.querySelectorAll('.it').forEach(x => x.classList.toggle('c', +x.dataset.n === v)); };
+  const place = smooth => {
+    sc._ign = true; clearTimeout(sc._t);
+    sc.scrollTo({top: ((app.d[key] ?? 30) - min) * H, behavior: smooth && !rm() ? 'smooth' : 'auto'});
+    mark(); sc._t = setTimeout(() => sc._ign = false, smooth ? 450 : 80);
+  };
+  sc.addEventListener('scroll', () => {
+    if (sc._ign) return;
+    const v = clamp(min + Math.round(sc.scrollTop / H), min, max);
+    if (v !== app.d[key]){ app.d[key] = v; app.d.adj = 0; mark(); sync(app); }
+  });
+  sc.addEventListener('click', e => {
+    const it = e.target.closest('.it'); if (!it) return;
+    app.d[key] = +it.dataset.n; app.d.adj = 0; place(true); sync(app);
+  });
+  w._place = place; place(false);
+}
+function rulerHtml(app, key, min, max){
+  let h = '';
+  for (let v = min; v <= max; v++){
+    const c = v % 10 === 0 ? 'm10' : v % 5 === 0 ? 'm5' : '';
+    h += `<div class="tk ${c} ${isBase(app, key, v) ? 'base' : ''}">${v % 10 === 0 ? `<span>${v}</span>` : ''}</div>`;
+  }
+  return `<div class="ruler" data-ruler="${key}" data-min="${min}" data-max="${max}"><div class="needle"></div><div class="sc"><div class="sp"></div>${h}<div class="sp"></div></div></div>`;
+}
+function mountRuler(app, r){
+  const sc = r.querySelector('.sc'), key = r.dataset.ruler, min = +r.dataset.min, max = +r.dataset.max, W = 12;
+  sc.querySelectorAll('.sp').forEach(s => s.style.width = (sc.clientWidth / 2 - W / 2) + 'px');
+  const place = smooth => {
+    sc._ign = true; clearTimeout(sc._t);
+    sc.scrollTo({left: (app.d[key] - min) * W, behavior: smooth && !rm() ? 'smooth' : 'auto'});
+    sc._t = setTimeout(() => sc._ign = false, smooth ? 450 : 80);
+  };
+  sc.addEventListener('scroll', () => {
+    if (sc._ign) return;
+    const v = clamp(min + Math.round(sc.scrollLeft / W), min, max);
+    if (v !== app.d[key]){ app.d[key] = v; app.d.adj = 0; sync(app); }
+  });
+  r._place = place; place(false);
+}
+function mount(app){
+  app.el.querySelectorAll('[data-wheel]').forEach(w => mountWheel(app, w));
+  app.el.querySelectorAll('[data-ruler]').forEach(r => mountRuler(app, r));
+  sync(app);
+  app.el.querySelectorAll('.lvl[data-y]').forEach(x => {
+    const y = x.dataset.y === '' ? lvlY(goalLevel(goal(app))) : +x.dataset.y;
+    const go = () => { x.style.transform = `translateY(${y}px)`; x._init = true; };
+    rm() ? go() : setTimeout(go, 90);
+  });
+}
+function countUp(app, x, to){
+  if (rm() || !x) return;
+  const t0 = performance.now(), dur = 1100; x._cu = true;
+  const f = now => {
+    const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+    x.textContent = (to * e / 1000).toFixed(2);
+    if (p < 1 && x.isConnected) requestAnimationFrame(f);
+    else { x._cu = false; x.textContent = String(SHOW[x.dataset.show](app)); }
+  };
+  requestAnimationFrame(f);
+}
+
+// ===================== дії =====================
+const parse = v => v === 'null' ? null : v === 'true' ? true : v === 'false' ? false : isNaN(+v) ? v : +v;
+// Поправка ±50 — відносно розрахунку: нові вхідні дані дають нове число, стара поправка до нього не стосується.
+const INPUTS = new Set(['gender','cond','age','weight','act']);
+function pick(app, k, v){
+  app.d[k] = v;
+  if (k === 'gender' && v !== 'f') app.d.cond = 'none';
+  if (INPUTS.has(k)) app.d.adj = 0;
+  sync(app);
+}
+function step(app, k, dl){
+  const d = app.d;
+  if (INPUTS.has(k)) d.adj = 0;
+  switch (k){
+    case 'weight': d.weight = clamp(d.weight + dl, 30, 200); break;
+    case 'age': d.age = d.age == null ? 30 : clamp(d.age + dl, 14, 99); break;
+    case 'adj': { const c = calc(d).total; d.adj = clampG(c + d.adj + dl) - c; break; }
+    // Межі — DaySchedule: підйом від 04:00, відбій до 24:00, активних годин ≥ 6, крок 15 хв.
+    case 'wake': d.wake = clamp(d.wake + dl, 240, d.sleep - 360); break;
+    case 'sleep': d.sleep = clamp(d.sleep + dl, d.wake + 360, 1440); break;
+    case 'wWake': d.wWake = clamp(d.wWake + dl, 240, d.wSleep - 360); break;
+    case 'wSleep': d.wSleep = clamp(d.wSleep + dl, d.wWake + 360, 1440); break;
+  }
+  sync(app, {pos: k === 'weight' || k === 'age'});
+}
+function revert(app, k){
+  app.d[k] = app.base[k];
+  if (k === 'gender') app.d.cond = app.base.cond;
+  if (INPUTS.has(k)) app.d.adj = 0;
+  sync(app, {pos: true});
+}
+function toast(app, text){
+  app.el.querySelectorAll('.toast').forEach(t => t.remove());
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = text;
+  app.el.appendChild(t); setTimeout(() => t.remove(), 2600);
+}
+function overlay(app, html){ const ov = app.el.querySelector('.ov'); ov.innerHTML = '<div class="dim"></div>' + html; ov.classList.add('show'); }
+function hideOv(app){ const ov = app.el.querySelector('.ov'); ov.classList.remove('show'); ov.innerHTML = ''; }
+const SYS = `<div class="sys"><div class="st">«WaterTracker» хоче надсилати вам сповіщення</div>
+  <div class="sb">Сповіщення можуть містити попередження, звуки й наліпки на значках. Це можна змінити в Параметрах.</div>
+  <div class="sbtn"><button data-act="sys" data-arg="denied">Не дозволяти</button><button data-act="sys" data-arg="on">Дозволити</button></div></div>`;
+const CONFIRM = `<div class="dlg"><b>Вийти без змін?</b><p>Зміни не збережуться — усе лишиться як було.</p>
+  <div class="dlg-b"><button class="link" data-act="stay">Залишитись</button><button class="primary sm" data-act="exit">Вийти</button></div></div>`;
+function later(app){ clearTimeout(app.rt); app.rt = setTimeout(() => restart(app), 2300); }
+
+function act(app, a, arg, t){
+  const V = VAR[app.v];
+  switch (a){
+    case 'next': V.next(app); break;
+    case 'back': V.back(app); break;
+    case 'skip': toast(app, 'Пропущено → головний. Підтверджене збережено, решта — типові значення'); later(app); break;
+    case 'close':
+      if (app.mode === 'rerun' && changes(app).length) overlay(app, CONFIRM);
+      else { toast(app, 'Без змін → назад у налаштування'); later(app); }
+      break;
+    case 'exit': hideOv(app); toast(app, 'Вихід без змін → назад у налаштування'); later(app); break;
+    case 'stay': hideOv(app); break;
+    case 'pick': pick(app, t.dataset.k, parse(t.dataset.v)); break;
+    case 'step': { const [k, dl] = arg.split(':'); step(app, k, +dl); break; }
+    case 'tog': app.d[arg] = !app.d[arg]; sync(app); break;
+    case 'revert': revert(app, arg); break;
+    case 'allow': overlay(app, SYS); break;
+    case 'sys': hideOv(app); app.d.notif = arg; V.afterNotif(app); break;
+    case 'later': app.d.notif = 'later'; V.afterNotif(app); break;
+    case 'finish': toast(app, `Головний екран · норма ${L(goal(app))} на день`); later(app); break;
+    case 'learn': toast(app, 'Відкриється історія «Перші кроки» з розділу «Знання»'); break;
+    case 'save': { const n = changes(app).length; toast(app, n ? `Збережено ${n} ${plural(n)} → назад у налаштування` : 'Без змін → назад у налаштування'); later(app); break; }
+    case 'cancel': toast(app, 'Скасовано — нічого не змінилось'); later(app); break;
+  }
+}
+
+// Спільний рушій кроків: варіант дає лише каркас кадру й вигляд кроку.
+function flow(spec){
+  const F = {
+    init(app){ spec.skel(app); F.show(app, null); },
+    next(app){ if (app.i < STEPS.length - 1){ app.i++; F.show(app, 'r'); } },
+    back(app){ if (app.i > 0){ app.i--; F.show(app, 'l'); } },
+    jump(app, id){ app.i = STEPS.indexOf(id); F.init(app); },
+    afterNotif(app){ setTimeout(() => F.next(app), rm() ? 0 : 260); },
+    show(app, dir){
+      const id = STEPS[app.i];
+      if (id === 'goal' && !chooseGoal(app)) app.d.pick = 'calc';
+      spec.show(app, id, dir);
+      mount(app);
+      if (id === 'goal' && dir === 'r') countUp(app, app.el.querySelector('[data-count]'), goal(app));
+    },
+  };
+  return F;
+}
+const skipBtn = app => app.mode === 'rerun' ? '<button class="rb x" data-act="close">✕</button>' : '<button class="skip" data-act="skip">Пропустити</button>';
+const noTop = (app, id) => id === 'hello' || (id === 'done' && app.mode === 'first');
+
+// ===================== A · Кроки =====================
+function aQ(app, id, body, foot){
+  const [t, s] = q(app, id);
+  return `<div class="a-head"><div class="a-ch">${stepLabel(id)}</div><div class="a-title">${t}</div>${s ? `<div class="a-sub">${s}</div>` : ''}</div>
+    <div class="a-mid"><div class="in">${body}</div></div>
+    <div class="a-foot">${foot ?? '<button class="primary" data-act="next">Далі</button>'}</div>`;
+}
+const AT = {
+  hello(app){
+    if (app.mode === 'first') return `<div class="a-mid"><div class="in"><div class="hello-art"><i></i><i></i><i></i><i></i>${dropArt(.62)}</div>
+        <div class="a-title c">Привіт! Налаштуймо застосунок під тебе</div>
+        <div class="a-sub c">9 коротких питань — і в тебе своя норма, свій день і нагадування без зайвого. Це хвилина.</div></div></div>
+      <div class="a-foot"><button class="primary" data-act="next">Почати</button><button class="link quiet" data-act="skip">Пропустити</button></div>`;
+    return `<div class="a-mid"><div class="in"><div class="a-title">Перевіримо налаштування</div>
+        <div class="a-sub">Усе, що вже є, підставлено з позначкою «Зараз». Змінюй лише те, що треба — збережеться після «Зберегти».</div>
+        <div class="sum mt">${nowRows(app)}</div></div></div>
+      <div class="a-foot"><button class="primary" data-act="next">Почати</button><button class="link quiet" data-act="close">Не зараз</button></div>`;
+  },
+  gender: app => aQ(app, 'gender', CTL.gender(app)),
+  age: app => aQ(app, 'age', CTL.age(app)),
+  weight: app => aQ(app, 'weight', `<div class="bignum"><button class="round" data-act="step" data-arg="weight:-1">−</button>
+      <span><span class="num" data-show="weight"></span><small>кг</small></span><button class="round" data-act="step" data-arg="weight:1">+</button></div>${CTL.ruler(app)}`),
+  act: app => aQ(app, 'act', CTL.actOpts(app)),
+  goal(app){
+    const r = app.mode === 'rerun', choose = chooseGoal(app);
+    return aQ(app, 'goal', `<div class="goalw">${dropArt(0, '', true)}
+        <div class="gn"><button class="round" data-act="step" data-arg="adj:-50" data-inv="adj">−</button>
+          <div class="val"><span class="num" data-count data-show="goal"></span><small>л</small>
+            <div class="per">на день${r && !choose ? '<span class="now">Зараз</span>' : ''}</div></div>
+          <button class="round" data-act="step" data-arg="adj:50" data-inv="adj">+</button></div></div>
+      ${choose ? CTL.goalPick(app) : ''}<div class="bd" data-bd></div>`,
+      `<button class="primary" data-act="next">${r ? 'Далі' : 'Підходить'}</button>`);
+  },
+  day: app => aQ(app, 'day', `<div data-tl="plain"></div>${CTL.dayRows()}`),
+  rhythm: app => aQ(app, 'rhythm', `<div class="opts">${opt(app,'rhythm',true,'Ранок, день і вечір','Три цілі за день — легше не відкладати все на вечір',rhythmArt(true),'big')}
+      ${opt(app,'rhythm',false,'Просто норма за день','Без цілей частин доби — лише денна норма',rhythmArt(false),'big')}</div>${CTL.intv}`),
+  glass: app => aQ(app, 'glass', `<div class="glassw">${glassArt(app.d.glass)}</div>${CTL.glassChips(app)}`),
+  notif: app => aQ(app, 'notif', `${wallHtml()}${app.d.notif === 'on' && isBase(app,'notif','on') ? '<div class="was"><span class="now">Зараз</span>&nbsp;дозвіл є</div>' : ''}`, CTL.notifFoot(app)),
+  done(app){
+    const p = doneParts(app), first = app.mode === 'first', ch = changes(app).length;
+    if (first || !ch) return `<div class="a-mid"><div class="in"><div class="done-hero">${dropArt(first ? .86 : .62)}${first ? '<span class="ck">✓</span>' : ''}</div>
+        <div class="a-title c">${p.title}</div><div class="a-sub c">${p.sub}</div>${p.body ? `<div class="mt">${p.body}</div>` : ''}</div></div><div class="a-foot">${p.foot}</div>`;
+    return `<div class="a-head"><div class="a-title">${p.title}</div><div class="a-sub">${p.sub}</div></div>
+      <div class="a-mid"><div class="in">${p.body}</div></div><div class="a-foot">${p.foot}</div>`;
+  },
+};
+const A = flow({
+  skel(app){
+    app.el.innerHTML = STATUS + `<div class="a-top"><button class="rb" data-act="back">‹</button>
+      <div class="a-prog">${CH_STEPS.map(s => `<i style="flex:${s.length}"><b></b></i>`).join('')}</div>${skipBtn(app)}</div>
+      <div class="a-stage"></div><div class="ov"></div>`;
+  },
+  show(app, id, dir){
+    const top = app.el.querySelector('.a-top');
+    top.classList.toggle('hid', noTop(app, id));
+    top.querySelectorAll('.a-prog b').forEach((b, k) => {
+      const done = CH_STEPS[k].filter(s => STEPS.indexOf(s) <= app.i).length;
+      b.style.width = done / CH_STEPS[k].length * 100 + '%';
+    });
+    app.el.querySelector('.a-stage').innerHTML = `<div class="a-scr ${noTop(app, id) ? 'full' : ''} ${dir ? 'in-' + dir : ''}">${AT[id](app)}</div>`;
+  },
+});
+
+// ===================== B · Вода =====================
+// Рівень води: вітання — трохи, кожне «Далі» — вище, «Норма» — пів екрана, фініш — увесь екран.
+const wLevel = (app, id) => id === 'hello' ? 230 : id === 'done' ? 874 : id === 'goal' ? (chooseGoal(app) ? 420 : 480) : 150 + (app.i - 1) * 16;
+function wQ(app, id, body, foot){
+  const [t, s] = q(app, id);
+  return `<div class="w-head"><div class="w-title">${t}</div>${s ? `<div class="w-sub">${s}</div>` : ''}</div>
+    <div class="w-mid">${body}</div><div class="w-foot">${foot ?? '<button class="primary" data-act="next">Далі</button>'}</div>`;
+}
+const timeCard = (key, label) => `<div class="w-tc"><span class="lb">${label}</span>
+  <div class="w-pm"><button data-act="step" data-arg="${key}:-15">−</button><span class="num" data-show="${key}"></span><button data-act="step" data-arg="${key}:15">+</button></div>
+  <span class="mk" data-mark="${key}"></span></div>`;
+const BT = {
+  hello(app){
+    if (app.mode === 'first') return `<div class="w-mid"><div class="w-bob">${dropArt(.62)}</div>
+        <div class="w-title">Привіт! Налаштуймо застосунок під тебе</div>
+        <div class="w-sub">9 коротких питань — і в тебе своя норма, свій день і нагадування без зайвого. Це хвилина.</div></div>
+      <div class="w-foot"><button class="primary" data-act="next">Почати</button><button class="link" data-act="skip">Пропустити</button></div>`;
+    return `<div class="w-mid" style="justify-content:flex-start"><div class="w-title">Перевіримо налаштування</div>
+        <div class="w-sub">Усе, що вже є, підставлено з позначкою «Зараз». Збережеться лише після «Зберегти».</div>
+        <div class="sum sm-rows" style="margin-top:6px">${nowRows(app)}</div></div>
+      <div class="w-foot"><button class="primary" data-act="next">Почати</button><button class="link" data-act="close">Не зараз</button></div>`;
+  },
+  gender: app => wQ(app, 'gender', CTL.gender(app)),
+  age: app => wQ(app, 'age', CTL.age(app, 'sm')),
+  weight: app => wQ(app, 'weight', `<div class="bignum"><button class="round" data-act="step" data-arg="weight:-1">−</button>
+      <span><span class="num" data-show="weight"></span><small>кг</small></span><button class="round" data-act="step" data-arg="weight:1">+</button></div>${CTL.ruler(app)}`),
+  act: app => wQ(app, 'act', `<div class="w-acts">${ACT.map((x, k) => `<button class="w-act" data-act="pick" data-k="act" data-v="${k}">
+      <span class="c">${x.em}</span>${x.t}${nowPill(app,'act',k)}</button>`).join('')}</div><div class="w-desc" data-show="actDesc"></div>`),
+  goal(app){
+    const r = app.mode === 'rerun', choose = chooseGoal(app);
+    return `<div class="w-head"><div class="w-title">${q(app,'goal')[0]}</div><div class="w-sub">${q(app,'goal')[1]}</div></div>
+      <div class="w-mid">${choose ? CTL.goalPick(app) : ''}</div>
+      <div class="w-goal"><div class="gn"><button class="round" data-act="step" data-arg="adj:-50" data-inv="adj">−</button>
+          <div class="val"><span class="num" data-count data-show="goal"></span><small>л</small>
+            <div class="per">на день${r && !choose ? '<span class="now">Зараз</span>' : ''}</div></div>
+          <button class="round" data-act="step" data-arg="adj:50" data-inv="adj">+</button></div>
+        <div class="bd glass" data-bd></div></div>
+      <div class="w-foot"><button class="primary" data-act="next">${r ? 'Далі' : 'Підходить'}</button></div>`;
+  },
+  day: app => wQ(app, 'day', `<div class="w-days">${timeCard('wake','☀️ Підйом')}${timeCard('sleep','🌙 Відбій')}</div>
+      <div class="chips c"><button class="chip" data-act="tog" data-arg="wkEn" data-tgc="wkEn">🗓 У вихідні інакше</button></div>
+      <div data-vis="wk"><div class="w-wk">Вихідні</div><div class="w-days">${timeCard('wWake','☀️ Підйом')}${timeCard('wSleep','🌙 Відбій')}</div></div>`),
+  rhythm: app => wQ(app, 'rhythm', `<div class="w-tiles">
+      <div class="w-tile" data-act="pick" data-k="rhythm" data-v="true">${rhythmArt(true)}<b>Ранок, день і вечір</b><span class="d">Три цілі за день</span>${nowPill(app,'rhythm',true)}</div>
+      <div class="w-tile" data-act="pick" data-k="rhythm" data-v="false">${rhythmArt(false)}<b>Просто норма за день</b><span class="d">Лише денна норма</span>${nowPill(app,'rhythm',false)}</div>
+    </div>${CTL.intv}`),
+  glass: app => wQ(app, 'glass', `<div class="glassw" style="height:190px">${glassArt(app.d.glass)}</div>${CTL.glassChips(app)}`),
+  notif: app => wQ(app, 'notif', `<div class="w-bell">🔔</div><div class="w-ntf" data-ntf></div>
+      ${app.d.notif === 'on' && isBase(app,'notif','on') ? '<div class="was"><span class="now">Зараз</span>&nbsp;дозвіл є</div>' : ''}`,
+      CTL.notifFoot(app).replace('link quiet', 'link')),
+  done(app){
+    const p = doneParts(app), first = app.mode === 'first';
+    return `<div class="w-mid" style="justify-content:${first ? 'center' : 'flex-start'}">${first ? '<div class="w-check">✓</div>' : ''}
+        <div class="w-title">${p.title}</div><div class="w-sub">${p.sub}</div>${p.body ? `<div style="margin-top:8px">${p.body.replace('class="rest"', 'class="rest" style="color:#fff"')}</div>` : ''}</div>
+      <div class="w-foot">${p.foot.replace('link quiet', 'link')}</div>`;
+  },
+};
+const B = flow({
+  skel(app){
+    app.el.innerHTML = STATUS + `<div class="w-sea"><svg class="w-wave b" viewBox="0 0 804 26" preserveAspectRatio="none"><path d="${WAVE}"/></svg>
+      <svg class="w-wave a" viewBox="0 0 804 26" preserveAspectRatio="none"><path d="${WAVE}"/></svg><div class="w-fill"><i></i><i></i><i></i><i></i><i></i></div></div>
+      <div class="w-top"><button class="rb" data-act="back">‹</button><div class="w-count"><b></b><span class="num"></span></div>${skipBtn(app)}</div>
+      <div class="w-stage"></div><div class="ov"></div>`;
+  },
+  show(app, id, dir){
+    const lvl = wLevel(app, id);
+    app.el.style.setProperty('--lvl', lvl + 'px');
+    app.el.querySelector('.w-sea').style.height = lvl + 'px';
+    const top = app.el.querySelector('.w-top');
+    top.classList.toggle('hid', noTop(app, id));
+    const count = top.querySelector('.w-count');
+    count.classList.toggle('hid', id === 'done');
+    if (CH[id] != null){ count.querySelector('b').textContent = CH_NAMES[CH[id]]; count.querySelector('span').textContent = `${app.i} / 9`; }
+    const wet = id === 'done';
+    app.el.classList.toggle('wetf', wet);
+    app.el.querySelector('.w-stage').innerHTML = `<div class="w-scr ${noTop(app, id) ? 'full' : ''} ${wet ? 'wet' : ''} ${dir ? 'in-' + dir : ''}">${BT[id](app)}</div>`;
+  },
+});
+
+// ===================== C · Сцена =====================
+// Висота сцени — під обсяг контролів кроку: панель знизу має вмістити питання без прокрутки.
+function sHeight(app, id){
+  if (id === 'hello') return app.mode === 'first' ? 560 : 300;
+  if (id === 'goal') return chooseGoal(app) ? 350 : 380;
+  return {gender:300, age:380, weight:420, act:400, day:360, rhythm:420, glass:460, notif:520, done:300}[id];
+}
+const sChapter = id => id === 'day' || id === 'rhythm' ? 1 : id === 'glass' || id === 'notif' ? 2 : 0;
+const CS = {
+  hello: app => `<div class="s-bub"><i></i><i></i><i></i></div>${dropArt(.62, app.mode === 'first' ? 'big' : '')}`,
+  gender: () => `<div class="s-k"><span class="num" data-show="kgK"></span><small>мл</small></div><div class="s-cap">на кожен кілограм ваги</div>
+    <div class="s-badge" data-vis="condOn"><span data-show="condL"></span></div>`,
+  age: () => `<div class="s-k md"><span class="num" data-show="ageK"></span></div><div class="s-cap">коефіцієнт віку</div><div data-ages style="width:100%"></div>`,
+  weight: () => `${scaleArt()}<div class="s-k md"><span class="num" data-show="weight"></span><small>кг</small></div><div class="s-cap" data-show="baseL"></div>`,
+  act: () => `<div class="s-em" data-show="actEm"></div><div class="s-badge"><span data-show="actBonus"></span></div>`,
+  goal: app => `${dropArt(0, '', true)}<div class="s-k md" style="margin-top:10px"><span class="num" data-count data-show="goal"></span><small>л</small></div>
+    <div class="s-cap">на день${app.mode === 'rerun' && !chooseGoal(app) ? '<span class="now">Зараз</span>' : ''}</div>`,
+  day: () => `<div class="s-k sm2"><span class="num" data-show="dayRange"></span></div><div class="s-tl" data-tl="plain"></div>`,
+  rhythm: () => `<div class="s-k md"><span data-show="rhythmBig"></span></div><div class="s-cap" data-show="rhythmCap"></div><div class="s-tl" data-tl="blocks"></div>`,
+  glass: app => `<div class="s-glass">${glassArt(app.d.glass)}</div>`,
+  notif: () => `<div class="wt">10:41</div><div class="wd">понеділок, 19 жовтня</div><div class="s-ntf" data-ntf></div>`,
+  done: app => app.mode === 'first' ? `<div class="done-hero" style="margin:0">${dropArt(.86)}<span class="ck">✓</span></div>`
+    : `<div class="s-k md"><span class="num">${changes(app).length}</span></div><div class="s-cap">${changes(app).length ? pluralNom(changes(app).length) : 'без змін'}</div>`,
+};
+function sQ(app, id, body, foot){
+  const [t, s] = q(app, id);
+  return `<div><div class="a-ch">${stepLabel(id)}</div><div class="s-title">${t}</div>${s ? `<div class="a-sub">${s}</div>` : ''}</div>
+    <div class="s-mid"><div class="in">${body}</div></div><div class="a-foot">${foot ?? '<button class="primary" data-act="next">Далі</button>'}</div>`;
+}
+const CP = {
+  hello(app){
+    if (app.mode === 'first') return `<div class="c"><div class="s-title">Привіт! Налаштуймо застосунок під тебе</div>
+        <div class="a-sub">9 коротких питань — і в тебе своя норма, свій день і нагадування без зайвого. Це хвилина.</div></div>
+      <div class="s-mid"></div><div class="a-foot"><button class="primary" data-act="next">Почати</button><button class="link quiet" data-act="skip">Пропустити</button></div>`;
+    return `<div><div class="s-title">Перевіримо налаштування</div><div class="a-sub">Усе, що вже є, підставлено з позначкою «Зараз»</div></div>
+      <div class="s-mid"><div class="in"><div class="sum sm-rows">${nowRows(app)}</div></div></div>
+      <div class="a-foot"><button class="primary" data-act="next">Почати</button><button class="link quiet" data-act="close">Не зараз</button></div>`;
+  },
+  gender: app => sQ(app, 'gender', CTL.gender(app, 'sm')),
+  age: app => sQ(app, 'age', CTL.age(app, 'sm')),
+  weight: app => sQ(app, 'weight', `${CTL.ruler(app)}<div class="chips c"><button class="chip" data-act="step" data-arg="weight:-1">−1 кг</button>
+      <button class="chip" data-act="step" data-arg="weight:1">+1 кг</button></div>`),
+  act: app => sQ(app, 'act', CTL.actOpts(app, 'sm')),
+  goal: app => sQ(app, 'goal', `${chooseGoal(app) ? CTL.goalPick(app) : ''}
+      <div class="s-adj" data-vis="adj"><span>Підправити</span>${stepper('adj', 50)}</div><div class="bd" data-bd></div>`,
+      `<button class="primary" data-act="next">${app.mode === 'rerun' ? 'Далі' : 'Підходить'}</button>`),
+  day: app => sQ(app, 'day', CTL.dayRows()),
+  rhythm: app => sQ(app, 'rhythm', `<div class="opts sm">${opt(app,'rhythm',true,'Ранок, день і вечір','Три цілі за день — легше не відкладати все на вечір')}
+      ${opt(app,'rhythm',false,'Просто норма за день','Без цілей частин доби — лише денна норма')}</div>${CTL.intv}`),
+  glass: app => sQ(app, 'glass', CTL.glassChips(app)),
+  notif: app => sQ(app, 'notif', app.d.notif === 'on' && isBase(app,'notif','on') ? '<div class="was"><span class="now">Зараз</span>&nbsp;дозвіл є</div>' : '', CTL.notifFoot(app)),
+  done(app){
+    const p = doneParts(app);
+    return `<div><div class="s-title">${p.title}</div><div class="a-sub">${p.sub}</div></div>
+      <div class="s-mid"><div class="in">${p.body.replace('class="sum"', 'class="sum sm-rows"')}</div></div><div class="a-foot">${p.foot}</div>`;
+  },
+};
+const C = flow({
+  skel(app){
+    app.el.innerHTML = STATUS + `<div class="s-scene"><div class="s-bgs"><i class="g0"></i><i class="g1"></i><i class="g2"></i></div><div class="s-art"></div></div>
+      <div class="s-top"><button class="rb" data-act="back">‹</button><div class="s-dots">${'<i></i>'.repeat(9)}</div>${skipBtn(app)}</div>
+      <div class="s-panel"><div class="s-stage"></div></div><div class="ov"></div>`;
+  },
+  show(app, id, dir){
+    const h = sHeight(app, id);
+    app.el.querySelector('.s-scene').style.height = h + 'px';
+    app.el.querySelector('.s-panel').style.top = (h - 30) + 'px';
+    app.el.querySelectorAll('.s-bgs i').forEach((x, k) => x.classList.toggle('on', k === sChapter(id)));
+    app.el.querySelector('.s-top').classList.toggle('hid', noTop(app, id));
+    app.el.querySelectorAll('.s-dots i').forEach((x, k) => { x.classList.toggle('on', k + 1 === app.i); x.classList.toggle('done', k + 1 < app.i); });
+    app.el.querySelector('.s-art').innerHTML = `<div class="s-artin ${dir ? 'fade' : ''}">${CS[id](app)}</div>`;
+    app.el.querySelector('.s-stage').innerHTML = `<div class="s-scr ${dir ? 'in-' + dir : ''}">${CP[id](app)}</div>`;
+  },
+});
+
+// ===================== рушій кадру =====================
+const VAR = {A, B, C};
+const apps = [];
+function fresh(app){
+  clearTimeout(app.rt);
+  app.base = app.mode === 'rerun' ? CURRENT : TYPICAL;
+  app.d = {...app.base, adj: 0};
+  app.d.pick = app.mode === 'rerun' && app.base.goalSrc === 'manual' && calc(app.d).total !== app.base.goalMl ? 'keep' : 'calc';
+  app.i = 0;
+}
+function restart(app){ fresh(app); VAR[app.v].init(app); }
+function mountFrame(el){
+  const app = {el, v: el.dataset.v, mode: el.dataset.mode};
+  apps.push(app);
+  restart(app);
+  el.addEventListener('click', e => {
+    const t = e.target.closest('[data-act]');
+    if (!t || !el.contains(t)) return;
+    e.stopPropagation();
+    act(app, t.dataset.act, t.dataset.arg, t);
+  });
+}
+document.querySelectorAll('.frame[data-v]').forEach(mountFrame);
+
+// ===================== панель =====================
+function seg(id, fn, sticky = true){
+  const box = document.getElementById(id);
+  box.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (sticky) box.querySelectorAll('button').forEach(x => x.classList.toggle('sel', x === b));
+    fn(b.dataset.v);
+  });
+}
+seg('themeBtns', v => {
+  document.getElementById('app').classList.toggle('dark', v === 'dark');
+  document.body.classList.toggle('dark-page', v === 'dark');
+});
+seg('motionBtns', v => document.body.classList.toggle('rm', v === 'rm'));
+seg('jumpBtns', v => apps.forEach(app => { fresh(app); VAR[app.v].jump(app, v); }));
+seg('resetBtns', () => {
+  document.querySelectorAll('#jumpBtns button').forEach(x => x.classList.remove('sel'));
+  apps.forEach(restart);
+}, false);
+</script>
+</body>
+</html>
