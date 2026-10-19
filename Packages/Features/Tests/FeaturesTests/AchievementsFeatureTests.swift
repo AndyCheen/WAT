@@ -71,7 +71,7 @@ final class AchievementsFeatureTests: XCTestCase {
         let model = AchievementsViewModel(services: services)
 
         XCTAssertEqual(model.unlockedCount, 1)
-        XCTAssertEqual(model.totalCount, 105, "115 без 10 пасхалок (SPEC-ACHIEVEMENTS-CATALOG §4.10)")
+        XCTAssertEqual(model.totalCount, 108, "118 без 10 пасхалок (SPEC-ACHIEVEMENTS-CATALOG §4.10)")
 
         model.selectState(.inProgress)
         XCTAssertTrue(model.filtered.contains { $0.key == "big.gulp" })
@@ -84,7 +84,7 @@ final class AchievementsFeatureTests: XCTestCase {
         model.resetFilters()
         XCTAssertNil(model.category)
         XCTAssertEqual(model.stateFilter, .all)
-        XCTAssertEqual(model.filtered.count, 105)
+        XCTAssertEqual(model.filtered.count, 108)
     }
 
     func testCategoryFilterCoversWaterAchievements() {
@@ -147,7 +147,7 @@ final class AchievementsFeatureTests: XCTestCase {
 
         let screen = AchievementsViewModel(services: services)
         screen.reload()
-        XCTAssertEqual(screen.totalCount, 105, "знайдена пасхалка видимий каталог не роздуває")
+        XCTAssertEqual(screen.totalCount, 108, "знайдена пасхалка видимий каталог не роздуває")
         XCTAssertEqual(screen.eggLabel, "🥚 1")
         XCTAssertTrue(screen.counterAccessibilityValue.contains("пасхалок знайдено: 1"))
         XCTAssertEqual(screen.items.first { $0.key == "egg.pi" }?.note, "Пасхалка! Тут їх більше")

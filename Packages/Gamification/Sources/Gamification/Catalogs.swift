@@ -315,7 +315,7 @@ public enum AchievementCatalog {
               category: .game, difficulty: .hard, rule: .collection(.all), target: 50)
     ]
 
-    /// §4.7 🧭 Відкриття — 15. Разові, з малим XP, кожне вчить однієї функції. Заднім числом не відновлюються:
+    /// §4.7 🧭 Відкриття — 18 (три останні — за розділ «Знання», SPEC-LEARN §7). Разові, з малим XP, кожне вчить однієї функції. Заднім числом не відновлюються:
     /// дій раніше не записували — окрім джерел порцій, вибору на шляху рівнів і прийнятого графіка.
     static let discovery: [AchievementDefinition] = [
         .init(key: "discover.custom", title: "Своя мірка", details: "Порція власного обʼєму через «Інше»", emoji: "✍️",
@@ -355,7 +355,15 @@ public enum AchievementCatalog {
         // Таємне, бо вікно «Графік дня» з'являється не в кожного: відкрите заздалегідь, воно висіло б недосяжним.
         .init(key: "discover.rhythm", title: "Свій ритм", details: "Прийнято пропозицію графіка дня", emoji: "🧭",
               category: .discovery, difficulty: .medium, rule: .count(.scheduleOfferAccepted), target: 1,
-              secrecy: .hint("Застосунок помітить твій ритм"))
+              secrecy: .hint("Застосунок помітить твій ритм")),
+        // XP за саму історію немає (SPEC-LEARN §7): він перетворив би читання на прогортування.
+        // Цілі полиць — скільки в них історій (`LearnCatalog`, тест у Features тримає числа разом).
+        .init(key: "discover.learn", title: "Цікавинка", details: "Дочитано першу історію в «Знаннях»", emoji: "💡",
+              category: .discovery, difficulty: .easy, rule: .count(.learnCompleted), target: 1),
+        .init(key: "discover.learnWater", title: "Знавець води", details: "Прочитано всю полицю «Вода й тіло»",
+              emoji: "🎓", category: .discovery, difficulty: .medium, rule: .count(.learnBodyCompleted), target: 4),
+        .init(key: "discover.learnApp", title: "Знаю, як усе працює", details: "Прочитано всю полицю «Застосунок»",
+              emoji: "🛠️", category: .discovery, difficulty: .medium, rule: .count(.learnAppCompleted), target: 5)
     ]
 
     /// §4.8 🎉 Особливі: календар і фанові — 20. Сонцестояння й повня — `SkyCalendar`, без мережі.
@@ -425,9 +433,9 @@ public enum AchievementCatalog {
               emoji: "🔦", category: .discovery, difficulty: .easy, rule: .count(.xpGuideOpened), target: 1,
               secrecy: .egg),
         // Головний, «Прогрес», «Досягнення», «Призи», «Шлях рівнів», «Статистика», звіт, «Налаштування»,
-        // «Сповіщення», «Кнопки порцій» — будь-коли, не обов'язково за день (`AppScreen` у Features).
+        // «Сповіщення», «Кнопки порцій», «Знання» — будь-коли, не обов'язково за день (`AppScreen` у Features).
         .init(key: "egg.fish", title: "Як риба у воді", details: "Кожен куточок застосунку знайомий", emoji: "🐟",
-              category: .discovery, difficulty: .easy, rule: .count(.screenOpened), target: 10, secrecy: .egg),
+              category: .discovery, difficulty: .easy, rule: .count(.screenOpened), target: 11, secrecy: .egg),
         // Тепліша сестра «Знову тут»: свято за саму першу порцію після місяця, навіть без норми.
         .init(key: "egg.longTime", title: "Багато води утекло", details: "З поверненням!", emoji: "⏳",
               category: .streak, difficulty: .medium, rule: .history(.returnAfterBreak(days: 30)), target: 1,

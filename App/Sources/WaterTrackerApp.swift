@@ -60,8 +60,9 @@ struct WaterTrackerApp: App {
 struct LaunchConfiguration {
     let isInMemory: Bool
     let seedsDemoData: Bool
-    /// `--start-screen progress|level-road|achievements|prizes|stats|settings|portion-buttons|notifications|notification-plan|report|schedule-suggestion|widgets` —
+    /// `--start-screen progress|level-road|achievements|prizes|stats|settings|portion-buttons|notifications|notification-plan|report|schedule-suggestion|widgets|learn` —
     /// відкрити екран одразу. Використовується для дизайн-QA та e2e без ручної навігації.
+    /// `learn` — бібліотека «Знань»; історія — `learn:app.xp`, з потрібного слайда — `learn:app.xp:3`.
     /// `report` — звіт за минулий тиждень; конкретний період — `report:day:2026-10-04`,
     /// `report:month:2026-09` (кілька — через кому, як у злитому сповіщенні).
     let startRoute: AppRoute?
@@ -105,6 +106,10 @@ struct LaunchConfiguration {
         case "notifications": route = .notifications
         case "notification-plan": route = .notificationPlan
         case "widgets": route = .widgetGallery
+        case "learn": route = .learn
+        case let screen? where screen.hasPrefix("learn:"):
+            let parts = screen.split(separator: ":").map(String.init)
+            route = .learnStory(parts[1], slide: parts.count > 2 ? Int(parts[2]) : nil)
         case let screen? where screen.hasPrefix("report"):
             let periods = screen.dropFirst("report".count).drop { $0 == ":" }
                 .split(separator: ",").compactMap { ReportPeriod(encoded: String($0)) }

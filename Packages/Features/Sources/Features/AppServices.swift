@@ -25,6 +25,8 @@ public final class AppServices {
     public let gamification: GamificationService
     public let insights: InsightsService
     public let notifications: NotificationService
+    /// Прогрес читання «Знань» (SPEC-LEARN §6).
+    public let learn: LearnStore
     /// Куди веде тап по сповіщенню — читають `RootView` і `HomeScreen`.
     public let router = AppRouter()
 
@@ -97,6 +99,7 @@ public final class AppServices {
         self.profiles = profiles
         self.dayLogs = dayLogs
         self.metrics = metrics
+        self.learn = LearnStore(context: context)
         self.hydration = HydrationService(
             dayLogs: dayLogs, profiles: profiles, metrics: metrics, calendar: calendar
         )

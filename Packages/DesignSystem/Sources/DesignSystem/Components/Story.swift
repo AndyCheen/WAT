@@ -10,6 +10,21 @@ public enum WTStoryStyle: Equatable, Sendable {
     case water
     /// Колір екрана — слайди з графіками.
     case plain
+    /// Полиці «Знань» (SPEC-LEARN §5.1): «Вода й тіло» — та сама вода, але верх між першими двома зупинками,
+    /// бо надзаголовок тут угорі й на чистому `ringStart` білий не читається.
+    case learnWater
+    /// «Звички» — глибока вода до нічного неба віджетів.
+    case learnDeep
+    /// «Застосунок» — теплий фон призів, текст кольору теми, ілюстрації помаранчеві.
+    case learnWarm
+
+    /// Білий текст і хрестик на кольоровому тлі.
+    public var isOnColor: Bool {
+        switch self {
+        case .water, .learnWater, .learnDeep: return true
+        case .plain, .learnWarm: return false
+        }
+    }
 }
 
 /// Програвач історії: смуги прогресу, заголовок періоду, ✕ і тап ліворуч / праворуч.
@@ -20,21 +35,25 @@ public struct WTStoryPlayer<Slide: View>: View {
     private let header: String
     private let style: (Int) -> WTStoryStyle
     private let onClose: () -> Void
+    private let closeIdentifier: String
     private let slide: (Int) -> Slide
 
     public init(count: Int, index: Binding<Int>, header: String, style: @escaping (Int) -> WTStoryStyle,
-                onClose: @escaping () -> Void, @ViewBuilder slide: @escaping (Int) -> Slide) {
+                onClose: @escaping () -> Void, closeIdentifier: String = "report.close",
+                @ViewBuilder slide: @escaping (Int) -> Slide) {
         self.count = count
         _index = index
         self.header = header
         self.style = style
         self.onClose = onClose
+        self.closeIdentifier = closeIdentifier
         self.slide = slide
     }
 
     public var body: some View {
         let current = style(index)
-        let ink: Color = current == .water ? .white : theme.textPrimary
+        let onColor = current.isOnColor
+        let ink: Color = onColor ? .white : theme.textPrimary
         GeometryReader { proxy in
             ZStack(alignment: .top) {
                 WTStoryBackground(style: current)
@@ -59,18 +78,19 @@ public struct WTStoryPlayer<Slide: View>: View {
                         Text(header)
                             .font(WTFont.text(12, .black))
                             .tracking(0.5)
-                            .foregroundStyle(current == .water ? Color.white.opacity(0.85) : theme.textMuted)
+                            .foregroundStyle(onColor ? Color.white.opacity(0.85) : theme.textMuted)
                         Spacer()
                         Button(action: onClose) {
-                            WTIcons.close(color: current == .water ? .white : theme.accent, size: 12)
+                            WTIcons.close(color: onColor ? .white : theme.accent, size: 12)
                                 .frame(width: 34, height: 34)
-                                .background(current == .water ? Color.white.opacity(0.25) : theme.chip, in: Circle())
+                                .background(onColor ? Color.white.opacity(0.25) : current == .learnWarm ? theme.card : theme.chip,
+                                            in: Circle())
                                 .frame(width: 44, height: 44)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(WTPressStyle())
                         .accessibilityLabel("Закрити")
-                        .accessibilityIdentifier("report.close")
+                        .accessibilityIdentifier(closeIdentifier)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -107,6 +127,14 @@ public struct WTStoryBackground: View {
                                startPoint: .top, endPoint: .bottom)
             case .plain:
                 theme.screen
+            case .learnWater:
+                LinearGradient(stops: [.init(color: theme.learnWaterTop, location: 0), .init(color: theme.ringEnd, location: 0.5),
+                                       .init(color: theme.waterDeep, location: 1)],
+                               startPoint: .top, endPoint: .bottom)
+            case .learnDeep:
+                LinearGradient(colors: theme.learnDeepStops, startPoint: .top, endPoint: .bottom)
+            case .learnWarm:
+                LinearGradient(colors: theme.learnWarmStops, startPoint: .top, endPoint: .bottom)
             }
         }
         .ignoresSafeArea()

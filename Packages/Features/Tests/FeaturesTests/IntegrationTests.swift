@@ -35,7 +35,7 @@ final class IntegrationTests: XCTestCase {
         XCTAssertEqual(services.hydration.quickAddAmounts(), [200, 500, 1000])
         XCTAssertEqual(services.gamification.levelProgress().level, 1)
         XCTAssertEqual(services.gamification.dailyQuests().count, 2)
-        XCTAssertEqual(services.gamification.achievementSnapshots().count, 105, "115 без незнайдених пасхалок")
+        XCTAssertEqual(services.gamification.achievementSnapshots().count, 108, "118 без незнайдених пасхалок")
     }
 
     /// Застосунок, лишений відкритим на ніч, після повернення з фону показує новий день

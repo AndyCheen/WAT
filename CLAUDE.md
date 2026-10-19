@@ -19,8 +19,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 643 unit-тести 10 пакетів, без симулятора — швидкий цикл
-make test-ui        # 49 e2e-сценаріїв (XCUITest) у симуляторі
+make test-packages  # 662 unit-тести 10 пакетів, без симулятора — швидкий цикл
+make test-ui        # 52 e2e-сценарії (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
 make clean
@@ -80,14 +80,14 @@ Features → Widgets → DesignSystem → Core
 досягнення декларативні: `metricKey + comparator + target` у `Gamification/Catalogs.swift`,
 нова умова додається рядком у каталог, без коду.
 
-**Досягнення** (WAT-24, `SPEC-ACHIEVEMENTS-CATALOG.md`): 115 у `AchievementCatalog` (`Catalogs.swift`), ключі наявних семи
+**Досягнення** (WAT-24, `SPEC-ACHIEVEMENTS-CATALOG.md`): 118 у `AchievementCatalog` (з них 3 — за «Знання», WAT-53) (`Catalogs.swift`), ключі наявних семи
 не міняти — на них прогрес. Правило — `AchievementRule`: лічильник шини, рівень, факт шляху рівнів, колекція або
 `HistoryFact` — факт **історії днів** (`DayHistory`: кеш `DayRecord` з точковим оновленням сьогоднішнього дня й
 запам'ятовуванням фактів; `DayKey.ordinal` замість `Calendar`). Обʼєм — лише зарахований. Умови, які зіпсувало б
 доливання («Влучність», «В яблучко», «Дзеркало», «Рівна крива»), дивляться **лише на завершені дні** — інакше доливання
 й перший-ліпший відкат зняли б відкрите. Сонцестояння й повня — `SkyCalendar`. XP — від складності
 (`AchievementDifficulty`), остаточні числа — WAT-25. Таємні — прапорець `AchievementSecrecy`: 🤫 у знімку вже «???»,
-підказка й без прогресу; 🥚 до знахідки у знімку немає зовсім, лічильник — `tally` (105 + «🥚 N»). Маскування — лише в
+підказка й без прогресу; 🥚 до знахідки у знімку немає зовсім, лічильник — `tally` (108 + «🥚 N»). Маскування — лише в
 `AchievementEngine.snapshots`, не у в'юсі. Залежні від «Ритму дня» й сповіщень (`AchievementGate`) поки функцію вимкнено
 не рахуються ні в проході, ні у відкаті й мають `lockedCaption`. Прохід — лише на подіях із `AchievementCatalog.triggers`
 (частини доби пропускаються), повторюється, поки XP за досягнення піднімає рівень. Факти сповіщень («Чуйність»,
@@ -239,6 +239,23 @@ Features → Widgets → DesignSystem → Core
 - Межі розкладу (підйом від 04:00, відбій до 24:00, ≥ 6 год, крок 15 хв) — `DaySchedule`, одні для екрана
   «Сповіщення», вікна й `Insights`.
 
+### Знання (WAT-53, SPEC-LEARN)
+
+- Бібліотека й історії — варіант A «Історії» з `Design/Learn.html` (рішення від 19.10.2026): повноекранні слайди з
+  тапом через той самий `WTStoryPlayer`, що й звіт (стилі полиць `WTStoryStyle.learnWater/learnDeep/learnWarm`). Вхід —
+  кнопка «книжка» в шапці головного (`AppRoute.learn`), контекстні — «Детальніше» в довіднику «Звідки XP», «Як працюють
+  призи», «Як працює серія» в календарі, «Як користуватися» в «Налаштуваннях» (`AppRoute.learnStory`).
+- `LearnCatalog` — метадані 12 історій (ідентифікатор — ключ прогресу й ref метрики, не міняти); тексти й ілюстрації
+  складає `LearnPresenter` — чиста функція з живими значеннями (`LearnContext`: норма, блоки цілей, `XPRules`,
+  `LevelRoadCatalog`, рівень): після зміни балансу історія не бреше. Ілюстрації — `WTLearn*` у `DesignSystem`, колір —
+  з `WTLearnInk` за стилем слайда; інтерактивні тримають стан у собі й нічого не пишуть.
+- Вікторина — картка, що перевертається (`WTLearnFlipCard`); прихований бік — `hidden()`, а не прозорість, інакше
+  VoiceOver і XCUITest бачать кнопки під відповіддю.
+- Прогрес — `LearnProgress` / `LearnStore`: рядок з'являється, щойно бібліотека показала історію; історія без рядка —
+  нова (крапка на кнопці головного), але на першому відкритті «Нове» на обкладинках не горить. Фініш і кнопка «Що з цим
+  робити» — `finishLearnStory`: події `learn.completed` і полиці з ref від історії, досягнення «Відкриттів»; XP за
+  історію немає. Тексти — `LearnFeatureTests` (довжини, без роду, джерело в кожного факту полиці «Вода й тіло»).
+
 ViewModel-и — `@MainActor @Observable`, кешують знімки в збережені властивості й
 перечитують їх у `reload()`. Весь доменний шар — `@MainActor`.
 
@@ -253,7 +270,7 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
 - Норма змінюється через `GoalRevision`; `DayLog.goalMlSnapshot` оновлюється лише для
   **поточного** дня, минулі не чіпаються. Так само підйом і відбій (`wakeMinutesSnapshot` /
   `sleepMinutesSnapshot`): пишуться з порцією і в `HydrationService.scheduleDidChange()`.
-- Схема — `Database.schema` (14 моделей), одне місце для майбутніх міграцій.
+- Схема — `Database.schema` (17 моделей), одне місце для майбутніх міграцій.
 
 ### Час
 
@@ -294,12 +311,13 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
   зеленим. Для тостів і оверлеїв додатково перевіряти `isHittable` і межі вікна.
 - Позначення «переглянуто» — лише в `reload()` з `onAppear`, не в `init` моделі: інакше
   друге читання вже не бачить нових, і крапки «нове» не з'являються зовсім (WAT-23).
-- Сітка 2e лінива, а досягнень 105: плитку шукати після фільтра категорії (`achievements.category.option.<key>`),
+- Сітка 2e лінива, а досягнень 108: плитку шукати після фільтра категорії (`achievements.category.option.<key>`),
   інакше вона може бути ще не на екрані. Тост досягнень на справжньому годиннику нестабільний (повня, 11:11, 1 квітня
   відкривають таємні) — закріплюй `--uitest-now`.
 - Прапорці запуску (`App/Sources/WaterTrackerApp.swift`, `LaunchConfiguration`):
   `--uitest-empty` (чиста in-memory БД), `--uitest-demo` (демо-історія),
-  `--seed-demo`, `--start-screen progress|level-road|achievements|prizes|stats|settings|portion-buttons|notifications|notification-plan|report|schedule-suggestion|widgets`
+  `--seed-demo`, `--start-screen progress|level-road|achievements|prizes|stats|settings|portion-buttons|notifications|notification-plan|report|schedule-suggestion|widgets|learn`
+  (`learn:app.xp` — одразу історія, `learn:body.why:4` — з п'ятого слайда, вікторина)
   (`report` — минулий тиждень; період явно — `report:day:2026-10-04`, `report:month:2026-09`;
   `schedule-suggestion:wake-early|wake-late|sleep-late|sleep-early|both|weekend|weekdays` — вікно «Графік дня»
   повз правило частоти). `--seed-schedule-shift` — 10 днів із першою склянкою ≈ 06:30: вікно з'являється само.
@@ -353,7 +371,7 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
 | `SPEC-TEMPLATE.md` | ТЗ |
 | `SPEC-ACHIEVEMENTS.md` | ТЗ модуля «Досягнення» (WAT-22): блок 3f, екран 2e, картка деталей |
 | `Design/Achievements.html` | макет модуля досягнень (6 кадрів 402×874) до цього ТЗ; перенесено в код у WAT-23 |
-| `SPEC-ACHIEVEMENTS-CATALOG.md` | каталог досягнень (WAT-49): 115 досягнень у 8 категоріях, складність і «коли ≈», таємні з підказкою й пасхалки, невидимі до знахідки; реалізація — WAT-24, XP — WAT-25 |
+| `SPEC-ACHIEVEMENTS-CATALOG.md` | каталог досягнень (WAT-49): 115 досягнень у 8 категоріях (+3 за «Знання» — WAT-53), складність і «коли ≈», таємні з підказкою й пасхалки, невидимі до знахідки; реалізація — WAT-24, XP — WAT-25 |
 | `SPEC-PRIZES.md` | ТЗ модуля «Призи» (WAT-26): каталог, блок на 3f, екран «Призи», картка призу, правила заморозки й буста |
 | `Design/Prizes.html` | макет модуля призів (6 кадрів 402×874) до цього ТЗ; перенесено в код у WAT-34 |
 | `Design/LevelRoad.html` | макет вікна «Шлях рівнів» (WAT-44, SPEC-PRIZES §16): погоджено «Драбину» й «Скриню», компактний вибір; інфографіка частоти призів |
@@ -365,5 +383,7 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
 | `Design/Evenness.html` | макет «Рівномірності за день» (WAT-47): чотири варіанти на 5 частинах і на блоках, погоджено A «Смуги» на блоках цілей (SPEC-NOTIFICATIONS §31) |
 | `Design/Schedule.html` | макет вікна «Графік дня» (WAT-41): три варіанти, погоджено A «Час», і правило зсуву на 14 днях (SPEC-NOTIFICATIONS §27) |
 | `Design/Notifications.html` | інтерактивний макет етапу B (WAT-37): вікно «Склянка», звіт-історія дня / тижня / місяця, рядки B на екрані «Сповіщення» |
+| `SPEC-LEARN.md` | ТЗ розділу «Знання» (WAT-53): каталог 12 історій на трьох полицях, вхід із шапки головного й контекстні входи, правила формату, текстів, джерел і руху, прогрес читання, технічна схема |
+| `Design/Learn.html` | макет розділу «Знання» (WAT-53): три варіанти вигляду — історії, картки, лонгрід — на тих самих зразкових історіях; бібліотека, програвач, вікторина |
 | `DESIGN-TOKENS.md` | витяг токенів з макетів |
 | `WaterTracker.html` | оригінальні макети (1a, 3f, 2e, 4a) |

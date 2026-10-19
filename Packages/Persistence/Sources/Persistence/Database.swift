@@ -22,7 +22,8 @@ public enum Database {
         QuickAddPreset.self,
         QuietPeriod.self,
         NotificationSettings.self,
-        NotificationLog.self
+        NotificationLog.self,
+        LearnProgress.self
     ])
 
     /// Версія схеми. Підвищується разом з появою `SchemaMigrationPlan`.
