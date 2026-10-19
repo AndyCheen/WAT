@@ -14,7 +14,7 @@ struct WaterTrackerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView(services: services, initialRoute: AppContainer.launch.startRoute)
+            RootView(services: services, initialRoute: AppContainer.launch.startRoute, onboarding: AppContainer.onboardingOnLaunch)
                 // Тап по віджету (SPEC-WIDGETS §9.4).
                 .onOpenURL { url in
                     if let link = WidgetLink(url: url) { services.open(link) }
@@ -84,6 +84,11 @@ struct LaunchConfiguration {
     let seedsScheduleShift: Bool
     /// `--widget-action add:250,undo` — дії кнопок віджета по черзі: домашній екран у XCUITest нестабільний (WAT-30).
     let widgetActions: String?
+    /// `--start-screen onboarding` — онбординг першого запуску одразу, `onboarding:revisit` — повторний прохід (WAT-56).
+    /// Сам онбординг під `--uitest-*` не відкривається: він перекрив би всі наявні e2e.
+    let onboarding: OnboardingMode?
+    /// `--onboarding-design scene|steps` — тимчасовий перемикач дизайну онбордингу (до WAT-57).
+    let onboardingDesign: OnboardingDesign?
 
     static var current: LaunchConfiguration {
         let arguments = ProcessInfo.processInfo.arguments
@@ -95,7 +100,10 @@ struct LaunchConfiguration {
 
         let route: AppRoute?
         var scheduleSuggestion: ScheduleSuggestionDemo?
+        var onboarding: OnboardingMode?
         switch value(after: "--start-screen") {
+        case "onboarding": route = nil; onboarding = .firstRun
+        case "onboarding:revisit": route = nil; onboarding = .revisit
         case "progress": route = .progress
         case "level-road": route = .levelRoad
         case "achievements": route = .achievements
@@ -138,7 +146,9 @@ struct LaunchConfiguration {
             notificationTap: value(after: "--notification-tap").flatMap(NotificationType.init(key:)),
             scheduleSuggestion: scheduleSuggestion,
             seedsScheduleShift: arguments.contains("--seed-schedule-shift"),
-            widgetActions: value(after: "--widget-action")
+            widgetActions: value(after: "--widget-action"),
+            onboarding: onboarding,
+            onboardingDesign: value(after: "--onboarding-design").flatMap(OnboardingDesign.init(rawValue:))
         )
     }
 }

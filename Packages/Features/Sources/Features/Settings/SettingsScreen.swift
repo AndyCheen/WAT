@@ -15,6 +15,8 @@ public struct SettingsScreen: View {
     private let onOpenNotifications: () -> Void
     private let onOpenLearn: (String) -> Void
     private let onOpenPortionButtons: () -> Void
+    private let onOpenOnboarding: () -> Void
+    @State private var onboardingDesign = OnboardingDesign.current
 
     public init(
         services: AppServices,
@@ -23,8 +25,10 @@ public struct SettingsScreen: View {
         onBack: @escaping () -> Void,
         onOpenNotifications: @escaping () -> Void,
         onOpenPortionButtons: @escaping () -> Void,
-        onOpenLearn: @escaping (String) -> Void = { _ in }
+        onOpenLearn: @escaping (String) -> Void = { _ in },
+        onOpenOnboarding: @escaping () -> Void = {}
     ) {
+        self.onOpenOnboarding = onOpenOnboarding
         _model = State(initialValue: SettingsModel(services: services))
         _themeMode = themeMode
         _hapticsEnabled = hapticsEnabled
@@ -44,6 +48,7 @@ public struct SettingsScreen: View {
                     water
                     rhythm
                     app
+                    temporary
                 }
                 .wtScreenTopPadding()
                 .padding(.horizontal, WTSpacing.screenSide)
@@ -53,6 +58,8 @@ public struct SettingsScreen: View {
             .scrollBounceBehavior(.basedOnSize)
         }
         .onAppear { model.refresh() }
+        // Повторний онбординг відкривається поверх цього екрана й міняє норму — `onAppear` після нього не прийде.
+        .onChange(of: model.epoch) { model.refresh() }
         .onDisappear { model.dismissOffers() }
     }
 
@@ -68,6 +75,10 @@ public struct SettingsScreen: View {
             WTDivider()
             WTNavigationRow("Кнопки порцій", value: model.quickAmountsSummary, action: onOpenPortionButtons)
                 .accessibilityIdentifier("settings.portions")
+            WTDivider()
+            // Повторний онбординг (WAT-56, SPEC-ONBOARDING §7.1): перерахувати норму, пройти пропущене.
+            WTNavigationRow("Підібрати під себе", action: onOpenOnboarding)
+                .accessibilityIdentifier("settings.onboarding")
         }
     }
 
@@ -105,6 +116,19 @@ public struct SettingsScreen: View {
             // Контекстний вхід у «Знання» (SPEC-LEARN §3.2) — історія «Перші кроки».
             WTNavigationRow("Як користуватися", action: { onOpenLearn("app.start") })
                 .accessibilityIdentifier("settings.learn")
+        }
+    }
+
+    /// Тимчасово (рішення від 19.10.2026): дизайн онбордингу до вибору остаточного в WAT-57 — тоді секція зникає.
+    private var temporary: some View {
+        section("ТИМЧАСОВО") {
+            WTSegmentRow("Дизайн онбордингу", options: OnboardingDesign.allCases.map(\.title),
+                         selection: OnboardingDesign.allCases.firstIndex(of: onboardingDesign) ?? 0,
+                         identifierPrefix: "settings.onboardingDesign") { index in
+                onboardingDesign = OnboardingDesign.allCases[index]
+                OnboardingDesign.current = onboardingDesign
+            }
+            .padding(.vertical, 8)
         }
     }
 

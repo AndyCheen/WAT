@@ -54,8 +54,17 @@ enum AppContainer {
         if let actions = launch.widgetActions {
             Task { await services.simulateWidgetActions(actions) }
         }
+        // e2e не мають залежати від того, що лишилось у налаштуваннях симулятора з ручної перевірки.
+        if let design = launch.onboardingDesign ?? (launch.isUITest ? .scene : nil) {
+            OnboardingDesign.current = design
+        }
         return services
     }()
+
+    /// Онбординг на старті: прапорець e2e або перший запуск без жодної порції (SPEC-ONBOARDING §8). Під `--uitest-*` —
+    /// лише за прапорцем, інакше він перекрив би всі наявні сценарії.
+    static let onboardingOnLaunch: OnboardingMode? = launch.onboarding
+        ?? (!launch.isUITest && services.shouldOpenOnboarding ? .firstRun : nil)
 
     /// Дочекатися хвоста дії з віджета (відлуння, перепланування) у фоні. Інтент повертається раніше — заради
     /// швидкої цифри на віджеті (`AppServices.perform`), а після повернення iOS може приспати застосунок:

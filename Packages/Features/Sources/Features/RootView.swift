@@ -46,12 +46,18 @@ public struct RootView: View {
     @State private var path: [AppRoute] = []
     @State private var themeMode: ThemeMode
     @State private var hapticsEnabled: Bool
+    /// Онбординг поверх усього (WAT-56): на першому запуску — сам, повторно — з «Налаштувань».
+    @State private var onboarding: OnboardingModel?
+    private let onboardingOnLaunch: OnboardingMode?
 
-    public init(services: AppServices, initialRoute: AppRoute? = nil) {
+    /// - Parameter onboarding: відкрити онбординг одразу — перший запуск (`AppServices.shouldOpenOnboarding`)
+    ///   чи прапорець `--start-screen onboarding` для e2e.
+    public init(services: AppServices, initialRoute: AppRoute? = nil, onboarding: OnboardingMode? = nil) {
         _services = State(initialValue: services)
         _themeMode = State(initialValue: services.profile.themeMode)
         _hapticsEnabled = State(initialValue: services.profile.hapticsEnabled)
         _path = State(initialValue: initialRoute.map { [$0] } ?? [])
+        onboardingOnLaunch = onboarding
     }
 
     public var body: some View {
@@ -66,7 +72,8 @@ public struct RootView: View {
                     onOpenAchievements: { path.append(.achievements) },
                     onOpenPrize: { path.append(.prizeCard($0)) },
                     onOpenLearn: { path.append($0.map { .learnStory($0) } ?? .learn) },
-                    isOnTop: { path.isEmpty }
+                    // Поки відкритий онбординг, пропозиція графіка чекає — головний під ним не «чистий».
+                    isOnTop: { path.isEmpty && onboarding == nil }
                 )
                 .wtHideNavigationBar()
                 .navigationDestination(for: AppRoute.self) { route in
@@ -75,6 +82,16 @@ public struct RootView: View {
             }
             // Усередині контейнера: тема (`wtTheme`) діє лише на його вміст.
             .overlay(alignment: .bottom) { unlockToast }
+            .overlay {
+                if let onboarding {
+                    OnboardingScreen(model: onboarding)
+                        .transition(.move(edge: .bottom))
+                        .zIndex(1)
+                }
+            }
+        }
+        .onAppear {
+            if let mode = onboardingOnLaunch, onboarding == nil { openOnboarding(mode, animated: false) }
         }
         // Тап по сповіщенню, зокрема той, що запустив застосунок: `initial` — бо при холодному
         // старті маршрут з'являється раніше за перший кадр.
@@ -156,7 +173,8 @@ public struct RootView: View {
                 onBack: { path.removeLast() },
                 onOpenNotifications: { path.append(.notifications) },
                 onOpenPortionButtons: { path.append(.portionButtons) },
-                onOpenLearn: { path.append(.learnStory($0)) }
+                onOpenLearn: { path.append(.learnStory($0)) },
+                onOpenOnboarding: { openOnboarding(.revisit) }
             )
         case .portionButtons:
             PortionButtonsScreen(services: services, onBack: { path.removeLast() })
@@ -179,6 +197,25 @@ public struct RootView: View {
                              onNavigate: navigate)
         }
     }
+
+    // MARK: - Онбординг
+
+    private func openOnboarding(_ mode: OnboardingMode, animated: Bool = true) {
+        let model = OnboardingModel(services: services, mode: mode) { exit in closeOnboarding(exit) }
+        if animated {
+            withAnimation(WTAnimation.sheet) { onboarding = model }
+        } else {
+            onboarding = model
+        }
+    }
+
+    /// «Як користуватися» на фініші веде в історію «Перші кроки» (SPEC-LEARN §3.2) — уже під закритим онбордингом.
+    private func closeOnboarding(_ exit: OnboardingModel.Exit) {
+        withAnimation(WTAnimation.sheet) { onboarding = nil }
+        if exit == .learn { path.append(.learnStory(Self.firstStepsStory)) }
+    }
+
+    static let firstStepsStory = "app.start"
 
     /// «Що з цим робити» в історії «Знань»: історія дочитана, тож «назад» з екрана дії веде не в неї, а туди,
     /// звідки людина прийшла в «Знання».
