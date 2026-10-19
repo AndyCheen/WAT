@@ -1,0 +1,1237 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Розділ «Знання» — WAT-53</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Токени — DESIGN-TOKENS.md §2, як у Notifications.html. Кадр 402×874, 1px = 1pt.
+   Полиці: «Вода й тіло» — градієнт «вода», «Звички» — глибока вода до нічного неба віджетів,
+   «Застосунок» — теплий фон призів (#fff8ec → #ffe9c8) з помаранчевими ілюстраціями. */
+:root{
+  --screen:#f7fbff; --card:#fff; --chip:#eaf4ff; --button:#eaf4ff;
+  --text:#1f4a72; --muted:#8aa1bd; --btn-text:#3d8fd6; --accent:#5aa9f0;
+  --line:rgba(31,74,114,.10); --track:#e4f0fb; --dot-off:#dce8f3;
+  --orange:#ff8a3d; --success:#3ea86b; --sec-text:#5c7291;
+  --w1:#bfe3ff; --w2:#6bb6f2; --deep:#3d8fd6;
+  --h1:#6bb6f2; --h2:#3b6ef5; --h3:#24489e;
+  --warm1:#fff8ec; --warm2:#ffe9c8;
+  --shadow:0 8px 24px rgba(30,60,120,.07);
+  --card-shadow:0 14px 40px rgba(31,74,114,.14);
+}
+.dark{
+  --screen:#0c1524; --card:#161f33; --chip:#17233a; --button:#17233a;
+  --text:#eaf2ff; --muted:#8ba0bd; --btn-text:#bcd8ff; --accent:#7cc4ff;
+  --line:rgba(255,255,255,.08); --track:rgba(255,255,255,.08); --dot-off:rgba(255,255,255,.14);
+  --w1:#8fd0ff; --w2:#3b6ef5; --deep:#2a55c9; --sec-text:#8ba0bd;
+  --h1:#3b6ef5; --h2:#24489e; --h3:#0f1f45;
+  --warm1:#3a2a1c; --warm2:#2a1f16;
+  --shadow:0 8px 24px rgba(0,0,0,.25);
+  --card-shadow:0 14px 40px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#e9eef5;font-family:Nunito,system-ui,sans-serif;color:#1f4a72;padding:40px 28px 90px}
+body.dark-page{background:#05090f;color:#c9d6ea}
+h1{font-size:22px;font-weight:900;margin-bottom:6px}
+h2{font-size:18px;font-weight:900;margin:52px 0 6px}
+h2 small{font-size:13px;font-weight:800;color:#5c7291;margin-left:8px}
+.lead{font-size:13px;font-weight:700;color:#5c7291;margin-bottom:20px;max-width:1000px;line-height:1.55}
+.dark-page .lead,.dark-page h2 small{color:#8ba0bd}
+.lead b{color:inherit;font-weight:900}
+code{font-size:12px}
+.num{font-family:Fredoka,Nunito,sans-serif}
+
+/* ---------- панель ---------- */
+.ctl{background:#fff;border-radius:18px;padding:14px 18px;max-width:1300px;display:flex;flex-wrap:wrap;gap:14px 34px;
+     box-shadow:0 6px 20px rgba(31,74,114,.08);margin-bottom:10px}
+.dark-page .ctl{background:#161f33}
+.ctl label{font-size:11px;font-weight:900;color:#5c7291;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:6px}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+.btns button{height:30px;padding:0 12px;border-radius:999px;border:0;background:#dbe6f3;color:#1f4a72;font:800 13px Nunito;cursor:pointer}
+.btns button.sel{background:#5aa9f0;color:#fff}
+
+/* ---------- кадри ---------- */
+.row{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+.wrap{width:402px}
+.cap{font-size:12px;font-weight:900;letter-spacing:.3px;color:#5c7291;margin-bottom:8px;text-transform:uppercase}
+.note{font-size:12px;font-weight:700;color:#5c7291;margin-top:10px;line-height:1.5}
+.dark-page .cap,.dark-page .note{color:#8ba0bd}
+.frame{width:402px;height:874px;background:var(--screen);border-radius:40px;position:relative;overflow:hidden;
+       box-shadow:0 18px 50px rgba(31,74,114,.18);color:var(--text);user-select:none;-webkit-user-select:none}
+.frame.crop{height:auto}
+.status{position:absolute;top:0;left:0;right:0;height:48px;display:flex;justify-content:space-between;align-items:center;
+        padding:12px 34px 0;font:800 15px Nunito;z-index:30;pointer-events:none;color:var(--text)}
+.status i{font-style:normal;letter-spacing:1px;font-size:12px}
+.frame[data-ink="w"] .status{color:#fff}
+.hide-sb{scrollbar-width:none}.hide-sb::-webkit-scrollbar{display:none}
+
+/* ---------- спільне ---------- */
+.kicker{font:900 12px Nunito;letter-spacing:.6px;text-transform:uppercase;opacity:.8}
+.circle{width:38px;height:38px;border-radius:50%;background:var(--chip);color:var(--accent);display:flex;align-items:center;
+        justify-content:center;font:900 17px Nunito;cursor:pointer;flex:0 0 auto}
+.nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.nav b{font:800 20px Nunito}
+.nav span{width:38px}
+.btn{height:54px;border-radius:999px;border:0;font:900 17px Nunito;cursor:pointer;width:100%;flex:0 0 auto;
+     background:var(--accent);color:#fff;transition:transform .15s}
+.btn:active{transform:scale(.97)}
+.bg-body .btn,.bg-habits .btn{background:#fff;color:var(--deep)}
+.bg-app .btn{background:var(--orange);color:#fff}
+
+/* верх градієнта — між w1 і w2: на чистому w1 білий текст не читається */
+.bg-body{background:linear-gradient(180deg,color-mix(in srgb,var(--w1),var(--w2)) 0%,var(--w2) 50%,var(--deep) 100%);color:#fff}
+.bg-habits{background:linear-gradient(180deg,var(--h1) 0%,var(--h2) 55%,var(--h3) 100%);color:#fff}
+.bg-app{background:linear-gradient(180deg,var(--warm1) 0%,var(--warm2) 100%);color:var(--text)}
+.bg-plain{background:var(--screen);color:var(--text)}
+.bg-tint{background:var(--chip)}
+.bg-card{background:var(--card)}
+/* «чорнило» ілюстрацій: порожнє, заповнення, друге заповнення, текст */
+.inkw{--ae:rgba(255,255,255,.22);--af:rgba(255,255,255,.96);--af2:rgba(255,255,255,.55);--at:#fff}
+.inkc{--ae:var(--track);--af:var(--accent);--af2:var(--w1);--at:var(--text)}
+.inko{--ae:rgba(255,138,61,.16);--af:var(--orange);--af2:#ffb27a;--at:var(--text)}
+
+/* поява: .a — виїжджає, .pop — вистрибує; працює всередині .on (слайд, картка, крок) */
+.a{opacity:0;transform:translateY(14px)}
+.on .a{animation:up .55s cubic-bezier(.22,1,.36,1) forwards;animation-delay:var(--d,0s)}
+@keyframes up{to{opacity:1;transform:none}}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.pop{opacity:0}
+.on .pop{animation:pop .5s cubic-bezier(.22,1.5,.36,1) forwards;animation-delay:var(--d,0s)}
+@keyframes pop{0%{opacity:0;transform:scale(.3)}100%{opacity:1;transform:scale(1)}}
+
+/* ---------- ілюстрації ---------- */
+.art{display:block;max-width:100%}
+svg.art{overflow:visible}
+.lvl{transition:transform 1.6s cubic-bezier(.22,1,.36,1)}
+.on .lvl{transform:translateY(var(--to))}
+.wv{animation:wv 3.4s linear infinite}
+.wv2{animation-duration:4.8s;animation-direction:reverse}
+@keyframes wv{to{transform:translateX(200px)}}
+.bub{fill:var(--af);opacity:0}
+.on .bub{animation:bub 3.4s ease-in infinite;animation-delay:var(--d)}
+@keyframes bub{0%{opacity:0;transform:translate(0,0)}25%{opacity:.85}100%{opacity:0;transform:translate(var(--x),-120px)}}
+.spk{transform-box:fill-box;transform-origin:center;fill:var(--af)}
+.on .spk{animation:spk 2.4s ease-in-out infinite;animation-delay:var(--d)}
+@keyframes spk{0%,100%{transform:scale(.4);opacity:.3}50%{transform:scale(1);opacity:1}}
+.q-wob{transform-box:fill-box;transform-origin:50% 90%}
+.on .q-wob{animation:wob 3s ease-in-out infinite}
+@keyframes wob{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+
+.art-icons{display:grid;grid-template-columns:repeat(2,92px);gap:16px;justify-content:center}
+.art-icons span{width:92px;height:92px;border-radius:50%;background:var(--ae);display:flex;align-items:center;justify-content:center;font-size:42px}
+
+.art-flow{display:flex;align-items:flex-end;justify-content:center;gap:12px;width:100%}
+.fcol{width:138px;display:flex;flex-direction:column;gap:10px}
+.fbar{height:240px;display:flex;flex-direction:column-reverse;gap:3px}
+.fbar i{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:0 10px;height:0;border-radius:10px;
+        background:color-mix(in srgb,var(--af) calc(var(--o) * 100%),var(--ae));overflow:hidden;font:800 12px Nunito;font-style:normal;color:#fff;white-space:nowrap}
+.fbar i.dk{color:var(--at)}
+.fbar i em{font:600 13px Fredoka;font-style:normal}
+.on .fbar i{animation:grow .75s cubic-bezier(.22,1,.36,1) forwards;animation-delay:var(--d)}
+@keyframes grow{to{height:var(--h)}}
+.fcap{text-align:center;color:var(--at)}
+.fcap b{display:block;font:800 14px Nunito}
+.fcap span{font:800 14px Nunito;opacity:.7}
+.feq{font:600 36px Fredoka;color:var(--af);align-self:center;margin-bottom:48px}
+
+.art-glasses{display:grid;grid-template-columns:repeat(5,48px);gap:22px 14px;justify-content:center;padding-top:14px}
+.gl{position:relative;display:flex;justify-content:center}
+.gl svg{width:44px;height:57px;overflow:visible}
+.gfill{transform:translateY(100%);transform-box:fill-box;transition:transform .5s cubic-bezier(.22,1,.36,1)}
+.on .gfill{transform:translateY(12%);transition-delay:var(--d)}
+.gl.bonus .gfill{fill:var(--af2)}
+.gl .xp{position:absolute;top:-16px;font:600 12px Fredoka;color:#fff;background:var(--orange);border-radius:999px;padding:1px 7px;opacity:0;white-space:nowrap}
+.on .gl .xp{animation:pop .4s cubic-bezier(.22,1.5,.36,1) forwards;animation-delay:calc(var(--d) + .35s)}
+.gl.lock .xp{background:var(--muted)}
+.sa-art .art-glasses{grid-template-columns:repeat(5,58px);gap:30px 12px}
+.sa-art .gl svg{width:54px;height:70px}
+.gl-leg{display:flex;justify-content:center;gap:16px;margin-top:14px;font:800 12px Nunito;color:var(--at);opacity:.75}
+
+.art-road{position:relative;width:100%;max-width:340px;height:120px;margin:0 auto}
+.rd-track{position:absolute;left:23px;right:23px;top:50px;height:8px;border-radius:99px;background:var(--ae)}
+.rd-fill{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:99px;background:var(--af);transition:width 1.2s cubic-bezier(.22,1,.36,1) .25s}
+.on .rd-fill{width:var(--w)}
+.rd-node{position:absolute;top:31px;width:46px;height:46px;margin-left:-23px;border-radius:50%;background:var(--card);border:3px solid var(--ae);
+         display:flex;align-items:center;justify-content:center;font-size:19px;letter-spacing:-6px}
+.rd-node.done{border-color:var(--af)}
+.rd-node.next{border-color:var(--orange);box-shadow:0 0 0 6px rgba(255,138,61,.18)}
+.rd-node.fog{opacity:.45;filter:grayscale(.7)}
+.rd-node small{position:absolute;top:50px;font:600 13px Fredoka;color:var(--at);opacity:.7;letter-spacing:0}
+.rd-node .ok{position:absolute;right:-5px;top:-5px;width:18px;height:18px;border-radius:50%;background:var(--af);color:#fff;font:900 10px Nunito;
+             display:flex;align-items:center;justify-content:center;letter-spacing:0}
+.rd-me{position:absolute;top:0;transform:translateX(-50%);font:900 12px Nunito;background:var(--orange);color:#fff;border-radius:999px;padding:3px 10px;white-space:nowrap}
+
+.art-map{position:relative;height:100%;max-height:300px;aspect-ratio:2/3;container-type:inline-size}
+.art-map svg{width:100%;height:100%;display:block}
+.art-map span{position:absolute;width:24cqw;height:24cqw;margin:-12cqw 0 0 -12cqw;border-radius:50%;background:var(--card);
+              box-shadow:0 4px 14px rgba(31,74,114,.2);display:flex;align-items:center;justify-content:center;font-size:12cqw}
+.art-dxp{width:100%;max-width:330px;color:var(--at)}
+.art-dxp .numbox{justify-content:center}
+.art-dxp .numbox .bn{font-size:64px}
+.art-dxp .numbox small{font-size:24px}
+.dxp-cap{text-align:center;font:800 13px Nunito;opacity:.7;margin:2px 0 14px}
+.dxp-bar{display:flex;gap:3px;height:24px}
+.dxp-bar i{height:100%;width:0;border-radius:7px;background:color-mix(in srgb,var(--af) calc(var(--o) * 100%),var(--ae))}
+.on .dxp-bar i{animation:growW .7s cubic-bezier(.22,1,.36,1) forwards;animation-delay:var(--d)}
+@keyframes growW{to{width:var(--w)}}
+.rm .dxp-bar i{animation:none!important;width:var(--w)}
+.dxp-leg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:10px;text-align:center}
+.dxp-leg span{font:800 11px Nunito;opacity:.75}
+.dxp-leg b{display:block;font:900 14px Nunito;opacity:1;white-space:nowrap}
+.art-ladder{position:relative;width:100%;max-width:320px;display:flex;flex-direction:column;gap:16px;color:var(--at)}
+.ld-rail{position:absolute;left:21px;top:23px;bottom:23px;width:4px;border-radius:99px;background:var(--ae)}
+.ld-rail i{display:block;width:100%;height:0;border-radius:99px;background:var(--af);transition:height 1.2s cubic-bezier(.22,1,.36,1) .3s}
+.on .ld-rail i{height:62.5%}
+.rm .ld-rail i{transition:none!important}
+.ld-row{display:flex;align-items:center;gap:14px;position:relative}
+.ld-row .rd-node{position:relative;top:auto;margin:0;flex:0 0 auto}
+.ld-row small{display:block;font:800 12px Nunito;opacity:.6}
+.ld-row b{display:block;font:800 16px Nunito}
+.ld-row.next small{color:var(--orange);opacity:1}
+.ld-row.fog{opacity:.55}
+.ld-row.fog .rd-node{opacity:1}
+.vc-sa .art-ladder{gap:4px}
+.vc-sa .ld-row .rd-node{width:42px;height:42px}
+.vc-sa .ld-rail{left:19px;top:21px;bottom:21px}
+.art-ringw{display:flex;flex-direction:column;align-items:center;gap:14px;color:var(--at)}
+.art-ringw svg{width:210px;height:210px;overflow:visible}
+.ring-leg{display:flex;flex-direction:column;gap:6px;min-width:220px}
+.ring-leg span{display:flex;align-items:center;gap:8px;font:800 14px Nunito}
+.ring-leg i{width:12px;height:12px;border-radius:50%;background:var(--af);flex:0 0 auto}
+.ring-leg b{margin-left:auto;font:600 16px Fredoka}
+.vb-art .art-ringw{flex-direction:row;gap:16px}
+.vb-art .art-ringw svg{width:150px;height:150px}
+.vb-art .ring-leg{min-width:0}
+.vb-art .ring-leg span{font-size:12px}
+.vc-sa .art-ringw{flex-direction:row}
+.vc-sa .art-ringw svg{width:170px;height:170px}
+.vc-sa .ring-leg{min-width:0}
+.art-emoji{position:relative;width:180px;height:180px;margin:0 auto;display:flex;align-items:center;justify-content:center}
+.art-emoji>span{width:150px;height:150px;border-radius:50%;background:var(--ae);display:flex;align-items:center;justify-content:center;font-size:72px}
+.art-emoji>i{position:absolute;inset:0;animation:orbit 9s linear infinite;transform:rotate(var(--r))}
+.art-emoji>i::after{content:'';position:absolute;top:2px;left:50%;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:var(--af2)}
+@keyframes orbit{from{transform:rotate(var(--r))}to{transform:rotate(calc(var(--r) + 360deg))}}
+
+/* рядки списку */
+.rows{display:flex;flex-direction:column;gap:12px;margin-top:20px}
+.ri{display:flex;align-items:center;gap:14px;background:var(--card);border-radius:20px;padding:12px 14px;box-shadow:var(--shadow);color:var(--text)}
+.ri-e{width:46px;height:46px;border-radius:50%;background:var(--chip);display:flex;align-items:center;justify-content:center;font-size:23px;flex:0 0 auto}
+.bg-app .ri-e,.inko .ri-e{background:#ffe9c8}
+.dark .bg-app .ri-e{background:#3a2a1c}
+.ri-t{flex:1;min-width:0}
+.ri-t b{display:block;font:800 16px Nunito}
+.ri-t span{display:block;font:700 13px/1.35 Nunito;color:var(--muted);margin-top:1px}
+.ri-v{font:900 15px Nunito;font-style:normal;color:var(--orange);white-space:nowrap}
+
+/* вікторина */
+.quiz{margin-top:20px}
+.q-btns{display:flex;gap:10px}
+.q-btns button{flex:1;height:56px;border-radius:18px;border:0;background:var(--chip);color:var(--btn-text);font:900 17px Nunito;cursor:pointer;transition:all .2s}
+.q-btns button:active{transform:scale(.97)}
+.quiz.done .q-btns button{pointer-events:none;opacity:.45}
+.quiz.done .q-btns button.right{opacity:1;background:var(--accent);color:#fff}
+.quiz.done .q-btns button.pick:not(.right){opacity:1;background:rgba(255,138,61,.16);color:var(--orange)}
+.q-res{margin-top:14px;padding:14px 16px;border-radius:18px;background:var(--card);box-shadow:var(--shadow);animation:rise .45s cubic-bezier(.22,1,.36,1) both}
+.q-res b{display:block;font:900 16px Nunito;margin-bottom:4px}
+.ok-t{color:var(--success)}.no-t{color:var(--orange)}
+.q-res p{font:700 14px/1.45 Nunito;color:var(--sec-text)}
+
+/* фініш */
+.fin-check{width:84px;height:84px;border-radius:50%;background:var(--accent);color:#fff;font:900 40px Nunito;display:flex;align-items:center;justify-content:center;
+           margin:0 auto;box-shadow:0 0 0 12px color-mix(in srgb,var(--accent) 18%,transparent)}
+.nextc{display:flex;align-items:center;gap:14px;background:var(--card);border-radius:22px;padding:12px;box-shadow:var(--shadow);cursor:pointer;color:var(--text)}
+.nextc .nc-art{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;flex:0 0 auto}
+.nextc div{flex:1;min-width:0}
+.nextc span{display:block;font:900 11px Nunito;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
+.nextc b{display:block;font:800 16px Nunito}
+.nextc em{font:700 12px Nunito;font-style:normal;color:var(--muted)}
+.nextc>i{font:900 20px Nunito;font-style:normal;color:var(--accent);padding-right:6px}
+.srcs{font:700 12px/1.5 Nunito;color:var(--sec-text)}
+.srcs b{display:block;font:900 11px Nunito;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.srcs ol{padding-left:18px}
+.disc{font:700 12px/1.45 Nunito;color:var(--muted);background:var(--chip);border-radius:14px;padding:10px 12px}
+
+.toast{position:absolute;left:16px;right:16px;bottom:34px;z-index:40;background:var(--text);color:var(--screen);border-radius:18px;padding:13px 16px;
+       font:800 13px/1.45 Nunito;box-shadow:0 12px 30px rgba(0,0,0,.25);animation:rise .3s cubic-bezier(.22,1,.36,1) both}
+
+/* ---------- бібліотеки ---------- */
+.lib{position:absolute;inset:0;overflow-y:auto;padding:62px 24px 44px}
+.sh-t{display:flex;justify-content:space-between;align-items:baseline;font:900 13px Nunito;letter-spacing:.3px;text-transform:uppercase;margin:24px 0 12px}
+.sh-t span{font:800 12px Nunito;letter-spacing:0;text-transform:none;color:var(--muted)}
+.dot-new{position:absolute;width:10px;height:10px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 2px var(--card)}
+.pill-new{position:absolute;font:900 10px Nunito;letter-spacing:.3px;text-transform:uppercase;background:var(--orange);color:#fff;border-radius:999px;padding:3px 8px}
+.pill-ok{position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.92);color:var(--deep);font:900 13px Nunito;display:flex;align-items:center;justify-content:center}
+.pbar{height:5px;border-radius:99px;background:rgba(255,255,255,.3);overflow:hidden}
+.pbar i{display:block;height:100%;background:#fff;border-radius:99px}
+
+/* A — полиці обкладинок */
+.la-cont{display:flex;align-items:center;gap:6px;border-radius:26px;padding:18px 16px 18px 20px;cursor:pointer;position:relative;overflow:hidden;box-shadow:var(--card-shadow)}
+.la-cont .la-art{width:96px;height:112px;flex:0 0 auto}
+.la-cont .la-art svg{width:100%;height:100%}
+.la-cont .la-t{flex:1;min-width:0}
+.la-cont .la-t b{display:block;font:800 21px/1.15 Nunito;margin:4px 0 12px}
+.la-cont .la-t em{display:block;font:800 12px Nunito;font-style:normal;opacity:.85;margin-top:7px}
+.la-play{width:46px;height:46px;border-radius:50%;background:#fff;color:var(--deep);display:flex;align-items:center;justify-content:center;font-size:15px;flex:0 0 auto;padding-left:3px}
+.la-row{display:flex;gap:12px;overflow-x:auto;margin:0 -24px -12px;padding:2px 24px 24px}
+.la-cov{position:relative;flex:0 0 132px;height:184px;border-radius:22px;padding:14px;display:flex;flex-direction:column;cursor:pointer;box-shadow:var(--shadow);overflow:hidden}
+.la-cov .la-e{width:52px;height:52px;border-radius:50%;background:var(--ae);display:flex;align-items:center;justify-content:center;font-size:26px}
+.la-cov b{margin-top:auto;font:800 15px/1.2 Nunito}
+.la-cov em{font:800 12px Nunito;font-style:normal;opacity:.75;margin-top:5px}
+.la-cov .pill-ok{top:12px;right:12px}
+.la-cov .pill-new{top:14px;right:12px}
+.la-cov .pbar{margin-top:8px}
+.la-cov.bg-app .pill-ok{background:var(--orange);color:#fff}
+.la-cov::after{content:'';position:absolute;right:-34px;top:-30px;width:110px;height:110px;border-radius:50%;background:var(--ae);opacity:.5;pointer-events:none}
+
+/* A — програвач історій (як звіт-історія) */
+.sa{position:absolute;inset:0;overflow:hidden;cursor:pointer}
+.sa-bars{position:absolute;top:56px;left:16px;right:16px;display:flex;gap:4px;z-index:6}
+.sa-bars i{flex:1;height:3px;border-radius:2px;background:currentColor;opacity:.25;transition:opacity .3s}
+.sa-bars i.seen{opacity:1}
+.sa-top{position:absolute;top:68px;left:20px;right:12px;display:flex;align-items:center;justify-content:space-between;z-index:6}
+.sa-top span{font:900 12px Nunito;letter-spacing:.5px;text-transform:uppercase;opacity:.85}
+.sa-x{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:900 14px Nunito;background:color-mix(in srgb,currentColor 18%,transparent)}
+.sa-chrome{position:absolute;inset:0;pointer-events:none;z-index:6;transition:color .3s}
+.sa-chrome>*{pointer-events:auto}
+.sa-slide{position:absolute;inset:0;padding:120px 28px 38px;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .35s}
+.sa-slide.on{opacity:1;pointer-events:auto}
+.sa-h{font:800 28px/1.15 Nunito;margin-top:10px}
+.sa-h.xl{font-size:38px;line-height:1.05}
+.sa-q{font:800 26px/1.22 Nunito;margin-top:6px}
+.sa-p{font:700 17px/1.42 Nunito;opacity:.92;margin-top:10px}
+.sa-p.sm{font-size:14px;opacity:.72}
+.sa-art{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center;padding:12px 0}
+.sa-art>svg{height:100%;max-height:300px}
+.sa-art.cover>svg{max-height:330px}
+.sa-art.list{padding:16px 0 4px}
+.sa-art.list .art-map{height:100%}
+.sa-slide .rows{margin-top:10px;gap:10px}
+.sa-art.q>svg{max-height:230px}
+.sa-row{display:flex;align-items:center;gap:6px;margin-top:10px;height:340px}
+.sa-row .sa-art{height:100%;padding:0}
+.numbox{display:flex;align-items:baseline;gap:4px;white-space:nowrap}
+.numbox .bn{font:600 92px/0.9 Fredoka}
+.numbox small{font:600 32px Fredoka;opacity:.75}
+.sa-hint{margin-top:auto;font:800 13px Nunito;opacity:.75}
+.srcl{margin-top:auto;padding-top:14px;font:800 12px Nunito;color:var(--muted);cursor:pointer;flex:0 0 auto}
+.srcl u{text-decoration:none;border-bottom:1px dashed currentColor}
+.bg-body .srcl,.bg-habits .srcl{color:rgba(255,255,255,.85)}
+.sa-slide .btn{margin-top:18px}
+.sa-slide.fin{gap:0;padding-top:130px}
+.sa-slide.fin .nextc{margin-top:26px}
+.sa-slide.fin .srcs{margin-top:18px}
+.sa-slide.fin .disc{margin-top:12px}
+
+/* B — сітка плиток */
+.lb-chips{display:flex;gap:8px;overflow-x:auto;margin:0 -24px;padding:0 24px 4px}
+.lb-chips button{height:36px;padding:0 15px;border-radius:999px;border:0;background:var(--chip);color:var(--btn-text);font:800 14px Nunito;cursor:pointer;white-space:nowrap}
+.lb-chips button.sel{background:var(--accent);color:#fff}
+.lb-sum{display:flex;align-items:center;gap:12px;margin:18px 0 16px;font:800 13px Nunito;color:var(--muted)}
+.lb-sum b{color:var(--text)}
+.lb-sum .pbar{flex:1;background:var(--track)}
+.lb-sum .pbar i{background:var(--accent)}
+.lb-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.lb-tile{background:var(--card);border-radius:24px;padding:8px 8px 14px;box-shadow:var(--shadow);cursor:pointer;position:relative}
+.lb-art{position:relative;height:112px;border-radius:18px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.lb-art .lb-e{font-size:50px;position:relative;z-index:1}
+.lb-art::before,.lb-art::after{content:'';position:absolute;border-radius:50%;background:var(--ae)}
+.lb-art::before{width:90px;height:90px;left:-20px;bottom:-34px}
+.lb-art::after{width:60px;height:60px;right:-12px;top:-14px}
+.lb-art .pill-ok{top:8px;right:8px;z-index:2}
+.lb-art.bg-app .pill-ok{background:var(--orange);color:#fff}
+.lb-art .pill-new{top:9px;left:9px;z-index:2}
+.lb-art .pbar{position:absolute;left:10px;right:10px;bottom:9px;z-index:2}
+.lb-tile b{display:block;font:800 15px/1.2 Nunito;margin:11px 6px 0}
+.lb-tile em{display:block;font:800 12px Nunito;font-style:normal;color:var(--muted);margin:5px 6px 0}
+
+/* B — колода карток */
+.vb-top{position:absolute;top:56px;left:24px;right:24px;display:flex;align-items:center;gap:10px;z-index:5}
+.vb-title{flex:1;text-align:center;min-width:0}
+.vb-title b{display:block;font:800 15px Nunito;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vb-title span{font:600 13px Fredoka;color:var(--muted)}
+.vb-card{position:absolute;left:22px;right:22px;top:110px;height:604px;transform-origin:50% 100%;perspective:1600px;
+         transition:transform .5s cubic-bezier(.22,1,.36,1),opacity .4s;opacity:0;pointer-events:none;transform:translateY(24px) scale(.9)}
+.vb-card.cur{opacity:1;pointer-events:auto;transform:none;z-index:3}
+.vb-card.n1{opacity:1;transform:translateY(13px) scale(.95);z-index:2}
+.vb-card.n2{opacity:.65;transform:translateY(26px) scale(.9);z-index:1}
+.vb-card.gone{opacity:0;transform:translateX(-118%) rotate(-11deg);z-index:4}
+.vb-flip{position:absolute;inset:0;transition:transform .65s cubic-bezier(.22,1,.36,1);transform-style:preserve-3d}
+.vb-card.flipped .vb-flip{transform:rotateY(180deg)}
+.vb-face{position:absolute;inset:0;border-radius:30px;box-shadow:var(--card-shadow);backface-visibility:hidden;-webkit-backface-visibility:hidden;
+         overflow:hidden;display:flex;flex-direction:column}
+/* обкладинка несе колір полиці (.bg-*), решта карток — колір картки */
+.vb-face:not([class*=" bg-"]){background:var(--card);color:var(--text)}
+.vb-face.back{transform:rotateY(180deg);padding:28px 24px 22px}
+.vb-card.n1 .vb-face>*,.vb-card.n2 .vb-face>*{visibility:hidden}
+.vb-art{margin:10px 10px 0;border-radius:22px;height:270px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;overflow:hidden;position:relative}
+.vb-art>svg{height:86%}
+.vb-art.flow .fbar{height:200px}
+.vb-art.flow{height:300px}
+.vb-art.quiz{height:170px}
+.vb-art.quiz>svg{height:80%}
+.vb-art.glasses,.vb-art.road{height:210px}
+.vb-art.short{height:178px}
+.vb-art.short .art-map{height:160px}
+.vb-art.short .art-dxp .numbox .bn{font-size:44px}
+.vb-art.short .dxp-cap{margin-bottom:8px}
+.vb-body .ri{padding:7px 10px;gap:10px;border-radius:16px}
+.vb-body .ri-e{width:36px;height:36px;font-size:18px}
+.vb-body .ri-t b{font-size:15px}
+.vb-body .ri-t span{font-size:12px}
+.vb-body{padding:18px 22px 0;display:flex;flex-direction:column;flex:1;min-height:0}
+.vb-h{font:800 23px/1.2 Nunito;margin-top:6px}
+.vb-h.xl{font-size:34px;line-height:1.08}
+.vb-p{font:700 15px/1.45 Nunito;color:var(--sec-text);margin-top:8px}
+.vb-p.sm{font-size:13px;color:var(--muted)}
+.vb-body .numbox .bn{font-size:56px}
+.vb-body .numbox small{font-size:22px}
+.vb-body .rows{gap:8px;margin-top:12px}
+.vb-body .ri{box-shadow:none;background:var(--screen);padding:10px 12px}
+.vb-body .btn{margin-top:auto;margin-bottom:22px}
+.vb-src{margin-top:auto;padding:14px 22px 18px;font:800 13px Nunito;color:var(--accent);cursor:pointer;display:flex;justify-content:space-between;align-items:center;flex:0 0 auto}
+.vb-src span{font-size:17px}
+.vb-face.back .vb-src{padding:14px 0 0}
+.vb-cover{padding:26px 24px 28px}
+.vb-cover .vb-cov-art{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
+.vb-cover .vb-cov-art>svg{height:100%;max-height:300px}
+.vb-cover .vb-p{color:inherit;opacity:.9}
+.vb-meta{font:800 13px Nunito;opacity:.8;margin-top:14px}
+.vb-fin{padding:44px 24px 24px}
+.vb-fin .nextc{margin-top:24px;background:var(--screen);box-shadow:none}
+.vb-fin .srcs{margin-top:16px}
+.vb-fin .disc{margin-top:12px}
+.q-badge{align-self:flex-start;display:inline-block;font:900 13px Nunito;border-radius:999px;padding:5px 12px;margin-bottom:6px}
+.split{display:flex;gap:4px;margin-top:22px;height:96px}
+.split i{display:flex;flex-direction:column;justify-content:center;padding:0 14px;border-radius:18px;background:var(--accent);color:#fff;font:900 20px Nunito;font-style:normal;min-width:0;white-space:nowrap}
+.split i+i{background:var(--chip);color:var(--btn-text);padding:0 10px}
+.split b{font:800 13px Nunito;opacity:.85}
+.q-badge.ok{background:rgba(62,168,107,.14);color:var(--success)}
+.q-badge.no{background:rgba(255,138,61,.14);color:var(--orange)}
+.vb-ctl{position:absolute;left:24px;right:24px;bottom:38px;display:flex;align-items:center;gap:14px;z-index:5}
+.vb-ctl .circle{width:54px;height:54px;font-size:20px}
+.vb-dots{display:flex;gap:6px;flex:1;justify-content:center}
+.vb-dots i{width:7px;height:7px;border-radius:99px;background:var(--dot-off);transition:all .3s}
+.vb-dots i.cur{width:22px;background:var(--accent)}
+.vb-next{height:54px;padding:0 28px;border-radius:999px;border:0;background:var(--accent);color:#fff;font:900 17px Nunito;cursor:pointer}
+
+/* C — зміст-курс */
+.lc-hero{display:flex;border-radius:28px;padding:22px 18px 22px 22px;cursor:pointer;position:relative;overflow:hidden;min-height:200px;box-shadow:var(--card-shadow)}
+.lc-hero .lc-t{flex:1;min-width:0;display:flex;flex-direction:column}
+.lc-hero b{font:800 26px/1.1 Nunito;margin:6px 0 10px}
+.lc-hero em{font:800 12px Nunito;font-style:normal;opacity:.85}
+.lc-hero .pbar{margin-top:10px;width:150px}
+.lc-hero .lc-go{margin-top:auto;padding-top:16px;font:900 15px Nunito}
+.lc-hero .lc-art{width:120px;height:150px;align-self:center;flex:0 0 auto}
+.lc-hero .lc-art svg{width:100%;height:100%}
+.lc-list{background:var(--card);border-radius:24px;box-shadow:var(--shadow);overflow:hidden}
+.lc-row{display:flex;align-items:center;gap:14px;padding:12px 14px;cursor:pointer;position:relative}
+.lc-row+.lc-row::before{content:'';position:absolute;top:0;left:74px;right:0;height:1px;background:var(--line)}
+.lc-ic{width:46px;height:46px;border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:23px;flex:0 0 auto}
+.lc-row .lc-t{flex:1;min-width:0}
+.lc-row b{display:block;font:800 16px Nunito}
+.lc-row em{display:block;font:700 13px Nunito;font-style:normal;color:var(--muted);margin-top:1px}
+.lc-st{width:26px;height:26px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font:900 18px Nunito;color:var(--muted)}
+.lc-st.ok{border-radius:50%;background:var(--accent);color:#fff;font-size:13px}
+.lc-st .dot-new{position:static;box-shadow:none}
+
+/* C — лонгрід зі сценою */
+.vc-top{position:absolute;top:54px;left:0;right:0;height:50px;display:flex;align-items:center;gap:12px;padding:0 24px;z-index:5;background:var(--screen)}
+.vc-top b{flex:1;font:800 15px Nunito;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vc-top>span{font:800 13px Nunito;color:var(--muted)}
+.vc-prog{position:absolute;left:0;right:0;bottom:-2px;height:3px;background:var(--track)}
+.vc-prog i{display:block;height:100%;width:0;background:var(--accent)}
+.vc-scroll{position:absolute;top:104px;left:0;right:0;bottom:0;overflow-y:auto;scroll-behavior:smooth}
+.vc-hero{margin:10px 16px 0;border-radius:30px;padding:26px 24px 24px;min-height:470px;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.vc-hero .vc-art{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
+.vc-hero .vc-art svg{height:230px}
+.vc-hero .vc-h{font:800 34px/1.08 Nunito;margin-top:6px}
+.vc-hero .vc-p{font:700 16px/1.42 Nunito;opacity:.92;margin-top:8px}
+.vc-hero .vc-meta{display:flex;justify-content:space-between;font:800 13px Nunito;opacity:.85;margin-top:16px}
+.vc-body{position:relative;margin-top:20px}
+.vc-stage{position:sticky;top:0;z-index:2;height:286px;padding:6px 16px 16px;background:var(--screen)}
+.vc-stage::after{content:'';position:absolute;left:0;right:0;bottom:-26px;height:26px;background:linear-gradient(var(--screen),transparent);pointer-events:none}
+.vc-stage-in{position:relative;height:100%;border-radius:28px;background:var(--card);box-shadow:var(--shadow);overflow:hidden}
+.vc-sa{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;opacity:0;transform:scale(.96);transition:opacity .45s,transform .45s}
+.vc-sa.vis{opacity:1;transform:none}
+.vc-sa>svg{height:236px}
+.vc-sa .fbar{height:176px}
+.vc-sa .art-icons{grid-template-columns:repeat(2,84px)}
+.vc-sa .art-icons span{width:84px;height:84px;font-size:38px}
+.vc-sa .art-map{height:236px}
+.vc-steps{padding:28px 24px 0}
+.vc-step{min-height:430px;padding-bottom:40px;opacity:.25;transition:opacity .4s}
+.vc-step.on{opacity:1}
+.vc-step .numbox .bn{font-size:64px;color:var(--accent)}
+.vc-step .numbox small{font-size:24px;color:var(--accent)}
+.vc-h2{font:800 25px/1.2 Nunito;margin-top:8px}
+.vc-p2{font:700 16px/1.55 Nunito;color:var(--sec-text);margin-top:10px}
+.vc-p2 sup{font:900 11px Nunito;color:var(--accent);cursor:pointer;margin-left:2px}
+.vc-step .btn{margin-top:22px}
+.vc-step .kicker{color:var(--accent);opacity:1}
+.vc-end{padding:10px 24px 48px;display:flex;flex-direction:column;gap:14px}
+.vc-fin{display:flex;align-items:center;gap:14px;background:var(--card);border-radius:22px;padding:16px;box-shadow:var(--shadow)}
+.vc-fin .fin-check{width:48px;height:48px;font-size:22px;margin:0;box-shadow:none}
+.vc-fin b{display:block;font:800 17px Nunito}
+.vc-fin span{font:700 13px Nunito;color:var(--muted)}
+
+/* ---------- вхід ---------- */
+.hm{padding:62px 26px 0}
+.hm-head{display:flex;align-items:center;gap:10px}
+.hm-head .c42{width:42px;height:42px;border-radius:50%;background:var(--chip);display:flex;align-items:center;justify-content:center;position:relative}
+.hm-head .c42 .dot-new{top:1px;right:1px;box-shadow:0 0 0 2px var(--screen)}
+.hm-head .sp{flex:1}
+.hm-ring{display:flex;justify-content:center;margin-top:20px;height:150px;overflow:hidden}
+.mod{margin:24px 18px;background:var(--card);border-radius:24px;padding:20px 18px;box-shadow:0 20px 50px rgba(20,40,80,.18)}
+.mod h4{font:800 20px Nunito;margin-bottom:12px;display:flex;justify-content:space-between}
+.mod .r{display:flex;align-items:center;gap:10px;padding:7px 0;font:700 14px Nunito}
+.mod .r span{font-size:18px;width:24px}
+.mod .r em{margin-left:auto;font:900 14px Nunito;font-style:normal;color:var(--accent)}
+.mod .f{font:700 12px Nunito;color:var(--muted);margin-top:8px}
+.mod .more{margin-top:14px;display:flex;align-items:center;gap:10px;background:var(--chip);border-radius:16px;padding:12px 14px;font:800 14px Nunito;color:var(--btn-text)}
+.mod .more i{margin-left:auto;font-style:normal;font-weight:900}
+
+/* ---------- reduce motion ---------- */
+.rm .a,.rm .pop,.rm .gl .xp{opacity:1!important;transform:none!important;animation:none!important}
+.rm .wv,.rm .bub,.rm .spk,.rm .q-wob,.rm .art-emoji>i{animation:none!important}
+.rm .bub{opacity:0!important}
+.rm .lvl,.rm .gfill,.rm .rd-fill,.rm .vb-card,.rm .vb-flip,.rm .vc-sa{transition:none!important}
+.rm .fbar i{animation:none!important}.rm .on .fbar i{height:var(--h)}
+.rm .arc{animation:none!important}
+.arc{visibility:hidden}
+.on .arc{visibility:visible;animation:arcIn .9s cubic-bezier(.22,1,.36,1) both;animation-delay:var(--d)}
+@keyframes arcIn{from{stroke-dasharray:0 600}}
+.rm .on .arc{visibility:visible}
+
+/* ---------- аналіз ---------- */
+table{border-collapse:collapse;max-width:1300px;font-size:13px;font-weight:700;margin-top:8px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid rgba(31,74,114,.12);vertical-align:top;line-height:1.5}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:#5c7291;font-weight:900}
+td:first-child{font-weight:900;white-space:nowrap}
+.dark-page th,.dark-page td{border-color:rgba(255,255,255,.1)}
+.rec{max-width:1300px;background:#fff;border-radius:16px;padding:16px 18px;margin-top:18px;font-size:13px;font-weight:700;line-height:1.6;color:#1f4a72}
+.dark-page .rec{background:#161f33;color:#eaf2ff}
+.rec b{font-weight:900}
+</style>
+</head>
+<body>
+
+<h1>Розділ «Знання» — три варіанти вигляду (WAT-53)</h1>
+<p class="lead">
+  План тем, правил і техніки — <code>SPEC-LEARN.md</code>. Тут — лише <b>загальний вигляд</b>: бібліотека, програвач,
+  елементи інтерфейсу. В усіх трьох варіантах ті самі дві зразкові історії: «Навіщо тілу вода» (наука, з вікториною)
+  і «XP і рівні» (механіка застосунку, з живими числами). Ілюстрації, анімації й тексти в кожній історії будуть свої.<br>
+  <b>Усе клікабельне:</b> у бібліотеці відкривай будь-яку історію (решта 10 — обкладинка й зміст із плану), в історії —
+  гортай, відповідай у вікторині, тисни «Звідки цифра?». Хрестик / «‹» повертає в бібліотеку цього ж варіанту.
+<br>
+  <b>Погоджено 19.10.2026: A «Історії» з переворотом картки у вікторині</b> (SPEC-LEARN §11).
+</p>
+
+<div class="ctl">
+  <div><label>Тема</label><div class="btns" id="themeBtns">
+    <button data-v="light" class="sel">Світла</button><button data-v="dark">Темна</button></div></div>
+  <div><label>Рух</label><div class="btns" id="motionBtns">
+    <button data-v="on" class="sel">Анімації</button><button data-v="rm">Reduce Motion</button></div></div>
+  <div><label>Кадри</label><div class="btns" id="resetBtns">
+    <button data-v="reset">Скинути всі</button></div></div>
+</div>
+
+<div id="app">
+
+<h2>Вхід у розділ <small>спільний для всіх варіантів — SPEC-LEARN §3</small></h2>
+<div class="row">
+  <div class="wrap">
+    <div class="cap">Головний — шапка</div>
+    <div class="frame crop" style="height:300px">
+      <div class="status"><span>9:41</span><i>●●● ▮</i></div>
+      <div class="hm">
+        <div class="hm-head">
+          <div class="c42"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="7"/><path d="M12 1.8v3M12 19.2v3M1.8 12h3M19.2 12h3M4.8 4.8l2.1 2.1M17.1 17.1l2.1 2.1M4.8 19.2l2.1-2.1M17.1 6.9l2.1-2.1"/></svg></div>
+          <div class="c42"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round"><path d="M12 6.5C9.6 4.8 6.6 4.5 3.5 5.3v13.4c3.1-.8 6.1-.5 8.5 1.2 2.4-1.7 5.4-2 8.5-1.2V5.3c-3.1-.8-6.1-.5-8.5 1.2zM12 6.5v13.4"/></svg><span class="dot-new"></span></div>
+          <div class="sp"></div>
+          <svg width="34" height="42" viewBox="0 0 200 240"><path d="M100 14C100 14 36 98 36 152A64 64 0 0 0 164 152C164 98 100 14 100 14Z" fill="#ff8a3d"/><text x="100" y="186" text-anchor="middle" font-family="Fredoka" font-weight="600" font-size="96" fill="#fff">5</text></svg>
+          <svg width="40" height="48" viewBox="0 0 200 240"><path d="M100 14C100 14 36 98 36 152A64 64 0 0 0 164 152C164 98 100 14 100 14Z" fill="var(--accent)"/><text x="100" y="186" text-anchor="middle" font-family="Fredoka" font-weight="600" font-size="96" fill="#fff">7</text></svg>
+        </div>
+        <div class="hm-ring"><svg width="242" height="242" viewBox="0 0 200 200"><circle cx="100" cy="100" r="88" fill="none" stroke="var(--track)" stroke-width="17"/><circle cx="100" cy="100" r="88" fill="none" stroke="var(--accent)" stroke-width="17" stroke-linecap="round" stroke-dasharray="331 553" transform="rotate(-90 100 100)"/><text x="100" y="104" text-anchor="middle" font-family="Fredoka" font-weight="600" font-size="46" fill="var(--text)">60%</text></svg></div>
+      </div>
+    </div>
+    <p class="note">Друга кругла кнопка поруч із шестернею — «книжка». Помаранчева крапка — до першого відкриття розділу,
+      потім лише для історій, що прийшли з оновленням. Без сповіщень про нові історії.</p>
+  </div>
+  <div class="wrap">
+    <div class="cap">Контекстний вхід — «Звідки XP»</div>
+    <div class="frame crop" style="height:auto;padding:30px 0 6px;background:rgba(12,21,36,.35)">
+      <div class="mod">
+        <h4>Звідки XP <span style="color:var(--muted);font-size:16px">✕</span></h4>
+        <div class="r"><span>💧</span>Вода<em>+5 за 250 мл</em></div>
+        <div class="r"><span>🎯</span>Норма дня<em>+50</em></div>
+        <div class="r"><span>⏰</span>Ціль частини доби<em>+10</em></div>
+        <div class="r"><span>✅</span>Завдання<em>+25 / +100</em></div>
+        <div class="r"><span>🔥</span>Серія множить XP за воду<em>до ×1,5</em></div>
+        <div class="f">Понад 120 % норми XP за воду не нараховується.</div>
+        <div class="more">📖 Детальніше — історія «XP і рівні»<i>›</i></div>
+      </div>
+    </div>
+    <p class="note">Наявний довідник (SPEC-PRIZES §16.14) отримує один рядок-посилання. Так само — «Як працюють призи» на
+      екрані «Призи», «Як працює серія» в шторці календаря, «Як користуватися» в «Налаштуваннях».</p>
+  </div>
+</div>
+
+<h2>A · Історії <small>повноекранні слайди з тапом, як звіт-історія</small></h2>
+<p class="lead">Бібліотека — «Продовжити» і полиці обкладинок, що гортаються вбік. Історія — на весь екран: смуги прогресу,
+  тап праворуч / ліворуч, без автоперемикання. Кожен слайд — одна думка, ілюстрація на пів екрана.</p>
+<div class="row">
+  <div class="wrap"><div class="cap">Бібліотека</div><div class="frame" data-v="A" data-start=""></div></div>
+  <div class="wrap"><div class="cap">«Навіщо тілу вода» — тапай праворуч</div><div class="frame" data-v="A" data-start="why"></div></div>
+  <div class="wrap"><div class="cap">«XP і рівні»</div><div class="frame" data-v="A" data-start="xp"></div></div>
+</div>
+
+<h2>B · Картки <small>колода, що гортається, картка перевертається</small></h2>
+<p class="lead">Бібліотека — фільтр полиць і сітка плиток. Історія — колода: видно стос карток попереду, «Далі» відкидає
+  картку вліво (або свайп). <b>Картка перевертається</b>: у вікторині — відповідь на звороті, «Звідки цифра?» — джерело.</p>
+<div class="row">
+  <div class="wrap"><div class="cap">Бібліотека</div><div class="frame" data-v="B" data-start=""></div></div>
+  <div class="wrap"><div class="cap">«Навіщо тілу вода»</div><div class="frame" data-v="B" data-start="why"></div></div>
+  <div class="wrap"><div class="cap">«XP і рівні»</div><div class="frame" data-v="B" data-start="xp"></div></div>
+</div>
+
+<h2>C · Лонгрід <small>прокрутка, сцена-ілюстрація змінюється під текстом</small></h2>
+<p class="lead">Бібліотека — як зміст курсу: «Почни тут» і компактні рядки. Історія — звичайна прокрутка (скролітелінг):
+  угорі закріплена сцена, під нею текст; коли розділ доходить до середини, сцена грає свою ілюстрацію. Джерела — виносками.</p>
+<div class="row">
+  <div class="wrap"><div class="cap">Бібліотека</div><div class="frame" data-v="C" data-start=""></div></div>
+  <div class="wrap"><div class="cap">«Навіщо тілу вода» — гортай вниз</div><div class="frame" data-v="C" data-start="why"></div></div>
+  <div class="wrap"><div class="cap">«XP і рівні»</div><div class="frame" data-v="C" data-start="xp"></div></div>
+</div>
+
+</div>
+
+<h2>Порівняння</h2>
+<table>
+  <tr><th></th><th>A · Історії</th><th>B · Картки</th><th>C · Лонгрід</th></tr>
+  <tr><td>Відчуття</td>
+      <td>Сторіс: швидко, яскраво, ілюстрація на пів екрана. Та сама мова, що звіт-історія, яку вже погоджено</td>
+      <td>Навчальні картки: тактильно, видно, скільки лишилося. Більше «гри»</td>
+      <td>Журнальна стаття: спокійне читання, сцена «оживає» під текстом</td></tr>
+  <tr><td>Гортання</td>
+      <td>Тап праворуч / ліворуч, смуги вгорі</td>
+      <td>«Далі», «‹», свайп; точки внизу</td>
+      <td>Звичайна прокрутка — найзрозуміліше без підказок</td></tr>
+  <tr><td>Вікторина й інтерактив</td>
+      <td>Кнопки на слайді, відповідь з'являється під ними</td>
+      <td>Найприродніше: відповідь — на звороті картки</td>
+      <td>Блок у тексті; сцена не реагує</td></tr>
+  <tr><td>Джерела</td>
+      <td>Рядок «Звідки цифра?» внизу слайда, список — на фініші</td>
+      <td>Зворот картки — є місце для пояснення округлень</td>
+      <td>Виноски [1] у тексті й список у кінці — як у статті</td></tr>
+  <tr><td>Місце під ілюстрацію</td>
+      <td>Найбільше — увесь екран</td>
+      <td>Менше: картка в рамці, ілюстрація — верхня половина</td>
+      <td>Сцена ≈ третина екрана, решта — текст</td></tr>
+  <tr><td>Вартість у коді</td>
+      <td>Найменша: розширити <code>WTStoryPlayer</code> (уже є, з e2e)</td>
+      <td>+ колода, жест, переворот 3D і VoiceOver для них</td>
+      <td>Найбільша: синхронізація сцени з прокруткою, різні висоти екранів, Reduce Motion</td></tr>
+  <tr><td>Ризики</td>
+      <td>Схожа на звіт — історія «знання» й «звіт» читаються однаково (можна й за плюс)</td>
+      <td>Переворот на кожній картці набридає; менше місця на iPhone SE</td>
+      <td>Найбільше тексту на екрані; найменше «гри»; на SE сцена з'їдає пів екрана</td></tr>
+</table>
+<div class="rec">
+  <b>Рекомендація — A «Історії».</b> Формат «одна думка — одна картинка, рух» ти вже обрав для звіту, тож розділ говорить
+  тією ж мовою, а програвач, жести й тести вже є — більше часу піде на ілюстрації й тексти, а не на механіку.
+  З B варто взяти <b>переворот</b> лише для вікторини: відповідь на звороті — найживіший момент. C — для довгих тем,
+  яких у плані немає: усі 12 історій укладаються в 5–7 слайдів.
+</div>
+
+<script>
+// ===================== дані =====================
+const SHELVES = [
+  {id:'body',   name:'Вода й тіло'},
+  {id:'habits', name:'Звички'},
+  {id:'app',    name:'Застосунок'},
+];
+// Стан для демо: «Навіщо тілу вода» — почата, дві прочитані, дві нові з оновлення.
+const CATALOG = [
+  {id:'why',   shelf:'body',  e:'💧', t:'Навіщо тілу вода',        min:2, progress:3},
+  {id:'much',  shelf:'body',  e:'📏', t:'Скільки треба саме тобі', min:2, read:true,
+    outline:['Звідки взялися «8 склянок»','EFSA: 2,0 л жінкам і 2,5 л чоловікам — разом з їжею','Що додає: спорт, спека, вагітність, хвороба','Що рахується як рідина','Твоя норма і де її змінити']},
+  {id:'signs', shelf:'body',  e:'🔎', t:'Коли води бракує',        min:2,
+    outline:['Уже 1–2 % — втома й гірша увага','Шкала кольору: тапни свій відтінок','Інші ознаки','Коли до лікаря']},
+  {id:'myths', shelf:'body',  e:'🤔', t:'Пʼять міфів про воду',     min:3, isNew:true,
+    outline:['Кава зневоднює?','Рахується лише чиста вода?','Що більше, то краще?','Склянка перед їжею допомагає?','Спрага — це вже пізно?']},
+  {id:'rhythm',  shelf:'habits', e:'🕒', t:'Рівно протягом дня',     min:2,
+    outline:['Тіло не запасає воду','Твій день — три цілі','Перед сном — менше','Ранкова склянка']},
+  {id:'anchors', shelf:'habits', e:'⚓', t:'Звички, що тримаються',  min:2,
+    outline:['66 днів до звички','Якорі: пробудження, їжа, кава','Пляшка на видноті','Пропуск — не кінець']},
+  {id:'special', shelf:'habits', e:'☀️', t:'Спека, спорт і хвороба', min:2,
+    outline:['Спорт: зважся до й після','Спека','Температура й діарея — регідратація','Політ, гори, сауна']},
+  {id:'start',   shelf:'app', e:'👋', t:'Перші кроки',            min:2, read:true,
+    outline:['Порція одним тапом','«Скасувати», якщо рука помилилася','Кільце й стеля 120 %','Капсула частини доби','Віджети й сповіщення']},
+  {id:'xp',      shelf:'app', e:'⭐', t:'XP і рівні',             min:1},
+  {id:'streak',  shelf:'app', e:'🔥', t:'Серія й заморозка',      min:2,
+    outline:['Серія — дні з нормою поспіль','Серія множить XP','Заморозка рятує вчора','Де взяти заморозку','«Знову в ритмі»']},
+  {id:'prizes',  shelf:'app', e:'🎁', t:'Призи й шлях рівнів',    min:2, isNew:true,
+    outline:['Заморозка, ×2 і ×3','Приз — жетон: діє з картки','Шлях рівнів','Вибір і таємні призи']},
+  {id:'reminders', shelf:'app', e:'🔔', t:'Нагадування без спаму', min:2,
+    outline:['Нагадує, лише коли відстаєш','Тиша вночі й ліміт на день','Чекпоінти, ранкова склянка, звіти','«Ритм дня» вимкнено — просто норма','Пропозиція зсунути графік']},
+];
+const SRC = {
+  popkin: {short:'Popkin et al., 2010', full:'Popkin B. M., DʼAnci K. E., Rosenberg I. H. Water, hydration, and health. Nutrition Reviews, 2010; 68(8): 439–458.'},
+  efsa:   {short:'EFSA, 2010',          full:'EFSA NDA Panel. Scientific Opinion on Dietary Reference Values for water. EFSA Journal, 2010; 8(3): 1459.'},
+  jequier:{short:'Jéquier, Constant, 2010', full:'Jéquier E., Constant F. Water as an essential nutrient: the physiological basis of hydration. Eur J Clin Nutr, 2010; 64: 115–123.'},
+};
+// Живі значення: профіль (норма 2000, розклад 08–22, рівень 7) і правила (XPRules, LevelRoadCatalog) — SPEC-LEARN §5.4.
+const STORIES = {
+  why: {sources:['popkin','jequier','efsa'], slides:[
+    {k:'cover', bg:'shelf', art:'drop', kicker:'Вода й тіло · 2 хв', h:'Навіщо тілу вода',
+     p:'Хвилина-дві — і норма перестане бути примхою застосунку.'},
+    {k:'big', side:true, art:'body', kicker:'З чого складається тіло', num:'60', unit:'%',
+     h:'Ти — більше ніж наполовину вода', p:'У людини вагою 70 кг це ≈ 42 л. У немовлят частка ще більша — до 75 %.', src:'popkin'},
+    {k:'list', art:'map', kicker:'Що вона робить', h:'Вода працює цілий день', src:'popkin', items:[
+      ['🌡️','Охолоджує','піт забирає зайве тепло'],
+      ['🚚','Доставляє','поживні речовини до кожної клітини'],
+      ['🦴','Змащує','суглоби, очі й слизові'],
+      ['🫘','Очищує','нирки фільтрують ≈ 180 л плазми на добу']]},
+    {k:'flow', art:'flow', kicker:'Щоденний обмін', h:'Щодня йде ≈ 2,5 л — стільки ж треба повернути',
+     p:'Округлено: дорослий, помірний клімат, без спорту.', src:'jequier',
+     in:[['Напої',1.7],['Їжа',0.5],['Обмін речовин',0.3]], out:[['Нирки',1.5],['Шкіра й піт',0.5],['Дихання',0.3],['Інше',0.2]]},
+    {k:'quiz', art:'quiz', kicker:'Правда чи міф?', h:'«Більшість води ми отримуємо з їжею»', answer:'myth', src:'efsa',
+     a:'Їжа дає лише ≈ 20 % води, решту — напої. Тому склянки й рахуємо.'},
+    {k:'action', bg:'shelf', art:'ring', kicker:'Що з цим робити', h:'Потроху протягом дня',
+     p:'Твою норму застосунок ділить на ранок, день і вечір — і підкаже, коли відстаєш.',
+     cta:'Відкрити статистику'},
+  ]},
+  xp: {sources:[], slides:[
+    {k:'cover', bg:'shelf', art:'level', kicker:'Застосунок · 1 хв', h:'XP і рівні', p:'Звідки береться XP і що дає новий рівень.'},
+    {k:'glasses', art:'glasses', kicker:'Вода', num:'+5', unit:'XP', h:'За кожні 250 мл — а не за натискання',
+     p:'Дві склянки по 125 мл дають стільки ж, як одна на 250. Понад 120 % норми XP не росте.'},
+    {k:'list', art:'dayxp', kicker:'Бонуси', h:'Рівний день важить більше', items:[
+      ['🎯','Норма дня','','+50'],
+      ['⏰','Ранок, день, вечір','за кожну ціль','+10'],
+      ['✅','Завдання','щоденне / тижневе','+25 / +100'],
+      ['🔥','Серія','множить XP за воду','до ×1,5']]},
+    {k:'road', art:'road', kicker:'Рівні', h:'Новий рівень — це приз',
+     p:'До 10-го рівня приз — через рівень, далі — на кожному. Вибір і таємні призи чекають на тебе.'},
+    {k:'action', bg:'shelf', art:'level', kicker:'Що з цим робити', h:'Зазирни у свій шлях',
+     p:'Ти на 7-му рівні. Наступний приз — на 8-му: заморозка серії.', cta:'Відкрити «Шлях рівнів»'},
+  ]},
+};
+// Для решти історій — обкладинка й зміст із плану.
+function storyOf(id){
+  const c = CATALOG.find(x => x.id === id);
+  if (STORIES[id]) return {...c, ...STORIES[id]};
+  return {...c, sources:[], stub:true, slides:[
+    {k:'cover', bg:'shelf', art:'emoji', kicker:`${shelfName(c.shelf)} · ${c.min} хв`, h:c.t, p:'Чернетка: у макеті наповнено лише дві історії.'},
+    {k:'outline', art:'emoji', kicker:'У плані', h:'Що буде в історії', outline:c.outline},
+  ]};
+}
+const shelfName = id => SHELVES.find(s => s.id === id).name;
+const countOf = c => STORIES[c.id] ? STORIES[c.id].slides.length + 1 : c.outline.length + 3;
+const cards = n => `${n} ${n % 10 >= 2 && n % 10 <= 4 && (n < 12 || n > 14) ? 'картки' : 'карток'}`;
+const fmtL = v => String(v).replace('.', ',');
+
+// ===================== ілюстрації =====================
+let UID = 0; const uid = () => 'u' + (++UID);
+const DROP = 'M100 14C100 14 36 98 36 152A64 64 0 0 0 164 152C164 98 100 14 100 14Z';
+const wave = (y, a) => `M-200 ${y} q50 ${-a} 100 0 t100 0 t100 0 t100 0 t100 0 t100 0 V 420 H -200 Z`;
+const STAR = 'M0 -10 L2.6 -2.6 L10 0 L2.6 2.6 L0 10 L-2.6 2.6 L-10 0 L-2.6 -2.6Z';
+
+function artDrop(){
+  const id = uid();
+  const bubbles = [[84,0,.2,8],[112,4,1.1,-6],[98,3,2,5],[126,5,2.7,-4]]
+    .map(([x,r,d,dx]) => `<circle class="bub" cx="${x}" cy="206" r="${r || 3}" style="--d:${d}s;--x:${dx}px"/>`).join('');
+  return `<svg class="art" viewBox="0 0 200 240"><defs><clipPath id="${id}"><path d="${DROP}"/></clipPath></defs>
+    <path d="${DROP}" fill="var(--ae)"/>
+    <g clip-path="url(#${id})"><g class="lvl" style="--to:-92px">
+      <path class="wv" d="${wave(214,11)}" fill="var(--af2)"/><path class="wv wv2" d="${wave(222,8)}" fill="var(--af)"/></g>${bubbles}</g>
+    <path d="${DROP}" fill="none" stroke="var(--af)" stroke-width="3" opacity=".75"/>
+    <ellipse cx="72" cy="122" rx="8" ry="19" fill="#fff" opacity=".55" transform="rotate(24 72 122)"/></svg>`;
+}
+const BODY = `<circle cx="100" cy="40" r="27"/><rect x="58" y="74" width="84" height="124" rx="32"/>
+  <rect x="36" y="80" width="24" height="104" rx="12" transform="rotate(14 48 84)"/>
+  <rect x="140" y="80" width="24" height="104" rx="12" transform="rotate(-14 152 84)"/>
+  <rect x="66" y="150" width="31" height="142" rx="15.5"/><rect x="103" y="150" width="31" height="142" rx="15.5"/>`;
+function artBody(){
+  const id = uid();
+  return `<svg class="art" viewBox="0 0 200 300"><defs><clipPath id="${id}">${BODY}</clipPath></defs>
+    <g clip-path="url(#${id})"><rect width="200" height="300" fill="var(--ae)"/>
+      <g class="lvl" style="--to:-167px"><path class="wv" d="${wave(289,8)}" fill="var(--af2)"/><path class="wv wv2" d="${wave(295,6)}" fill="var(--af)"/></g></g></svg>`;
+}
+// «Що вона робить» — карта тіла: де саме працює вода, по точці на пункт списку.
+function artMap(s){
+  const id = uid(), pts = [[23,45],[50,33],[40,80],[60,56]];
+  return `<div class="art art-map"><svg viewBox="0 0 200 300"><defs><clipPath id="${id}">${BODY}</clipPath></defs>
+    <g clip-path="url(#${id})"><rect width="200" height="300" fill="var(--af2)"/></g></svg>
+    ${s.items.map((it, i) => `<span class="pop" style="left:${pts[i][0]}%;top:${pts[i][1]}%;--d:${.25 + i * .14}s">${it[0]}</span>`).join('')}</div>`;
+}
+// «Бонуси» — з чого складається XP рівного дня (норма 2000: вода 8 × 5, норма, 3 цілі, щоденне завдання).
+function artDayXP(){
+  const segs = [['💧','вода',40],['🎯','норма',50],['⏰','3 цілі',30],['✅','завдання',25]];
+  return `<div class="art art-dxp"><div class="numbox"><span class="bn" data-count="145">145</span><small>XP</small></div>
+    <div class="dxp-cap">за рівний день з нормою</div>
+    <div class="dxp-bar">${segs.map((g, i) => `<i style="--w:${g[2] / 145 * 100}%;--d:${.2 + i * .18}s;--o:${1 - i * .2}"></i>`).join('')}</div>
+    <div class="dxp-leg">${segs.map((g, i) => `<span class="a" style="--d:${.45 + i * .15}s"><b>${g[0]} ${g[2]}</b>${g[1]}</span>`).join('')}</div></div>`;
+}
+function artIcons(s){
+  return `<div class="art art-icons">${s.items.map((it, i) => `<span class="pop" style="--d:${.15 + i * .12}s">${it[0]}</span>`).join('')}</div>`;
+}
+function artFlow(s){
+  const col = (name, segs) => `<div class="fcol"><div class="fbar">${segs.map((g, i) => {
+      const o = Math.max(.25, 1 - i * .25);
+      return `<i class="${o < .55 ? 'dk' : ''}" style="--h:${g[1] / 2.5 * 100}%;--d:${.25 + i * .16}s;--o:${o}"><span>${g[0]}</span><em>${fmtL(g[1])}</em></i>`;
+    }).join('')}</div><div class="fcap"><b>${name}</b><span>≈ 2,5 л</span></div></div>`;
+  return `<div class="art art-flow">${col('Надходить', s.in)}<div class="feq pop" style="--d:1.1s">=</div>${col('Виходить', s.out)}</div>`;
+}
+function artQuiz(){
+  return `<svg class="art" viewBox="0 0 200 240"><g class="q-wob"><path d="${DROP}" fill="var(--ae)"/>
+    <text x="100" y="190" text-anchor="middle" font-family="Fredoka" font-weight="600" font-size="104" fill="var(--af)">?</text></g></svg>`;
+}
+function artRing(){
+  const R = 78, L = 2 * Math.PI * R, parts = [689, 826, 485], gap = 9;
+  let off = 0;
+  const arcs = parts.map((v, i) => {
+    const len = v / 2000 * L - gap;
+    const a = `<circle class="arc" cx="100" cy="100" r="${R}" fill="none" stroke="var(--af)" stroke-opacity="${1 - i * .28}" stroke-width="18"
+      stroke-linecap="round" stroke-dasharray="${len.toFixed(1)} ${L.toFixed(1)}" stroke-dashoffset="${(-off).toFixed(1)}" style="--d:${.2 + i * .35}s"/>`;
+    off += v / 2000 * L;
+    return a;
+  }).join('');
+  const leg = [['Ранок · до 12:00',690],['День · до 17:00',830],['Вечір',480]]
+    .map(([t, v], i) => `<span class="a" style="--d:${.4 + i * .35}s"><i style="opacity:${1 - i * .28}"></i>${t}<b>${v}</b></span>`).join('');
+  return `<div class="art art-ringw"><svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="${R}" fill="none" stroke="var(--ae)" stroke-width="18"/>
+    <g transform="rotate(-86 100 100)">${arcs}</g>
+    <text x="100" y="104" text-anchor="middle" font-family="Fredoka" font-weight="600" font-size="40" fill="var(--at)">2000</text>
+    <text x="100" y="128" text-anchor="middle" font-family="Nunito" font-weight="800" font-size="13" fill="var(--at)" opacity=".75">мл на день</text></svg><div class="ring-leg">${leg}</div></div>`;
+}
+function artLevel(){
+  const stars = [[40,60,.0],[166,84,.8],[150,30,1.5],[30,150,2.1]]
+    .map(([x,y,d]) => `<g transform="translate(${x} ${y})"><path class="spk" d="${STAR}" style="--d:${d}s"/></g>`).join('');
+  return `<svg class="art" viewBox="0 0 200 240"><path d="${DROP}" fill="var(--ae)"/>
+    <path d="${DROP}" fill="none" stroke="var(--af)" stroke-width="3" opacity=".7"/>
+    <text x="100" y="128" text-anchor="middle" font-family="Nunito" font-weight="900" font-size="14" letter-spacing="1.5" fill="var(--af)">РІВЕНЬ</text>
+    <text x="100" y="196" text-anchor="middle" font-family="Fredoka" font-weight="600" font-size="78" fill="var(--af)">7</text>${stars}</svg>`;
+}
+function artGlasses(){
+  const glass = 'M4 4H36L32.5 48Q32 51 29 51H11Q8 51 7.5 48Z';
+  let h = '';
+  for (let i = 0; i < 10; i++){
+    const id = uid(), cls = i === 9 ? 'lock' : i === 8 ? 'bonus' : '';
+    h += `<div class="gl ${cls}" style="--d:${.15 + i * .11}s"><svg viewBox="0 0 40 52"><defs><clipPath id="${id}"><path d="${glass}"/></clipPath></defs>
+      <path d="${glass}" fill="var(--ae)"/>${i === 9 ? '' : `<g clip-path="url(#${id})"><rect class="gfill" x="0" y="0" width="40" height="52" fill="var(--af)"/></g>`}
+      </svg><span class="xp">${i === 9 ? '🔒' : '+5'}</span></div>`;
+  }
+  return `<div class="art"><div class="art-glasses">${h}</div><div class="gl-leg"><span>8 склянок — норма</span><span>9-та — до 120 %</span><span>далі — без XP</span></div></div>`;
+}
+function artRoad(){
+  const nodes = [[2,'⚡','done'],[4,'⚡🧊','done'],[6,'🎁','done'],[8,'🧊','next'],[10,'🎁','fog']];
+  const at = p => `left:calc(23px + (100% - 46px) * ${p})`;
+  return `<div class="art art-road"><div class="rd-track"><div class="rd-fill" style="--w:62.5%"></div></div>
+    ${nodes.map(([lv, e, st], i) => `<div class="rd-node ${st}" style="${at(i / 4)}">${e}${st === 'done' ? '<span class="ok">✓</span>' : ''}<small>${lv}</small></div>`).join('')}
+    <div class="rd-me pop" style="${at(.625)};--d:1.3s">ти · 7</div></div>`;
+}
+// Вертикальна «Драбина» — як вікно «Шлях рівнів» (WAT-44): де ти, що вже взято, що далі.
+function artLadder(){
+  const nodes = [[2,'⚡','Буст ×2','done'],[4,'⚡🧊','Вибір: буст чи заморозка','done'],[6,'🎁','Таємний приз','done'],
+                 [8,'🧊','Заморозка серії','next'],[10,'🎁','Великий таємний','fog']];
+  return `<div class="art art-ladder"><div class="ld-rail"><i></i></div>${nodes.map(([lv, e, t, st], i) => `<div class="ld-row ${st} a" style="--d:${.1 + i * .1}s">
+    <span class="rd-node ${st}">${e}${st === 'done' ? '<span class="ok">✓</span>' : ''}</span>
+    <div><small>${lv}-й рівень${st === 'next' ? ' · наступний, ти на 7-му' : ''}</small><b>${t}</b></div></div>`).join('')}</div>`;
+}
+function artEmoji(st){
+  return `<div class="art art-emoji"><span>${st.e}</span><i style="--r:0deg"></i><i style="--r:130deg"></i><i style="--r:250deg"></i></div>`;
+}
+function art(st, s, ctx){
+  if (s.art === 'road' && ctx !== 'B') return artLadder();
+  switch (s.art){
+    case 'drop': return artDrop();
+    case 'body': return artBody();
+    case 'icons': return artIcons(s);
+    case 'map': return artMap(s);
+    case 'dayxp': return artDayXP();
+    case 'flow': return artFlow(s);
+    case 'quiz': return artQuiz();
+    case 'ring': return artRing();
+    case 'level': return artLevel();
+    case 'glasses': return artGlasses();
+    case 'road': return artRoad();
+    case 'emoji': return artEmoji(st);
+  }
+  return '';
+}
+const bgOf = (st, s) => s.bg === 'shelf' ? 'bg-' + st.shelf : 'bg-plain';
+const inkOf = bg => bg === 'bg-app' ? 'inko' : bg === 'bg-plain' ? 'inkc' : 'inkw';
+const inkFor = st => st.shelf === 'app' ? 'inko' : 'inkw';
+
+// ===================== спільні шматки =====================
+const D = d => `style="--d:${d}s"`;
+const numHtml = (s, cls = '') => s.num ? `<div class="numbox ${cls}"><span class="bn" data-count="${s.num}">${s.num}</span><small>${s.unit || ''}</small></div>` : '';
+const rowsHtml = (s, d0 = .25) => `<div class="rows">${s.items.map((it, j) => `<div class="ri a" ${D(d0 + j * .12)}>
+    <span class="ri-e">${it[0]}</span><div class="ri-t"><b>${it[1]}</b>${it[2] ? `<span>${it[2]}</span>` : ''}</div>${it[3] ? `<em class="ri-v">${it[3]}</em>` : ''}</div>`).join('')}</div>`;
+const outlineHtml = s => `<div class="rows">${s.outline.map((t, j) => `<div class="ri a" ${D(.2 + j * .1)}><span class="ri-e num" style="font:600 18px Fredoka;color:var(--accent)">${j + 1}</span><div class="ri-t"><b style="font-size:15px">${t}</b></div></div>`).join('')}</div>`;
+function quizHtml(s, i, ans){
+  const label = v => v === 'myth' ? 'Міф' : 'Правда';
+  const b = v => `<button data-act="quiz" data-arg="${i}:${v}" class="${ans === v ? 'pick' : ''} ${ans && s.answer === v ? 'right' : ''}">${label(v)}</button>`;
+  const res = !ans ? '' : `<div class="q-res"><b class="${ans === s.answer ? 'ok-t' : 'no-t'}">${ans === s.answer ? '✓ Так, це ' + label(s.answer).toLowerCase() : 'Насправді — ' + label(s.answer).toLowerCase()}</b><p>${s.a}</p></div>`;
+  return `<div class="quiz ${ans ? 'done' : ''}" data-i="${i}"><div class="q-btns">${b('true')}${b('myth')}</div>${res}</div>`;
+}
+function nextOf(st){
+  const same = CATALOG.filter(c => c.shelf === st.shelf);
+  const k = same.findIndex(c => c.id === st.id);
+  return same[(k + 1) % same.length];
+}
+function finishParts(st){
+  const nx = nextOf(st), same = CATALOG.filter(c => c.shelf === st.shelf);
+  const read = same.filter(c => c.read).length + (CATALOG.find(c => c.id === st.id).read ? 0 : 1);
+  return {
+    sub: `Полиця «${shelfName(st.shelf)}» · ${read} з ${same.length}`,
+    next: `<div class="nextc a" ${D(.45)} data-act="open" data-arg="${nx.id}"><div class="nc-art bg-${nx.shelf}">${nx.e}</div>
+      <div><span>Далі</span><b>${nx.t}</b><em>${nx.min} хв</em></div><i style="transform:scaleX(-1)">${CHEV}</i></div>`,
+    srcs: st.sources.length ? `<div class="srcs a" ${D(.55)}><b>Джерела</b><ol>${st.sources.map(k => `<li>${SRC[k].full}</li>`).join('')}</ol></div>` : '',
+    disc: st.shelf === 'body' && !st.stub ? `<div class="disc a" ${D(.6)}>Це не медична порада. Якщо маєш хвороби нирок чи серця, норму визначає лікар.</div>` : '',
+  };
+}
+function countUp(root){
+  if (document.body.classList.contains('rm')) return;
+  root.querySelectorAll('[data-count]').forEach(el => {
+    const m = el.dataset.count.match(/^(\+?)(\d+)$/);
+    if (!m) return;
+    const to = +m[2], t0 = performance.now(), dur = 900;
+    const step = t => { const k = Math.min(1, (t - t0) / dur); el.textContent = m[1] + Math.round(to * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  });
+}
+function toast(app, text){
+  app.el.querySelectorAll('.toast').forEach(t => t.remove());
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = text;
+  app.el.appendChild(t);
+  setTimeout(() => t.remove(), 2600);
+}
+const STATUS = '<div class="status"><span>9:41</span><i>●●● ▮</i></div>';
+const CHEV = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3L5 8l5 5"/></svg>';
+const NAV = `<div class="nav"><div class="circle" data-act="home">${CHEV}</div><b>Знання</b><span></span></div>`;
+
+// ===================== A · Історії =====================
+const A = {
+  lib(app){
+    const c = CATALOG.find(x => x.progress);
+    const n = countOf(c);
+    return `<div class="lib hide-sb">${NAV}
+      <div class="la-cont bg-${c.shelf} ${inkFor(c)} on" data-act="open" data-arg="${c.id}">
+        <div class="la-t"><span class="kicker">Продовжити</span><b>${c.t}</b><div class="pbar"><i style="width:${c.progress / n * 100}%"></i></div><em>${c.progress} з ${n}</em></div>
+        <div class="la-art">${artDrop()}</div><div class="la-play">▶</div></div>
+      ${SHELVES.map(sh => { const items = CATALOG.filter(x => x.shelf === sh.id);
+        return `<div class="sh-t">${sh.name}<span>${items.filter(x => x.read).length} з ${items.length}</span></div>
+        <div class="la-row hide-sb">${items.map(x => `<div class="la-cov bg-${x.shelf} ${inkFor(x)}" data-act="open" data-arg="${x.id}">
+          ${x.read ? '<span class="pill-ok">✓</span>' : x.isNew ? '<span class="pill-new">Нове</span>' : ''}
+          <div class="la-e">${x.e}</div><b>${x.t}</b><em>${x.min} хв</em>
+          ${x.progress ? `<div class="pbar"><i style="width:${x.progress / n * 100}%"></i></div>` : ''}</div>`).join('')}</div>`; }).join('')}
+    </div>`;
+  },
+  slide(st, s, i, app){
+    const bg = bgOf(st, s), ink = inkOf(bg);
+    let h;
+    if (s.k === 'cover') h = `<div class="kicker a">${s.kicker}</div><div class="sa-art cover a" ${D(.1)}>${art(st, s)}</div>
+      <div class="sa-h xl a" ${D(.3)}>${s.h}</div><div class="sa-p a" ${D(.42)}>${s.p}</div><div class="sa-hint a" style="--d:1.2s;margin-top:22px">Тапни праворуч, щоб гортати ›</div>`;
+    else if (s.k === 'quiz') h = `<div class="kicker a">${s.kicker}</div><div class="sa-art q a" ${D(.05)}>${art(st, s)}</div>
+      <div class="sa-q a" ${D(.15)}>${s.h}</div><div class="a" ${D(.3)}>${quizHtml(s, i, app.quiz[i])}</div>
+      <div class="srcl" data-act="src" data-arg="${s.src}">Звідки цифра? <u>${SRC[s.src].short}</u></div>`;
+    else if (s.k === 'outline') h = `<div class="kicker a">${s.kicker}</div><div class="sa-h a" ${D(.08)}>${s.h}</div>${outlineHtml(s)}`;
+    else {
+      h = `<div class="kicker a">${s.kicker}</div>`;
+      if (s.side) h += `<div class="sa-row"><div class="a" ${D(.1)}>${numHtml(s)}</div><div class="sa-art a">${art(st, s)}</div></div>`;
+      else h += s.num ? `<div class="a" ${D(.08)}>${numHtml(s)}</div>` : '';
+      h += `<div class="sa-h a" ${D(s.side ? .5 : .12)}>${s.h}</div>`;
+      if (s.side) h += `<div class="sa-p a" ${D(.6)}>${s.p}</div>`;
+      if (!s.side) h += `<div class="sa-art ${s.items ? 'list' : ''} a" ${D(.2)}>${art(st, s, 'A')}</div>`;
+      if (s.items) h += rowsHtml(s, .35);
+      if (s.p && !s.side) h += `<div class="sa-p ${s.cta ? '' : 'sm'} a" ${D(.35)}>${s.p}</div>`;
+      if (s.cta) h += `<button class="btn a" ${D(.5)} data-act="cta" data-arg="${s.cta}">${s.cta}</button>`;
+      if (s.src) h += `<div class="srcl" data-act="src" data-arg="${s.src}">Звідки цифра? <u>${SRC[s.src].short}</u></div>`;
+    }
+    return `<div class="sa-slide ${bg} ${ink}" data-ink="${ink === 'inkw' ? 'w' : 'd'}">${h}</div>`;
+  },
+  finish(st){
+    const f = finishParts(st);
+    return `<div class="sa-slide bg-plain inkc fin" data-ink="d"><div class="fin-check pop" ${D(.05)}>✓</div>
+      <div class="sa-h a" style="--d:.2s;text-align:center">Прочитано</div><div class="sa-p sm a" style="--d:.28s;text-align:center">${f.sub}</div>
+      ${f.next}${f.srcs}${f.disc}<button class="btn a" style="--d:.7s;margin-top:auto" data-act="close">Готово</button></div>`;
+  },
+  story(app){
+    const st = storyOf(app.story);
+    const n = st.slides.length + 1;
+    return `<div class="sa">${st.slides.map((s, i) => A.slide(st, s, i, app)).join('')}${A.finish(st)}
+      <div class="sa-chrome"><div class="sa-bars">${'<i></i>'.repeat(n)}</div>
+      <div class="sa-top"><span>${shelfName(st.shelf)}</span><div class="sa-x" data-act="close">✕</div></div></div></div>`;
+  },
+  go(app, i){
+    const slides = app.el.querySelectorAll('.sa-slide');
+    i = Math.max(0, Math.min(slides.length - 1, i));
+    app.i = i;
+    slides.forEach((s, j) => s.classList.toggle('on', j === i));
+    app.el.querySelectorAll('.sa-bars i').forEach((b, j) => b.classList.toggle('seen', j <= i));
+    const ink = slides[i].dataset.ink;
+    app.el.dataset.ink = ink;
+    const chrome = app.el.querySelector('.sa-chrome');
+    chrome.style.color = ink === 'w' ? '#fff' : 'var(--text)';
+    chrome.querySelector('.sa-top span').style.opacity = i === 0 ? 0 : '';
+    countUp(slides[i]);
+  },
+  tap(app, e){
+    const r = app.el.getBoundingClientRect();
+    A.go(app, app.i + (e.clientX - r.left < r.width * .3 ? -1 : 1));
+  },
+};
+
+// ===================== B · Картки =====================
+const B = {
+  lib(app){
+    const f = app.filter || 'all';
+    const list = CATALOG.filter(c => f === 'all' || c.shelf === f);
+    const read = CATALOG.filter(c => c.read).length;
+    return `<div class="lib hide-sb">${NAV}
+      <div class="lb-chips hide-sb">${[['all', 'Усе'], ...SHELVES.map(s => [s.id, s.name])].map(([id, n]) =>
+        `<button data-act="filter" data-arg="${id}" class="${f === id ? 'sel' : ''}">${n}</button>`).join('')}</div>
+      <div class="lb-sum"><span>Прочитано <b class="num">${read}</b> з ${CATALOG.length}</span><div class="pbar"><i style="width:${read / CATALOG.length * 100}%"></i></div></div>
+      <div class="lb-grid">${list.map(x => { const n = countOf(x); return `<div class="lb-tile" data-act="open" data-arg="${x.id}">
+        <div class="lb-art bg-${x.shelf} ${inkFor(x)}"><span class="lb-e">${x.e}</span>
+          ${x.read ? '<span class="pill-ok">✓</span>' : ''}${x.isNew ? '<span class="pill-new">Нове</span>' : ''}
+          ${x.progress ? `<div class="pbar"><i style="width:${x.progress / n * 100}%"></i></div>` : ''}</div>
+        <b>${x.t}</b><em>${cards(n)} · ${x.min} хв</em></div>`; }).join('')}</div>
+    </div>`;
+  },
+  card(st, s, i, app){
+    const bg = bgOf(st, s), ink = inkOf(bg);
+    const n = st.slides.length + 1;
+    if (s.k === 'cover') return `<div class="vb-card" data-i="${i}"><div class="vb-flip"><div class="vb-face ${bg} ${ink} vb-cover">
+      <div class="kicker a">${s.kicker}</div><div class="vb-cov-art a" ${D(.1)}>${art(st, s)}</div>
+      <div class="vb-h xl a" ${D(.3)}>${s.h}</div><div class="vb-p a" ${D(.4)}>${s.p}</div><div class="vb-meta a" ${D(.5)}>${cards(countOf(st))} · ${st.min} хв</div></div></div></div>`;
+    const artBg = bg === 'bg-plain' ? 'bg-tint inkc' : `${bg} ${ink}`;
+    const showArt = s.art && s.k !== 'outline';
+    let body = `<div class="kicker a" style="color:var(--accent);opacity:1">${s.kicker}</div>${s.num ? `<div class="a" ${D(.08)}>${numHtml(s)}</div>` : ''}
+      <div class="vb-h a" ${D(.12)}>${s.h}</div>`;
+    if (s.k === 'quiz') body += `<div class="a" ${D(.25)}>${quizHtml(s, i, app.quiz[i])}</div>`;
+    else if (s.p) body += `<div class="vb-p a" ${D(.2)}>${s.p}</div>`;
+    if (s.items) body += rowsHtml(s, .25);
+    if (s.outline) body += outlineHtml(s);
+    if (s.cta) body += `<button class="btn a" ${D(.4)} data-act="cta" data-arg="${s.cta}">${s.cta}</button>`;
+    return `<div class="vb-card" data-i="${i}"><div class="vb-flip">
+      <div class="vb-face">${showArt ? `<div class="vb-art ${s.art} ${s.items ? 'short' : ''} ${artBg}">${art(st, s)}</div>` : ''}
+        <div class="vb-body">${body}</div>
+        ${s.src && s.k !== 'quiz' && !s.items ? `<div class="vb-src" data-act="flip" data-arg="${i}">Звідки цифра? <span>↻</span></div>` : ''}</div>
+      <div class="vb-face back">${B.back(s, i, app)}</div></div></div>`;
+  },
+  back(s, i, app){
+    if (s.k === 'quiz'){
+      const ans = app.quiz[i];
+      if (!ans) return '';
+      const ok = ans === s.answer;
+      return `<span class="q-badge ${ok ? 'ok' : 'no'}">${ok ? '✓ Правильно' : 'Не зовсім'}</span>
+        <div class="vb-h" style="font-size:30px">${s.answer === 'myth' ? 'Це міф' : 'Це правда'}</div>
+        <div class="vb-p" style="font-size:17px">${s.a}</div>
+        <div class="split"><i style="flex:80"><b>🥤 напої</b>≈ 80 %</i><i style="flex:20"><b>🍎</b>20 %</i></div>
+        <div class="vb-p sm" style="margin-top:14px">${SRC[s.src].full}</div>
+        <div class="vb-src" data-act="flip" data-arg="${i}">Повернути <span>↻</span></div>`;
+    }
+    if (!s.src) return '';
+    return `<div class="kicker" style="color:var(--accent);opacity:1">Звідки цифра</div>
+      <div class="vb-h">${SRC[s.src].short}</div><div class="vb-p">${SRC[s.src].full}</div>
+      <div class="disc" style="margin-top:18px">Числа округлено до зручних: «≈ 60 %», «≈ 2,5 л». Точні значення залежать від віку, ваги й клімату.</div>
+      <div class="vb-src" data-act="flip" data-arg="${i}">Повернути <span>↻</span></div>`;
+  },
+  finish(st, i){
+    const f = finishParts(st);
+    return `<div class="vb-card" data-i="${i}"><div class="vb-flip"><div class="vb-face vb-fin"><div class="fin-check pop" ${D(.05)}>✓</div>
+      <div class="vb-h a" style="--d:.2s;text-align:center;font-size:28px">Прочитано</div><div class="vb-p sm a" style="--d:.28s;text-align:center">${f.sub}</div>
+      ${f.next}${f.srcs}${f.disc}</div></div></div>`;
+  },
+  story(app){
+    const st = storyOf(app.story);
+    const n = st.slides.length + 1;
+    return `<div class="vb"><div class="vb-top"><div class="circle" data-act="close">✕</div>
+        <div class="vb-title"><b>${st.t}</b><span class="vb-cnt"></span></div><span style="width:38px"></span></div>
+      ${st.slides.map((s, i) => B.card(st, s, i, app)).join('')}${B.finish(st, st.slides.length)}
+      <div class="vb-ctl"><div class="circle" data-act="prev">${CHEV}</div><div class="vb-dots">${'<i></i>'.repeat(n)}</div>
+        <button class="vb-next" data-act="next">Далі</button></div></div>`;
+  },
+  go(app, i){
+    const cards = app.el.querySelectorAll('.vb-card');
+    i = Math.max(0, Math.min(cards.length - 1, i));
+    app.i = i;
+    cards.forEach((c, j) => {
+      c.classList.remove('cur', 'n1', 'n2', 'gone', 'on');
+      if (j < i) c.classList.add('gone');
+      else if (j === i) c.classList.add('cur', 'on');
+      else if (j === i + 1) c.classList.add('n1');
+      else if (j === i + 2) c.classList.add('n2');
+    });
+    app.el.querySelectorAll('.vb-dots i').forEach((d, j) => d.classList.toggle('cur', j === i));
+    app.el.querySelector('.vb-cnt').textContent = `${i + 1} / ${cards.length}`;
+    const last = i === cards.length - 1, nb = app.el.querySelector('.vb-next');
+    nb.textContent = last ? 'Готово' : 'Далі';
+    nb.dataset.act = last ? 'close' : 'next';
+    countUp(cards[i]);
+  },
+};
+
+// ===================== C · Лонгрід =====================
+const C = {
+  lib(app){
+    const c = CATALOG.find(x => x.progress);
+    const n = countOf(c);
+    return `<div class="lib hide-sb">${NAV}
+      <div class="lc-hero bg-${c.shelf} ${inkFor(c)} on" data-act="open" data-arg="${c.id}">
+        <div class="lc-t"><span class="kicker">Почни тут</span><b>${c.t}</b><em>${c.min} хв читання · прочитано ${Math.round(c.progress / n * 100)} %</em>
+          <div class="pbar"><i style="width:${c.progress / n * 100}%"></i></div><span class="lc-go">Продовжити ›</span></div>
+        <div class="lc-art">${artDrop()}</div></div>
+      ${SHELVES.map(sh => { const items = CATALOG.filter(x => x.shelf === sh.id);
+        return `<div class="sh-t">${sh.name}<span>${items.filter(x => x.read).length} з ${items.length}</span></div>
+        <div class="lc-list">${items.map(x => { const parts = countOf(x) - 2;
+          const stt = x.read ? '<span class="lc-st ok">✓</span>' : x.progress ? `<span class="lc-st"><svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="var(--track)" stroke-width="3"/><circle cx="12" cy="12" r="9" fill="none" stroke="var(--accent)" stroke-width="3" stroke-dasharray="${x.progress / n * 56.5} 57" transform="rotate(-90 12 12)" stroke-linecap="round"/></svg></span>`
+            : x.isNew ? '<span class="lc-st"><span class="dot-new"></span></span>' : `<span class="lc-st" style="transform:scaleX(-1);color:var(--muted)">${CHEV}</span>`;
+          return `<div class="lc-row" data-act="open" data-arg="${x.id}"><span class="lc-ic bg-${x.shelf}">${x.e}</span>
+            <div class="lc-t"><b>${x.t}</b><em>${x.min} хв · ${parts} ${parts < 5 ? 'розділи' : 'розділів'}</em></div>${stt}</div>`; }).join('')}</div>`; }).join('')}
+    </div>`;
+  },
+  step(st, s, j, app){
+    const fn = s.src ? `<sup data-act="src" data-arg="${s.src}">[${st.sources.indexOf(s.src) + 1}]</sup>` : '';
+    let h = `<div class="kicker">${s.kicker}</div>${numHtml(s)}<div class="vc-h2">${s.h}</div>`;
+    if (s.k === 'quiz') h += quizHtml(s, j + 1, app.quiz[j + 1]);
+    else if (s.p) h += `<div class="vc-p2">${s.p}${fn}</div>`;
+    if (s.items) h += rowsHtml(s, 0).replace(/ri a/g, 'ri');
+    if (!s.p && fn) h += `<div class="vc-p2" style="font-size:13px">Джерело ${fn}</div>`;
+    if (s.outline) h += outlineHtml(s).replace(/ri a/g, 'ri');
+    if (s.cta) h += `<button class="btn" data-act="cta" data-arg="${s.cta}">${s.cta}</button>`;
+    return `<div class="vc-step" data-j="${j}">${h}</div>`;
+  },
+  story(app){
+    const st = storyOf(app.story);
+    const cover = st.slides[0], steps = st.slides.slice(1), f = finishParts(st);
+    const bg = bgOf(st, cover);
+    return `<div class="vc"><div class="vc-top"><div class="circle" data-act="close">${CHEV}</div><b>${st.t}</b><span>${st.min} хв</span><div class="vc-prog"><i></i></div></div>
+      <div class="vc-scroll hide-sb">
+        <div class="vc-hero ${bg} ${inkOf(bg)} on"><div class="kicker">${cover.kicker}</div><div class="vc-art">${art(st, cover)}</div>
+          <div class="vc-h">${cover.h}</div><div class="vc-p">${cover.p}</div><div class="vc-meta"><span>${steps.length} ${steps.length < 5 ? 'розділи' : 'розділів'}</span><span>Гортай ↓</span></div></div>
+        <div class="vc-body">
+          <div class="vc-stage"><div class="vc-stage-in">${steps.map((s, j) => {
+            const sb = bgOf(st, s), cls = sb === 'bg-plain' ? 'inkc' : `${sb} ${inkOf(sb)}`;
+            return `<div class="vc-sa ${cls}" data-j="${j}">${art(st, s, 'C')}</div>`; }).join('')}</div></div>
+          <div class="vc-steps">${steps.map((s, j) => C.step(st, s, j, app)).join('')}</div>
+        </div>
+        <div class="vc-end"><div class="vc-fin"><div class="fin-check">✓</div><div><b>Прочитано</b><span>${f.sub}</span></div></div>
+          ${f.next.replace(' a"', '"')}${f.srcs.replace(' a"', '"')}${f.disc.replace(' a"', '"')}
+          <button class="btn" data-act="close">Готово</button></div>
+      </div></div>`;
+  },
+  mount(app){
+    const sc = app.el.querySelector('.vc-scroll');
+    if (!sc) return;
+    app.seen = new Set();
+    sc.addEventListener('scroll', () => C.sync(app));
+    C.sync(app);
+  },
+  sync(app){
+    const sc = app.el.querySelector('.vc-scroll'), body = sc.querySelector('.vc-body');
+    const steps = [...sc.querySelectorAll('.vc-step')];
+    const line = sc.scrollTop + 286 + (sc.clientHeight - 286) * .45;
+    let act = -1;
+    steps.forEach((s, j) => { if (body.offsetTop + s.offsetTop <= line) act = j; });
+    const vis = Math.max(act, 0);
+    steps.forEach((s, j) => s.classList.toggle('on', j === act));
+    sc.querySelectorAll('.vc-sa').forEach((a, j) => { a.classList.toggle('vis', j === vis); a.classList.toggle('on', j === act); });
+    if (act >= 0 && !app.seen.has(act)){ app.seen.add(act); countUp(steps[act]); }
+    const p = sc.scrollTop / Math.max(1, sc.scrollHeight - sc.clientHeight);
+    app.el.querySelector('.vc-prog i').style.width = (p * 100) + '%';
+  },
+};
+
+// ===================== рушій кадру =====================
+const V = {A, B, C};
+const apps = [];
+function render(app){
+  const v = V[app.v];
+  app.el.dataset.ink = 'd';
+  if (app.view === 'lib') app.el.innerHTML = STATUS + v.lib(app);
+  else {
+    app.el.innerHTML = STATUS + v.story(app);
+    if (v.go) v.go(app, app.i || 0);
+    if (v.mount) v.mount(app);
+  }
+}
+function act(app, a, arg){
+  const v = V[app.v];
+  switch (a){
+    case 'open': Object.assign(app, {view:'story', story:arg, i:0, quiz:{}}); render(app); break;
+    case 'close': app.view = 'lib'; render(app); break;
+    case 'home': toast(app, 'Повернення на головний'); break;
+    case 'next': v.go(app, app.i + 1); break;
+    case 'prev': v.go(app, app.i - 1); break;
+    case 'filter': app.filter = arg; render(app); break;
+    case 'cta': toast(app, `«${arg}» — тут відкриється екран застосунку`); break;
+    case 'src': toast(app, SRC[arg].full); break;
+    case 'flip': {
+      const card = app.el.querySelector(`.vb-card[data-i="${arg}"]`);
+      card.classList.toggle('flipped');
+      break;
+    }
+    case 'quiz': {
+      const [i, ans] = arg.split(':');
+      if (app.quiz[i]) break;
+      app.quiz[i] = ans;
+      const st = storyOf(app.story);
+      const s = app.v === 'C' ? st.slides[+i] : st.slides[+i];
+      app.el.querySelectorAll(`.quiz[data-i="${i}"]`).forEach(q => { q.outerHTML = quizHtml(s, i, ans); });
+      if (app.v === 'B'){
+        const card = app.el.querySelector(`.vb-card[data-i="${i}"]`);
+        card.querySelector('.vb-face.back').innerHTML = B.back(s, i, app);
+        setTimeout(() => card.classList.add('flipped'), 650);
+      }
+      break;
+    }
+  }
+}
+function mountFrame(el){
+  const app = {el, v:el.dataset.v, view:el.dataset.start ? 'story' : 'lib', story:el.dataset.start, i:0, quiz:{}};
+  apps.push(app);
+  render(app);
+  el.addEventListener('click', e => {
+    const t = e.target.closest('[data-act]');
+    if (t && el.contains(t)){ e.stopPropagation(); act(app, t.dataset.act, t.dataset.arg); return; }
+    if (app.v === 'A' && app.view === 'story') A.tap(app, e);
+  });
+  // свайп для колоди B
+  let x0 = null;
+  el.addEventListener('pointerdown', e => { x0 = e.clientX; });
+  el.addEventListener('pointerup', e => {
+    if (app.v !== 'B' || app.view !== 'story' || x0 === null) return;
+    const dx = e.clientX - x0; x0 = null;
+    if (Math.abs(dx) > 50) B.go(app, app.i + (dx < 0 ? 1 : -1));
+  });
+}
+document.querySelectorAll('.frame[data-v]').forEach(mountFrame);
+
+// ===================== панель =====================
+function seg(id, fn){
+  const box = document.getElementById(id);
+  box.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (id !== 'resetBtns'){ box.querySelectorAll('button').forEach(x => x.classList.toggle('sel', x === b)); }
+    fn(b.dataset.v);
+  });
+}
+seg('themeBtns', v => {
+  document.getElementById('app').classList.toggle('dark', v === 'dark');
+  document.body.classList.toggle('dark-page', v === 'dark');
+});
+seg('motionBtns', v => { document.body.classList.toggle('rm', v === 'rm'); });
+seg('resetBtns', () => apps.forEach(app => {
+  Object.assign(app, {view:app.el.dataset.start ? 'story' : 'lib', story:app.el.dataset.start, i:0, quiz:{}, filter:'all'});
+  render(app);
+}));
+</script>
+</body>
+</html>
