@@ -46,6 +46,7 @@ public struct SettingsScreen: View {
                 VStack(alignment: .leading, spacing: WTSpacing.cardGap) {
                     WTNavBar(title: "Налаштування", onBack: onBack)
                     water
+                    units
                     rhythm
                     app
                     temporary
@@ -79,18 +80,31 @@ public struct SettingsScreen: View {
             // Повторний онбординг (WAT-56, SPEC-ONBOARDING §7.1): перерахувати норму, пройти пропущене.
             WTNavigationRow("Підібрати під себе", action: onOpenOnboarding)
                 .accessibilityIdentifier("settings.onboarding")
-            WTDivider()
-            // Система об'єму (WAT-46): сегменти, як вибори на екрані «Сповіщення».
-            // Підзаголовок — приклад чисел, а не назва: назва вже на сегменті.
-            WTSettingRow("Одиниці", subtitle: model.volumeUnitExample) { EmptyView() }
-            WTSegmentedTabs(titles: VolumeUnit.allCases.map(\.title),
-                            selection: VolumeUnit.allCases.firstIndex(of: model.volumeUnit) ?? 0,
-                            onSelect: { index in
-                                withAnimation(WTAnimation.fade) { model.setVolumeUnit(VolumeUnit.allCases[index]) }
-                            })
-                .padding(.bottom, 10)
         }
     }
+
+    /// Система вимірювання (WAT-58) — ті самі рядки й тексти, що на кроці «Одиниці» онбордингу: людина
+    /// впізнає вибір, а не вчиться другому. Окрема секція, а не рядок «Води»: вага й час — не про воду.
+    private var units: some View {
+        section("ОДИНИЦІ") {
+            VStack(spacing: 16) {
+                WTSegmentRow(unitRows[0].title, options: unitRows[0].options,
+                             selection: VolumeUnit.allCases.firstIndex(of: model.volumeUnit) ?? 0,
+                             identifierPrefix: "settings.units.volume") { index in
+                    withAnimation(WTAnimation.fade) { model.setVolumeUnit(VolumeUnit.allCases[index]) }
+                }
+                WTSegmentRow(unitRows[1].title, options: unitRows[1].options,
+                             selection: MassUnit.allCases.firstIndex(of: model.massUnit) ?? 0,
+                             identifierPrefix: "settings.units.mass") { model.setMassUnit(MassUnit.allCases[$0]) }
+                WTSegmentRow(unitRows[2].title, options: unitRows[2].options,
+                             selection: TimeFormat.allCases.firstIndex(of: model.timeFormat) ?? 0,
+                             identifierPrefix: "settings.units.time") { model.setTimeFormat(TimeFormat.allCases[$0]) }
+            }
+            .padding(.vertical, 10)
+        }
+    }
+
+    private var unitRows: [OnboardingPresenter.UnitRow] { OnboardingPresenter.unitRows }
 
     private var rhythm: some View {
         section("РИТМ І НАГАДУВАННЯ") {

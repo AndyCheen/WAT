@@ -30,7 +30,6 @@ final class VolumeUnitFeatureTests: XCTestCase {
         XCTAssertEqual(settings.quickAmountsSummary, "8 · 16 · 32 унц.")
         XCTAssertEqual(settings.goalLabel, "68 унц.")
         XCTAssertEqual(settings.goalStepLabel, "Крок — 4 унц.")
-        XCTAssertEqual(settings.volumeUnitExample, "8 унц. · 64 унц.")
         settings.stepGoal(up: true)
         XCTAssertEqual(settings.goalLabel, "72 унц.", "68 → найближче кратне 4 вгору")
         settings.stepGoal(up: true)

@@ -52,19 +52,32 @@ public final class SettingsModel {
         services.touch()
     }
 
-    // MARK: - Система об'єму (WAT-46)
+    // MARK: - Одиниці (WAT-46, WAT-58)
 
     public var volumeUnit: VolumeUnit { services.profile.volumeUnit }
+    public var massUnit: MassUnit { services.profile.massUnit }
+    public var timeFormat: TimeFormat { services.profile.timeFormat }
 
-    /// Як виглядатимуть числа: «250 мл · 2 л» / «8 унц. · 64 унц.» (64 — звична в США денна норма).
-    public var volumeUnitExample: String {
-        volumeUnit.isMetric ? "250 мл · 2 л" : [8, 64].map { volumeUnit.portion(volumeUnit.milliliters(units: $0)) }.joined(separator: " · ")
-    }
-
-    /// Перемикає систему й переводить кнопки порцій; `touch()` — тексти сповіщень перескладаються одразу.
+    /// Перемикає систему й переводить кнопки порцій; `touch()` — тексти сповіщень і віджети перескладаються одразу.
     public func setVolumeUnit(_ unit: VolumeUnit) {
         services.hydration.setVolumeUnit(unit)
         quickAmounts = services.hydration.quickAddAmounts()
+        services.touch()
+    }
+
+    /// Вага в профілі — у кілограмах, тож міняється лише показ.
+    public func setMassUnit(_ unit: MassUnit) {
+        guard unit != massUnit else { return }
+        services.profile.massUnit = unit
+        services.profiles.save()
+        services.touch()
+    }
+
+    /// Час у профілі — хвилини від 00:00; `touch()` — дедлайни в текстах сповіщень і годинник у віджетах.
+    public func setTimeFormat(_ format: TimeFormat) {
+        guard format != timeFormat else { return }
+        services.profile.timeFormat = format
+        services.profiles.save()
         services.touch()
     }
 
