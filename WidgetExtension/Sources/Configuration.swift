@@ -4,14 +4,14 @@ import Widgets
 /// Об'єм кнопки — у налаштуванні самого віджета (рішення від 08.10.2026, SPEC-WIDGETS §4.2).
 ///
 /// «Моя склянка» й «Кнопка N з головного» йдуть за застосунком: змінив там — змінилося й у віджеті.
-/// Фіксований об'єм — з тієї ж сітки, що й кнопки головного (`PresetRules`: 50 мл до 1 л, 100 мл від 1 л).
+/// Фіксований об'єм — з тієї ж сітки, що й кнопки головного, у системі людини (`WidgetPortionGrid`, WAT-59).
 /// Підпис зберігається в самій сутності: віджети iOS кешують сутності з однаковим `id`, і обчислюваний
 /// підпис у вікні «Змінити віджет» застарівав би.
 struct PortionChoice: AppEntity {
     static let typeDisplayRepresentation: TypeDisplayRepresentation = "Об'єм"
     static let defaultQuery = PortionChoiceQuery()
 
-    /// `glass`, `home.0`…`home.2` або `ml.250`.
+    /// `glass`, `home.0`…`home.2`, `ml.250` або `oz.8`.
     let id: String
     let title: String
 
@@ -26,7 +26,7 @@ struct PortionChoice: AppEntity {
 
     static func milliliters(id: String, in snapshot: WidgetSnapshot?) -> Int {
         let glass = snapshot?.glassMl ?? 250
-        if id.hasPrefix("ml."), let ml = Int(id.dropFirst(3)) { return ml }
+        if let ml = WidgetPortionGrid.milliliters(id: id) { return ml }
         if id.hasPrefix("home."), let index = Int(id.dropFirst(5)), let buttons = snapshot?.homeButtons,
            buttons.indices.contains(index) {
             return buttons[index]
@@ -36,7 +36,8 @@ struct PortionChoice: AppEntity {
 
     static func make(id: String, snapshot: WidgetSnapshot?) -> PortionChoice {
         let ml = milliliters(id: id, in: snapshot)
-        // У системі людини (WAT-58); сітка фіксованих — мілілітрова, як `PresetRules`.
+        // У системі людини (WAT-58). Фіксований з іншої системи (`ml.250` після переходу на унції) — теж у ній:
+        // ідентифікатор поставленого віджета не міняється, а «8 унц.» людина впізнає.
         let amount = WidgetPresenter.amount(ml, unit: snapshot?.volumeUnit ?? .milliliters)
         if id == glassId { return PortionChoice(id: id, title: "Моя склянка · \(amount)") }
         if id.hasPrefix("home."), let index = Int(id.dropFirst(5)) {
@@ -44,9 +45,6 @@ struct PortionChoice: AppEntity {
         }
         return PortionChoice(id: id, title: amount)
     }
-
-    /// Сітка `PresetRules.stepped`: 50…1000 кроком 50, далі до 2000 кроком 100.
-    static let grid: [Int] = Array(stride(from: 50, through: 1000, by: 50)) + Array(stride(from: 1100, through: 2000, by: 100))
 }
 
 struct PortionChoiceQuery: EntityQuery {
@@ -66,7 +64,7 @@ struct PortionChoiceQuery: EntityQuery {
 
     static func suggestedIds(_ snapshot: WidgetSnapshot?) -> [String] {
         let linked = [PortionChoice.glassId] + (0..<max(1, min(3, snapshot?.homeButtons.count ?? 3))).map { "home.\($0)" }
-        return linked + PortionChoice.grid.map { "ml.\($0)" }
+        return linked + WidgetPortionGrid.ids(for: snapshot?.volumeUnit ?? .milliliters)
     }
 }
 
