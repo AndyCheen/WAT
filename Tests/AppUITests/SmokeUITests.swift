@@ -366,6 +366,10 @@ final class SmokeUITests: XCTestCase {
         let app = launch(["--uitest-empty", "--notifications-auth", "notDetermined", "--start-screen", "settings"])
         let theme = app.buttons["settings.theme"]
         XCTAssertTrue(theme.waitForExistence(timeout: 20))
+        // Після картки «Одиниці» (WAT-58) рядок теми — нижче краю екрана: XCUITest докручує до нього на кожному тапі,
+        // а після першого тост «Темна сторона» лягає туди, куди влучив би наступний. Докручуємо один раз заздалегідь.
+        app.swipeUp()
+        XCTAssertTrue(theme.isHittable)
         for _ in 0..<5 { theme.tap() }
 
         let message = app.staticTexts["toast.message"]
@@ -561,9 +565,12 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
 
         app.buttons["home.settings"].tap()
-        let ounces = app.buttons["Унції"]
+        // Секція «Одиниці» (WAT-58): сегменти — `WTSegmentRow`, ідентифікатор на кожному.
+        let ounces = app.buttons["settings.units.volume.1"]
         XCTAssertTrue(ounces.waitForExistence(timeout: 5))
+        XCTAssertEqual(ounces.label, "Унції")
         ounces.tap()
+        XCTAssertTrue(ounces.isSelected)
         XCTAssertEqual(app.staticTexts["settings.goal"].label, "68 унц.")
         XCTAssertTrue(app.buttons["settings.portions"].label.contains("8 · 16 · 32 унц."))
         app.buttons["nav.back"].firstMatch.tap()
@@ -576,12 +583,60 @@ final class SmokeUITests: XCTestCase {
         waitForToastToHide(app)
 
         app.buttons["home.settings"].tap()
-        XCTAssertTrue(app.buttons["Мілілітри"].waitForExistence(timeout: 5))
-        app.buttons["Мілілітри"].tap()
+        let milliliters = app.buttons["settings.units.volume.0"]
+        XCTAssertTrue(milliliters.waitForExistence(timeout: 5))
+        milliliters.tap()
         XCTAssertEqual(app.staticTexts["settings.goal"].label, "2.0 л")
         app.buttons["nav.back"].firstMatch.tap()
         XCTAssertTrue(app.buttons["home.add.200"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.staticTexts["home.volume"].label, "0.24 / 2.0 л")
+    }
+
+    /// Формат часу й вага в «Налаштуваннях» (WAT-58): «12 годин» одразу міняє годинник капсули й історії
+    /// на головному та час на екрані «Сповіщення»; «24 години» повертає як було. Годинник — 11:25, як у
+    /// тесті капсули: частина доби триває, і дедлайн — полудень.
+    func testUnitsSectionSwitchesTimeFormatAndMass() {
+        let app = launch(["--uitest-empty", "--uitest-now", "2026-10-01T11:25:00+03:00"])
+        XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
+        let pill = app.descendants(matching: .any)["home.dayPart"]
+        XCTAssertTrue(pill.waitForExistence(timeout: 5))
+        XCTAssertEqual(pill.label, "До 12:00 бракує 700 мл, лишилось 35 хвилин")
+
+        app.buttons["home.settings"].tap()
+        let twelveHours = app.buttons["settings.units.time.1"]
+        XCTAssertTrue(twelveHours.waitForExistence(timeout: 5))
+        XCTAssertEqual(twelveHours.label, "12 годин")
+        XCTAssertTrue(app.buttons["settings.units.time.0"].isSelected, "типово — 24 години")
+        twelveHours.tap()
+        XCTAssertTrue(twelveHours.isSelected)
+        let pounds = app.buttons["settings.units.mass.1"]
+        XCTAssertEqual(pounds.label, "Фунти")
+        pounds.tap()
+        XCTAssertTrue(pounds.isSelected)
+        XCTAssertFalse(app.buttons["settings.units.mass.0"].isSelected)
+        app.buttons["nav.back"].firstMatch.tap()
+
+        XCTAssertEqual(pill.label, "До 12:00 пп бракує 700 мл, лишилось 35 хвилин")
+        app.buttons["home.add.200"].tap()
+        XCTAssertTrue(app.staticTexts["11:25 дп"].waitForExistence(timeout: 5), "час порції в історії")
+        waitForToastToHide(app)
+
+        app.buttons["home.settings"].tap()
+        let notifications = app.buttons["settings.notifications"]
+        XCTAssertTrue(notifications.waitForExistence(timeout: 5))
+        notifications.tap()
+        let wake = app.staticTexts["notifications.wake"]
+        XCTAssertTrue(wake.waitForExistence(timeout: 5))
+        XCTAssertEqual(wake.label, "8:00 дп")
+        XCTAssertEqual(app.staticTexts["notifications.sleep"].label, "10:00 пп")
+        app.buttons["nav.back"].firstMatch.tap()
+
+        let twentyFour = app.buttons["settings.units.time.0"]
+        XCTAssertTrue(twentyFour.waitForExistence(timeout: 5))
+        twentyFour.tap()
+        app.buttons["nav.back"].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["11:25"].waitForExistence(timeout: 5))
+        XCTAssertEqual(pill.label, "До 12:00 бракує 500 мл, лишилось 35 хвилин")
     }
 
     // MARK: - Тема
