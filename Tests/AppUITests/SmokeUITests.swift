@@ -238,7 +238,7 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(tiles(app).firstMatch.exists)
     }
 
-    /// Плитки сітки 2e. Сітка лінива, а досягнень 105: шукати конкретну плитку без фільтра — гадати, чи вона
+    /// Плитки сітки 2e. Сітка лінива, а досягнень 108: шукати конкретну плитку без фільтра — гадати, чи вона
     /// вже на екрані.
     private func tiles(_ app: XCUIApplication, _ predicate: String = "TRUEPREDICATE") -> XCUIElementQuery {
         app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'achievements.tile.' AND (\(predicate))"))
@@ -345,7 +345,7 @@ final class SmokeUITests: XCTestCase {
         let app = launch(["--uitest-empty", "--notifications-auth", "notDetermined", "--start-screen", "achievements"])
         let counter = app.otherElements["achievements.counter"]
         XCTAssertTrue(counter.waitForExistence(timeout: 20))
-        XCTAssertEqual(counter.value as? String, "0 з 105 відкрито", "пасхалки невидимі й у лічильнику")
+        XCTAssertEqual(counter.value as? String, "0 з 108 відкрито", "пасхалки невидимі й у лічильнику")
 
         selectCategory(app, "stats")
         let tile = app.buttons["achievements.tile.stats.bullseye"]
@@ -377,7 +377,7 @@ final class SmokeUITests: XCTestCase {
 
         let counter = app.otherElements["achievements.counter"]
         XCTAssertTrue(counter.waitForExistence(timeout: 5))
-        XCTAssertEqual(counter.value as? String, "1 з 105 відкрито, пасхалок знайдено: 1",
+        XCTAssertEqual(counter.value as? String, "1 з 108 відкрито, пасхалок знайдено: 1",
                        "«Темна сторона» — у лічильнику, пасхалка — окремо")
         let tile = app.buttons["achievements.tile.egg.disco"]
         XCTAssertTrue(tile.waitForExistence(timeout: 5))
