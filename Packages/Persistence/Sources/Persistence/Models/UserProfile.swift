@@ -14,7 +14,13 @@ public final class UserProfile {
     public var volumeUnitRaw: Int = 0
     public var massUnitRaw: Int = 0
     public var themeModeRaw: Int = ThemeMode.system.rawValue
-    public var onboardingCompleted: Bool = false
+    /// `TimeFormat` (WAT-56): 24 чи 12 годин. Поруч з одиницями об'єму й ваги — це та сама «система вимірювання».
+    public var timeFormatRaw: Int = TimeFormat.hours24.rawValue
+    /// `BodyCondition` — надбавка до норми; має сенс лише при `gender == .female` (SPEC-ONBOARDING §3.1).
+    public var bodyConditionRaw: Int = BodyCondition.none.rawValue
+    /// `OnboardingState`. Замінив `onboardingCompleted`, який ніде не виставлявся: пропущений онбординг
+    /// теж не має відкриватися сам, але й пройденим не є.
+    public var onboardingStateRaw: Int = OnboardingState.notShown.rawValue
     public var hapticsEnabled: Bool = true
     public var soundEnabled: Bool = true
     /// Головний вимикач сповіщень (SPEC-NOTIFICATIONS §15.1).
@@ -62,6 +68,31 @@ public final class UserProfile {
     public var activity: ActivityLevel {
         get { ActivityLevel(rawValue: activityRaw) ?? .medium }
         set { activityRaw = newValue.rawValue }
+    }
+
+    public var volumeUnit: VolumeUnit {
+        get { VolumeUnit(rawValue: volumeUnitRaw) ?? .milliliters }
+        set { volumeUnitRaw = newValue.rawValue }
+    }
+
+    public var massUnit: MassUnit {
+        get { MassUnit(rawValue: massUnitRaw) ?? .kilograms }
+        set { massUnitRaw = newValue.rawValue }
+    }
+
+    public var timeFormat: TimeFormat {
+        get { TimeFormat(rawValue: timeFormatRaw) ?? .hours24 }
+        set { timeFormatRaw = newValue.rawValue }
+    }
+
+    public var bodyCondition: BodyCondition {
+        get { BodyCondition(rawValue: bodyConditionRaw) ?? .none }
+        set { bodyConditionRaw = newValue.rawValue }
+    }
+
+    public var onboardingState: OnboardingState {
+        get { OnboardingState(rawValue: onboardingStateRaw) ?? .notShown }
+        set { onboardingStateRaw = newValue.rawValue }
     }
 
     public var climate: ClimateLevel {

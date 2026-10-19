@@ -54,4 +54,42 @@ final class GoalFormulaTests: XCTestCase {
             XCTAssertLessThanOrEqual(goal, 5000)
         }
     }
+
+    // MARK: - Особливий стан і розклад (WAT-56)
+
+    func testConditionBonusAppliesOnlyToFemale() {
+        let formula = SpecGoalFormula()
+        // 60 × 30 × 1.0 + 350 = 2150; вагітність +300, годування +700 (EFSA, SPEC-ONBOARDING §5).
+        let base = GoalInputs(weightKg: 60, gender: .female, birthYear: 1998, activity: .medium)
+        XCTAssertEqual(formula.dailyGoalMl(for: base, currentYear: 2026), 2150)
+        var pregnant = base
+        pregnant.condition = .pregnancy
+        XCTAssertEqual(formula.dailyGoalMl(for: pregnant, currentYear: 2026), 2450)
+        var feeding = base
+        feeding.condition = .breastfeeding
+        XCTAssertEqual(formula.dailyGoalMl(for: feeding, currentYear: 2026), 2850)
+
+        // Стан лишився з попередньої відповіді, а стать змінили — надбавки немає.
+        var male = feeding
+        male.gender = .male
+        XCTAssertEqual(formula.dailyGoalMl(for: male, currentYear: 2026),
+                       formula.dailyGoalMl(for: GoalInputs(weightKg: 60, gender: .male, birthYear: 1998), currentYear: 2026))
+    }
+
+    func testBreakdownSumsToGoalBeforeRounding() {
+        let formula = SpecGoalFormula()
+        let inputs = GoalInputs(weightKg: 78, gender: .male, birthYear: 1992, activity: .medium)
+        let parts = formula.breakdown(for: inputs, currentYear: 2026)
+        let sum = parts.reduce(0) { $0 + $1.ml }
+        // 78 × 35 × 0.95 + 350 = 2943.5 → 2950
+        XCTAssertEqual(sum, 2943.5, accuracy: 0.001)
+        XCTAssertEqual(formula.dailyGoalMl(for: inputs, currentYear: 2026), 2950)
+        XCTAssertEqual(parts.first?.kind, .weight(mlPerKg: 35))
+        XCTAssertEqual(parts[1].kind, .age(coefficient: 0.95, age: 34))
+    }
+
+    func testTypicalAnswersGiveDocumentedGoal() {
+        // Усе типове з онбордингу: 70 кг, стать і вік не вказано, помірно → 2550 (SPEC-ONBOARDING §5).
+        XCTAssertEqual(SpecGoalFormula().dailyGoalMl(for: GoalInputs(weightKg: 70), currentYear: 2026), 2550)
+    }
 }
