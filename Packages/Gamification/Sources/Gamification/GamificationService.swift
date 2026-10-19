@@ -227,11 +227,12 @@ public final class GamificationService: MetricsSubscriber {
         return snapshots.map { snapshot in
             // Маскований таємний не несе ні умови, ні прогресу — підпис не чіпаємо.
             guard !snapshot.isMasked, let definition = AchievementCatalog.definition(snapshot.key),
-                  definition.rule.measuresVolume else { return snapshot }
+                  definition.rule.measuresVolume || definition.volumeDetails != nil else { return snapshot }
             var shown = snapshot
-            shown.ounces = unit
+            // Разове з об'ємом в описі («Наперсток») прогресу в унціях не має — лише опис.
+            if definition.rule.measuresVolume { shown.ounces = unit }
             if let volumeDetails = definition.volumeDetails {
-                shown.details = volumeDetails(unit.format(Int(definition.target)) { "\($0)" })
+                shown.details = volumeDetails(unit.format(definition.detailsVolumeMl(in: unit)) { "\($0)" })
             }
             return shown
         }

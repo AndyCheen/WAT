@@ -91,6 +91,9 @@ public enum HistoryFact: Sendable, Hashable {
     /// Порція в поясі, що зміщений відносно поясу першої порції.
     case otherTimeZone
     case portionOfMl(Int)
+    /// Найменша порція своєї системи: 50 мл чи 2 унц. (`Intake.smallestAmountsMl`, WAT-59). Рівно 50 мл
+    /// цілими унціями не набрати, а «Наперсток» — про ковточок, не про число.
+    case smallestPortion
     /// Порція о хвилині доби (`hour × 60 + minute`).
     case portionAtMinute(Int)
     /// `times` порцій додано й скасовано в межах `withinSeconds`.
@@ -508,6 +511,8 @@ final class DayHistory {
             return otherTimeZone() ? 1 : 0
         case .portionOfMl(let ml):
             return active.contains { $0.amounts.contains(ml) } ? 1 : 0
+        case .smallestPortion:
+            return active.contains { !$0.amounts.isDisjoint(with: Intake.smallestAmountsMl) } ? 1 : 0
         case .portionAtMinute(let minute):
             return active.contains { $0.minutes.contains(minute) } ? 1 : 0
         case .indecision(let times, let seconds):
