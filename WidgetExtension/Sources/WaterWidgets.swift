@@ -109,7 +109,7 @@ struct ButtonWidget: Widget {
                 let snapshot = content.snapshot
                 let first = entry.configuration.first?.milliliters(in: snapshot) ?? snapshot.glassMl
                 if family == .accessoryCircular {
-                    ButtonCircularView(ml: first)
+                    ButtonCircularView(ml: first, unit: snapshot.volumeUnit)
                 } else {
                     ButtonWidgetView(content, first: first, second: nil)
                 }

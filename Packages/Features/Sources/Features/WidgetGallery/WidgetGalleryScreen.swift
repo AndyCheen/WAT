@@ -93,7 +93,7 @@ struct WidgetGalleryScreen: View {
                     TodayCircularView(content).frame(width: 72, height: 72)
                     ReserveCircularView(content).frame(width: 72, height: 72)
                 }
-                ButtonCircularView(ml: content.snapshot.glassMl).frame(width: 72, height: 72)
+                ButtonCircularView(ml: content.snapshot.glassMl, unit: content.snapshot.volumeUnit).frame(width: 72, height: 72)
             }
             .foregroundStyle(.white)
             .padding(16)

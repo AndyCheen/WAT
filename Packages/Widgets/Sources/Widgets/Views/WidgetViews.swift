@@ -52,7 +52,7 @@ public struct TodayWidgetView: View {
             }
             .frame(width: 86, height: 86)
             Spacer(minLength: 4)
-            Text(WidgetPresenter.ringVolume(countedMl: day.countedMl, goalMl: day.goalMl))
+            Text(WidgetPresenter.ringVolume(countedMl: day.countedMl, goalMl: day.goalMl, unit: day.unit))
                 .font(WTFont.text(14, .heavy))
                 .foregroundStyle(theme.textPrimary)
             Text(WidgetPresenter.todayFootnote(day))
@@ -143,11 +143,11 @@ public struct RhythmWidgetView: View {
                 WidgetCaption(text: "Ритм дня")
                 Spacer(minLength: 0)
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
-                    Text(WidgetPresenter.liters(day.countedMl)).font(WTFont.number(32))
-                    Text("л").font(WTFont.text(16, .bold))
+                    Text(WidgetPresenter.liters(day.countedMl, unit: day.unit)).font(WTFont.number(32))
+                    Text(WidgetPresenter.bigUnit(day.unit)).font(WTFont.text(16, .bold))
                 }
                 .foregroundStyle(theme.textPrimary)
-                Text("з \(WidgetPresenter.liters(day.goalMl)) л · \(day.percent)%")
+                Text("з \(WidgetPresenter.liters(day.goalMl, unit: day.unit)) \(WidgetPresenter.bigUnit(day.unit)) · \(day.percent)%")
                     .font(WTFont.text(12, .bold))
                     .foregroundStyle(theme.textMuted)
                 Spacer(minLength: 0)
@@ -160,7 +160,7 @@ public struct RhythmWidgetView: View {
             .frame(width: 112, alignment: .leading)
             HStack(spacing: WidgetMetrics.gap) {
                 ForEach(Array(day.blocks.enumerated()), id: \.offset) { _, block in
-                    BlockColumn(block: block, rhythm: day.dayRhythmEnabled)
+                    BlockColumn(block: block, rhythm: day.dayRhythmEnabled, unit: day.unit, format: day.timeFormat)
                 }
             }
         }
@@ -174,15 +174,17 @@ private struct BlockColumn: View {
     @Environment(\.wtTheme) private var theme
     let block: WidgetDay.Block
     let rhythm: Bool
+    var unit = VolumeUnit.milliliters
+    var format = TimeFormat.hours24
 
     var body: some View {
         let current = block.position == .current
         let done = rhythm && block.isReached
         VStack(spacing: 5) {
             if done {
-                DonePill(text: "\(block.drunkMl)")
+                DonePill(text: "\(unit.units(block.drunkMl))")
             } else {
-                Text(WidgetPresenter.blockValue(block, rhythm: rhythm))
+                Text(WidgetPresenter.blockValue(block, rhythm: rhythm, unit: unit))
                     .font(WTFont.text(11, .black))
                     .foregroundStyle(current ? theme.textPrimary : theme.textMuted)
             }
@@ -212,7 +214,7 @@ private struct BlockColumn: View {
                 }
             }
             .frame(maxWidth: 58)
-            Text(WidgetPresenter.blockHours(block))
+            Text(WidgetPresenter.blockHours(block, format: format))
                 .font(WTFont.text(11, .heavy))
                 .foregroundStyle(theme.textMuted)
         }
@@ -264,7 +266,8 @@ public struct ReserveWidgetView: View {
         HStack(spacing: 12) {
             if isMedium && content.showsCustomPicker {
                 // Колонка кнопок завузька для чотирьох підказок — на час вибору вони займають увесь віджет.
-                CustomPickerPanel(kind: .reserve, hints: content.snapshot.hints, columns: 4, buttonHeight: 56)
+                CustomPickerPanel(kind: .reserve, hints: content.snapshot.hints, columns: 4, buttonHeight: 56,
+                                  unit: content.snapshot.volumeUnit)
             } else {
                 if isNight {
                     nightText(text)
@@ -399,7 +402,7 @@ public struct ReserveWidgetView: View {
     @ViewBuilder
     private func buttons(onDeep: Bool) -> some View {
         if let undo = content.day.undo {
-            UndoPanel(undo: undo, compact: true, onDeep: onDeep)
+            UndoPanel(undo: undo, compact: true, onDeep: onDeep, unit: content.snapshot.volumeUnit)
                 .frame(width: 104)
         } else {
             // Дві кнопки з головного й «Інше» третьою (правка після перевірки, 09.10.2026): свій об'єм тут
@@ -407,7 +410,7 @@ public struct ReserveWidgetView: View {
             VStack(spacing: WidgetMetrics.gap) {
                 ForEach(Array(content.snapshot.homeButtons.prefix(2).enumerated()), id: \.offset) { _, ml in
                     WidgetActionButton(.add(ml: ml, source: .widget)) {
-                        reserveButton(WidgetPresenter.addTitle(ml), prominent: false, onDeep: onDeep)
+                        reserveButton(WidgetPresenter.addTitle(ml, unit: content.snapshot.volumeUnit), prominent: false, onDeep: onDeep)
                     }
                 }
                 WidgetActionButton(.showCustomPicker(.reserve)) {
@@ -475,23 +478,23 @@ public struct QuickAddWidgetView: View {
                         Text("\(day.percent)%").font(WTFont.number(24)).foregroundStyle(theme.textPrimary)
                     }
                     .frame(width: 92, height: 92)
-                    Text(WidgetPresenter.ringVolume(countedMl: day.countedMl, goalMl: day.goalMl))
+                    Text(WidgetPresenter.ringVolume(countedMl: day.countedMl, goalMl: day.goalMl, unit: day.unit))
                         .font(WTFont.text(12, .heavy))
                         .foregroundStyle(theme.textPrimary)
                 }
             }
             .frame(width: 104)
             if let undo = day.undo {
-                UndoPanel(undo: undo)
+                UndoPanel(undo: undo, unit: content.snapshot.volumeUnit)
             } else if content.showsCustomPicker {
-                CustomPickerPanel(kind: .quickAdd, hints: content.snapshot.hints)
+                CustomPickerPanel(kind: .quickAdd, hints: content.snapshot.hints, unit: content.snapshot.volumeUnit)
             } else {
                 let columns = [GridItem(.flexible(), spacing: WidgetMetrics.gap), GridItem(.flexible(), spacing: WidgetMetrics.gap)]
                 LazyVGrid(columns: columns, spacing: WidgetMetrics.gap) {
                     // Дублі кнопок дозволені (WAT-45) — ідентифікатор за позицією, не за значенням.
                     ForEach(Array(content.snapshot.homeButtons.prefix(3).enumerated()), id: \.offset) { _, ml in
                         WidgetActionButton(.add(ml: ml, source: .widget)) {
-                            PortionLabel(title: WidgetPresenter.amount(ml), height: 62)
+                            PortionLabel(title: WidgetPresenter.amount(ml, unit: content.snapshot.volumeUnit), height: 62)
                         }
                     }
                     OtherButton(kind: .quickAdd, height: 62)
@@ -522,20 +525,20 @@ public struct ButtonWidgetView: View {
         VStack(spacing: WidgetMetrics.gap) {
             HStack(spacing: 7) {
                 WidgetRing(fraction: day.fraction, lineWidth: 4).frame(width: 22, height: 22)
-                Text(WidgetPresenter.ringVolume(countedMl: day.countedMl, goalMl: day.goalMl))
+                Text(WidgetPresenter.ringVolume(countedMl: day.countedMl, goalMl: day.goalMl, unit: day.unit))
                     .font(WTFont.text(13, .heavy))
                     .foregroundStyle(theme.textPrimary)
                 Spacer(minLength: 0)
             }
             if let undo = day.undo {
-                UndoPanel(undo: undo, compact: true)
+                UndoPanel(undo: undo, compact: true, unit: content.snapshot.volumeUnit)
             } else if let second {
                 Spacer(minLength: 0)
                 WidgetActionButton(.add(ml: first, source: .widget)) {
-                    PortionLabel(title: WidgetPresenter.addTitle(first), prominent: true, height: 46, fontSize: 17)
+                    PortionLabel(title: WidgetPresenter.addTitle(first, unit: day.unit), prominent: true, height: 46, fontSize: 17)
                 }
                 WidgetActionButton(.add(ml: second, source: .widget)) {
-                    PortionLabel(title: WidgetPresenter.addTitle(second), height: 46, fontSize: 17)
+                    PortionLabel(title: WidgetPresenter.addTitle(second, unit: day.unit), height: 46, fontSize: 17)
                 }
             } else {
                 Spacer(minLength: 0)
@@ -548,8 +551,8 @@ public struct ButtonWidgetView: View {
                                                                  startPoint: .top, endPoint: .bottom)))
                             .widgetAccentable()
                         VStack(spacing: 0) {
-                            Text("+" + WidgetPresenter.number(first)).font(WTFont.number(28))
-                            Text(WidgetPresenter.unitWord(first)).font(WTFont.text(12, .heavy)).opacity(0.9)
+                            Text("+" + WidgetPresenter.number(first, unit: day.unit)).font(WTFont.number(28))
+                            Text(WidgetPresenter.unitWord(first, unit: day.unit)).font(WTFont.text(12, .heavy)).opacity(0.9)
                         }
                         .foregroundStyle(Color.white)
                     }
@@ -681,8 +684,8 @@ public struct OverviewWidgetView: View {
                 }
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(alignment: .firstTextBaseline, spacing: 3) {
-                        Text(WidgetPresenter.liters(day.countedMl)).font(WTFont.number(32)).foregroundStyle(theme.textPrimary)
-                        Text("/ \(WidgetPresenter.liters(day.goalMl)) л").font(WTFont.text(15, .bold)).foregroundStyle(theme.textMuted)
+                        Text(WidgetPresenter.liters(day.countedMl, unit: day.unit)).font(WTFont.number(32)).foregroundStyle(theme.textPrimary)
+                        Text("/ \(WidgetPresenter.liters(day.goalMl, unit: day.unit)) \(WidgetPresenter.bigUnit(day.unit))").font(WTFont.text(15, .bold)).foregroundStyle(theme.textMuted)
                     }
                     Text(headline(day))
                         .font(WTFont.text(13, .heavy))
@@ -706,16 +709,19 @@ public struct OverviewWidgetView: View {
                     WidgetCaption(text: "Ритм дня")
                     ForEach(Array(day.blocks.enumerated()), id: \.offset) { _, block in
                         HStack(spacing: 10) {
-                            Text(WidgetPresenter.blockHours(block))
+                            // Колонка однієї ширини на всі рядки — смуги починаються рівно; «8 дп–12 пп» ширше за «08–12».
+                            Text(WidgetPresenter.blockHours(block, format: day.timeFormat))
                                 .font(WTFont.text(12, .heavy))
                                 .foregroundStyle(theme.textMuted)
-                                .frame(width: 44, alignment: .leading)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                                .frame(width: day.timeFormat == .hours12 ? 66 : 44, alignment: .leading)
                             WidgetBar(fraction: block.fraction, height: 10, highlighted: block.position == .current)
                             Group {
                                 if day.dayRhythmEnabled && block.isReached {
-                                    DonePill(text: "\(block.drunkMl)")
+                                    DonePill(text: "\(day.unit.units(block.drunkMl))")
                                 } else {
-                                    Text(WidgetPresenter.blockValue(block, rhythm: day.dayRhythmEnabled))
+                                    Text(WidgetPresenter.blockValue(block, rhythm: day.dayRhythmEnabled, unit: day.unit))
                                         .font(WTFont.text(12, .black))
                                         .foregroundStyle(block.position == .current ? theme.textPrimary : theme.textMuted)
                                 }
@@ -730,7 +736,7 @@ public struct OverviewWidgetView: View {
             if let undo = day.undo {
                 HStack(spacing: 12) {
                     CheckBadge(size: 26)
-                    Text(WidgetPresenter.addTitle(undo.ml)).font(WTFont.number(20)).foregroundStyle(theme.textPrimary)
+                    Text(WidgetPresenter.addTitle(undo.ml, unit: snapshot.volumeUnit)).font(WTFont.number(20)).foregroundStyle(theme.textPrimary)
                     WidgetActionButton(.undo(intakeId: undo.intakeId)) {
                         Text("Скасувати")
                             .font(WTFont.text(13, .heavy))
@@ -742,12 +748,13 @@ public struct OverviewWidgetView: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: 50)
             } else if content.showsCustomPicker {
-                CustomPickerPanel(kind: .overview, hints: snapshot.hints, columns: 4, buttonHeight: 50)
+                CustomPickerPanel(kind: .overview, hints: snapshot.hints, columns: 4, buttonHeight: 50,
+                                  unit: snapshot.volumeUnit)
             } else {
                 HStack(spacing: WidgetMetrics.gap) {
                     ForEach(Array(snapshot.homeButtons.prefix(3).enumerated()), id: \.offset) { _, ml in
                         WidgetActionButton(.add(ml: ml, source: .widget)) {
-                            PortionLabel(title: WidgetPresenter.amount(ml), height: 50)
+                            PortionLabel(title: WidgetPresenter.amount(ml, unit: snapshot.volumeUnit), height: 50)
                         }
                     }
                     OtherButton(kind: .overview, height: 50)
@@ -761,7 +768,7 @@ public struct OverviewWidgetView: View {
 
     private func headline(_ day: WidgetDay) -> String {
         if day.goalMet { return "✓ Норму закрито" }
-        let left = WidgetPresenter.left(day.leftMl)
+        let left = WidgetPresenter.left(day.leftMl, unit: day.unit)
         guard let pace = WidgetPresenter.pace(day) else { return left }
         return "\(left) · \(pace)"
     }
@@ -807,7 +814,7 @@ public struct DayPartRectangularView: View {
 
     public var body: some View {
         let part = WidgetPresenter.part(content.day, xp: content.snapshot.dayPartXp)
-        let deadline = part.deadlineMinute.map { " · до \(DayPartPresenter.clock($0))" } ?? ""
+        let deadline = part.deadlineMinute.map { " · до \(DayPartPresenter.clock($0, content.day.timeFormat))" } ?? ""
         VStack(alignment: .leading, spacing: 2) {
             Text(part.caption.uppercased() + (part.kind == .pending ? deadline : ""))
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
@@ -865,14 +872,18 @@ public struct ReserveCircularView: View {
 /// Кругла кнопка «+250» — працює після розблокування.
 public struct ButtonCircularView: View {
     let ml: Int
+    let unit: VolumeUnit
 
-    public init(ml: Int) { self.ml = ml }
+    public init(ml: Int, unit: VolumeUnit = .milliliters) {
+        self.ml = ml
+        self.unit = unit
+    }
 
     public var body: some View {
         WidgetActionButton(.add(ml: ml, source: .widget)) {
             VStack(spacing: -2) {
-                Text("+" + WidgetPresenter.number(ml)).font(.system(size: 18, weight: .bold, design: .rounded))
-                Text(WidgetPresenter.unitWord(ml)).font(.system(size: 10, weight: .semibold, design: .rounded))
+                Text("+" + WidgetPresenter.number(ml, unit: unit)).font(.system(size: 18, weight: .bold, design: .rounded))
+                Text(WidgetPresenter.unitWord(ml, unit: unit)).font(.system(size: 10, weight: .semibold, design: .rounded))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }

@@ -36,7 +36,8 @@ struct PortionChoice: AppEntity {
 
     static func make(id: String, snapshot: WidgetSnapshot?) -> PortionChoice {
         let ml = milliliters(id: id, in: snapshot)
-        let amount = WidgetPresenter.amount(ml)
+        // У системі людини (WAT-58); сітка фіксованих — мілілітрова, як `PresetRules`.
+        let amount = WidgetPresenter.amount(ml, unit: snapshot?.volumeUnit ?? .milliliters)
         if id == glassId { return PortionChoice(id: id, title: "Моя склянка · \(amount)") }
         if id.hasPrefix("home."), let index = Int(id.dropFirst(5)) {
             return PortionChoice(id: id, title: "Кнопка \(index + 1) з головного · \(amount)")

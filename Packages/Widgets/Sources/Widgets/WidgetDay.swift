@@ -51,6 +51,9 @@ public struct WidgetDay: Equatable, Sendable {
     public let undo: WidgetSnapshot.LastAction?
     /// Календар доби — щоб перетворювати моменти на годинник у поясі пристрою.
     public let calendar: Calendar
+    /// Система людини (WAT-46, WAT-58) — об'єм і годинник у текстах віджета.
+    public var unit: VolumeUnit = .milliliters
+    public var timeFormat: TimeFormat = .hours24
 
     public var fraction: Double { goalMl > 0 ? min(1, Double(countedMl) / Double(goalMl)) : 0 }
     /// Як `DaySnapshot.completionPct` — понад 100 % до стелі 120 %.
@@ -124,7 +127,8 @@ public struct WidgetDay: Equatable, Sendable {
             dayRhythmEnabled: snapshot.dayRhythmEnabled,
             reserve: isProjected ? nil : snapshot.reserve,
             streak: streak, questsAreCurrent: !isProjected,
-            undo: isProjected ? nil : snapshot.undoable(at: date), calendar: calendar.calendar
+            undo: isProjected ? nil : snapshot.undoable(at: date), calendar: calendar.calendar,
+            unit: snapshot.volumeUnit, timeFormat: snapshot.timeFormat
         )
     }
 }
