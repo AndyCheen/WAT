@@ -317,14 +317,16 @@ public struct WTAchievementBadge: View {
 }
 
 /// Помаранчева крапка «щойно відкрито» — однакова на бейджі 3f і плитці 2e.
-struct WTNewDot: View {
+public struct WTNewDot: View {
     @Environment(\.wtTheme) private var theme
+
+    public init() {}
 
     /// Зсув від кута кола: макетні `top:-2; right:-2` для самої крапки плюс 2 pt обведення,
     /// яке входить у рамку вʼюхи.
     static let outset: CGFloat = 4
 
-    var body: some View {
+    public var body: some View {
         Circle()
             .fill(WTColor.orange)
             .frame(width: 8, height: 8)

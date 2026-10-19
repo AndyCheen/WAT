@@ -224,12 +224,16 @@ public struct WTXPGuide: View {
     private let rows: [WTXPGuideRow]
     private let footnote: String
     private let onClose: () -> Void
+    private let onMore: (() -> Void)?
 
-    public init(title: String, rows: [WTXPGuideRow], footnote: String, onClose: @escaping () -> Void) {
+    /// - Parameter onMore: «Детальніше» — історія «XP і рівні» в «Знаннях» (SPEC-LEARN §3.2).
+    public init(title: String, rows: [WTXPGuideRow], footnote: String, onClose: @escaping () -> Void,
+                onMore: (() -> Void)? = nil) {
         self.title = title
         self.rows = rows
         self.footnote = footnote
         self.onClose = onClose
+        self.onMore = onMore
     }
 
     public var body: some View {
@@ -269,6 +273,10 @@ public struct WTXPGuide: View {
                     .foregroundStyle(theme.textMuted)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 12)
+                if let onMore {
+                    WTLearnLink("Детальніше — історія «XP і рівні»", identifier: "levelRoad.guide.more", action: onMore)
+                        .padding(.top, 14)
+                }
             }
         }
     }
