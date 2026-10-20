@@ -146,7 +146,7 @@ extension AppServices {
             portions.contains { $0.id == action.intakeId } ? action : nil
         }
         return WidgetSnapshot(
-            generatedAt: now, day: today, unitRaw: profile.volumeUnitRaw, goalMl: day.goalMl,
+            generatedAt: now, day: today, unitRaw: profile.volumeUnitRaw, timeFormatRaw: profile.timeFormatRaw, goalMl: day.goalMl,
             totalMl: day.totalMl, countedMl: day.countedMl, portions: portions,
             schedule: WidgetSnapshot.Schedule(schedule),
             weekday: WidgetSnapshot.Schedule(wakeMinutes: profile.wakeMinutes, sleepMinutes: profile.sleepMinutes),

@@ -20,8 +20,12 @@ struct LearnContext: Equatable {
     var dayRhythmEnabled = true
     var level = 1
     var rules = XPRules.default
-    var presets: [Int] = PresetPlace.home.defaults
+    var presets: [Int] = PresetPlace.home.defaults(for: .milliliters)
     var dailyCap = 8
+    /// Система людини (WAT-58) — для живих значень. Довідкові факти («≈ 2,5 л на день») лишаються метричними:
+    /// це цитати джерел, а не числа застосунку.
+    var volumeUnit = VolumeUnit.milliliters
+    var timeFormat = TimeFormat.hours24
 }
 
 /// Тексти й ілюстрації історій «Знань» — чиста функція «історія + значення → слайди», як `ReportPresenter`.
@@ -141,7 +145,7 @@ struct LearnPresenter {
                                .init(emoji: "🚫", title: "Солодке й алкоголь", detail: "краще не рахувати")],
                        source: .killer),
             LearnSlide(kind: .action(title: "Змінити норму", destination: .settings), kicker: "Що з цим робити",
-                       title: "Твоя норма — \(ReportFormat.volume(context.goalMl))",
+                       title: "Твоя норма — \(ReportFormat.volume(context.goalMl, context.volumeUnit))",
                        text: "Багато рухаєшся чи живеш у спеці — норму можна підняти в налаштуваннях.",
                        visual: .drop(level: 0.8))
         ]
@@ -210,8 +214,8 @@ struct LearnPresenter {
             LearnSlide(kind: .fact, kicker: "Тіло не запасає воду", title: "Випите разом виходить за ≈ 3 год",
                        visual: .curve(modes: ["Усе разом", "Потроху"],
                                       captions: ["Сплеск увечері — і знову мало", "Запас рівний цілий день"],
-                                      start: ReportFormat.clock(context.wakeMinutes),
-                                      end: ReportFormat.clock(context.sleepMinutes)),
+                                      start: clock(context.wakeMinutes),
+                                      end: clock(context.sleepMinutes)),
                        source: .jequier),
             LearnSlide(kind: .fact, kicker: "Твій день", title: "Три цілі замість однієї",
                        text: "Застосунок стежить за кожною окремо — і підкаже, якщо котрась відстає.", visual: normRing),
@@ -296,7 +300,7 @@ struct LearnPresenter {
                        number: .init(value: 120, unit: "%"), visual: .homeRing(percent: 100)),
             LearnSlide(kind: .fact, kicker: "Капсула", title: "Під кільцем — твоя частина доби",
                        text: "Скільки ще до кінця ранку, дня чи вечора — і скільки XP за це.",
-                       visual: .dayPartPill(title: "До \(ReportFormat.clock(firstBlock?.deadlineMinute ?? 12 * 60)) — ще 300 мл",
+                       visual: .dayPartPill(title: "До \(clock(firstBlock?.deadlineMinute ?? 12 * 60)) — ще \(context.volumeUnit.label(300))",
                                             xp: "+\(scaled(context.rules.perDayPartGoal)) XP", timeLeft: "1 год 20 хв")),
             LearnSlide(kind: .list, kicker: "Без застосунку", title: "Порцію можна додати й так",
                        items: [.init(emoji: "🧩", title: "Віджет", detail: "на робочому столі й екрані блокування"),
@@ -310,6 +314,7 @@ struct LearnPresenter {
 
     private func xp() -> [LearnSlide] {
         let rules = context.rules
+        let unit = context.volumeUnit
         let step = max(1, rules.volumeStepMl)
         let perStep = scaled(rules.xpPerVolumeStep)
         let full = context.goalMl / step
@@ -330,8 +335,9 @@ struct LearnPresenter {
         segments.append(.init(emoji: "✅", value: scaled(questXp(.daily)), label: "завдання"))
         let visible = AchievementCatalog.all.filter { !$0.secrecy.isEgg }.count
         return [
-            LearnSlide(kind: .fact, kicker: "Вода", title: "За кожні \(step) мл — а не за натискання",
-                       text: "Дві склянки по \(step / 2) мл дають стільки ж, як одна на \(step). Понад 120 % норми XP не росте.",
+            LearnSlide(kind: .fact, kicker: "Вода", title: "За кожні \(unit.portion(step)) — а не за натискання",
+                       text: "Дві склянки по \(unit.portion(step / 2)) дають стільки ж, як одна на \(unit.number(step)). "
+                           + "Понад 120 % норми XP не росте.",
                        number: .init(value: Double(perStep), prefix: "+", unit: "XP"),
                        visual: .glasses(full: full, bonus: max(0, capped - full), locked: 1, chip: "+\(perStep)",
                                         legend: ["норма", "до 120 %", "без XP"])),
@@ -398,10 +404,10 @@ struct LearnPresenter {
         return [
             LearnSlide(kind: .fact, kicker: "Три призи", title: "Заморозка, ×2 і ×3",
                        visual: .tokens([token(RewardCatalog.freezeKey, "Заморозка", "рятує вчорашній день"),
-                                        token(RewardCatalog.boostKey, "×2 XP", "до 00:00"),
+                                        token(RewardCatalog.boostKey, "×2 XP", "до \(clock(0))"),
                                         token(RewardCatalog.tripleKey, "×3 XP", "лише з таємних")])),
             LearnSlide(kind: .fact, kicker: "Жетон", title: "Приз чекає, доки ти натиснеш",
-                       text: "Буст діє до 00:00, один на раз, і множиться із серією. Заморозка рятує вчорашній день.",
+                       text: "Буст діє до \(clock(0)), один на раз, і множиться із серією. Заморозка рятує вчорашній день.",
                        visual: .emoji("🎟️")),
             LearnSlide(kind: .fact, kicker: "Шлях рівнів", title: "Що дає кожен рівень",
                        text: "До 10-го — приз через рівень, з 11-го — на кожному.",
@@ -419,8 +425,8 @@ struct LearnPresenter {
             LearnSlide(kind: .fact, kicker: "Нагадування", title: "Лише коли відстаєш",
                        text: "План складається наперед. Випито вчасно — нагадування зсувається саме.",
                        visual: .dayLine(drops: [0.04, 0.22, 0.45, 0.72, 0.9], bells: [0.33, 0.6],
-                                        start: ReportFormat.clock(context.wakeMinutes),
-                                        end: ReportFormat.clock(context.sleepMinutes))),
+                                        start: clock(context.wakeMinutes),
+                                        end: clock(context.sleepMinutes))),
             LearnSlide(kind: .list, kicker: "Тиша", title: "Застосунок знає міру",
                        items: [.init(emoji: "🌙", title: "Не вночі", detail: "лише між підйомом і відбоєм"),
                                .init(emoji: "🔢", title: "Не більше \(context.dailyCap) на день"),
@@ -454,13 +460,16 @@ struct LearnPresenter {
     private var normRing: LearnVisual {
         let blocks = context.dayRhythmEnabled ? context.blocks : []
         let total = max(1, blocks.reduce(0) { $0 + $1.targetMl })
-        return .ring(total: "\(context.goalMl)", caption: "мл на день",
-                     segments: blocks.isEmpty ? [.init(label: "Норма", value: "\(context.goalMl)", share: 1)]
+        let unit = context.volumeUnit
+        return .ring(total: unit.number(context.goalMl), caption: "\(unit.symbol) на день",
+                     segments: blocks.isEmpty ? [.init(label: "Норма", value: unit.number(context.goalMl), share: 1)]
                          : blocks.map { block in
-                             .init(label: "\(block.title) · до \(ReportFormat.clock(block.deadlineMinute))",
-                                   value: "\(block.targetMl)", share: Double(block.targetMl) / Double(total))
+                             .init(label: "\(block.title) · до \(clock(block.deadlineMinute))",
+                                   value: unit.number(block.targetMl), share: Double(block.targetMl) / Double(total))
                          })
     }
+
+    private func clock(_ minutes: Int) -> String { ReportFormat.clock(minutes, context.timeFormat) }
 
     /// Драбина довкола поточного рівня: два взяті призи, наступний і два далі.
     private func levelRoad() -> (nodes: [WTLearnLadder.Node], progress: Double, summary: String) {

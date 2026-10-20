@@ -30,6 +30,8 @@ public struct QuestSnapshot: Equatable, Identifiable, Sendable {
     public let target: Double
     public let isDone: Bool
     public let rewardXp: Int
+    /// Система об'єму для підпису, якщо завдання про об'єм і людина рахує в унціях (WAT-46).
+    public var ounces: VolumeUnit?
 
     public init(
         id: UUID, key: String, title: String, scope: QuestScope,
@@ -50,6 +52,9 @@ public struct QuestSnapshot: Equatable, Identifiable, Sendable {
         if isDone { return "Готово" }
         if target >= 1000 {
             return "\(Int((progress / target * 100).rounded()))%"
+        }
+        if let ounces {
+            return "\(ounces.units(Int(min(progress, target))))/\(ounces.units(Int(target)))"
         }
         return "\(Int(min(progress, target)))/\(Int(target))"
     }
@@ -81,7 +86,7 @@ public enum AchievementState: Equatable, Sendable {
 public struct AchievementSnapshot: Equatable, Identifiable, Sendable {
     public let key: String
     public let title: String
-    public let details: String
+    public internal(set) var details: String
     public let emoji: String
     public let category: AchievementCategory
     public let value: Double
@@ -100,6 +105,8 @@ public struct AchievementSnapshot: Equatable, Identifiable, Sendable {
     public let lockedCaption: String?
     /// Додатковий рядок картки — «Пасхалка! Тут їх більше» у першої знайденої.
     public let note: String?
+    /// Як у `QuestSnapshot`: досягнення про об'єм у людини, що рахує в унціях (WAT-46).
+    public var ounces: VolumeUnit?
 
     public var id: String { key }
 
@@ -143,11 +150,19 @@ public struct AchievementSnapshot: Equatable, Identifiable, Sendable {
 
     /// «5/7» — компактний підпис під смугою плитки.
     public var progressLabel: String {
-        isUnlocked ? "Готово" : "\(Int(min(value, target)))/\(Int(target))"
+        isUnlocked ? "Готово" : "\(shownValue)/\(shownTarget)"
     }
 
     /// «5 / 7» — у картці деталей, де під числом є місце дихати.
-    public var valueLabel: String { "\(Int(min(value, target))) / \(Int(target))" }
+    public var valueLabel: String { "\(shownValue) / \(shownTarget)" }
+
+    /// Прогрес і ціль так, як їх бачить людина: в унціях — перераховані (WAT-46).
+    public var shownValue: Int { shown(min(value, target)) }
+    public var shownTarget: Int { shown(target) }
+
+    private func shown(_ value: Double) -> Int {
+        ounces.map { $0.units(Int(value)) } ?? Int(value)
+    }
 }
 
 /// Лічильник екрана 2e: «Відкрито N / M» — лише видимий каталог, а знайдені пасхалки окремо, «🥚 N»,

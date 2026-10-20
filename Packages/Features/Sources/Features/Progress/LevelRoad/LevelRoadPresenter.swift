@@ -1,4 +1,5 @@
 import Foundation
+import Core
 import DesignSystem
 import Gamification
 
@@ -181,14 +182,15 @@ enum LevelRoadPresenter {
 
     /// Числа — з тих самих `XPRules`, що й нарахування, з урахуванням загального множника:
     /// після зміни балансу довідник не бреше.
-    static func guideRows(rules: XPRules, dayRhythm: Bool) -> [WTXPGuideRow] {
+    static func guideRows(rules: XPRules, dayRhythm: Bool, unit: VolumeUnit = .milliliters,
+                          format: TimeFormat = .hours24) -> [WTXPGuideRow] {
         let scale = { (xp: Int) in Int((Double(xp) * rules.xpMultiplier).rounded()) }
         let dailyQuest = QuestCatalog.all.filter { $0.scope == .daily }.map(\.rewardXp).min() ?? 0
         let weeklyQuest = QuestCatalog.all.filter { $0.scope == .weekly }.map(\.rewardXp).min() ?? 0
         let achievement = AchievementCatalog.all.map(\.rewardXp).min() ?? 0
         let streakCap = String(format: "%.1f", rules.streakMultiplierCap).replacingOccurrences(of: ".", with: ",")
 
-        var rows = [WTXPGuideRow(emoji: "💧", title: "Вода, кожні \(rules.volumeStepMl) мл",
+        var rows = [WTXPGuideRow(emoji: "💧", title: "Вода, кожні \(unit.portion(rules.volumeStepMl))",
                                  value: "+\(scale(rules.xpPerVolumeStep)) XP")]
         rows.append(WTXPGuideRow(emoji: "🎯", title: "Норма дня", value: "+\(scale(rules.perDailyGoal)) XP"))
         if dayRhythm {
@@ -199,7 +201,7 @@ enum LevelRoadPresenter {
             WTXPGuideRow(emoji: "📅", title: "Тижневе завдання", value: "+\(scale(weeklyQuest)) XP"),
             WTXPGuideRow(emoji: "🏅", title: "Досягнення", value: "від \(scale(achievement)) XP"),
             WTXPGuideRow(emoji: "🔥", title: "Серія множить XP за воду", value: "до ×\(streakCap)"),
-            WTXPGuideRow(emoji: "⚡", title: "Буст до 00:00", value: "×2 чи ×3")
+            WTXPGuideRow(emoji: "⚡", title: "Буст до \(format.clock(0))", value: "×2 чи ×3")
         ]
         return rows
     }

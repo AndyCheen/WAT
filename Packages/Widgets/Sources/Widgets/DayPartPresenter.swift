@@ -18,7 +18,8 @@ public struct DayPartLine: Equatable, Sendable {
 /// округлюється вгору до 50, як `NotificationFormat.left`, — 99 мл стають «ще 100 мл».
 public enum DayPartPresenter {
     /// `nil` — капсули немає: поза активними годинами або норму дня вже закрито.
-    public static func line(_ progress: DayPartProgress?, goalMet: Bool, xp: Int) -> DayPartLine? {
+    public static func line(_ progress: DayPartProgress?, goalMet: Bool, xp: Int, unit: VolumeUnit = .milliliters,
+                            format: TimeFormat = .hours24) -> DayPartLine? {
         guard let progress, !goalMet else { return nil }
         let block = progress.block
 
@@ -28,16 +29,19 @@ public enum DayPartPresenter {
             return DayPartLine(content: .closed(title: title), accessibilityLabel: title)
         }
 
-        let deadline = clock(block.toMinute)
+        let deadline = clock(block.toMinute, format)
         let left = roundedUp(progress.leftMl)
+        // В унціях — вгору до цілої, як `NotificationFormat.left` (WAT-46).
+        let leftText = unit.isMetric ? volume(left) : "\(unit.unitsRoundedUp(progress.leftMl)) \(VolumeUnit.ounceSymbol)"
+        let spokenLeft = unit.isMetric ? "\(left) мл" : leftText
         return DayPartLine(
             content: .pending(
                 fraction: progress.fraction,
-                title: "До \(deadline) — ще \(volume(left))",
+                title: "До \(deadline) — ще \(leftText)",
                 xp: "+\(xp) XP",
                 timeLeft: duration(progress.minutesLeft)
             ),
-            accessibilityLabel: "До \(deadline) бракує \(left) мл, лишилось \(spokenDuration(progress.minutesLeft))"
+            accessibilityLabel: "До \(deadline) бракує \(spokenLeft), лишилось \(spokenDuration(progress.minutesLeft))"
         )
     }
 
@@ -47,13 +51,7 @@ public enum DayPartPresenter {
     }
 
     /// «850 мл», «1.5 л» — літри з крапкою, як на кільці (`Volume.litersLabel`).
-    public static func volume(_ ml: Int) -> String {
-        guard ml >= 1000 else { return "\(ml) мл" }
-        var text = Volume.litersLabel(ml)
-        while text.hasSuffix("0") { text.removeLast() }
-        if text.hasSuffix(".") { text.removeLast() }
-        return "\(text) л"
-    }
+    public static func volume(_ ml: Int) -> String { VolumeUnit.milliliters.label(ml) }
 
     /// «35 хв», «2 год», «1 год 20 хв». Менше хвилини не буває: межа частини — вже наступна.
     public static func duration(_ minutes: Int) -> String {
@@ -76,9 +74,8 @@ public enum DayPartPresenter {
         return parts.joined(separator: " ")
     }
 
-    /// Відбій опівночі — «00:00», а не «24:00».
-    public static func clock(_ minute: Int) -> String {
-        let value = minute % (24 * 60)
-        return String(format: "%02d:%02d", value / 60, value % 60)
+    /// Відбій опівночі — «00:00», а не «24:00»; у 12-годинному — «12:00 дп» (WAT-58).
+    public static func clock(_ minute: Int, _ format: TimeFormat = .hours24) -> String {
+        format.clock(minute % (24 * 60))
     }
 }

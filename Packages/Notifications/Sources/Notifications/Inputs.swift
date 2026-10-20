@@ -37,6 +37,10 @@ public struct NotificationPreferences: Sendable, Equatable {
     /// `nil` — у вихідні той самий розклад.
     public var weekend: DaySchedule?
     public var glassMl = 250
+    /// Система об'єму для текстів (WAT-46); числа плану — у мл.
+    public var volumeUnit: VolumeUnit = .milliliters
+    /// Формат годинника для текстів (WAT-58): «до 12:00» / «до 12:00 пп». План — у хвилинах.
+    public var timeFormat: TimeFormat = .hours24
     public var quietWindows: [QuietWindow] = []
     public var remindersEnabled = true
     public var cadence = ReminderCadence.pace(.normal)
@@ -92,6 +96,8 @@ extension NotificationPreferences {
             ? DaySchedule(wakeMinutes: profile.weekendWakeMinutes, sleepMinutes: profile.weekendSleepMinutes)
             : nil
         glassMl = profile.glassMl
+        volumeUnit = profile.volumeUnit
+        timeFormat = profile.timeFormat
         dayRhythmEnabled = profile.dayRhythmEnabled
         quietWindows = quietPeriods.filter(\.enabled).map {
             QuietWindow(weekdayMask: $0.weekdayMask, fromMinutes: $0.fromMinutes, toMinutes: $0.toMinutes)

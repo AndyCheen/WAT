@@ -172,16 +172,14 @@ enum OnboardingPresenter {
 
     // MARK: - Значення
 
-    /// «250 мл» / «8 унц.» — «унц.» кирилицею, як погоджено в WAT-46.
-    static func volume(_ ml: Int, _ unit: VolumeUnit) -> String {
-        unit == .milliliters ? "\(ml) мл" : "\(Volume.display(ml, in: .fluidOunces)) унц."
-    }
+    /// «250 мл», «1.5 л» / «8 унц.» — «унц.» кирилицею, як погоджено в WAT-46.
+    static func volume(_ ml: Int, _ unit: VolumeUnit) -> String { unit.label(ml) }
 
     /// Норма великим числом і одиницею окремо: «2.55» + «л», «86» + «унц.».
     static func goalParts(_ ml: Int, _ unit: VolumeUnit) -> (number: String, unit: String) {
         unit == .milliliters
             ? (Volume.litersLabel(ml, fractionDigits: ml % 100 == 0 ? 1 : 2), "л")
-            : ("\(Volume.display(ml, in: .fluidOunces))", "унц.")
+            : ("\(unit.units(ml))", VolumeUnit.ounceSymbol)
     }
 
     static func goal(_ ml: Int, _ unit: VolumeUnit) -> String {
@@ -189,18 +187,12 @@ enum OnboardingPresenter {
         return "\(parts.number) \(parts.unit)"
     }
 
-    static func weightNumber(_ kg: Double, _ unit: MassUnit) -> Int {
-        Mass.display(kg, in: unit)
-    }
+    static func weightNumber(_ kg: Double, _ unit: MassUnit) -> Int { unit.units(kg) }
 
-    static func weightUnit(_ value: Int, _ unit: MassUnit) -> String {
-        unit == .kilograms ? "кг" : Plural.uk(value, one: "фунт", few: "фунти", many: "фунтів")
-    }
+    static func weightUnit(_ value: Int, _ unit: MassUnit) -> String { unit.word(value) }
 
-    static func weight(_ kg: Double, _ unit: MassUnit) -> String {
-        let value = weightNumber(kg, unit)
-        return "\(value) \(weightUnit(value, unit))"
-    }
+    /// «70 кг» / «154 фунти» — той самий формат, що в калькуляторі норми (`MassUnit.label`, WAT-58).
+    static func weight(_ kg: Double, _ unit: MassUnit) -> String { unit.label(kg) }
 
     /// Межі лінійки ваги в одиницях людини.
     static func weightRange(_ unit: MassUnit) -> ClosedRange<Int> {

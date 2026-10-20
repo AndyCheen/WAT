@@ -31,6 +31,20 @@ public enum AchievementRule: Sendable {
         if case .collection = self { return true }
         return false
     }
+
+    /// Прогрес рахує мілілітри — підпис показується в системі об'єму людини (WAT-46). Кількість подій
+    /// на об'ємній метриці — штуки.
+    var measuresVolume: Bool {
+        switch self {
+        case .history(.countedMl):
+            return true
+        case .metric(let rule):
+            if case .metric(_, _, .count) = rule.source { return false }
+            return rule.measuresVolume
+        case .burst, .level, .history, .game, .collection:
+            return false
+        }
+    }
 }
 
 public enum GameFact: Sendable, Hashable {
@@ -121,6 +135,8 @@ public struct AchievementDefinition: Sendable, Identifiable {
     public let target: Double
     public let secrecy: AchievementSecrecy
     public let gate: AchievementGate?
+    /// Опис з об'ємом у системі людини, якщо це не мілілітри: «34 унц. води загалом» (WAT-46).
+    public let volumeDetails: (@Sendable (String) -> String)?
 
     public var id: String { key }
     public var rewardXp: Int { difficulty.rewardXp(category: category) }
@@ -140,6 +156,7 @@ public struct AchievementDefinition: Sendable, Identifiable {
         key: String,
         title: String,
         details: String,
+        volumeDetails: (@Sendable (String) -> String)? = nil,
         emoji: String,
         category: AchievementCategory,
         difficulty: AchievementDifficulty,
@@ -151,6 +168,7 @@ public struct AchievementDefinition: Sendable, Identifiable {
         self.key = key
         self.title = title
         self.details = details
+        self.volumeDetails = volumeDetails
         self.emoji = emoji
         self.category = category
         self.difficulty = difficulty

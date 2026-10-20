@@ -91,7 +91,9 @@ final class ReportViewModel {
             today: calendar.today,
             tomorrowMorning: tomorrowMorning(after: last),
             nowMinute: period == .day(calendar.today) ? minuteNow : nil,
-            calendar: calendar
+            calendar: calendar,
+            unit: profile.volumeUnit,
+            timeFormat: profile.timeFormat
         )
         slides = presenter.slides
         header = presenter.header
@@ -109,6 +111,6 @@ final class ReportViewModel {
         guard day == calendar.today, services.notifications.settings.morningEnabled else { return nil }
         let tomorrow = calendar.dayKey(offsetDays: 1, from: day)
         let wake = services.profile.schedule(isWeekend: calendar.isWeekend(tomorrow)).wakeMinutes
-        return ReportFormat.clock(services.notifications.settings.morningCustomMinutes ?? wake)
+        return ReportFormat.clock(services.notifications.settings.morningCustomMinutes ?? wake, services.profile.timeFormat)
     }
 }

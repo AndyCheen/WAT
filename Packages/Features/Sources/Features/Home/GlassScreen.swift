@@ -29,7 +29,8 @@ struct GlassScreen: View {
             .padding(.bottom, WTSpacing.screenBottom)
 
             if let recorded = model.glassRecorded {
-                WTRecordedOverlay(amount: recorded, caption: "мл · \(percentOfGoal(recorded)) % норми",
+                WTRecordedOverlay(amount: model.volumeUnit.number(recorded),
+                                  caption: "\(model.volumeUnit.symbol) · \(percentOfGoal(recorded)) % норми",
                                   dayFraction: model.day.progressFraction)
                     .transition(.opacity)
             }
@@ -72,7 +73,7 @@ struct GlassScreen: View {
 
             HStack(alignment: .bottom, spacing: 10) {
                 Color.clear.frame(width: WTGlassTicks.width)
-                WTGlass(ml: $model.glassAmount, capacity: model.glassCapacity,
+                WTGlass(ml: $model.glassAmount, capacity: model.glassCapacity, step: model.glassDragStepMl,
                         accessibilityValue: model.glassAccessibilityValue)
                 WTGlassTicks(marks: model.glassFractions, current: Double(model.glassAmount) / Double(model.glassCapacity))
             }
@@ -82,7 +83,7 @@ struct GlassScreen: View {
             HStack(spacing: 8) {
                 ForEach(model.glassFractions.reversed(), id: \.fraction) { mark in
                     let ml = model.glassMl(for: mark.fraction)
-                    WTFractionChip(mark.title, subtitle: "\(ml) мл", isSelected: model.glassAmount == ml) {
+                    WTFractionChip(mark.title, subtitle: model.volumeUnit.portion(ml), isSelected: model.glassAmount == ml) {
                         model.selectGlassFraction(mark.fraction)
                     }
                     .accessibilityIdentifier("glass.chip.\(Int(mark.fraction * 100))")
@@ -90,11 +91,11 @@ struct GlassScreen: View {
             }
             .padding(.vertical, 18)
 
-            WTPrimaryButton("Записати \(model.glassAmount) мл") { model.confirmGlass() }
+            WTPrimaryButton("Записати \(model.volumeUnit.portion(model.glassAmount))") { model.confirmGlass() }
                 .accessibilityIdentifier("glass.record")
 
             HStack(spacing: 4) {
-                Text("Моя склянка: \(model.glassCapacity) мл ·")
+                Text("Моя склянка: \(model.volumeUnit.portion(model.glassCapacity)) ·")
                     .foregroundStyle(theme.textMuted)
                 Button("змінити") { model.recalibrateGlass() }
                     .foregroundStyle(theme.textButton)
@@ -129,8 +130,8 @@ struct GlassScreen: View {
                 .padding(.vertical, 10)
 
             HStack(spacing: 8) {
-                ForEach(HomeViewModel.calibrationChoices, id: \.self) { ml in
-                    WTFractionChip("\(ml)", isSelected: model.calibrationChoice == ml, numeric: true) {
+                ForEach(model.calibrationChoices, id: \.self) { ml in
+                    WTFractionChip(model.volumeUnit.number(ml), isSelected: model.calibrationChoice == ml, numeric: true) {
                         model.calibrationChoice = ml
                     }
                     .accessibilityIdentifier("glass.calibrate.\(ml)")
@@ -153,12 +154,12 @@ struct GlassScreen: View {
     private func value(_ ml: Int, caption: String) -> some View {
         VStack(spacing: 2) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("\(ml)")
+                Text(model.volumeUnit.number(ml))
                     .font(WTFont.number(64, .semibold))
                     .foregroundStyle(theme.textPrimary)
                     .contentTransition(.numericText())
                     .accessibilityIdentifier("glass.value")
-                Text("мл")
+                Text(model.volumeUnit.symbol)
                     .font(WTFont.text(17, .heavy))
                     .foregroundStyle(theme.textMuted)
             }
@@ -171,7 +172,7 @@ struct GlassScreen: View {
 
     /// Склянка росте з об'ємом: 200 мл — 62 % висоти, 400 мл — уся.
     private var calibrationScale: CGFloat {
-        let choices = HomeViewModel.calibrationChoices
+        let choices = model.calibrationChoices
         guard let low = choices.first, let high = choices.last, high > low else { return 1 }
         return 0.62 + 0.38 * CGFloat(model.calibrationChoice - low) / CGFloat(high - low)
     }

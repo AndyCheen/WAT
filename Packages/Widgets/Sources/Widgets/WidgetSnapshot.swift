@@ -18,6 +18,8 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
     public var day: DayKey
     /// `VolumeUnit.rawValue` — тексти в системі людини (WAT-46).
     public var unitRaw: Int
+    /// `TimeFormat.rawValue` (WAT-58). Необов'язкове: знімок старішої збірки його не має — тоді 24 години.
+    public var timeFormatRaw: Int?
     public var goalMl: Int
     public var totalMl: Int
     public var countedMl: Int
@@ -48,7 +50,7 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
     public var lastAction: LastAction?
 
     public init(
-        generatedAt: Date, day: DayKey, unitRaw: Int = 0, goalMl: Int, totalMl: Int, countedMl: Int,
+        generatedAt: Date, day: DayKey, unitRaw: Int = 0, timeFormatRaw: Int? = nil, goalMl: Int, totalMl: Int, countedMl: Int,
         portions: [Portion], schedule: Schedule, weekday: Schedule, weekend: Schedule? = nil,
         dayRhythmEnabled: Bool = true, homeButtons: [Int], glassMl: Int, customHints: [Int]? = nil,
         streak: Streak, level: Level,
@@ -59,6 +61,7 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
         self.generatedAt = generatedAt
         self.day = day
         self.unitRaw = unitRaw
+        self.timeFormatRaw = timeFormatRaw
         self.goalMl = goalMl
         self.totalMl = totalMl
         self.countedMl = countedMl
@@ -78,6 +81,9 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
         self.reserve = reserve
         self.lastAction = lastAction
     }
+
+    public var volumeUnit: VolumeUnit { VolumeUnit(rawValue: unitRaw) ?? .milliliters }
+    public var timeFormat: TimeFormat { timeFormatRaw.flatMap(TimeFormat.init(rawValue:)) ?? .hours24 }
 
     public struct Portion: Codable, Equatable, Sendable {
         public var id: UUID

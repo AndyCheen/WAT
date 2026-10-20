@@ -235,6 +235,42 @@ final class HydrationServiceTests: XCTestCase {
         XCTAssertEqual(env.hydration.quickAddAmounts(), [200, 500, 1000])
     }
 
+    // MARK: - Система об'єму (WAT-46)
+
+    func testSwitchingUnitMovesDefaultButtonsToNewDefaults() {
+        let env = TestEnv()
+        env.hydration.setVolumeUnit(.usFluidOunces)
+        let oz = VolumeUnit.usFluidOunces
+        XCTAssertEqual(env.hydration.quickAddAmounts().map(oz.units), [8, 16, 32])
+        XCTAssertEqual(env.hydration.quickAddAmounts(.customSheet).map(oz.units), [6, 8, 12, 16])
+
+        env.hydration.setVolumeUnit(.milliliters)
+        XCTAssertEqual(env.hydration.quickAddAmounts(), [200, 500, 1000], "назад — знову типові метричні")
+    }
+
+    func testSwitchingUnitSnapsEditedButtonsToNewGrid() {
+        let env = TestEnv()
+        env.hydration.stepPreset(.home, at: 0, up: true)                 // 250 мл
+        env.hydration.rememberCustomAmount(330)
+        env.hydration.setVolumeUnit(.usFluidOunces)
+        let oz = VolumeUnit.usFluidOunces
+        XCTAssertEqual(env.hydration.quickAddAmounts().map(oz.units), [8, 17, 34], "змінені — на найближчу унцію")
+        XCTAssertEqual(oz.units(env.hydration.customAmountStart()), 11)
+    }
+
+    func testOunceStepsFollowShownValue() {
+        let env = TestEnv()
+        env.hydration.setVolumeUnit(.usFluidOunces)
+        let oz = VolumeUnit.usFluidOunces
+        env.hydration.stepPreset(.home, at: 0, up: false)
+        env.hydration.stepPreset(.home, at: 2, up: true)
+        XCTAssertEqual(env.hydration.quickAddAmounts().map(oz.units), [7, 16, 34], "від 32 oz — крок 2")
+        XCTAssertEqual(oz.units(env.hydration.steppedCustomAmount(oz.milliliters(units: 10), up: true)), 11)
+
+        env.hydration.stepGoal(up: true)                                   // 2000 мл ≈ 68 унц. → 72 (крок 4)
+        XCTAssertEqual(oz.units(env.hydration.currentGoal()), 72)
+    }
+
     func testCustomAmountStartsFromLastConfirmed() {
         let env = TestEnv()
         XCTAssertEqual(env.hydration.customAmountStart(), 300, "шторкою ще не користувались")

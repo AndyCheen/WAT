@@ -12,7 +12,9 @@ struct WaterControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         AppIntentControlConfiguration(kind: Self.kind, provider: WaterControlProvider()) { value in
             ControlWidgetButton(action: AddWaterWidgetIntent(ml: value)) {
-                Label("+\(WidgetPresenter.amount(value))", systemImage: "drop.fill")
+                // Система людини — зі знімка (WAT-58): значення елемента — лише мілілітри.
+                Label("+\(WidgetPresenter.amount(value, unit: WidgetSnapshotStore.shared.read()?.volumeUnit ?? .milliliters))",
+                      systemImage: "drop.fill")
             }
         }
         .displayName("Додати воду")

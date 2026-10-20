@@ -139,7 +139,8 @@ public final class LevelRoadModel {
     // MARK: - Довідник «Звідки XP» (§16.14)
 
     var guideRows: [WTXPGuideRow] {
-        LevelRoadPresenter.guideRows(rules: services.gamification.xp.rules, dayRhythm: services.profile.dayRhythmEnabled)
+        LevelRoadPresenter.guideRows(rules: services.gamification.xp.rules, dayRhythm: services.profile.dayRhythmEnabled,
+                                     unit: services.profile.volumeUnit, format: services.profile.timeFormat)
     }
 
     func setGuide(_ shown: Bool) {

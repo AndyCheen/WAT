@@ -27,7 +27,7 @@ struct GoalCalculatorSheet: View {
                 WTSectionLabel("ВАГА").padding(.bottom, 10)
                 HStack(spacing: 20) {
                     WTStepperButton("−", size: 36) { model.stepWeight(-1) }
-                    Text("\(Int(model.weightKg)) кг")
+                    Text(model.weightLabel)
                         .font(WTFont.display(24, .bold))
                         .foregroundStyle(theme.textPrimary)
                         .frame(minWidth: 70)
@@ -56,7 +56,7 @@ struct GoalCalculatorSheet: View {
 
                 VStack(spacing: 6) {
                     WTSectionLabel("РЕКОМЕНДОВАНА НОРМА", size: 12)
-                    Text("\(model.calculatedGoal) мл")
+                    Text(model.volumeUnit.portion(model.calculatedGoal))
                         .font(WTFont.display(30, .bold))
                         .foregroundStyle(theme.textPrimary)
                         .accessibilityIdentifier("calculator.result")

@@ -29,8 +29,8 @@ enum SchedulePresenter {
     static let wakeGlyph = "☀️"
     static let sleepGlyph = "🌙"
 
-    /// `draft` — що буде збережено: пропозиція або підправлене в «Налаштувати».
-    static func content(_ suggestion: ScheduleSuggestion, draft: DaySchedule) -> Content {
+    /// `draft` — що буде збережено: пропозиція або підправлене в «Налаштувати». Час — у форматі людини (WAT-58).
+    static func content(_ suggestion: ScheduleSuggestion, draft: DaySchedule, format: TimeFormat = .hours24) -> Content {
         let current = suggestion.current, proposed = suggestion.proposed
         let wake = proposed.wakeMinutes != current.wakeMinutes
         let sleep = proposed.sleepMinutes != current.sleepMinutes
@@ -52,10 +52,12 @@ enum SchedulePresenter {
 
         var changes: [Change] = []
         if wake {
-            changes.append(change(.wake, title: "Підйом", glyph: wakeGlyph, old: current.wakeMinutes, new: draft.wakeMinutes))
+            changes.append(change(.wake, title: "Підйом", glyph: wakeGlyph, old: current.wakeMinutes, new: draft.wakeMinutes,
+                                  format: format))
         }
         if sleep {
-            changes.append(change(.sleep, title: "Відбій", glyph: sleepGlyph, old: current.sleepMinutes, new: draft.sleepMinutes))
+            changes.append(change(.sleep, title: "Відбій", glyph: sleepGlyph, old: current.sleepMinutes, new: draft.sleepMinutes,
+                                  format: format))
         }
 
         return Content(
@@ -68,11 +70,12 @@ enum SchedulePresenter {
     }
 
     /// Тост після «Так»: «Графік оновлено: 06:30–22:00».
-    static func toast(_ suggestion: ScheduleSuggestion, schedule: DaySchedule) -> String {
+    static func toast(_ suggestion: ScheduleSuggestion, schedule: DaySchedule, format: TimeFormat = .hours24) -> String {
+        let label = schedule.label(format)
         switch suggestion.scope {
-        case .everyDay: return "Графік оновлено: \(schedule.label)"
-        case .weekdays, .weekdaysOnly: return "Графік буднів оновлено: \(schedule.label)"
-        case .weekends: return "Графік вихідних оновлено: \(schedule.label)"
+        case .everyDay: return "Графік оновлено: \(label)"
+        case .weekdays, .weekdaysOnly: return "Графік буднів оновлено: \(label)"
+        case .weekends: return "Графік вихідних оновлено: \(label)"
         }
     }
 
@@ -84,8 +87,9 @@ enum SchedulePresenter {
         }
     }
 
-    private static func change(_ bound: Change.Bound, title: String, glyph: String, old: Int, new: Int) -> Change {
-        let old = DaySchedule.clock(old), new = DaySchedule.clock(new)
+    private static func change(_ bound: Change.Bound, title: String, glyph: String, old: Int, new: Int,
+                               format: TimeFormat) -> Change {
+        let old = format.clock(old), new = format.clock(new)
         return Change(bound: bound, glyph: glyph, old: old, new: new,
                       accessibilityLabel: "\(title): було \(old), стане \(new)")
     }

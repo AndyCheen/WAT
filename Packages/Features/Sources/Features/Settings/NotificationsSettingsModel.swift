@@ -6,6 +6,7 @@ import UIKit
 #endif
 import Core
 import Persistence
+import Hydration
 import Notifications
 
 /// Екран «Сповіщення» — рядки етапів A і B (SPEC-NOTIFICATIONS §15.1).
@@ -92,7 +93,9 @@ public final class NotificationsSettingsModel {
     }
 
     func stepGlass(_ direction: Int) {
-        profile.glassMl = clamp(profile.glassMl + direction * UserProfile.glassStep,
+        // Крок — 25 мл або унція (`VolumeSteps.glass`, WAT-46).
+        let unit = profile.volumeUnit
+        profile.glassMl = clamp(unit.stepped(profile.glassMl, up: direction > 0, grid: VolumeSteps.glass(unit)),
                                 UserProfile.glassRange.lowerBound, UserProfile.glassRange.upperBound)
         // Склянку задали тут — вікно «Склянка» вже не питатиме «скільки в твоїй склянці?» (§7.1).
         profile.glassConfirmed = true
@@ -211,9 +214,8 @@ public final class NotificationsSettingsModel {
 
     // MARK: - Формат
 
-    static func time(_ minutes: Int) -> String {
-        String(format: "%02d:%02d", minutes / 60, minutes % 60)
-    }
+    /// Годинник у форматі людини (WAT-58): «07:30» / «7:30 дп». Читання профілю — і перемальовування з ним.
+    func time(_ minutes: Int) -> String { profile.timeFormat.clock(minutes) }
 
     private func clamp(_ value: Int, _ low: Int, _ high: Int) -> Int {
         min(max(value, low), max(low, high))

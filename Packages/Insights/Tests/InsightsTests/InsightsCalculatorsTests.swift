@@ -50,7 +50,8 @@ final class InsightsCalculatorsTests: XCTestCase {
         let rows = InsightsCalculators.evennessRows(blocks: curve.goalBlocks(), portions: [])
         XCTAssertEqual(rows.map(\.targetMl), [689, 826, 485])
         XCTAssertEqual(rows.map(\.label), ["Ранок", "День", "Вечір"])
-        XCTAssertEqual(rows.map(\.hoursLabel), ["08–12", "12–17", "17–22"])
+        XCTAssertEqual(rows.map { $0.hoursLabel() }, ["08–12", "12–17", "17–22"])
+        XCTAssertEqual(rows.map { $0.hoursLabel(.hours12) }, ["8 дп–12 пп", "12–5 пп", "5–10 пп"])
         XCTAssertEqual(rows[0].parts, [.morning, .noon])
     }
 

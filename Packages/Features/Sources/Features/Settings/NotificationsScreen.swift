@@ -79,12 +79,12 @@ public struct NotificationsScreen: View {
     private var daySchedule: some View {
         section("РЕЖИМ ДНЯ") {
             WTSettingRow("Підйом") {
-                WTValueStepper(NotificationsSettingsModel.time(model.profile.wakeMinutes), identifier: "notifications.wake",
+                WTValueStepper(model.time(model.profile.wakeMinutes), identifier: "notifications.wake",
                                onDecrement: { model.stepWake(-1) }, onIncrement: { model.stepWake(1) })
             }
             WTDivider()
             WTSettingRow("Відбій") {
-                WTValueStepper(NotificationsSettingsModel.time(model.profile.sleepMinutes), identifier: "notifications.sleep",
+                WTValueStepper(model.time(model.profile.sleepMinutes), identifier: "notifications.sleep",
                                onDecrement: { model.stepSleep(-1) }, onIncrement: { model.stepSleep(1) })
             }
             WTDivider()
@@ -93,13 +93,13 @@ public struct NotificationsScreen: View {
             }
             if model.profile.weekendScheduleEnabled {
                 WTSettingRow("Підйом у вихідні") {
-                    WTValueStepper(NotificationsSettingsModel.time(model.profile.weekendWakeMinutes),
+                    WTValueStepper(model.time(model.profile.weekendWakeMinutes),
                                    identifier: "notifications.weekendWake",
                                    onDecrement: { model.stepWake(-1, weekend: true) },
                                    onIncrement: { model.stepWake(1, weekend: true) })
                 }
                 WTSettingRow("Відбій у вихідні") {
-                    WTValueStepper(NotificationsSettingsModel.time(model.profile.weekendSleepMinutes),
+                    WTValueStepper(model.time(model.profile.weekendSleepMinutes),
                                    identifier: "notifications.weekendSleep",
                                    onDecrement: { model.stepSleep(-1, weekend: true) },
                                    onIncrement: { model.stepSleep(1, weekend: true) })
@@ -107,7 +107,7 @@ public struct NotificationsScreen: View {
             }
             WTDivider()
             WTSettingRow("Моя склянка", subtitle: "Для «+склянка» в сповіщеннях") {
-                WTValueStepper("\(model.profile.glassMl) мл", identifier: "notifications.glass",
+                WTValueStepper(model.profile.volumeUnit.portion(model.profile.glassMl), identifier: "notifications.glass",
                                onDecrement: { model.stepGlass(-1) }, onIncrement: { model.stepGlass(1) })
             }
         }
@@ -129,12 +129,12 @@ public struct NotificationsScreen: View {
                         Spacer(minLength: 0)
                     }
                     HStack {
-                        WTValueStepper(NotificationsSettingsModel.time(period.fromMinutes),
+                        WTValueStepper(model.time(period.fromMinutes),
                                        identifier: "notifications.quiet.\(index).from",
                                        onDecrement: { model.stepQuiet(period, from: true, -1) },
                                        onIncrement: { model.stepQuiet(period, from: true, 1) })
                         Spacer(minLength: 4)
-                        WTValueStepper(NotificationsSettingsModel.time(period.toMinutes),
+                        WTValueStepper(model.time(period.toMinutes),
                                        identifier: "notifications.quiet.\(index).to",
                                        onDecrement: { model.stepQuiet(period, from: false, -1) },
                                        onIncrement: { model.stepQuiet(period, from: false, 1) })
@@ -152,6 +152,12 @@ public struct NotificationsScreen: View {
     }
 
     // MARK: - Протягом дня
+
+    /// Приклад тексту чекпоінта в системі людини (WAT-46): «150 мл» / «5 унц.».
+    private var dayPartExample: String {
+        let unit = model.profile.volumeUnit
+        return unit.portion(unit.isMetric ? 150 : unit.milliliters(units: 5))
+    }
 
     private var duringDay: some View {
         section("ПРОТЯГОМ ДНЯ") {
@@ -178,7 +184,8 @@ public struct NotificationsScreen: View {
             // Без ритму дня чекпоінтів немає зовсім (WAT-42) — перемикач, що нічого не змінює, не показуємо.
             if model.profile.dayRhythmEnabled {
                 WTDivider()
-                WTSettingRow("Частини доби", subtitle: "«До 12:00 — ще 150 мл», якщо можна встигнути") {
+                WTSettingRow("Частини доби",
+                             subtitle: "«До \(model.time(12 * 60)) — ще \(dayPartExample)», якщо можна встигнути") {
                     WTToggle(isOn: model.toggle(\.checkpointsEnabled)).accessibilityIdentifier("notifications.checkpoints")
                 }
             }
@@ -191,7 +198,7 @@ public struct NotificationsScreen: View {
                                 onSelect: model.selectMorningCustom)
                 if let minutes = model.settings.morningCustomMinutes {
                     WTSettingRow("Час") {
-                        WTValueStepper(NotificationsSettingsModel.time(minutes), identifier: "notifications.morningTime",
+                        WTValueStepper(model.time(minutes), identifier: "notifications.morningTime",
                                        onDecrement: { model.stepMorning(-1) }, onIncrement: { model.stepMorning(1) })
                     }
                 }
@@ -211,7 +218,7 @@ public struct NotificationsScreen: View {
                                 onSelect: model.selectEveningCustom)
                 if let minutes = model.settings.eveningCustomMinutes {
                     WTSettingRow("Час") {
-                        WTValueStepper(NotificationsSettingsModel.time(minutes), identifier: "notifications.eveningTime",
+                        WTValueStepper(model.time(minutes), identifier: "notifications.eveningTime",
                                        onDecrement: { model.stepEvening(-1) }, onIncrement: { model.stepEvening(1) })
                     }
                 }
@@ -245,7 +252,7 @@ public struct NotificationsScreen: View {
                     Spacer(minLength: 0)
                 }
                 WTSettingRow("Час") {
-                    WTValueStepper(NotificationsSettingsModel.time(model.settings.weeklyReportMinutes),
+                    WTValueStepper(model.time(model.settings.weeklyReportMinutes),
                                    identifier: "notifications.reportWeekTime",
                                    onDecrement: { model.stepReportTime(weekly: true, -1) },
                                    onIncrement: { model.stepReportTime(weekly: true, 1) })
@@ -257,7 +264,7 @@ public struct NotificationsScreen: View {
             }
             if model.settings.monthlyReportEnabled {
                 WTSettingRow("Час") {
-                    WTValueStepper(NotificationsSettingsModel.time(model.settings.monthlyReportMinutes),
+                    WTValueStepper(model.time(model.settings.monthlyReportMinutes),
                                    identifier: "notifications.reportMonthTime",
                                    onDecrement: { model.stepReportTime(weekly: false, -1) },
                                    onIncrement: { model.stepReportTime(weekly: false, 1) })

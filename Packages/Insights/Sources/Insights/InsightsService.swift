@@ -142,10 +142,11 @@ public final class InsightsService {
 
     public func dayDetail(for day: DayKey) -> DayDetailReport? {
         guard let log = dayLogs.existingDayLog(for: day) else { return nil }
-        let formatter = Self.timeFormatter(calendar)
+        // Час порції — у форматі людини (WAT-58), як у списку головного.
+        let format = profiles.profile().timeFormat
         let entries = dayLogs.activeIntakes(for: day).map {
             DayDetailReport.Entry(
-                id: $0.id, amountMl: $0.amountMl, timeLabel: formatter.string(from: $0.createdAt)
+                id: $0.id, amountMl: $0.amountMl, timeLabel: format.clock(calendar.minuteOfDay($0.createdAt))
             )
         }
         let monthIndex = max(1, min(12, day.month)) - 1
@@ -245,10 +246,4 @@ public final class InsightsService {
         )
     }
 
-    private static func timeFormatter(_ calendar: CalendarService) -> DateFormatter {
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm"
-        f.timeZone = calendar.calendar.timeZone
-        return f
-    }
 }

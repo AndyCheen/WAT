@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import Core
 
 /// Де живе кнопка-пресет: на головному чи підказкою в шторці «Інше» (WAT-45).
 public enum PresetPlace: Int, CaseIterable, Sendable {
@@ -7,11 +8,17 @@ public enum PresetPlace: Int, CaseIterable, Sendable {
     case customSheet = 1
 
     /// Кількість фіксована: три кнопки з «Інше» складають сітку 2×2, чотири чипи — ширину шторки.
-    public var defaults: [Int] {
-        switch self {
-        case .home: return [200, 500, 1000]
-        case .customSheet: return [150, 250, 350, 500]
+    /// В унціях — звичні там порції (чашка 8 унц., пляшка 16 унц., кварта 32 унц.), а не перераховані мілілітри:
+    /// «7 унц. · 17 унц. · 34 унц.» виглядали б випадковими (WAT-46).
+    public func defaults(for unit: VolumeUnit) -> [Int] {
+        guard !unit.isMetric else {
+            switch self {
+            case .home: return [200, 500, 1000]
+            case .customSheet: return [150, 250, 350, 500]
+            }
         }
+        let ounces = self == .home ? [8, 16, 32] : [6, 8, 12, 16]
+        return ounces.map { unit.milliliters(units: $0) }
     }
 }
 

@@ -19,8 +19,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 688 unit-тестів 10 пакетів, без симулятора — швидкий цикл
-make test-ui        # 58 e2e-сценаріїв (XCUITest) у симуляторі
+make test-packages  # 726 unit-тестів 10 пакетів, без симулятора — швидкий цикл
+make test-ui        # 60 e2e-сценаріїв (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
 make clean
@@ -292,6 +292,22 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
   **поточного** дня, минулі не чіпаються. Так само підйом і відбій (`wakeMinutesSnapshot` /
   `sleepMinutesSnapshot`): пишуться з порцією і в `HydrationService.scheduleDidChange()`.
 - Схема — `Database.schema` (17 моделей), одне місце для майбутніх міграцій.
+
+### Одиниці (WAT-46, WAT-58)
+
+Усе зберігається в **мілілітрах, кілограмах і хвилинах**; `UserProfile.volumeUnit` / `massUnit` / `timeFormat` —
+лише показ і тексти. Перемикаються в онбордингу й у «Налаштуваннях» → «Одиниці» (`WTSegmentRow`, рядки —
+`OnboardingPresenter.unitRows`); кожна зміна — `touch()`, тож тексти сповіщень і знімок віджетів перескладаються одразу.
+- **Об'єм** у тексті — тільки через `VolumeUnit.label` (до 1 л мл, далі «1.05 л») / `format(_:metric:)` / `portion` /
+  `number` з одиницею профілю: метричний формат у кожного місця свій («1.25 л» на кільці, «1,05 л» у сповіщенні) і
+  закріплений тестами, унції — однакові скрізь, цілі, «8 унц.» (крапку в кінці речення знімає `VolumeUnit.tidy`).
+  Кроки редагування — `VolumeSteps` (Hydration) у одиницях системи; змінювати систему — лише
+  `HydrationService.setVolumeUnit(_:)` (і з онбордингу), він переводить кнопки порцій.
+- **Час** — `TimeFormat.clock` / `hourRange`, ніколи не «%02d:%02d» і не `DateFormatter("HH:mm")`. Презентери беруть
+  формат параметром (`format:` / `timeFormat`, типово 24 год — на цьому стоять старі тести), моделі — з профілю.
+- **Вага** — `MassUnit.label` / `units`; крок ваги — від показаного числа, не від кілограмів.
+- **Віджети** читають систему зі знімка (`WidgetSnapshot.unitRaw` / `timeFormatRaw`) через `WidgetDay.unit` /
+  `timeFormat`; позначення поруч із великим числом — `WidgetPresenter.bigUnit`, не `Text("л")`.
 
 ### Час
 

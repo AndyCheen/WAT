@@ -1,5 +1,6 @@
 import SwiftUI
 import WidgetKit
+import Core
 import DesignSystem
 
 // Спільне для всіх віджетів: кнопки дій, тло, тема, кільце, вода.
@@ -222,6 +223,7 @@ struct CustomPickerPanel: View {
     let hints: [Int]
     var columns = 2
     var buttonHeight: CGFloat = 46
+    var unit = VolumeUnit.milliliters
 
     var body: some View {
         VStack(alignment: .leading, spacing: WidgetMetrics.gap) {
@@ -241,7 +243,7 @@ struct CustomPickerPanel: View {
                 // Підказки можуть повторюватись (WAT-45) — ідентифікатор за позицією.
                 ForEach(Array(hints.prefix(4).enumerated()), id: \.offset) { _, ml in
                     WidgetActionButton(.add(ml: ml, source: .widget)) {
-                        PortionLabel(title: WidgetPresenter.amount(ml), height: buttonHeight)
+                        PortionLabel(title: WidgetPresenter.amount(ml, unit: unit), height: buttonHeight)
                     }
                 }
             }
@@ -320,11 +322,12 @@ struct UndoPanel: View {
     let undo: WidgetSnapshot.LastAction
     var compact = false
     var onDeep = false
+    var unit = VolumeUnit.milliliters
 
     var body: some View {
         VStack(spacing: compact ? 6 : 8) {
             CheckBadge(size: compact ? 30 : 36)
-            Text(WidgetPresenter.addTitle(undo.ml))
+            Text(WidgetPresenter.addTitle(undo.ml, unit: unit))
                 .font(WTFont.number(compact ? 18 : 21, .semibold))
                 .foregroundStyle(onDeep ? Color.white : theme.textPrimary)
             WidgetActionButton(.undo(intakeId: undo.intakeId)) {
