@@ -135,6 +135,9 @@ public struct AchievementDefinition: Sendable, Identifiable {
     public let target: Double
     public let secrecy: AchievementSecrecy
     public let gate: AchievementGate?
+    /// Знято з каталогу (WAT-60, SPEC-ACHIEVEMENTS-CATALOG §10.2): не рахується й нікому нове не відкривається,
+    /// але хто вже має — бачить, а «Колекція» його рахує. Ключ не перевикористовується.
+    public let isRetired: Bool
     /// Опис з об'ємом у системі людини, якщо це не мілілітри: «34 унц. води загалом» (WAT-46),
     /// «Порція 2 унц.» (WAT-59). Який об'єм підставити — `detailsVolumeMl(in:)`.
     public let volumeDetails: (@Sendable (String) -> String)?
@@ -157,7 +160,7 @@ public struct AchievementDefinition: Sendable, Identifiable {
 
     /// Основний каталог — те, що рахує «Усе зібрано»: таємні на нього не працюють, а залежні від функцій
     /// інакше назавжди закривали б легендарне вимкненим перемикачем (рішення від 15.10.2026).
-    public var isCore: Bool { secrecy == .none && gate == nil }
+    public var isCore: Bool { secrecy == .none && gate == nil && !isRetired }
 
     public init(
         key: String,
@@ -170,7 +173,8 @@ public struct AchievementDefinition: Sendable, Identifiable {
         rule: AchievementRule,
         target: Double = 1,
         secrecy: AchievementSecrecy = .none,
-        gate: AchievementGate? = nil
+        gate: AchievementGate? = nil,
+        retired: Bool = false
     ) {
         self.key = key
         self.title = title
@@ -183,6 +187,7 @@ public struct AchievementDefinition: Sendable, Identifiable {
         self.target = target
         self.secrecy = secrecy
         self.gate = gate
+        self.isRetired = retired
     }
 }
 

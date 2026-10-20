@@ -135,7 +135,7 @@ public enum AchievementCatalog {
               category: .water, difficulty: .easy, rule: .max(.intakeAdded), target: 1000),
         .init(key: "volume.1l", title: "Глечик", details: "1 л води загалом",
               volumeDetails: { "\($0) води загалом" }, emoji: "🏺",
-              category: .water, difficulty: .easy, rule: .history(.countedMl), target: 1000),
+              category: .water, difficulty: .easy, rule: .history(.countedMl), target: 1000, retired: true),
         .init(key: "volume.10l", title: "Відро", details: "10 л води загалом",
               volumeDetails: { "\($0) води загалом" }, emoji: "🪣",
               category: .water, difficulty: .easy, rule: .history(.countedMl), target: 10_000),
@@ -155,7 +155,8 @@ public enum AchievementCatalog {
               volumeDetails: { "\($0) води загалом" }, emoji: "🐳",
               category: .water, difficulty: .legendary, rule: .history(.countedMl), target: 1_000_000),
         .init(key: "portions.10", title: "Розминка", details: "10 порцій", emoji: "🔟",
-              category: .water, difficulty: .easy, rule: .metric(MetricRule(key: .intakeCount)), target: 10),
+              category: .water, difficulty: .easy, rule: .metric(MetricRule(key: .intakeCount)), target: 10,
+              retired: true),
         .init(key: "portions.100", title: "Сотня порцій", details: "100 порцій", emoji: "💯",
               category: .water, difficulty: .medium, rule: .metric(MetricRule(key: .intakeCount)), target: 100),
         .init(key: "portions.1000", title: "Тисяча порцій", details: "1000 порцій", emoji: "🎖️",
@@ -288,7 +289,7 @@ public enum AchievementCatalog {
     /// як предмет. «Усе зібрано» — окремо, у `all`: його ціль рахується з каталогу.
     static let game: [AchievementDefinition] = [
         .init(key: "level.5", title: "Струмок", details: "Рівень 5", emoji: "💦",
-              category: .game, difficulty: .easy, rule: .level, target: 5),
+              category: .game, difficulty: .easy, rule: .level, target: 5, retired: true),
         .init(key: "level.10", title: "Річка", details: "Рівень 10", emoji: "🏞️",
               category: .game, difficulty: .medium, rule: .level, target: 10),
         .init(key: "level.20", title: "Море", details: "Рівень 20", emoji: "⛵",
@@ -306,7 +307,7 @@ public enum AchievementCatalog {
         .init(key: "boost.goal", title: "Подвійна гра", details: "Активний буст і закрита норма того ж дня",
               emoji: "🎲", category: .game, difficulty: .easy, rule: .history(.boostGoalDays), target: 1),
         .init(key: "mystery.first", title: "Перша скриня", details: "Відкрито перший таємний приз", emoji: "🔓",
-              category: .game, difficulty: .easy, rule: .game(.mysteriesOpened), target: 1),
+              category: .game, difficulty: .easy, rule: .game(.mysteriesOpened), target: 1, retired: true),
         .init(key: "freeze.saved", title: "Порятунок", details: "Заморозка зберегла серію 7+ днів", emoji: "🛡️",
               category: .game, difficulty: .medium, rule: .history(.freezeSaves(minStreak: 7)), target: 1),
         .init(key: "mystery.5", title: "Пошук скарбів", details: "Відкрито 5 таємних призів", emoji: "🗝️",
@@ -328,14 +329,14 @@ public enum AchievementCatalog {
         .init(key: "discover.custom", title: "Своя мірка", details: "Порція власного обʼєму через «Інше»", emoji: "✍️",
               category: .discovery, difficulty: .easy, rule: .count(.customPortion), target: 1),
         .init(key: "discover.undo", title: "Друга думка", details: "Порцію скасовано", emoji: "🔙",
-              category: .discovery, difficulty: .easy, rule: .count(.intakeRemoved), target: 1),
+              category: .discovery, difficulty: .easy, rule: .count(.intakeRemoved), target: 1, retired: true),
         .init(key: "discover.buttons", title: "Свої кнопки", details: "Кнопки порцій налаштовано", emoji: "🎛️",
               category: .discovery, difficulty: .easy, rule: .count(.presetsChanged), target: 1),
         .init(key: "discover.schedule", title: "Мій графік", details: "Підйом і відбій налаштовано", emoji: "🕰️",
               category: .discovery, difficulty: .easy, rule: .count(.scheduleEdited), target: 1),
         .init(key: "discover.notifications", title: "На звʼязку", details: "Сповіщення дозволено", emoji: "🔔",
               category: .discovery, difficulty: .easy, rule: .count(.notificationAuthorized), target: 1,
-              gate: .notifications),
+              gate: .notifications, retired: true),
         .init(key: "discover.notificationGlass", title: "Склянка зі сповіщення", details: "Порція кнопкою «+склянка»",
               emoji: "📲", category: .discovery, difficulty: .easy,
               rule: .history(.sourceGroups([[.notification]])), target: 1, gate: .notifications),
@@ -350,7 +351,7 @@ public enum AchievementCatalog {
               rule: .history(.sourceGroups([[.app], [.widget], [.notification], [.siri, .shortcut]])), target: 4,
               gate: .notifications),
         .init(key: "discover.levelChoice", title: "Перехрестя", details: "Обрано приз на шляху рівнів", emoji: "🪜",
-              category: .discovery, difficulty: .easy, rule: .game(.levelChoices), target: 1),
+              category: .discovery, difficulty: .easy, rule: .game(.levelChoices), target: 1, retired: true),
         .init(key: "discover.weekReport", title: "Історія тижня", details: "Звіт тижня переглянуто до кінця", emoji: "📖",
               category: .discovery, difficulty: .easy, rule: .count(.weekReportFinished), target: 1),
         .init(key: "discover.monthReport", title: "Підсумки місяця", details: "Звіт місяця переглянуто до кінця",
@@ -499,9 +500,13 @@ public enum AchievementCatalog {
         return keys
     }()
 
-    /// Порядок проходу: колекції — останніми, щоб бачити відкрите в тому самому проході.
-    static let evaluationOrder: [AchievementDefinition] = all.filter { !$0.rule.isCollection }
-        + all.filter(\.rule.isCollection)
+    /// Досягнення, що ще рахуються, — без знятих з каталогу (WAT-60, §10.2).
+    public static let active: [AchievementDefinition] = all.filter { !$0.isRetired }
+
+    /// Порядок проходу: колекції — останніми, щоб бачити відкрите в тому самому проході. Знятих тут немає:
+    /// вони не відкриваються й не знімаються відкатом.
+    static let evaluationOrder: [AchievementDefinition] = active.filter { !$0.rule.isCollection }
+        + active.filter(\.rule.isCollection)
 
     private static let byKey: [String: AchievementDefinition] = Dictionary(
         uniqueKeysWithValues: all.map { ($0.key, $0) }
@@ -517,7 +522,7 @@ public enum AchievementCatalog {
     /// Псевдо-«Всі» сюди не входить: це відсутність фільтра, її додає екран.
     public static var categories: [AchievementCategory] {
         AchievementCategory.allCases.filter { category in
-            all.contains { $0.category == category && !$0.secrecy.isEgg }
+            active.contains { $0.category == category && !$0.secrecy.isEgg }
         }
     }
 

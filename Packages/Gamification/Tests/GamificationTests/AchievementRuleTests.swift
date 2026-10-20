@@ -16,7 +16,6 @@ final class AchievementRuleTests: XCTestCase {
         let env = GameEnv()
         env.drink(2000, on: "2026-07-18", hour: 9)
         env.drink(1000, on: "2026-07-18", hour: 10)
-        XCTAssertTrue(env.isUnlocked("volume.1l"))
         XCTAssertEqual(env.progressValue("volume.10l"), 2400, "3000 мл випито, 2400 — зараховано")
     }
 
@@ -399,7 +398,7 @@ final class AchievementRuleTests: XCTestCase {
             slow.undo(id, at: GameEnv.date("2026-07-18", hour: 10, minute: minute).addingTimeInterval(10))
         }
         XCTAssertFalse(slow.isUnlocked("special.indecision"))
-        XCTAssertTrue(slow.isUnlocked("discover.undo"), "«Друга думка» — з першого скасування")
+        XCTAssertNil(slow.achievement("discover.undo"), "«Друга думка» знято (WAT-60): виправлену помилку не святкуємо")
     }
 
     func testOtherTimeZoneComparesOffsetsNotNames() {
@@ -432,7 +431,10 @@ final class AchievementRuleTests: XCTestCase {
         let env = GameEnv()
         env.reachLevel(5)
         env.game.refresh(at: env.clock.now)
-        XCTAssertTrue(env.isUnlocked("level.5"))
+        XCTAssertNil(env.achievement("level.5"), "«Струмок» знято (WAT-60): у рівня своє свято")
+        env.reachLevel(10)
+        env.game.refresh(at: env.clock.now)
+        XCTAssertTrue(env.isUnlocked("level.10"))
 
         for hour in [9, 11, 13, 15] { env.drink(500, on: "2026-07-18", hour: hour) }
         XCTAssertTrue(env.isUnlocked("quest.first"))
@@ -464,12 +466,12 @@ final class AchievementRuleTests: XCTestCase {
         env.reachLevel(max(mystery, choice))
 
         let grants = env.game.openMystery(level: mystery)!
-        XCTAssertTrue(env.isUnlocked("mystery.first"))
+        XCTAssertEqual(env.progressValue("mystery.5"), 1, "«Перша скриня» знято (WAT-60), рахує «Пошук скарбів»")
         XCTAssertEqual(env.progressValue("mystery.triple") == 1, grants.contains { $0.key == RewardCatalog.tripleKey })
 
         guard case .choice(let options)? = LevelRoadCatalog.node(forLevel: choice) else { return XCTFail() }
         XCTAssertTrue(env.game.claimChoice(level: choice, key: options[0].key))
-        XCTAssertTrue(env.isUnlocked("discover.levelChoice"))
+        XCTAssertNil(env.achievement("discover.levelChoice"), "«Перехрестя» знято (WAT-60)")
     }
 
     /// Колекції бачать відкрите в тому самому проході; «Усе зібрано» знімається разом з останнім.
@@ -522,19 +524,19 @@ final class AchievementRuleTests: XCTestCase {
         XCTAssertFalse(open.isMasked)
     }
 
-    /// Пасхалки до знахідки немає ні в знімку, ні в лічильнику; після — «🥚 N» окремо від «N / 108».
+    /// Пасхалки до знахідки немає ні в знімку, ні в лічильнику; після — «🥚 N» окремо від «N / 101».
     func testEggsAreInvisibleUntilFoundAndCountedApart() {
         let env = GameEnv()
         let before = env.game.achievementSnapshots()
         XCTAssertFalse(before.contains { $0.key.hasPrefix("egg.") })
-        XCTAssertEqual(before.tally.total, 108)
+        XCTAssertEqual(before.tally.total, 101)
         XCTAssertEqual(before.tally.eggs, 0)
 
         env.drink(314, on: "2026-07-18", hour: 9)
         env.clock.advance(by: 60)
         env.drink(200, on: "2026-07-18", hour: 11, minute: 11)
         let after = env.game.achievementSnapshots()
-        XCTAssertEqual(after.tally.total, 108, "знайдена пасхалка лічильник не роздуває")
+        XCTAssertEqual(after.tally.total, 101, "знайдена пасхалка лічильник не роздуває")
         XCTAssertEqual(after.tally.eggs, 2)
         XCTAssertEqual(after.first { $0.key == "egg.pi" }?.note, "Пасхалка! Тут їх більше", "лише в першої знайденої")
         XCTAssertNil(after.first { $0.key == "egg.wish" }?.note)

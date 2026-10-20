@@ -101,6 +101,9 @@ public struct AchievementSnapshot: Equatable, Identifiable, Sendable {
     public let isMasked: Bool
     /// 🥚 Знайдена пасхалка. Незнайдених у знімку немає (§4.10).
     public let isEgg: Bool
+    /// Зняте з каталогу (WAT-60) і відкрите раніше: звичайна плитка, але поза «Відкрито N / M» (§10.2).
+    /// Невідкритих знятих у знімку немає.
+    public let isRetired: Bool
     /// «Увімкни сповіщення» — функцію вимкнено, і досягнення не рахується (§4.4). Замість прогресу.
     public let lockedCaption: String?
     /// Додатковий рядок картки — «Пасхалка! Тут їх більше» у першої знайденої.
@@ -118,7 +121,8 @@ public struct AchievementSnapshot: Equatable, Identifiable, Sendable {
         category: AchievementCategory, value: Double, target: Double,
         isUnlocked: Bool, isSecret: Bool,
         rewardXp: Int = 0, unlockedAt: Date? = nil, isNew: Bool = false,
-        isMasked: Bool = false, isEgg: Bool = false, lockedCaption: String? = nil, note: String? = nil
+        isMasked: Bool = false, isEgg: Bool = false, isRetired: Bool = false,
+        lockedCaption: String? = nil, note: String? = nil
     ) {
         self.key = key
         self.title = title
@@ -134,6 +138,7 @@ public struct AchievementSnapshot: Equatable, Identifiable, Sendable {
         self.isNew = isNew
         self.isMasked = isMasked
         self.isEgg = isEgg
+        self.isRetired = isRetired
         self.lockedCaption = lockedCaption
         self.note = note
     }
@@ -234,7 +239,7 @@ extension Collection where Element == AchievementSnapshot {
     }
 
     public var tally: AchievementTally {
-        let visible = filter { !$0.isEgg }
+        let visible = filter { !$0.isEgg && !$0.isRetired }
         return AchievementTally(
             unlocked: visible.filter(\.isUnlocked).count, total: visible.count, eggs: filter(\.isEgg).count
         )

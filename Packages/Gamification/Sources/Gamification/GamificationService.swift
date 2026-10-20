@@ -185,7 +185,10 @@ public final class GamificationService: MetricsSubscriber {
                 metrics.revert(sourceRef: Self.allDailyQuestsRef(DayKey(rawValue: quest.periodKey)), at: date)
             }
         }
-        for key in achievements.revert(achievementInputs(at: date), policy: revertPolicy, at: date) {
+        // Відкрите раніше за подію від неї не залежало (WAT-60, §10.3). Час — самої події, а не мить відкату:
+        // порцію можна видалити й через годину.
+        let since = events.map(\.occurredAt).min() ?? date
+        for key in achievements.revert(achievementInputs(at: date), policy: revertPolicy, since: since, at: date) {
             xp.revert(refId: AchievementEngine.ref(key), at: date)
             recentUnlocks.removeAll { $0 == key }
         }

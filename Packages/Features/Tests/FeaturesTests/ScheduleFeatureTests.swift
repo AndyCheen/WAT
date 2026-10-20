@@ -209,8 +209,6 @@ final class ScheduleFeatureTests: XCTestCase {
         openApp(model, activation: 4)
         XCTAssertNotEqual(model.sheet, .schedule, "тост ще на екрані")
         model.dismissToast()
-        XCTAssertEqual(model.toast?.message, "🏅 Досягнення: Друга думка", "наступний тост тієї самої дії")
-        model.dismissToast()
 
         openApp(model, activation: 4)
         XCTAssertNil(model.sheet, "те саме відкриття вдруге не перевіряється")

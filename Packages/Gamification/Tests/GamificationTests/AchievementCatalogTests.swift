@@ -6,26 +6,29 @@ import Persistence
 /// Каталог проти `SPEC-ACHIEVEMENTS-CATALOG.md`: числа з §2–§4, ключі наявних, XP за таблицею, тексти.
 @MainActor
 final class AchievementCatalogTests: XCTestCase {
-    private let all = AchievementCatalog.all
+    /// Чинний каталог — без знятих з WAT-60 (§10.2): вони лишаються визначеннями лише для тих, хто їх уже має.
+    private let all = AchievementCatalog.active
 
     func testCatalogMatchesTheSpecCounts() {
-        XCTAssertEqual(all.count, 118, "115 досягнень без «Бульк!» (§8) + 3 за «Знання» (SPEC-LEARN §7)")
-        XCTAssertEqual(Set(all.map(\.key)).count, all.count, "ключі унікальні")
+        XCTAssertEqual(AchievementCatalog.all.count, 118, "115 без «Бульк!» (§8) + 3 за «Знання», зі знятими")
+        XCTAssertEqual(AchievementCatalog.all.filter(\.isRetired).count, 7, "§10.1")
+        XCTAssertEqual(all.count, 111, "§10.4: 112 разом із «Несподіванкою», що чекає несподіваних завдань WAT-29")
+        XCTAssertEqual(Set(AchievementCatalog.all.map(\.key)).count, AchievementCatalog.all.count, "ключі унікальні")
         XCTAssertEqual(all.filter { $0.secrecy.isEgg }.count, 10, "пасхалки — §4.10")
         XCTAssertEqual(all.filter { if case .hint = $0.secrecy { return true } else { return false } }.count, 16,
                        "таємні з підказкою — §4.9")
         XCTAssertEqual(all.filter { $0.gate == .dayRhythm }.count, 4)
-        XCTAssertEqual(all.filter { $0.gate == .notifications }.count, 6)
-        XCTAssertEqual(all.filter(\.isCore).count, 82, "основний каталог — 82 із 118 (§4.6)")
+        XCTAssertEqual(all.filter { $0.gate == .notifications }.count, 5)
+        XCTAssertEqual(all.filter(\.isCore).count, 76, "основний каталог — 76 (§10.4)")
 
         let byCategory = Dictionary(grouping: all.filter { !$0.secrecy.isEgg }, by: \.category).mapValues(\.count)
         XCTAssertEqual(byCategory, [
-            .water: 14, .streak: 13, .regularity: 10, .dayRhythm: 10,
-            .stats: 6, .game: 17, .discovery: 18, .special: 20
+            .water: 12, .streak: 13, .regularity: 10, .dayRhythm: 10,
+            .stats: 6, .game: 15, .discovery: 15, .special: 20
         ])
 
         let byDifficulty = Dictionary(grouping: all, by: \.difficulty).mapValues(\.count)
-        XCTAssertEqual(byDifficulty, [.easy: 54, .medium: 40, .hard: 15, .legendary: 9], "§2 + SPEC-LEARN §7")
+        XCTAssertEqual(byDifficulty, [.easy: 47, .medium: 40, .hard: 15, .legendary: 9], "§2 + SPEC-LEARN §7")
     }
 
     /// Ключі наявних семи не змінюються — за ключем зберігається прогрес; назви й описи — за §7, п. 2.
@@ -63,7 +66,7 @@ final class AchievementCatalogTests: XCTestCase {
     /// «Усе зібрано» — решта основного каталогу, без себе.
     func testCompleteCatalogTargetsTheRestOfTheCore() {
         let complete = AchievementCatalog.definition("collection.all")
-        XCTAssertEqual(complete?.target, 81, "78 + 3 за «Знання» (SPEC-LEARN §7)")
+        XCTAssertEqual(complete?.target, 75, "76 без себе (§10.4)")
         XCTAssertEqual(complete?.isCore, true)
     }
 

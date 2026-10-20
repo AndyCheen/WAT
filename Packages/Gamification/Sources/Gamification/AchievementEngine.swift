@@ -16,7 +16,8 @@ public final class AchievementEngine {
 
     /// Створює рядки прогресу для всіх визначень каталогу.
     public func bootstrap() {
-        for definition in AchievementCatalog.all where store.achievementProgress(defKey: definition.key) == nil {
+        for definition in AchievementCatalog.evaluationOrder
+        where store.achievementProgress(defKey: definition.key) == nil {
             store.insertAchievement(AchievementProgress(defKey: definition.key, target: definition.target))
         }
         store.save()
@@ -56,16 +57,19 @@ public final class AchievementEngine {
     /// Знімає досягнення, якщо умова більше не виконується (`RevertPolicy.full`). Досягнення, яке
     /// лишається виконаним з інших даних, не чіпаємо. Залежне від вимкненої функції — теж: відкрите
     /// не забирається (§4.4).
-    func revert(_ inputs: AchievementInputs, policy: RevertPolicy, at date: Date) -> [String] {
+    ///
+    /// Кандидати — лише відкрите не раніше `since`, часу події, яку відкочують (WAT-60, SPEC-ACHIEVEMENTS-CATALOG
+    /// §10.3). Відкрите раніше від неї не залежало, а повна перевірка каталогу забирала б відкрите за старим порогом:
+    /// перша видалена порція зняла б «Добрий ранок» у того, хто має 3 ранки з 10.
+    func revert(_ inputs: AchievementInputs, policy: RevertPolicy, since: Date, at date: Date) -> [String] {
         guard policy == .full else { return [] }
         var relocked: [String] = []
         var counts = collectionCounts()
 
         // Колекції — останніми: вони бачать уже зняте в цьому проході.
         for definition in AchievementCatalog.evaluationOrder where inputs.gates.isOpen(definition.gate) {
-            guard let progress = store.achievementProgress(defKey: definition.key), progress.isUnlocked else {
-                continue
-            }
+            guard let progress = store.achievementProgress(defKey: definition.key),
+                  let unlockedAt = progress.unlockedAt, unlockedAt >= since else { continue }
             let towardCore = Self.countsTowardCore(definition)
             // Колекція рахує відкрите без себе самої.
             let own = definition.rule.isCollection
@@ -101,7 +105,8 @@ public final class AchievementEngine {
         return AchievementCatalog.all.compactMap { definition in
             let progress = progressByKey[definition.key]
             let isUnlocked = progress?.isUnlocked ?? false
-            if definition.secrecy.isEgg && !isUnlocked { return nil }
+            // Зняте з каталогу — як пасхалка до знахідки: хто не встиг відкрити, того досягнення не бачить (§10.2).
+            if (definition.secrecy.isEgg || definition.isRetired) && !isUnlocked { return nil }
 
             let hint = isUnlocked ? nil : definition.hint
             let lockedCaption = isUnlocked || gates.isOpen(definition.gate) ? nil : definition.gate?.caption
@@ -123,6 +128,7 @@ public final class AchievementEngine {
                 isNew: progress.map { $0.isUnlocked && $0.seenAt == nil } ?? false,
                 isMasked: hint != nil,
                 isEgg: definition.secrecy.isEgg,
+                isRetired: definition.isRetired,
                 lockedCaption: lockedCaption,
                 note: definition.key == firstEgg ? AchievementCatalog.firstEggNote : nil
             )
@@ -162,6 +168,7 @@ public final class AchievementEngine {
     }
 
     /// Скільки відкрито: усього (колекції теж досягнення) і з основного каталогу без «Усе зібрано».
+    /// Зняте з каталогу в «усього» входить — його заробили (§10.2), а основним воно не є.
     private func collectionCounts() -> (all: Int, core: Int) {
         var counts = (all: 0, core: 0)
         for definition in AchievementCatalog.all {
