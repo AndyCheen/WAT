@@ -16,7 +16,7 @@
   --line:rgba(31,74,114,.10); --track:#e4f0fb; --dot-off:#dce8f3;
   --orange:#ff8a3d; --success:#3fb56f; --success-text:#3ea86b;
   --gold-bg:#fff2e2; --gold-ring:#ffd9b0; --locked:#e6e8eb;
-  --ring-a:#bfe3ff; --ring-b:#6bb6f2; --water-a:#7cc0f5; --water-b:#3d8fd6;
+  --ring-a:#bfe3ff; --ring-b:#6bb6f2; --water-a:#6bb6f2; --water-b:#3d8fd6;
   --xp-bg:#e7f6ee; --glow:rgba(255,184,110,.30); --ray:rgba(255,184,110,.15);
   --shadow:0 8px 24px rgba(30,60,120,.06);
 }
@@ -25,7 +25,7 @@
   --text:#eaf2ff; --muted:#8ba0bd; --btn-text:#bcd8ff; --accent:#7cc4ff;
   --line:rgba(255,255,255,.08); --track:rgba(255,255,255,.08); --dot-off:rgba(255,255,255,.14);
   --gold-bg:#17233a; --gold-ring:rgba(255,170,90,.45); --locked:rgba(255,255,255,.10);
-  --ring-a:#8fd0ff; --ring-b:#3b6ef5; --water-a:#3b6ef5; --water-b:#142c6e;
+  --ring-a:#8fd0ff; --ring-b:#3b6ef5; --water-a:#3b6ef5; --water-b:#2a55c9;
   --xp-bg:rgba(63,181,111,.16); --glow:rgba(255,170,90,.13); --ray:rgba(255,170,90,.07);
   --shadow:0 8px 24px rgba(0,0,0,.3);
 }
@@ -196,7 +196,7 @@ button{font-family:inherit}
 .vb .c-lv .d{background:conic-gradient(#fff 0 var(--deg,40deg),rgba(255,255,255,.25) var(--deg,40deg) 360deg)}
 .vb .c-lv .d::after{background:var(--water-b)}
 .vb .c-btn{background:#fff;color:var(--water-b)}
-.dark .vb .c-btn{color:#142c6e}
+.dark .vb .c-btn{color:#2a55c9}
 .vb .c-link{color:#fff}
 .vb .c-dots i{background:rgba(255,255,255,.35)}
 .vb .c-dots i.on{background:#fff}
@@ -304,14 +304,14 @@ button{font-family:inherit}
   <div class="frame-wrap">
     <div class="frame-cap">A · Медаль</div>
     <div class="frame" id="f-a"><div class="ctx"></div><div class="cel va"></div></div>
-    <div class="frame-note"><b>Рекомендую.</b> Класика: медаль вистрибує в сяйві, краплі-конфеті, блиск. Читається за секунду, однаково працює для таємного
+    <div class="frame-note">Класика: медаль вистрибує в сяйві, краплі-конфеті, блиск. Читається за секунду, однаково працює для таємного
       («?» перевертається), пасхалки (яйце тріскається), кількох досягнень і рівня з призом. Тло — колір екрана, тож вікно не сперечається з водою кільця.</div>
   </div>
   <div class="frame-wrap">
-    <div class="frame-cap">B · Хвиля</div>
+    <div class="frame-cap">B · Хвиля — обрано 20.10.2026</div>
     <div class="frame" id="f-b"><div class="ctx"></div><div class="cel vb"></div></div>
-    <div class="frame-note">Найбільш «водяний»: екран заливає хвиля, досягнення спливає бульбашкою й лопається хвилями. Найсильніше відчуття «нарешті».
-      Ризик: та сама метафора «наливається вода», що й у кільця норми, — свято норми й свято досягнення можна сплутати; білий текст на градієнті — гірший контраст у темній темі.</div>
+    <div class="frame-note"><b>Обрано.</b> Найбільш «водяний»: екран заливає хвиля, досягнення спливає бульбашкою й лопається хвилями. Найсильніше відчуття «нарешті».
+      Фон — вода історій звіту й «Знань» (<code>WTStoryBackground</code> + <code>WTStoryWaves</code>), градієнт <code>ringEnd → waterDeep</code>, без нових кольорів. З кільцем норми не плутається: спершу доливається кільце, потім знизу піднімається вода на весь екран. Контраст білого тексту — пункт дизайн-приймання.</div>
   </div>
   <div class="frame-wrap">
     <div class="frame-cap">C · Вітрина</div>
