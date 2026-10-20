@@ -36,8 +36,9 @@ public struct LearnStoryScreen: View {
             .environment(\.wtLearnInk, WTLearnInk.of(model.style(at: index), theme: theme))
             .id("\(model.story.id).\(index)")
         }
-        // Досягнення за читання — тостом після закриття: поверх фінішу він ліг би на «Готово».
-        .onDisappear { model.announceUnlocks() }
+        // Досягнення за читання — вікном після закриття: поверх фінішу воно лягло б на «Готово».
+        .onAppear { model.appeared() }
+        .onDisappear { model.disappeared() }
         // Лише на вході у фініш: повернення з нього назад — не подія.
         .wtFeedback(trigger: model.isFinish) { $0 ? .goalReached : nil }
     }

@@ -91,6 +91,11 @@ public final class PrizeInventoryModel {
 
     // MARK: - Картка
 
+    /// Поки картка на екрані, вікно відкриття чекає: «Порятунок», «Подвійна гра» — після неї (SPEC-ACHIEVEMENTS §8.5).
+    /// Від появи самої картки, а не від `selected`: зник екран разом із карткою — пауза теж скінчилась.
+    func cardAppeared() { services.beginCelebrationPause(.prizeCard) }
+    func cardDisappeared() { services.endCelebrationPause(.prizeCard) }
+
     /// Відкриття картки стосу гасить його крапку «нове». Інвентар перечитується вже
     /// після закриття — під модалкою рядок не має змінюватись.
     public func select(_ selection: PrizeSelection?) {
@@ -139,8 +144,6 @@ public final class PrizeInventoryModel {
         }
         feedback = PrizeFeedback(serial: (feedback?.serial ?? 0) + 1, feedback: haptic)
         services.touch()
-        // «Порятунок», «Подвійна гра».
-        services.announceUnlocks()
         inventoryAtAction = inventory
         withAnimation(WTAnimation.toast) {
             success = confirmation

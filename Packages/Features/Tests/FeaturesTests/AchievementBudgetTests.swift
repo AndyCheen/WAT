@@ -27,11 +27,18 @@ final class AchievementBudgetTests: XCTestCase {
         XCTAssertLessThanOrEqual(days[0].count, firstDay, "день 1: \(days[0])", file: file, line: line)
         let all = days.flatMap { $0 }
         XCTAssertLessThanOrEqual(all.count, week, "тиждень: \(all)", file: file, line: line)
-        // Одна дія — одне свято: досягнення дії складаються в один тост (після WAT-60 §2 — у одне вікно).
+        // Одна дія — одне свято: досягнення дії складаються в одне вікно (SPEC-ACHIEVEMENTS §8.1). Відкриття
+        // застосунку — окрема подія: «Поки тебе не було» теж одним вікном. Вечірній погляд у «Прогрес» — кілька
+        // окремих дій (кожен вузол рівня), тож тут не рахується.
         for moment in simulation.moments {
-            let announcements = moment.signals.filter { $0.hasPrefix("тост") && $0.contains("🏅") }
-            XCTAssertLessThanOrEqual(announcements.count, 1, "д\(moment.day) \(moment.time): \(announcements)",
-                                     file: file, line: line)
+            for source in [FirstWeekSimulation.actionWindow, FirstWeekSimulation.openingWindow] {
+                let windows = moment.signals.filter { $0.hasPrefix(source) }
+                XCTAssertLessThanOrEqual(windows.count, 1, "д\(moment.day) \(moment.time) \(moment.action): \(windows)",
+                                         file: file, line: line)
+            }
         }
+        // Тихих досягнень немає: кожне відкриття — вікно.
+        let hidden = simulation.days.flatMap(\.hiddenAchievements)
+        XCTAssertTrue(hidden.isEmpty, "без вікна: \(hidden)", file: file, line: line)
     }
 }

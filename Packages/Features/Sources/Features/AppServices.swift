@@ -39,8 +39,13 @@ public final class AppServices {
     /// від півночі чи дії зі сповіщення у фоні: пропозиція графіка (WAT-41) — лише на відкритті.
     public private(set) var activation: Int = 0
 
-    /// Тост про досягнення, відкрите поза головним (`record(_:)`): показує `RootView` поверх будь-якого екрана.
-    public internal(set) var unlockAnnouncement: UnlockAnnouncement?
+    /// Вікно відкриття досягнень (WAT-60, SPEC-ACHIEVEMENTS §8): показує `RootView` поверх усього. Ставить і
+    /// знімає `AppServices+Achievements` — `presentCelebrations` / `dismissCelebration`.
+    public internal(set) var celebration: Celebration?
+    /// Що зараз не можна перекривати вікном: онбординг, шторка, звіт, історія «Знань»… (§8.5).
+    @ObservationIgnored var celebrationPauses: Set<CelebrationPause> = []
+    /// Показ, що чекає кінця паузи, — з контекстом і рівнем дії, яка його попросила.
+    @ObservationIgnored var deferredCelebration: (context: Celebration.Context, level: Int?)?
 
     /// Застосунок на екрані. Порція з дії сповіщення, поки його немає, — «поза застосунком»:
     /// розблокування від неї ніхто не побачить, тож потрібне відлуння (SPEC-NOTIFICATIONS §12.1).
@@ -128,8 +133,19 @@ public final class AppServices {
             profiles.setGoal(2000, source: .onboarding, effectiveFrom: calendar.today, at: calendar.now)
         }
         PresetPlace.allCases.forEach { _ = profiles.quickAddPresets($0) }
-        // Після оновлення досягнення відкриваються з історії — один тост на всі (SPEC-ACHIEVEMENTS-CATALOG §6).
-        announceUnlocks(keys: gamification.bootstrap())
+        // Перший запуск версії з вікном відкриття: усе відкрите раніше — відсвятковане (SPEC-ACHIEVEMENTS §8.5).
+        // До стартового перерахунку: відкрите ним з історії (нові умови) — вже після цієї дати й отримає одне вікно.
+        let isFirstCelebrationRun = profile.celebrationsSince == nil
+        if isFirstCelebrationRun {
+            profile.celebrationsSince = calendar.now
+            profiles.save()
+        }
+        gamification.bootstrap()
+        if isFirstCelebrationRun {
+            profile.highestCelebratedLevel = gamification.levelProgress().level
+            profiles.save()
+        }
+        presentCelebrations(context: .whileAway)
         notifications.bootstrap()
         notifications.contextProvider = { [unowned self] in self.makeNotificationContext() }
         publishedWidgetSnapshot = widgetStore.read()
@@ -158,6 +174,8 @@ public final class AppServices {
         notifications.recordInteraction(at: calendar.now)
         epoch &+= 1
         notifications.setNeedsReschedule()
+        // Порції з віджета, сповіщення й «Команд», завершений учорашній день — «Поки тебе не було» (§8.5).
+        presentCelebrations(context: .whileAway)
     }
 
     /// Застосунок іде у фон — план має бути актуальним до того, як iOS його призупинить:
@@ -172,6 +190,7 @@ public final class AppServices {
         refreshIfNewDay()
         epoch &+= 1
         notifications.setNeedsReschedule()
+        presentCelebrations(context: .whileAway)
     }
 
     /// Нова доба — нові щоденні завдання й перерахована серія. Свій `commit()`: це окрема
@@ -180,10 +199,9 @@ public final class AppServices {
         let today = calendar.today
         guard today != lastRefreshedDay else { return }
         lastRefreshedDay = today
-        // Нова доба завершила вчорашній день: «В яблучко», «Влучність», «Рівна крива» — тостом на відкритті.
-        let unlocked = gamification.refresh(at: calendar.now)
+        // Нова доба завершила вчорашній день: «В яблучко», «Влучність», «Рівна крива» — вікном на відкритті.
+        gamification.refresh(at: calendar.now)
         metrics.commit()
-        announceUnlocks(keys: unlocked)
     }
 
     public var profile: UserProfile { profiles.profile() }

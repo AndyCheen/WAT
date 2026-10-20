@@ -118,17 +118,18 @@ final class NotificationsFeatureTests: XCTestCase {
         XCTAssertEqual(context.goalMl, 2000)
     }
 
-    /// Шторка дозволу — після першої порції й після тоста, не замість нього (§16.5).
-    func testPermissionSheetFollowsFirstIntakeToast() async {
+    /// Шторка дозволу — після першої порції й після вікна відкриття, не замість нього (§16.5, WAT-60).
+    func testPermissionSheetFollowsFirstIntakeCelebration() async {
         center.status = .notDetermined
         await services.notifications.refreshAuthorization()
         let model = HomeViewModel(services: services)
 
         model.add(250)
-        XCTAssertNotNil(model.toast, "«Перша крапля»")
-        XCTAssertNil(model.sheet, "шторка не перекриває тост")
+        XCTAssertNotNil(services.celebration, "«Перша крапля»")
+        XCTAssertNil(model.sheet, "шторка не перекриває вікно")
 
-        model.dismissToast()
+        services.dismissCelebration()
+        model.celebrationDidClose()
         XCTAssertEqual(model.sheet?.id, HomeSheet.permission.id)
 
         model.postponeNotifications()

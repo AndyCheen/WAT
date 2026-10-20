@@ -71,7 +71,11 @@ extension AppServices {
         guard let result = hydration.addIntake(amountMl: Intake.clamp(ml), source: source) else { return nil }
         let unlocks = gamification.takeRecentUnlocks()
         lastWidgetAction = WidgetSnapshot.LastAction(intakeId: result.intakeId, ml: Intake.clamp(ml), at: now)
-        guard !isForeground else { return nil }
+        // На екрані («Команди» поверх застосунку, DEBUG-галерея) — вікно одразу: відкриття, що показало б його, не буде.
+        guard !isForeground else {
+            presentCelebrations(context: .whileAway)
+            return nil
+        }
         return EchoContent.make(unlocks: unlocks, levelBefore: levelBefore,
                                 levelAfter: gamification.levelProgress().level, intakeId: result.intakeId)
     }
@@ -85,6 +89,8 @@ extension AppServices {
                 await perform(.add(ml: ml, source: .widget)).value
             }
         }
+        // Дії біжать на старті, і відкриття застосунку могло статися раніше за порцію: вікно — тут.
+        presentCelebrations(context: .whileAway)
     }
 
     /// Тап по віджету — куди відкрити застосунок (§9.4).

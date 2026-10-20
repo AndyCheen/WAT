@@ -56,15 +56,14 @@ final class ReportViewModel {
     }
 
     /// Звіт дочитано до останнього слайда — «Історія тижня» / «Підсумки місяця» (SPEC-ACHIEVEMENTS-CATALOG §4.7).
-    /// Тост — після закриття (`ReportScreen`): поверх історії він ліг би на «Готово».
+    /// Вікно відкриття — після закриття (`CelebrationPause.report`): поверх історії воно сховало б «Готово».
     private func noteFinishedIfLastSlide() {
         guard !slides.isEmpty, slideIndex == slides.count - 1 else { return }
-        services.record(.reportFinished(period), announce: false)
+        services.record(.reportFinished(period))
     }
 
-    func announceUnlocks() {
-        services.announceUnlocks()
-    }
+    func appeared() { services.beginCelebrationPause(.report) }
+    func disappeared() { services.endCelebrationPause(.report) }
 
     private func restart() {
         withAnimation(WTAnimation.fade) {

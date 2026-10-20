@@ -121,9 +121,9 @@ final class LearnStoryModel {
         }
     }
 
-    func announceUnlocks() {
-        services.announceUnlocks()
-    }
+    /// Вікно відкриття — після історії: поверх фінішу воно сховало б «Готово» (`CelebrationPause.learnStory`).
+    func appeared() { services.beginCelebrationPause(.learnStory) }
+    func disappeared() { services.endCelebrationPause(.learnStory) }
 
     private func load(startSlide: Int?) {
         slides = LearnPresenter(context: services.learnContext()).slides(for: story)

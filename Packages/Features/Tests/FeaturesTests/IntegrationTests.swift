@@ -122,21 +122,20 @@ final class IntegrationTests: XCTestCase {
         XCTAssertEqual(model.history.count, 1, "порція повернулась в історію")
     }
 
-    /// Закриття норми має відгукнутися окремим пульсом, а не звичайним «додано».
-    /// Норма й новий рівень часто закриваються тією самою порцією — тоді виграє рівень,
-    /// бо це рідша подія, і до неї додається тост.
+    /// Закриття норми має відгукнутися окремим пульсом, а не звичайним «додано». Перша закрита норма відкриває
+    /// «Ціль дня» — тоді вібрує вікно відкриття (WAT-60), а без вікна норма важливіша за рівень (П2 аудиту WAT-29).
     func testClosingGoalRaisesItsOwnPulse() {
         let model = HomeViewModel(services: services)
-        for _ in 0..<3 { model.add(500) }
+        model.add(500)
+        XCTAssertEqual(model.pulse?.kind, .celebration, "«Перша крапля» — вікно")
+        services.dismissCelebration()
+        for _ in 0..<2 { model.add(500) }
         XCTAssertEqual(model.pulse?.kind, .added(500), "норма ще не закрита")
-        model.dismissToast() // тост «Першої краплі» від першої порції
 
         model.add(500)
-        if case .levelUp = model.pulse?.kind {
-            XCTAssertNotNil(model.toast, "разом з нормою піднявся рівень — має бути тост")
-        } else {
-            XCTAssertEqual(model.pulse?.kind, .goalReached, "четверта порція закрила норму")
-        }
+        XCTAssertEqual(model.pulse?.kind, .celebration, "перша норма — «Ціль дня»")
+        XCTAssertEqual(services.celebration?.pages.map(\.title), ["Ціль дня"])
+        services.dismissCelebration()
 
         model.add(500)
         XCTAssertNotEqual(model.pulse?.kind, .goalReached, "повторно норму не «закривають»")

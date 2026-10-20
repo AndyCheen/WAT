@@ -12,7 +12,6 @@ public struct HomeScreen: View {
     private let onOpenProgress: () -> Void
     private let onOpenLevelRoad: () -> Void
     private let onOpenStats: () -> Void
-    private let onOpenAchievements: () -> Void
     private let onOpenPrize: (String) -> Void
     /// `nil` — бібліотека «Знань», інакше одразу історія (контекстний вхід з календаря серії).
     private let onOpenLearn: (String?) -> Void
@@ -25,7 +24,6 @@ public struct HomeScreen: View {
         onOpenProgress: @escaping () -> Void,
         onOpenLevelRoad: @escaping () -> Void = {},
         onOpenStats: @escaping () -> Void,
-        onOpenAchievements: @escaping () -> Void,
         onOpenPrize: @escaping (String) -> Void = { _ in },
         onOpenLearn: @escaping (String?) -> Void = { _ in },
         isOnTop: @escaping () -> Bool = { true }
@@ -36,7 +34,6 @@ public struct HomeScreen: View {
         self.onOpenProgress = onOpenProgress
         self.onOpenLevelRoad = onOpenLevelRoad
         self.onOpenStats = onOpenStats
-        self.onOpenAchievements = onOpenAchievements
         self.onOpenPrize = onOpenPrize
         self.onOpenLearn = onOpenLearn
         self.isOnTop = isOnTop
@@ -72,12 +69,16 @@ public struct HomeScreen: View {
             }
         }
         .onAppear {
-            model.onOpenAchievements = onOpenAchievements
             model.onOpenPrize = onOpenPrize
             model.onOpenLevelRoad = onOpenLevelRoad
             model.reload()
         }
+        // Під іншим екраном таймер тоста стоїть, а тост тримав би вікно відкриття (`CelebrationPause.homeToast`).
+        .onDisappear { model.dismissToastSilently() }
         .onChange(of: model.epoch) { model.reload() }
+        .onChange(of: services.celebration == nil) { _, closed in
+            if closed { model.celebrationDidClose() }
+        }
         // Тап по сповіщенню просить шторку «Інше» з типовою порцією чи картку досягнення.
         .onChange(of: services.router.pendingHomeIntent, initial: true) {
             if let intent = services.router.takeHomeIntent() { model.apply(intent) }
@@ -94,7 +95,9 @@ public struct HomeScreen: View {
             case .added: return .add
             case .goalReached: return .goalReached
             case .levelUp: return .levelUp
-            case .achievementUnlocked: return .goalReached
+            // Вікно відкриття вібрує саме, у мить появи: дві вібрації на одну дію — шум.
+            case .celebration: return nil
+            case .gift: return .achievement
             case .removed: return .remove
             case .capped: return .tap
             case nil: return nil
@@ -157,6 +160,8 @@ public struct HomeScreen: View {
                     )
                 }
                 .buttonStyle(WTPressStyle())
+                // Крапка «нове» — і для VoiceOver: відсвятковане вікном її не запалює (WAT-60, SPEC-ACHIEVEMENTS §8.3).
+                .accessibilityValue(model.hasNewAchievements ? "є нове" : "")
                 .accessibilityIdentifier("home.level")
             }
         }

@@ -243,6 +243,8 @@ struct PrizeDetailModal: View {
                 onClose: { model.select(nil) }
             )
         }
+        .onAppear { model.cardAppeared() }
+        .onDisappear { model.cardDisappeared() }
         .zIndex(10)
     }
 }
