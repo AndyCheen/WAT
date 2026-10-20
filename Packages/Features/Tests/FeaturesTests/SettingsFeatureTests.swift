@@ -40,4 +40,14 @@ final class SettingsFeatureTests: XCTestCase {
         XCTAssertEqual(services.profile.themeMode, .dark)
         XCTAssertFalse(services.profile.hapticsEnabled)
     }
+
+    /// «Темна сторона» — лише вибір «Темна» тут (WAT-60): «Як у системі» його не дає, навіть у темній системі.
+    func testDarkSideIsTheChoiceNotTheSystem() {
+        let settings = SettingsModel(services: services)
+        let dark = { self.services.gamification.achievementSnapshots().first { $0.key == "discover.dark" }?.isUnlocked }
+        settings.setThemeMode(.system)
+        XCTAssertEqual(dark(), false)
+        settings.setThemeMode(.dark)
+        XCTAssertEqual(dark(), true)
+    }
 }

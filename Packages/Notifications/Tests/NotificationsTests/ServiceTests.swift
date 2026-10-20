@@ -186,20 +186,29 @@ final class NotificationServiceTests: XCTestCase {
         XCTAssertTrue(metrics.events(.dayGoalAhead).isEmpty)
     }
 
-    /// «Вчасно» — норма після доставленого порятунку серії.
+    /// «Вчасно» — норма після доставленого вечірнього порятунку серії.
     func testGoalAfterRescueIsRescued() async {
-        store.insert(NotificationLog(identifier: "wt.rescue.2026-10-01.2000", type: .rescue, slot: "2000",
+        store.insert(NotificationLog(identifier: "wt.rescue.2026-10-01.pm", type: .rescue, slot: "pm",
                                      dayKey: "2026-10-01", fireAt: Fixture.date(20), plannedAt: Fixture.date(7),
                                      variant: 0))
         goalMet(at: Fixture.date(19, 30))
         XCTAssertTrue(metrics.events(.streakRescued).isEmpty, "порятунок ще не прийшов")
 
-        let other = NotificationLog(identifier: "wt.rescue.2026-10-02.2000", type: .rescue, slot: "2000",
+        let other = NotificationLog(identifier: "wt.rescue.2026-10-02.pm", type: .rescue, slot: "pm",
                                     dayKey: "2026-10-02", fireAt: Fixture.date(day: 2, 20), plannedAt: Fixture.date(7),
                                     variant: 0)
         store.insert(other)
         goalMet(at: Fixture.date(day: 2, 20, 30))
         XCTAssertEqual(metrics.events(.streakRescued).count, 1)
+    }
+
+    /// Ранковий порятунок «Вчасно» не дає (WAT-60): він про вчорашній пропуск, а норма після нього — звичайний день.
+    func testMorningRescueIsNotRescued() async {
+        store.insert(NotificationLog(identifier: "wt.rescue.2026-10-01.am", type: .rescue, slot: "am",
+                                     dayKey: "2026-10-01", fireAt: Fixture.date(9), plannedAt: Fixture.date(7),
+                                     variant: 0))
+        goalMet(at: Fixture.date(19, 30))
+        XCTAssertTrue(metrics.events(.streakRescued).isEmpty)
     }
 
     /// «На звʼязку» — дозвіл записується раз, хоч перепланувань багато.

@@ -300,14 +300,16 @@ public final class NotificationService: MetricsSubscriber {
         ))
     }
 
-    /// Норму закрито: чи після «порятунку серії» («Вчасно») і чи без жодного нагадування («На крок попереду»).
+    /// Норму закрито: чи після вечірнього «порятунку серії» («Вчасно») і чи без жодного нагадування («На крок
+    /// попереду»). Ранковий порятунок «Вчасно» не дає (WAT-60): він приходить після вчорашнього пропуску, і норма
+    /// після нього — звичайний день, а не «встиг до опівночі».
     /// Ref — той самий, що в `day.goalMet`: норму відкотили — відкотились і ці події.
     private func noteGoalMet(_ event: RecordedMetricEvent) {
         let at = event.occurredAt
         let today = store.logs(firingFrom: calendar.startOfDay(at), to: at.addingTimeInterval(1))
             .filter { $0.dayKey == event.dayKey && $0.fireAt <= at && $0.cancelledAt == nil }
 
-        if today.contains(where: { $0.type == .rescue }) {
+        if today.contains(where: { $0.type == .rescue && $0.slot == "pm" }) {
             metrics.record(MetricEvent(name: .streakRescued, value: 1, occurredAt: at, sourceRef: event.sourceRef))
         }
 
