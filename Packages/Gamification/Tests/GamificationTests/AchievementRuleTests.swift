@@ -173,21 +173,31 @@ final class AchievementRuleTests: XCTestCase {
 
     // MARK: - Ритм дня (§4.4)
 
+    /// Один ранок випадає випадково — потрібно 10, а «Ранок, день і вечір» — 3 дні (WAT-60).
     func testMorningGoalAndAllThreeBlocks() {
         let env = GameEnv()
-        env.drink(1000, on: "2026-07-20", hour: 9)
+        env.clock.set(GameEnv.date("2026-08-01", hour: 23))
+        let days = env.days(from: "2026-07-20", to: "2026-07-29")
+        for day in days.dropLast() { env.drink(1000, on: day, hour: 9) }
+        XCTAssertFalse(env.isUnlocked("rhythm.morning"))
+        XCTAssertEqual(env.achievement("rhythm.morning")?.value, 9)
+        env.drink(1000, on: days[9], hour: 9)
         XCTAssertTrue(env.isUnlocked("rhythm.morning"))
-        XCTAssertFalse(env.isUnlocked("rhythm.allThree"))
-        env.drink(1000, on: "2026-07-20", hour: 14)
-        env.drink(1000, on: "2026-07-20", hour: 19)
+
+        for (index, day) in days.prefix(3).enumerated() {
+            XCTAssertFalse(env.isUnlocked("rhythm.allThree"), "\(index) з 3")
+            env.drink(1000, on: day, hour: 14)
+            env.drink(1000, on: day, hour: 19)
+        }
         XCTAssertTrue(env.isUnlocked("rhythm.allThree"))
     }
 
     /// Вимкнений «Ритм дня»: замкнене з підписом, не рахується; відкрите раніше не забирається (§4.4).
     func testDayRhythmGateLocksWithCaptionAndKeepsUnlocked() {
         let env = GameEnv()
+        env.clock.set(GameEnv.date("2026-08-01", hour: 23))
         env.profiles.profile().dayRhythmEnabled = false
-        env.drink(1000, on: "2026-07-20", hour: 9)
+        for day in env.days(from: "2026-07-20", to: "2026-07-29") { env.drink(1000, on: day, hour: 9) }
         XCTAssertFalse(env.isUnlocked("rhythm.morning"))
         let locked = env.achievement("rhythm.morning")
         XCTAssertEqual(locked?.lockedCaption, "Увімкни «Ритм дня» в налаштуваннях")
@@ -195,7 +205,7 @@ final class AchievementRuleTests: XCTestCase {
         XCTAssertNil(env.achievement("rhythm.even90")?.lockedCaption, "«Рівномірність» від перемикача не залежить")
 
         env.profiles.profile().dayRhythmEnabled = true
-        env.drink(200, on: "2026-07-20", hour: 10)
+        env.drink(200, on: "2026-07-30", hour: 10)
         XCTAssertTrue(env.isUnlocked("rhythm.morning"), "увімкнули — рахується з наступної дії")
 
         env.profiles.profile().dayRhythmEnabled = false
@@ -218,7 +228,7 @@ final class AchievementRuleTests: XCTestCase {
 
     func testResponsiveCountsQuickResponses() {
         let env = GameEnv()
-        for _ in 0..<9 {
+        for _ in 0..<29 {
             env.metrics.record(MetricEvent(name: .reminderQuick, value: 1, occurredAt: env.clock.now, sourceRef: UUID()))
         }
         XCTAssertFalse(env.isUnlocked("rhythm.responsive"))
@@ -237,21 +247,25 @@ final class AchievementRuleTests: XCTestCase {
         XCTAssertTrue(env.isUnlocked("rhythm.quietEvening"), "норма о 19:30 — за 2,5 год до відбою о 22:00")
     }
 
-    /// «Рівна крива» — бал завершеного дня: сьогоднішній ще може змінитись.
+    /// «Рівна крива» — 7 завершених днів від 90 (WAT-60), «Ідеальна» — найкращий день; сьогоднішній ще може
+    /// змінитись. Лише будні: у вихідні інший розклад, і та сама крива вже не ідеальна.
     func testEvennessCountsFinishedDays() {
         let env = GameEnv()
-        env.clock.set(GameEnv.date("2026-07-20", hour: 23))
+        env.clock.set(GameEnv.date("2026-07-21", hour: 23))
         let shares = DaySchedule.weekdayDefault.curve(goalMl: 2000).partShares()
         let hours: [DayPart: Int] = [.morning: 8, .noon: 10, .afternoon: 14, .evening: 19]
-        for (part, hour) in hours where shares[part.rawValue] > 0 {
-            env.drink(Int((2000 * shares[part.rawValue]).rounded()), on: "2026-07-20", hour: hour, minute: 30)
+        let weekdays = env.days(from: "2026-07-13", to: "2026-07-17") + ["2026-07-20", "2026-07-21"]
+        for day in weekdays {
+            for (part, hour) in hours where shares[part.rawValue] > 0 {
+                env.drink(Int((2000 * shares[part.rawValue]).rounded()), on: day, hour: hour, minute: 30)
+            }
         }
-        XCTAssertFalse(env.isUnlocked("rhythm.even90"), "день ще триває")
-
-        env.clock.set(GameEnv.date("2026-07-21", hour: 9))
-        env.drink(200, on: "2026-07-21", hour: 9)
-        XCTAssertTrue(env.isUnlocked("rhythm.even90"))
+        XCTAssertFalse(env.isUnlocked("rhythm.even90"), "6 завершених — сьогоднішній ще триває")
         XCTAssertTrue(env.isUnlocked("rhythm.even97"))
+
+        env.clock.set(GameEnv.date("2026-07-22", hour: 9))
+        env.drink(200, on: "2026-07-22", hour: 9)
+        XCTAssertTrue(env.isUnlocked("rhythm.even90"))
     }
 
     // MARK: - Статистика (§4.5)
@@ -259,9 +273,15 @@ final class AchievementRuleTests: XCTestCase {
     func testAccuracyAndBullseyeLookAtFinishedDays() {
         let env = GameEnv()
         env.clock.set(GameEnv.date("2026-07-25", hour: 23))
-        for day in env.days(from: "2026-07-20", to: "2026-07-24") { env.drink(2050, on: day) }
-        env.drink(2000, on: "2026-07-25")
+        let accurate = env.days(from: "2026-07-10", to: "2026-07-19")
+        for day in accurate.dropLast() { env.drink(2050, on: day) }
+        XCTAssertFalse(env.isUnlocked("stats.accuracy"), "9 днів із 10")
+        env.drink(2050, on: accurate[9])
         XCTAssertTrue(env.isUnlocked("stats.accuracy"))
+
+        env.drink(2000, on: "2026-07-22")
+        env.drink(2000, on: "2026-07-23")
+        env.drink(2000, on: "2026-07-25")
         XCTAssertFalse(env.isUnlocked("stats.bullseye"), "рівно норма сьогодні — день ще не закінчився")
         XCTAssertEqual(env.achievement("stats.bullseye")?.title, "???")
 
@@ -311,9 +331,11 @@ final class AchievementRuleTests: XCTestCase {
     func testDatesAndSkyEvents() {
         let env = GameEnv()
         env.clock.set(GameEnv.date("2028-12-31", hour: 9))
-        env.drink(200, on: "2026-07-20")
+        env.goalDay("2026-07-20")
         XCTAssertFalse(env.isUnlocked("special.fullMoon"), "20 липня 2026 — не повня")
         env.drink(200, on: "2026-07-29")
+        XCTAssertFalse(env.isUnlocked("special.fullMoon"), "порція в повню — ще не норма (WAT-60)")
+        env.goalDay("2026-07-29")
         XCTAssertTrue(env.isUnlocked("special.fullMoon"), "повня 29 липня 2026, 17:37 за Києвом")
 
         env.goalDay("2026-06-21")
@@ -358,14 +380,36 @@ final class AchievementRuleTests: XCTestCase {
         XCTAssertEqual(env.achievement("egg.pi")?.isUnlocked, true)
         XCTAssertFalse(env.isUnlocked("special.halfFull"), "до 12:00 — 350 мл")
         for hour in 14...17 { env.drink(250, on: "2026-07-20", hour: hour) }
+        XCTAssertEqual(env.progressValue("special.eightGlasses"), 1, "8 порцій — перший день із восьми")
+    }
+
+    /// «Вісім на вісім» — 8 днів по 8 порцій (WAT-60): один такий день дрібнить воду випадково.
+    func testEightByEight() {
+        let env = GameEnv()
+        env.clock.set(GameEnv.date("2026-08-01", hour: 23))
+        let days = env.days(from: "2026-07-20", to: "2026-07-27")
+        for day in days {
+            XCTAssertFalse(env.isUnlocked("special.eightGlasses"), day)
+            for hour in 9...16 { env.drink(250, on: day, hour: hour) }
+        }
         XCTAssertTrue(env.isUnlocked("special.eightGlasses"))
+
+        let seven = GameEnv()
+        seven.clock.set(GameEnv.date("2026-08-01", hour: 23))
+        for day in days { for hour in 9...15 { seven.drink(250, on: day, hour: hour) } }
+        XCTAssertEqual(seven.progressValue("special.eightGlasses"), 0, "по 7 порцій — жодного дня")
     }
 
     func testHalfGoalBeforeNoon() {
         let env = GameEnv()
-        env.drink(600, on: "2026-07-20", hour: 8)
-        env.drink(400, on: "2026-07-20", hour: 11, minute: 59)
-        XCTAssertTrue(env.isUnlocked("special.halfFull"))
+        env.clock.set(GameEnv.date("2026-08-01", hour: 23))
+        let days = env.days(from: "2026-07-20", to: "2026-07-24")
+        for day in days {
+            XCTAssertFalse(env.isUnlocked("special.halfFull"), day)
+            env.drink(600, on: day, hour: 8)
+            env.drink(400, on: day, hour: 11, minute: 59)
+        }
+        XCTAssertTrue(env.isUnlocked("special.halfFull"), "5 днів")
     }
 
     /// Паліндром і «Як дві краплі води» — лише завершені дні: доливання не має їх зіпсувати.
@@ -437,8 +481,36 @@ final class AchievementRuleTests: XCTestCase {
         XCTAssertTrue(env.isUnlocked("level.10"))
 
         for hour in [9, 11, 13, 15] { env.drink(500, on: "2026-07-18", hour: hour) }
+        XCTAssertFalse(env.isUnlocked("quest.first"), "щоденні завдання «Тижневої мети» не дають (WAT-60)")
+        XCTAssertEqual(env.progressValue("quest.allDaily"), 1, "норма й 4 записи — обидва щоденні, день 1 з 10")
+    }
+
+    /// «Тижнева мета» — перше тижневе завдання: «Випити норму 5 днів» (WAT-60).
+    func testWeeklyGoalOpensWithTheFirstWeeklyQuest() {
+        let env = GameEnv()
+        let week = env.days(from: "2026-07-13", to: "2026-07-17")
+        for day in week.dropLast() { env.goalDay(day) }
+        XCTAssertFalse(env.isUnlocked("quest.first"))
+        XCTAssertEqual(env.metrics.events(.weeklyQuestCompleted).count, 0)
+
+        env.goalDay(week[4])
         XCTAssertTrue(env.isUnlocked("quest.first"))
-        XCTAssertTrue(env.isUnlocked("quest.allDaily"), "норма й 4 записи — обидва щоденні")
+        XCTAssertEqual(env.achievement("quest.first")?.title, "Тижнева мета")
+        XCTAssertEqual(env.metrics.events(.weeklyQuestCompleted).count, 1)
+    }
+
+    /// «Без хвостів» — 10 днів, коли виконано всі щоденні завдання (WAT-60).
+    func testNoTailsNeedsTenDays() {
+        let env = GameEnv()
+        env.clock.set(GameEnv.date("2026-07-30", hour: 23))
+        let days = env.days(from: "2026-07-20", to: "2026-07-29")
+        for day in days {
+            XCTAssertFalse(env.isUnlocked("quest.allDaily"), day)
+            env.clock.set(GameEnv.date(day, hour: 16))
+            for hour in [9, 11, 13, 15] { env.drink(500, on: day, hour: hour) }
+        }
+        XCTAssertTrue(env.isUnlocked("quest.allDaily"))
+        XCTAssertEqual(env.achievement("quest.allDaily")?.title, "Без хвостів")
     }
 
     func testBoostAndGoalOnTheSameDay() {

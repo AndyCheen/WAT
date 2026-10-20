@@ -123,8 +123,12 @@ public enum QuestCatalog {
 /// Ключі наявних семи (`first.drop`, `day.goal`, `big.gulp`, `streak.3/7/30`, `marathon`) не змінюються,
 /// навіть коли змінилась назва чи опис: за ключем зберігається прогрес. XP — від складності
 /// (`AchievementDifficulty.rewardXp`), остаточні числа — WAT-25. «Бульк!» 🫧 — пізніше (§8).
+///
+/// Перебалансування першого тижня — WAT-60 (§10): у перший день 1–2 досягнення, кожне — віха, якої людина досягла
+/// сама. Знятим — `retired: true`, а не видалення: хто вже має, той бачить. Нові досягнення — лише такі, що
+/// відкриваються не раніше 2-го тижня; межі тримає `AchievementBudgetTests` у Features.
 public enum AchievementCatalog {
-    /// §4.1 💧 Вода — 14. Об'єм лише зарахований (стеля 120 %): перепивання драбину не пришвидшує.
+    /// §4.1 💧 Вода — 12 і 2 зняті. Об'єм лише зарахований (стеля 120 %): перепивання драбину не пришвидшує.
     static let water: [AchievementDefinition] = [
         .init(key: "first.drop", title: "Перша крапля", details: "Перший запис води", emoji: "💧",
               category: .water, difficulty: .easy, rule: .metric(MetricRule(key: .intakeCount)), target: 1),
@@ -136,9 +140,9 @@ public enum AchievementCatalog {
         .init(key: "volume.1l", title: "Глечик", details: "1 л води загалом",
               volumeDetails: { "\($0) води загалом" }, emoji: "🏺",
               category: .water, difficulty: .easy, rule: .history(.countedMl), target: 1000, retired: true),
-        .init(key: "volume.10l", title: "Відро", details: "10 л води загалом",
+        .init(key: "volume.10l", title: "Відро", details: "20 л води загалом",
               volumeDetails: { "\($0) води загалом" }, emoji: "🪣",
-              category: .water, difficulty: .easy, rule: .history(.countedMl), target: 10_000),
+              category: .water, difficulty: .easy, rule: .history(.countedMl), target: 20_000),
         .init(key: "volume.50l", title: "Акваріум", details: "50 л води загалом",
               volumeDetails: { "\($0) води загалом" }, emoji: "🐠",
               category: .water, difficulty: .medium, rule: .history(.countedMl), target: 50_000),
@@ -192,6 +196,8 @@ public enum AchievementCatalog {
               emoji: "🌊", category: .streak, difficulty: .medium, rule: .history(.secondWave(minStreak: 7)), target: 7),
         .init(key: "comeback.again", title: "Знову тут", details: "3 дні поспіль із нормою після перерви 7+ днів",
               emoji: "🌤️", category: .streak, difficulty: .medium, rule: .history(.backAfterBreak(breakDays: 7)), target: 3),
+        // Лише вечірній порятунок (WAT-60): ранковий приходить, коли вчора пропущено, і норма після нього —
+        // звичайний день, а не «встиг до опівночі». Розрізняє `NotificationService.noteGoalMet`.
         .init(key: "comeback.rescue", title: "Вчасно", details: "Норма закрита після вечірнього «порятунку серії»",
               emoji: "🛟", category: .streak, difficulty: .easy, rule: .count(.streakRescued), target: 1,
               gate: .notifications),
@@ -234,10 +240,11 @@ public enum AchievementCatalog {
     /// §4.4 🌅 Ритм дня — 10. Цілі — блоки `GoalBlock`, ті самі, що в капсулі, XP і «Рівномірності»;
     /// підйом і відбій — зі знімка дня.
     static let dayRhythm: [AchievementDefinition] = [
-        .init(key: "rhythm.morning", title: "Добрий ранок", details: "Закрито ціль ранку", emoji: "🌅",
-              category: .dayRhythm, difficulty: .easy, rule: .history(.morningGoalDays), target: 1, gate: .dayRhythm),
-        .init(key: "rhythm.allThree", title: "Ранок, день і вечір", details: "За день закрито всі три цілі", emoji: "🌈",
-              category: .dayRhythm, difficulty: .easy, rule: .history(.allBlocksDays), target: 1, gate: .dayRhythm),
+        .init(key: "rhythm.morning", title: "Добрий ранок", details: "10 днів із закритою ціллю ранку", emoji: "🌅",
+              category: .dayRhythm, difficulty: .medium, rule: .history(.morningGoalDays), target: 10, gate: .dayRhythm),
+        .init(key: "rhythm.allThree", title: "Ранок, день і вечір", details: "3 дні, коли закрито всі три цілі",
+              emoji: "🌈", category: .dayRhythm, difficulty: .easy, rule: .history(.allBlocksDays), target: 3,
+              gate: .dayRhythm),
         .init(key: "rhythm.week", title: "Тиждень у ритмі", details: "7 днів, коли закрито всі три цілі", emoji: "🎼",
               category: .dayRhythm, difficulty: .medium, rule: .history(.allBlocksDays), target: 7, gate: .dayRhythm),
         .init(key: "rhythm.month", title: "Місяць у ритмі", details: "30 днів, коли закрито всі три цілі", emoji: "🎻",
@@ -250,16 +257,16 @@ public enum AchievementCatalog {
               emoji: "🌙", category: .dayRhythm, difficulty: .medium,
               rule: .history(.quietEveningDays(minutesBeforeSleep: 120)), target: 10),
         // «Рівномірність за день» рахується й без «Ритму дня», тож від перемикача не залежить.
-        .init(key: "rhythm.even90", title: "Рівна крива", details: "«Рівномірність за день» — 90 зі 100", emoji: "〰️",
-              category: .dayRhythm, difficulty: .medium, rule: .history(.bestEvenness), target: 90),
+        .init(key: "rhythm.even90", title: "Рівна крива", details: "7 днів із «Рівномірністю за день» від 90",
+              emoji: "〰️", category: .dayRhythm, difficulty: .medium, rule: .history(.evennessDays(min: 90)), target: 7),
         .init(key: "rhythm.even97", title: "Ідеальна крива", details: "«Рівномірність за день» — 97 зі 100", emoji: "📐",
               category: .dayRhythm, difficulty: .hard, rule: .history(.bestEvenness), target: 97),
-        .init(key: "rhythm.responsive", title: "Чуйність", details: "10 порцій за 15 хв після нагадування", emoji: "⏰",
-              category: .dayRhythm, difficulty: .medium, rule: .count(.reminderQuick), target: 10, gate: .notifications),
+        .init(key: "rhythm.responsive", title: "Чуйність", details: "30 порцій за 15 хв після нагадування", emoji: "⏰",
+              category: .dayRhythm, difficulty: .medium, rule: .count(.reminderQuick), target: 30, gate: .notifications),
         // Нагадування «відстаєш» не прийшло, бо весь день попереду кривої. Рахуються лише дні з увімкненими
         // нагадуваннями — інакше досягнення дісталося б задарма (подію пише `NotificationService`).
-        .init(key: "rhythm.ahead", title: "На крок попереду", details: "7 днів із нормою без жодного нагадування",
-              emoji: "🏃", category: .dayRhythm, difficulty: .medium, rule: .count(.dayGoalAhead), target: 7,
+        .init(key: "rhythm.ahead", title: "На крок попереду", details: "10 днів із нормою без жодного нагадування",
+              emoji: "🏃", category: .dayRhythm, difficulty: .medium, rule: .count(.dayGoalAhead), target: 10,
               gate: .notifications)
     ]
 
@@ -272,11 +279,11 @@ public enum AchievementCatalog {
               details: "14 днів обліку — «Типова доба» вже показує твій ритм", emoji: "🧬",
               category: .stats, difficulty: .medium, rule: .history(.activeDays), target: 14),
         // Єдине досягнення, що прямо заохочує не перебирати.
-        .init(key: "stats.accuracy", title: "Влучність", details: "5 днів, коли випито 100–105 % норми", emoji: "🏹",
+        .init(key: "stats.accuracy", title: "Влучність", details: "10 днів, коли випито 100–105 % норми", emoji: "🏹",
               category: .stats, difficulty: .medium, rule: .history(.accurateDays(fromPercent: 100, toPercent: 105)),
-              target: 5),
-        .init(key: "stats.bullseye", title: "В яблучко", details: "Рівно норма, до мілілітра", emoji: "🍎",
-              category: .stats, difficulty: .easy, rule: .history(.exactGoalDays), target: 1,
+              target: 10),
+        .init(key: "stats.bullseye", title: "В яблучко", details: "3 дні рівно норма, до мілілітра", emoji: "🍎",
+              category: .stats, difficulty: .medium, rule: .history(.exactGoalDays), target: 3,
               secrecy: .hint("Ні краплі зайвої")),
         .init(key: "stats.greenMonth", title: "Зелений місяць", details: "20+ днів із нормою за календарний місяць",
               emoji: "🟩", category: .stats, difficulty: .medium, rule: .history(.bestMonthGoalDays), target: 20),
@@ -285,7 +292,7 @@ public enum AchievementCatalog {
               emoji: "🗓️", category: .stats, difficulty: .hard, rule: .history(.perfectMonths), target: 1)
     ]
 
-    /// §4.6 ⭐ Гра — 17. Рівні — лише віхи; емодзі призів (🧊 ⚡ 🌟 🎁) свідомо не беремо — досягнення читалось би
+    /// §4.6 ⭐ Гра — 15 і 2 зняті. Рівні — лише віхи, з 10-го: у рівня є своє свято; емодзі призів (🧊 ⚡ 🌟 🎁) свідомо не беремо — досягнення читалось би
     /// як предмет. «Усе зібрано» — окремо, у `all`: його ціль рахується з каталогу.
     static let game: [AchievementDefinition] = [
         .init(key: "level.5", title: "Струмок", details: "Рівень 5", emoji: "💦",
@@ -298,10 +305,11 @@ public enum AchievementCatalog {
               category: .game, difficulty: .hard, rule: .level, target: 30),
         .init(key: "level.50", title: "Блакитна планета", details: "Рівень 50", emoji: "🌍",
               category: .game, difficulty: .legendary, rule: .level, target: 50),
-        .init(key: "quest.first", title: "Перше завдання", details: "Виконано перше завдання", emoji: "📋",
-              category: .game, difficulty: .easy, rule: .count(.questCompleted), target: 1),
-        .init(key: "quest.allDaily", title: "Усе на сьогодні", details: "Виконано всі щоденні завдання за день",
-              emoji: "✅", category: .game, difficulty: .easy, rule: .count(.questsAllDaily), target: 1),
+        // Ключ — від «Першого завдання» (WAT-60): хто його вже має, лишається з «Тижневою метою».
+        .init(key: "quest.first", title: "Тижнева мета", details: "Виконано перше тижневе завдання", emoji: "📋",
+              category: .game, difficulty: .easy, rule: .count(.weeklyQuestCompleted), target: 1),
+        .init(key: "quest.allDaily", title: "Без хвостів", details: "10 днів, коли виконано всі щоденні завдання",
+              emoji: "✅", category: .game, difficulty: .medium, rule: .count(.questsAllDaily), target: 10),
         .init(key: "quest.100", title: "Сотня завдань", details: "Виконано 100 завдань", emoji: "🗂️",
               category: .game, difficulty: .medium, rule: .count(.questCompleted), target: 100),
         .init(key: "boost.goal", title: "Подвійна гра", details: "Активний буст і закрита норма того ж дня",
@@ -323,7 +331,7 @@ public enum AchievementCatalog {
               category: .game, difficulty: .hard, rule: .collection(.all), target: 50)
     ]
 
-    /// §4.7 🧭 Відкриття — 18 (три останні — за розділ «Знання», SPEC-LEARN §7). Разові, з малим XP, кожне вчить однієї функції. Заднім числом не відновлюються:
+    /// §4.7 🧭 Відкриття — 15 і 3 зняті (три останні — за розділ «Знання», SPEC-LEARN §7). Разові, з малим XP, кожне вчить однієї функції. Заднім числом не відновлюються:
     /// дій раніше не записували — окрім джерел порцій, вибору на шляху рівнів і прийнятого графіка.
     static let discovery: [AchievementDefinition] = [
         .init(key: "discover.custom", title: "Своя мірка", details: "Порція власного обʼєму через «Інше»", emoji: "✍️",
@@ -358,7 +366,8 @@ public enum AchievementCatalog {
               emoji: "📚", category: .discovery, difficulty: .medium, rule: .count(.monthReportFinished), target: 1),
         .init(key: "discover.pastDay", title: "Погляд у минуле", details: "Відкрито минулий день у календарі",
               emoji: "🔍", category: .discovery, difficulty: .easy, rule: .count(.pastDayOpened), target: 1),
-        .init(key: "discover.dark", title: "Темна сторона", details: "Застосунок у темній темі", emoji: "🌓",
+        // Лише вибір у налаштуваннях (WAT-60): системна тема — дія системи, а не людини.
+        .init(key: "discover.dark", title: "Темна сторона", details: "Темну тему обрано в налаштуваннях", emoji: "🌓",
               category: .discovery, difficulty: .easy, rule: .count(.darkTheme), target: 1),
         // Таємне, бо вікно «Графік дня» з'являється не в кожного: відкрите заздалегідь, воно висіло б недосяжним.
         .init(key: "discover.rhythm", title: "Свій ритм", details: "Прийнято пропозицію графіка дня", emoji: "🧭",
@@ -389,10 +398,11 @@ public enum AchievementCatalog {
         .init(key: "special.anniversary", title: "Рік разом", details: "Рік від першої порції — і цього дня є порція",
               emoji: "🎂", category: .special, difficulty: .legendary, rule: .history(.anniversary), target: 1),
         // Правило «8 склянок на день» не має наукового підґрунтя (Valtin, 2002) — досягнення з усмішкою.
-        .init(key: "special.eightGlasses", title: "Вісім склянок", details: "8 порцій за день. «8 склянок» — міф, але гарний",
-              emoji: "🥛", category: .special, difficulty: .easy, rule: .history(.bestEntriesInDay), target: 8),
-        .init(key: "special.halfFull", title: "Склянка наполовину повна", details: "Пів норми до 12:00", emoji: "🫗",
-              category: .special, difficulty: .easy, rule: .history(.halfGoalBeforeNoonDays), target: 1),
+        .init(key: "special.eightGlasses", title: "Вісім на вісім",
+              details: "8 днів по 8 порцій. «8 склянок» — міф, але гарний", emoji: "🥛",
+              category: .special, difficulty: .medium, rule: .history(.daysWithEntries(min: 8)), target: 8),
+        .init(key: "special.halfFull", title: "Склянка наполовину повна", details: "5 днів, коли до 12:00 випито пів норми",
+              emoji: "🫗", category: .special, difficulty: .medium, rule: .history(.halfGoalBeforeNoonDays), target: 5),
         .init(key: "special.newYear", title: "Новорічна склянка", details: "Порція 1 січня", emoji: "🎆",
               category: .special, difficulty: .easy, rule: .history(.portionOnDate(month: 1, day: 1)), target: 1,
               secrecy: .hint("Перша склянка року")),
@@ -409,10 +419,11 @@ public enum AchievementCatalog {
         .init(key: "special.shortestDay", title: "Найкоротший день", details: "Норма в день зимового сонцестояння",
               emoji: "🕯️", category: .special, difficulty: .easy, rule: .history(.goalOnSolstice(.december)), target: 1,
               secrecy: .hint("Темніє зовсім рано")),
-        .init(key: "special.fullMoon", title: "Повня", details: "Порція в день повного місяця", emoji: "🌕",
-              category: .special, difficulty: .easy, rule: .history(.portionOnFullMoon), target: 1,
+        .init(key: "special.fullMoon", title: "Повня", details: "Норма в день повного місяця", emoji: "🌕",
+              category: .special, difficulty: .easy, rule: .history(.goalOnFullMoon), target: 1,
               secrecy: .hint("Подивись на небо")),
-        .init(key: "special.twins", title: "Як дві краплі води", details: "Два дні поспіль однаковий обсяг, до мілілітра",
+        .init(key: "special.twins", title: "Як дві краплі води",
+              details: "Два дні поспіль однаковий обсяг, до мілілітра, — не рівно норма",
               emoji: "♊", category: .special, difficulty: .medium, rule: .history(.twinDays), target: 1,
               secrecy: .hint("Вчора й сьогодні — однаково")),
         .init(key: "special.borderless", title: "Вода без кордонів", details: "Порція в іншому часовому поясі", emoji: "✈️",

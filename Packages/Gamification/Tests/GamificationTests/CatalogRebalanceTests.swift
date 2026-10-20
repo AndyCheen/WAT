@@ -90,3 +90,25 @@ extension GameEnv {
         store.save()
     }
 }
+
+// MARK: - Нові умови історії (§10.1)
+
+@MainActor
+final class RebalancedHistoryTests: XCTestCase {
+    /// Рівно норма двічі поспіль — це «В яблучко», а не близнюки.
+    func testExactGoalTwiceIsNotTwins() {
+        let env = GameEnv()
+        env.clock.set(GameEnv.date("2026-07-22", hour: 9))
+        env.drink(2000, on: "2026-07-20")
+        env.drink(2000, on: "2026-07-21")
+        env.drink(200, on: "2026-07-22", hour: 9)
+        XCTAssertEqual(env.progressValue("special.twins"), 0)
+
+        let other = GameEnv()
+        other.clock.set(GameEnv.date("2026-07-22", hour: 9))
+        other.drink(1850, on: "2026-07-20")
+        other.drink(1850, on: "2026-07-21")
+        other.drink(200, on: "2026-07-22", hour: 9)
+        XCTAssertTrue(other.isUnlocked("special.twins"))
+    }
+}

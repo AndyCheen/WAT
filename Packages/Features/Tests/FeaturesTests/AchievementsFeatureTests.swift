@@ -42,14 +42,14 @@ final class AchievementsFeatureTests: XCTestCase {
         let model = HomeViewModel(services: services)
         var opened = false
         model.onOpenAchievements = { opened = true }
-        // XP за воду й за п'ять досягнень дав би рівень, а тост рівня важливіший. Тут перевіряємо саме
+        // XP за воду й за досягнення дав би рівень, а тост рівня важливіший. Тут перевіряємо саме
         // тост досягнень, тож увесь XP — у десять разів менший.
         services.gamification.xp.rules = services.gamification.xp.rules
             .applyingBalance([XPRules.BalanceKey.xpMultiplier: "0.1"])
 
-        model.add(1000) // «Перша крапля», «Великий ковток», «Склянка наполовину повна», «Добрий ранок»
+        model.add(1000) // «Перша крапля» й «Великий ковток»: решта з WAT-60 — не з першого дня
 
-        XCTAssertEqual(model.toast?.message, "🏅 Нові досягнення: 4")
+        XCTAssertEqual(model.toast?.message, "🏅 Нові досягнення: 2")
         XCTAssertEqual(model.toast?.action, .showAllAchievements)
         model.performToastAction()
         XCTAssertTrue(opened, "кілька досягнень — дія веде на екран 2e")

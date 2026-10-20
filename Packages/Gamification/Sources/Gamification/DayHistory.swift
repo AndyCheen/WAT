@@ -21,7 +21,8 @@ public enum HistoryFact: Sendable, Hashable {
     // Вода
     /// Зараховане за весь час, мл — у межах стелі 120 % (принцип 1).
     case countedMl
-    case bestEntriesInDay
+    /// Днів, коли записано щонайменше `min` порцій («Вісім на вісім»).
+    case daysWithEntries(min: Int)
 
     // Регулярність
     case goalDays
@@ -59,6 +60,8 @@ public enum HistoryFact: Sendable, Hashable {
     case quietEveningDays(minutesBeforeSleep: Int)
     /// Найкращий бал «Рівномірності за день» серед завершених днів.
     case bestEvenness
+    /// Завершених активних днів із «Рівномірністю за день» від `min` (WAT-60: один рівний день випадає випадково).
+    case evennessDays(min: Int)
 
     // Статистика
     /// Завершених днів, коли випито `fromPercent`…`toPercent` % норми.
@@ -84,9 +87,11 @@ public enum HistoryFact: Sendable, Hashable {
     case portionOnDate(month: Int, day: Int)
     case goalOnDate(month: Int, day: Int)
     case goalOnSolstice(SkyCalendar.Solstice)
-    case portionOnFullMoon
+    /// Норма в день повні: порція в цей день трапляється в кожного, хто пише воду (WAT-60).
+    case goalOnFullMoon
     case portionOnFriday13
-    /// Два завершені дні поспіль з однаковим об'ємом, до мілілітра.
+    /// Два завершені дні поспіль з однаковим об'ємом, до мілілітра, — не рівно норма: інакше «В яблучко» двічі
+    /// поспіль давало б і близнюків (WAT-60).
     case twinDays
     /// Порція в поясі, що зміщений відносно поясу першої порції.
     case otherTimeZone
@@ -110,7 +115,7 @@ extension HistoryFact {
     /// Факт дивиться лише на завершені дні — сьогоднішня порція його не змінює.
     var onlyFinishedDays: Bool {
         switch self {
-        case .bestEvenness, .accurateDays, .exactGoalDays, .twinDays, .palindromeDay: return true
+        case .bestEvenness, .evennessDays, .accurateDays, .exactGoalDays, .twinDays, .palindromeDay: return true
         default: return false
         }
     }
@@ -412,8 +417,8 @@ final class DayHistory {
         switch fact {
         case .countedMl:
             return Double(sorted.reduce(0) { $0 + $1.countedMl })
-        case .bestEntriesInDay:
-            return Double(sorted.map(\.entries).max() ?? 0)
+        case .daysWithEntries(let min):
+            return Double(sorted.filter { $0.entries >= min }.count)
         case .goalDays:
             return Double(sorted.filter(\.goalMet).count)
         case .activeDays:
@@ -466,6 +471,8 @@ final class DayHistory {
             }.count)
         case .bestEvenness:
             return Double(finished.filter(\.isActive).map(\.evenness).max() ?? 0)
+        case .evennessDays(let min):
+            return Double(finished.filter { $0.isActive && $0.evenness >= min }.count)
         case .accurateDays(let from, let to):
             return Double(finished.filter { record in
                 record.goalMl > 0 && record.totalMl * 100 >= record.goalMl * from
@@ -497,15 +504,16 @@ final class DayHistory {
             return sorted.contains { $0.goalMet && $0.month == month && $0.day == day } ? 1 : 0
         case .goalOnSolstice(let kind):
             return sorted.contains { $0.goalMet && $0.ordinal == solsticeOrdinal(kind, year: $0.year) } ? 1 : 0
-        case .portionOnFullMoon:
+        case .goalOnFullMoon:
             let moons = fullMoonDays()
-            return active.contains { moons.contains($0.ordinal) } ? 1 : 0
+            return sorted.contains { $0.goalMet && moons.contains($0.ordinal) } ? 1 : 0
         case .portionOnFriday13:
             return active.contains { $0.day == 13 && DayKey.weekdayIndex(ordinal: $0.ordinal) == 4 } ? 1 : 0
         case .twinDays:
             let days = finished
             return zip(days, days.dropFirst()).contains { lhs, rhs in
                 rhs.ordinal == lhs.ordinal + 1 && lhs.totalMl > 0 && lhs.totalMl == rhs.totalMl
+                    && lhs.totalMl != lhs.goalMl && rhs.totalMl != rhs.goalMl
             } ? 1 : 0
         case .otherTimeZone:
             return otherTimeZone() ? 1 : 0

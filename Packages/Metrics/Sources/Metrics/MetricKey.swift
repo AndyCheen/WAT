@@ -44,7 +44,7 @@ public struct MetricKey: RawRepresentable, Hashable, Codable, Sendable, Expressi
     public static let notificationOpened: MetricKey = "notification.opened"
     public static let notificationSnoozed: MetricKey = "notification.snoozed"
     public static let notificationPaused: MetricKey = "notification.paused"
-    /// Дозвіл на сповіщення є — один раз на установку (досягнення «На звʼязку»).
+    /// Дозвіл на сповіщення є — один раз на установку (досягнення «На звʼязку», знято в WAT-60).
     public static let notificationAuthorized: MetricKey = "notification.authorized"
     /// Порція за 15 хв після нагадування (досягнення «Чуйність»). `sourceRef` — рядок журналу, як у
     /// `reminder.responded`: одна відповідь — одна подія.
@@ -60,6 +60,9 @@ public struct MetricKey: RawRepresentable, Hashable, Codable, Sendable, Expressi
     /// Виконано всі щоденні завдання дня. `sourceRef` — детермінований від дня: завдання знову
     /// відкрилось — подію відкочує `GamificationService`.
     public static let questsAllDaily: MetricKey = "quest.allDaily"
+    /// Виконано тижневе завдання («Тижнева мета», WAT-60). Пишеться поруч із `quest.completed` з тим самим
+    /// `sourceRef` — завданням, тож відкочується разом із ним.
+    public static let weeklyQuestCompleted: MetricKey = "quest.weeklyCompleted"
 
     // Відкриття функцій і пасхалки (SPEC-ACHIEVEMENTS-CATALOG §4.7, §4.10). Разові дії мають
     // детермінований `sourceRef` — повтор ідемпотентністю шини нічого не додає.

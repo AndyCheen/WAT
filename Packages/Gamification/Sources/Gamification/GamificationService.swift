@@ -513,8 +513,12 @@ public final class GamificationService: MetricsSubscriber {
     /// Події, на які гейміфікація не реагує. Сповіщення сюди обов'язково: «доставлено»
     /// пишеться на кожне перепланування, і без цього кожна позначка ганяла б квести й досягнення.
     /// `notification.paused` — ні: пауза рідкісна й відкриває пасхалку «Набрати в рот води».
+    /// Завдання — тут, хоч на них і є досягнення: їх пише сам координатор посеред проходу, і прохід досягнень
+    /// після виконаного завдання він запускає сам. Підписка лише запустила б зайвий прохід, а з `refresh` —
+    /// поставила б відкрите заднім числом у чергу тоста дії.
     private static let internalMetrics: Set<MetricKey> = [
-        .xpEarned, .levelReached, .achievementUnlocked, .questCompleted, .streakCurrent, .prizeActivated,
+        .xpEarned, .levelReached, .achievementUnlocked, .questCompleted, .weeklyQuestCompleted,
+        .streakCurrent, .prizeActivated,
         .reminderResponded, .notificationDelivered, .notificationOpened, .notificationSnoozed
     ]
 
@@ -708,6 +712,12 @@ public final class GamificationService: MetricsSubscriber {
                 name: .questCompleted, value: 1, occurredAt: date, sourceRef: quest.id,
                 payload: ["key": quest.defKey]
             ))
+            if definition.scope == .weekly {
+                metrics.record(MetricEvent(
+                    name: .weeklyQuestCompleted, value: 1, occurredAt: date, sourceRef: quest.id,
+                    payload: ["key": quest.defKey]
+                ))
+            }
         }
     }
 
