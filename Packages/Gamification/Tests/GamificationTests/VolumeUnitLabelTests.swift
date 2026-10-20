@@ -46,4 +46,53 @@ final class VolumeUnitLabelTests: XCTestCase {
         XCTAssertEqual(metric.first { $0.key == "volume.10l" }!.details, "10 л води загалом")
         XCTAssertEqual(metric.first { $0.key == "big.gulp" }!.valueLabel, "500 / 1000")
     }
+
+    // MARK: - Точні об'єми в унціях (WAT-59)
+
+    /// Найменша порція — 50 мл у метричній, 2 унц. (59 мл) в унціях; 50 мл на межі степера теж «2 унц.».
+    func testSmallestPortionPerSystem() {
+        XCTAssertEqual(Intake.smallestMl(in: .milliliters), 50)
+        XCTAssertEqual(Intake.smallestMl(in: .usFluidOunces), 59)
+        XCTAssertEqual(VolumeUnit.usFluidOunces.label(Intake.smallestMl(in: .usFluidOunces)), "2 унц.")
+        XCTAssertEqual(Intake.smallestAmountsMl, [50, 59])
+    }
+
+    /// «Наперсток» в унціях досяжний найменшою порцією системи, і опис — у ній же.
+    func testThimbleInOunces() {
+        let env = GameEnv()
+        env.profiles.profile().volumeUnit = .usFluidOunces
+        env.drink(VolumeUnit.usFluidOunces.milliliters(units: 3), on: "2026-07-18", hour: 9)
+        XCTAssertFalse(env.isUnlocked("special.thimble"), "3 унц. — уже не ковточок")
+        env.drink(VolumeUnit.usFluidOunces.milliliters(units: 2), on: "2026-07-18", hour: 10)
+        XCTAssertTrue(env.isUnlocked("special.thimble"))
+
+        let thimble = env.achievement("special.thimble")!
+        XCTAssertEqual(thimble.details, "Порція 2 унц.")
+        XCTAssertNil(thimble.ounces, "разове — без прогресу в унціях")
+
+        env.profiles.profile().volumeUnit = .milliliters
+        XCTAssertEqual(env.achievement("special.thimble")?.details, "Порція 50 мл")
+    }
+
+    /// Маскований «Наперсток» в унціях — та сама підказка, без об'єму.
+    func testMaskedThimbleKeepsHintInOunces() {
+        let env = GameEnv()
+        env.profiles.profile().volumeUnit = .usFluidOunces
+        XCTAssertEqual(env.achievement("special.thimble")?.details, "«Іноді досить і ковточка»")
+    }
+
+    /// «Пі» — лише метрична пасхалка: жодна ціла кількість унцій не дає 314 мл, і невидима вона лишається.
+    func testPiStaysMetricOnly() {
+        let ounces = VolumeUnit.usFluidOunces
+        XCTAssertFalse((1...67).contains { ounces.milliliters(units: $0) == 314 })
+
+        let env = GameEnv()
+        env.profiles.profile().volumeUnit = .usFluidOunces
+        for (hour, units) in [10, 11].enumerated() {
+            env.drink(ounces.milliliters(units: units), on: "2026-07-18", hour: 9 + hour)
+        }
+        XCTAssertFalse(env.game.achievementSnapshots().contains { $0.key == "egg.pi" })
+        env.drink(314, on: "2026-07-18", hour: 12)
+        XCTAssertEqual(env.achievement("egg.pi")?.details, "314 мл — майже π", "опис — сам каламбур, не перекладається")
+    }
 }

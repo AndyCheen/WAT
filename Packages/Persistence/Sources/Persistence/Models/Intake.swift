@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import Core
 
 /// Порція води. Не редагується (ТЗ §4.3) — лише додається й видаляється.
 @Model
@@ -27,4 +28,13 @@ public final class Intake {
 
     public static func clamp(_ ml: Int) -> Int { min(maxAmountMl, max(minAmountMl, ml)) }
     public static func isValid(_ ml: Int) -> Bool { (minAmountMl...maxAmountMl).contains(ml) }
+
+    /// Найменша порція, яку можна набрати в системі: 50 мл або перша ціла унція в межах — 2 унц. = 59 мл (WAT-59).
+    /// Степер в унціях на нижній межі дає ще й рівно 50 мл, і їх теж видно як «2 унц.».
+    public static func smallestMl(in unit: VolumeUnit) -> Int {
+        clamp(unit.milliliters(units: unit.unitsRoundedUp(minAmountMl)))
+    }
+
+    /// Усі об'єми, що людина бачить як найменшу порцію своєї системи, — {50, 59}.
+    public static let smallestAmountsMl: Set<Int> = Set(VolumeUnit.allCases.map(smallestMl(in:)) + [minAmountMl])
 }

@@ -417,8 +417,10 @@ public enum AchievementCatalog {
         .init(key: "special.borderless", title: "Вода без кордонів", details: "Порція в іншому часовому поясі", emoji: "✈️",
               category: .special, difficulty: .easy, rule: .history(.otherTimeZone), target: 1,
               secrecy: .hint("Вода всюди однакова")),
-        .init(key: "special.thimble", title: "Наперсток", details: "Порція 50 мл", emoji: "🤏",
-              category: .special, difficulty: .easy, rule: .history(.portionOfMl(50)), target: 1,
+        // Найменша порція системи, в унціях — «Порція 2 унц.» (WAT-59).
+        .init(key: "special.thimble", title: "Наперсток", details: "Порція 50 мл",
+              volumeDetails: { "Порція \($0)" }, emoji: "🤏",
+              category: .special, difficulty: .easy, rule: .history(.smallestPortion), target: 1,
               secrecy: .hint("Іноді досить і ковточка")),
         .init(key: "special.noon", title: "Опівдні", details: "Порція рівно о 12:00", emoji: "🕛",
               category: .special, difficulty: .easy, rule: .history(.portionAtMinute(12 * 60)), target: 1,
@@ -450,6 +452,9 @@ public enum AchievementCatalog {
         .init(key: "egg.inseparable", title: "Не розлий вода", details: "Рік щодня з водою", emoji: "🤝",
               category: .regularity, difficulty: .legendary, rule: .history(.activeDaysRun), target: 365,
               secrecy: .egg),
+        // Лише в мілілітрах: «314» — цифри π, цілими унціями їх не скласти, а будь-яка «унцієва» заміна була б
+        // іншою пасхалкою. Невидима до знахідки й поза «Усе зібрано», тож людина в унціях нічого не втрачає на
+        // очах; знайти можна, перемкнувши систему (рішення від 19.10.2026, WAT-59).
         .init(key: "egg.pi", title: "Пі", details: "314 мл — майже π", emoji: "🥧",
               category: .water, difficulty: .easy, rule: .history(.portionOfMl(314)), target: 1, secrecy: .egg),
         .init(key: "egg.wish", title: "Загадай бажання", details: "Порція об 11:11", emoji: "✨",

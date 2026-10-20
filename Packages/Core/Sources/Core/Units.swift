@@ -114,6 +114,32 @@ public struct VolumeGrid: Equatable, Sendable {
     }
 }
 
+/// Кроки редагування об'єму в одиницях системи (WAT-46): людина крокує по тому, що бачить.
+/// У `Core`, а не в `Hydration`, бо ту саму сітку кнопок бере фіксований об'єм віджета (WAT-59).
+public enum VolumeSteps {
+    /// Кнопки порцій: до 1 л — 50 мл, від 1 л — 100 мл («1.05 л» нікому не потрібне, а дорога до 2 л
+    /// удвічі коротша); в унціях — 1 унц. до кварти (32 унц.), далі 2 унц..
+    public static func preset(_ unit: VolumeUnit) -> VolumeGrid {
+        unit.isMetric ? VolumeGrid(fine: 50, coarse: 100, coarseFrom: 1000) : VolumeGrid(fine: 1, coarse: 2, coarseFrom: 32)
+    }
+
+    /// Шторка «Інше».
+    public static func custom(_ unit: VolumeUnit) -> VolumeGrid {
+        VolumeGrid(step: unit.isMetric ? 50 : 1)
+    }
+
+    /// Денна мета: 100 мл або 4 унц. Було 250 мл / 8 унц. («склянка»), але так норму не налаштувати точно —
+    /// людина хоче 2.1 л, а не вибирати між 2 і 2.25 (рішення від 07.10.2026).
+    public static func goal(_ unit: VolumeUnit) -> VolumeGrid {
+        VolumeGrid(step: unit.isMetric ? 100 : 4)
+    }
+
+    /// «Моя склянка» і вікно «Склянка».
+    public static func glass(_ unit: VolumeUnit) -> VolumeGrid {
+        VolumeGrid(step: unit.isMetric ? 25 : 1)
+    }
+}
+
 public enum Volume {
     /// «1.25» для 1250 мл — формат великого показника на кільці (макет 1a).
     public static func litersLabel(_ ml: Int, fractionDigits: Int = 2) -> String {

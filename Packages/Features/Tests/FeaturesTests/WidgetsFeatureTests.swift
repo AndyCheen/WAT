@@ -3,6 +3,7 @@ import SwiftData
 import Core
 import Persistence
 import Gamification
+import Hydration
 import Notifications
 import Widgets
 @testable import Features
@@ -206,4 +207,23 @@ final class WidgetsFeatureTests: XCTestCase {
         XCTAssertEqual(services.router.takePath(), [])
         XCTAssertEqual(services.router.takeHomeIntent(), .customAmount(services.hydration.customAmountStart()))
     }
+
+    // MARK: - Фіксований об'єм кнопки (WAT-59)
+
+    /// Розширення не знає `Intake`, тож межі сітки віджета звіряються тут.
+    func testWidgetGridMatchesIntakeLimits() {
+        XCTAssertEqual(WidgetPortionGrid.rangeMl, Intake.minAmountMl...Intake.maxAmountMl)
+    }
+
+    /// Кожен фіксований об'єм віджета — вузол кнопок головного: крок степера від нього потрапляє на сусіда.
+    func testWidgetGridIsThePresetGrid() {
+        for unit in VolumeUnit.allCases {
+            let amounts = WidgetPortionGrid.ids(for: unit).compactMap(WidgetPortionGrid.milliliters(id:))
+            for (lhs, rhs) in zip(amounts, amounts.dropFirst()) {
+                XCTAssertEqual(PresetRules.stepped(lhs, up: true, unit: unit), rhs, "\(unit) \(lhs)")
+            }
+            XCTAssertEqual(amounts.first, Intake.smallestMl(in: unit))
+        }
+    }
 }
+

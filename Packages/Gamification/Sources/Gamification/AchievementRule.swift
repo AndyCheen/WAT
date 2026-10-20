@@ -135,12 +135,19 @@ public struct AchievementDefinition: Sendable, Identifiable {
     public let target: Double
     public let secrecy: AchievementSecrecy
     public let gate: AchievementGate?
-    /// Опис з об'ємом у системі людини, якщо це не мілілітри: «34 унц. води загалом» (WAT-46).
+    /// Опис з об'ємом у системі людини, якщо це не мілілітри: «34 унц. води загалом» (WAT-46),
+    /// «Порція 2 унц.» (WAT-59). Який об'єм підставити — `detailsVolumeMl(in:)`.
     public let volumeDetails: (@Sendable (String) -> String)?
 
     public var id: String { key }
     public var rewardXp: Int { difficulty.rewardXp(category: category) }
     public var isSecret: Bool { secrecy != .none }
+
+    /// Об'єм для `volumeDetails`: найменша порція системи для «Наперстка», решті — ціль.
+    func detailsVolumeMl(in unit: VolumeUnit) -> Int {
+        if case .history(.smallestPortion) = rule { return Intake.smallestMl(in: unit) }
+        return Int(target)
+    }
 
     /// Підказка таємного 🤫 — її показує знімок замість умови, поки не відкрито (§4.9).
     public var hint: String? {
