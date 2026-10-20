@@ -5,7 +5,8 @@ import Metrics
 
 /// Умова досягнення (SPEC-ACHIEVEMENTS-CATALOG §6). Нове досягнення на наявному правилі — рядок у
 /// каталозі; новий вид умови — case тут і обчислення в `DayHistory` чи `AchievementEngine`.
-public enum AchievementRule: Sendable {
+/// `Equatable` — для «Далі» вікна відкриття: сходинки одного правила відрізняються лише ціллю (SPEC-ACHIEVEMENTS §8.4).
+public enum AchievementRule: Sendable, Equatable {
     /// Лічильник шини метрик чи серія — як у завдань.
     case metric(MetricRule)
     /// `count` подій метрики в межах `withinSeconds` («Дискотека»).

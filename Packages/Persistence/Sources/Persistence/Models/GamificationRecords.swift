@@ -108,6 +108,9 @@ public final class AchievementProgress {
     public var unlockedAt: Date?
     public var unlockedByRef: UUID?
     public var seenAt: Date?
+    /// Відкриття відсвятковано вікном на весь екран (WAT-60, SPEC-ACHIEVEMENTS §8.5). Відкат його не скидає:
+    /// зняте видаленою порцією й відкрите знову вдруге вікна не отримує.
+    public var celebratedAt: Date?
 
     public init(defKey: String, target: Double) {
         self.defKey = defKey

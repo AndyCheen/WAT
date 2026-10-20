@@ -537,6 +537,15 @@ public enum AchievementCatalog {
         }
     }
 
+    /// Вищі сходинки того самого правила — кандидати на «Далі» у вікні відкриття (SPEC-ACHIEVEMENTS §8.4):
+    /// ціль понад поточну, від найменшої. Таємні й зняті не підказуємо — інакше вікно розкрило б секрет.
+    public static func higherSteps(after key: String) -> [AchievementDefinition] {
+        guard let current = definition(key) else { return [] }
+        return active
+            .filter { $0.rule == current.rule && $0.target > current.target && !$0.isSecret }
+            .sorted { $0.target < $1.target }
+    }
+
     /// Рядок «Пасхалка! Тут їх більше» — у картці першої знайденої пасхалки (§4.10).
     public static let firstEggNote = "Пасхалка! Тут їх більше"
 }

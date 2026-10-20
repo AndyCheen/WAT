@@ -255,6 +255,17 @@ public final class GamificationService: MetricsSubscriber {
         }
     }
     public var hasUnseenAchievements: Bool { achievements.hasUnseenUnlocks }
+
+    /// Черга вікна відкриття (WAT-60, SPEC-ACHIEVEMENTS §8.5) — знімки в одиницях людини, за часом відкриття.
+    /// Черга в базі, не в пам'яті: переживає вбивство застосунку й порції поза ним (віджет, сповіщення).
+    public func pendingCelebrations(since: Date) -> [AchievementSnapshot] {
+        let keys = achievements.pendingCelebrations(since: since)
+        guard !keys.isEmpty else { return [] }
+        let snapshots = Dictionary(achievementSnapshots().map { ($0.key, $0) }, uniquingKeysWith: { first, _ in first })
+        return keys.compactMap { snapshots[$0] }
+    }
+
+    public func markCelebrated(keys: [String]) { achievements.markCelebrated(keys: keys, at: calendar.now) }
     public func markAchievementsSeen() { achievements.markAllSeen(at: calendar.now) }
     public func markAchievementSeen(key: String) { achievements.markSeen(key: key, at: calendar.now) }
 
