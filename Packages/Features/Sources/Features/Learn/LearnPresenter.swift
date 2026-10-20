@@ -333,7 +333,7 @@ struct LearnPresenter {
                           value: "+\(scaled(questXp(.daily))) / +\(scaled(questXp(.weekly)))"),
                     .init(emoji: "🔥", title: "Серія", detail: "множить XP за воду", value: "до ×\(decimal(rules.streakMultiplierCap))")]
         segments.append(.init(emoji: "✅", value: scaled(questXp(.daily)), label: "завдання"))
-        let visible = AchievementCatalog.all.filter { !$0.secrecy.isEgg }.count
+        let visible = AchievementCatalog.active.filter { !$0.secrecy.isEgg }.count
         return [
             LearnSlide(kind: .fact, kicker: "Вода", title: "За кожні \(unit.portion(step)) — а не за натискання",
                        text: "Дві склянки по \(unit.portion(step / 2)) дають стільки ж, як одна на \(unit.number(step)). "

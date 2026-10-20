@@ -42,14 +42,14 @@ final class AchievementsFeatureTests: XCTestCase {
         let model = HomeViewModel(services: services)
         var opened = false
         model.onOpenAchievements = { opened = true }
-        // XP за воду й за п'ять досягнень дав би рівень, а тост рівня важливіший. Тут перевіряємо саме
+        // XP за воду й за досягнення дав би рівень, а тост рівня важливіший. Тут перевіряємо саме
         // тост досягнень, тож увесь XP — у десять разів менший.
         services.gamification.xp.rules = services.gamification.xp.rules
             .applyingBalance([XPRules.BalanceKey.xpMultiplier: "0.1"])
 
-        model.add(1000) // «Перша крапля», «Великий ковток», «Глечик», «Склянка наполовину повна», «Добрий ранок»
+        model.add(1000) // «Перша крапля» й «Великий ковток»: решта з WAT-60 — не з першого дня
 
-        XCTAssertEqual(model.toast?.message, "🏅 Нові досягнення: 5")
+        XCTAssertEqual(model.toast?.message, "🏅 Нові досягнення: 2")
         XCTAssertEqual(model.toast?.action, .showAllAchievements)
         model.performToastAction()
         XCTAssertTrue(opened, "кілька досягнень — дія веде на екран 2e")
@@ -71,7 +71,7 @@ final class AchievementsFeatureTests: XCTestCase {
         let model = AchievementsViewModel(services: services)
 
         XCTAssertEqual(model.unlockedCount, 1)
-        XCTAssertEqual(model.totalCount, 108, "118 без 10 пасхалок (SPEC-ACHIEVEMENTS-CATALOG §4.10)")
+        XCTAssertEqual(model.totalCount, 101, "111 чинних без 10 пасхалок (SPEC-ACHIEVEMENTS-CATALOG §10.4)")
 
         model.selectState(.inProgress)
         XCTAssertTrue(model.filtered.contains { $0.key == "big.gulp" })
@@ -84,13 +84,13 @@ final class AchievementsFeatureTests: XCTestCase {
         model.resetFilters()
         XCTAssertNil(model.category)
         XCTAssertEqual(model.stateFilter, .all)
-        XCTAssertEqual(model.filtered.count, 108)
+        XCTAssertEqual(model.filtered.count, 101)
     }
 
     func testCategoryFilterCoversWaterAchievements() {
         let model = AchievementsViewModel(services: services)
         model.selectCategory(.water)
-        XCTAssertEqual(model.filtered.count, 14, "§4.1")
+        XCTAssertEqual(model.filtered.count, 12, "§4.1 без «Глечика» й «Розминки» (WAT-60)")
         XCTAssertTrue(model.filtered.contains { $0.key == "first.drop" })
         XCTAssertFalse(model.filtered.contains { $0.key == "marathon" }, "«Марафон» — у «Регулярності»")
         XCTAssertFalse(model.isCategoryMenuOpen, "вибір закриває меню")
@@ -147,7 +147,7 @@ final class AchievementsFeatureTests: XCTestCase {
 
         let screen = AchievementsViewModel(services: services)
         screen.reload()
-        XCTAssertEqual(screen.totalCount, 108, "знайдена пасхалка видимий каталог не роздуває")
+        XCTAssertEqual(screen.totalCount, 101, "знайдена пасхалка видимий каталог не роздуває")
         XCTAssertEqual(screen.eggLabel, "🥚 1")
         XCTAssertTrue(screen.counterAccessibilityValue.contains("пасхалок знайдено: 1"))
         XCTAssertEqual(screen.items.first { $0.key == "egg.pi" }?.note, "Пасхалка! Тут їх більше")
@@ -231,17 +231,21 @@ final class AchievementsFeatureTests: XCTestCase {
         XCTAssertEqual(home.toast?.message, "🏅 Досягнення: Свій ритм")
     }
 
-    /// «Друга думка» — після тоста зі «Скасувати»: повернути порцію важливіше.
-    func testRemovalQueuesSecondThoughtAfterUndoToast() {
+    /// «Нерішучість» — після тоста зі «Скасувати»: повернути порцію важливіше.
+    func testRemovalQueuesIndecisionAfterUndoToast() {
         let home = HomeViewModel(services: services)
         home.add(200)
-        home.add(250)
         home.dismissToast()
-        let id = home.history.first { $0.amountMl == 250 }!.id
-        home.remove(id: id)
-        XCTAssertEqual(home.toast?.action, .restoreIntake(id))
-        home.dismissToast()
-        XCTAssertEqual(home.toast?.message, "🏅 Досягнення: Друга думка")
+        for attempt in 1...3 {
+            home.add(250)
+            home.dismissToast()
+            let id = home.history.first { $0.amountMl == 250 }!.id
+            home.remove(id: id)
+            XCTAssertEqual(home.toast?.action, .restoreIntake(id))
+            home.dismissToast()
+            if attempt < 3 { XCTAssertNil(home.toast, "«Друга думка» знято (WAT-60) — за одне скасування тоста немає") }
+        }
+        XCTAssertEqual(home.toast?.message, "🏅 Досягнення: Нерішучість")
     }
 
     func testFinishedWeekReportIsAnnouncedAfterClosing() {

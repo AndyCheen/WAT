@@ -41,7 +41,6 @@ public enum AppRoute: Hashable {
 
 /// Кореневий екран: стек навігації 1a → 3f → 2e, 1a → 3f → «Призи», 1a → 4a (PLAN.md §8).
 public struct RootView: View {
-    @Environment(\.colorScheme) private var colorScheme
     @State private var services: AppServices
     @State private var path: [AppRoute] = []
     @State private var themeMode: ThemeMode
@@ -101,10 +100,6 @@ public struct RootView: View {
         // «Як риба у воді» (SPEC-ACHIEVEMENTS-CATALOG §4.10): кожен відкритий екран — раз назавжди.
         .onChange(of: path, initial: true) {
             if let screen = Self.screen(for: path.last) { services.record(.screenOpened(screen)) }
-        }
-        // «Темна сторона» — і з системною темою, і з перемикачем у налаштуваннях.
-        .onChange(of: colorScheme, initial: true) {
-            if colorScheme == .dark { services.record(.darkTheme) }
         }
     }
 

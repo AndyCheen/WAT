@@ -137,7 +137,7 @@ public final class SettingsModel {
         services.profile.themeMode = mode
         services.profiles.save()
         services.record(.themeChanged)
-        // Системну темну тему відмічає `RootView`; перемикач — тут, не чекаючи, поки тема дійде до середовища.
+        // «Темна сторона» — лише свідомий вибір (WAT-60): системна тема — дія системи, а не людини.
         if mode == .dark { services.record(.darkTheme) }
     }
 }

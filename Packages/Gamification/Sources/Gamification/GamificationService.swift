@@ -185,7 +185,10 @@ public final class GamificationService: MetricsSubscriber {
                 metrics.revert(sourceRef: Self.allDailyQuestsRef(DayKey(rawValue: quest.periodKey)), at: date)
             }
         }
-        for key in achievements.revert(achievementInputs(at: date), policy: revertPolicy, at: date) {
+        // Відкрите раніше за подію від неї не залежало (WAT-60, §10.3). Час — самої події, а не мить відкату:
+        // порцію можна видалити й через годину.
+        let since = events.map(\.occurredAt).min() ?? date
+        for key in achievements.revert(achievementInputs(at: date), policy: revertPolicy, since: since, at: date) {
             xp.revert(refId: AchievementEngine.ref(key), at: date)
             recentUnlocks.removeAll { $0 == key }
         }
@@ -510,8 +513,12 @@ public final class GamificationService: MetricsSubscriber {
     /// Події, на які гейміфікація не реагує. Сповіщення сюди обов'язково: «доставлено»
     /// пишеться на кожне перепланування, і без цього кожна позначка ганяла б квести й досягнення.
     /// `notification.paused` — ні: пауза рідкісна й відкриває пасхалку «Набрати в рот води».
+    /// Завдання — тут, хоч на них і є досягнення: їх пише сам координатор посеред проходу, і прохід досягнень
+    /// після виконаного завдання він запускає сам. Підписка лише запустила б зайвий прохід, а з `refresh` —
+    /// поставила б відкрите заднім числом у чергу тоста дії.
     private static let internalMetrics: Set<MetricKey> = [
-        .xpEarned, .levelReached, .achievementUnlocked, .questCompleted, .streakCurrent, .prizeActivated,
+        .xpEarned, .levelReached, .achievementUnlocked, .questCompleted, .weeklyQuestCompleted,
+        .streakCurrent, .prizeActivated,
         .reminderResponded, .notificationDelivered, .notificationOpened, .notificationSnoozed
     ]
 
@@ -705,6 +712,12 @@ public final class GamificationService: MetricsSubscriber {
                 name: .questCompleted, value: 1, occurredAt: date, sourceRef: quest.id,
                 payload: ["key": quest.defKey]
             ))
+            if definition.scope == .weekly {
+                metrics.record(MetricEvent(
+                    name: .weeklyQuestCompleted, value: 1, occurredAt: date, sourceRef: quest.id,
+                    payload: ["key": quest.defKey]
+                ))
+            }
         }
     }
 

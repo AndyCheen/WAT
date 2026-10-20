@@ -110,9 +110,7 @@ final class WidgetsFeatureTests: XCTestCase {
         await services.perform(.undo(intakeId: id)).value
 
         XCTAssertTrue(services.dayLogs.activeIntakes(for: services.calendar.today).isEmpty)
-        // Лишається тільки «Друга думка» — за саме скасування.
-        XCTAssertEqual(services.gamification.levelProgress().totalXp,
-                       xpBefore + AchievementCatalog.definition("discover.undo")!.rewardXp)
+        XCTAssertEqual(services.gamification.levelProgress().totalXp, xpBefore)
         let snapshot = try XCTUnwrap(store.read())
         XCTAssertNil(snapshot.lastAction)
         XCTAssertNil(snapshot.reserve)

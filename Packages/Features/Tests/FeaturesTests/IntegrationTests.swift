@@ -35,7 +35,7 @@ final class IntegrationTests: XCTestCase {
         XCTAssertEqual(services.hydration.quickAddAmounts(), [200, 500, 1000])
         XCTAssertEqual(services.gamification.levelProgress().level, 1)
         XCTAssertEqual(services.gamification.dailyQuests().count, 2)
-        XCTAssertEqual(services.gamification.achievementSnapshots().count, 108, "118 без незнайдених пасхалок")
+        XCTAssertEqual(services.gamification.achievementSnapshots().count, 101, "111 чинних без незнайдених пасхалок (WAT-60)")
     }
 
     /// Застосунок, лишений відкритим на ніч, після повернення з фону показує новий день
@@ -96,10 +96,7 @@ final class IntegrationTests: XCTestCase {
         services.hydration.restoreIntake(id: result.intakeId)
 
         XCTAssertEqual(services.hydration.todaySnapshot().totalMl, 500)
-        // Скасування — саме по собі «Відкриття»: «Друга думка» лишається, решта повернулась рівно раз.
-        let secondThought = AchievementCatalog.definition("discover.undo")!.rewardXp
-        XCTAssertEqual(services.gamification.levelProgress().totalXp, xpAfterAdd + secondThought,
-                       "XP повернувся рівно один раз")
+        XCTAssertEqual(services.gamification.levelProgress().totalXp, xpAfterAdd, "XP повернувся рівно один раз")
         XCTAssertTrue(
             services.gamification.achievementSnapshots().first { $0.key == "first.drop" }!.isUnlocked,
             "досягнення розблокувалось повторно"

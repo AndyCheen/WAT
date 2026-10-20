@@ -187,7 +187,7 @@ enum LevelRoadPresenter {
         let scale = { (xp: Int) in Int((Double(xp) * rules.xpMultiplier).rounded()) }
         let dailyQuest = QuestCatalog.all.filter { $0.scope == .daily }.map(\.rewardXp).min() ?? 0
         let weeklyQuest = QuestCatalog.all.filter { $0.scope == .weekly }.map(\.rewardXp).min() ?? 0
-        let achievement = AchievementCatalog.all.map(\.rewardXp).min() ?? 0
+        let achievement = AchievementCatalog.active.map(\.rewardXp).min() ?? 0
         let streakCap = String(format: "%.1f", rules.streakMultiplierCap).replacingOccurrences(of: ".", with: ",")
 
         var rows = [WTXPGuideRow(emoji: "💧", title: "Вода, кожні \(unit.portion(rules.volumeStepMl))",

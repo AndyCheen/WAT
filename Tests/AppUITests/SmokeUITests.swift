@@ -238,7 +238,7 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(tiles(app).firstMatch.exists)
     }
 
-    /// Плитки сітки 2e. Сітка лінива, а досягнень 108: шукати конкретну плитку без фільтра — гадати, чи вона
+    /// Плитки сітки 2e. Сітка лінива, а досягнень 101: шукати конкретну плитку без фільтра — гадати, чи вона
     /// вже на екрані.
     private func tiles(_ app: XCUIApplication, _ predicate: String = "TRUEPREDICATE") -> XCUIElementQuery {
         app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'achievements.tile.' AND (\(predicate))"))
@@ -339,13 +339,13 @@ final class SmokeUITests: XCTestCase {
     // MARK: - Таємні й пасхалки (SPEC-ACHIEVEMENTS-CATALOG §4.9–4.10)
 
     /// Таємне з підказкою — сіра плитка «???», у картці лише підказка; пасхалок у лічильнику немає.
-    /// Без дозволу на сповіщення: інакше «На звʼязку» відкривалось би на старті, у фоні, і лічильник
-    /// залежав би від того, чи встигло.
+    /// Без дозволу на сповіщення: до WAT-60 «На звʼязку» відкривалось би на старті, у фоні, і лічильник
+    /// залежав би від того, чи встигло. Тепер воно зняте, але стан на старті так само не залежить від дозволу.
     func testSecretTileShowsOnlyTheHint() {
         let app = launch(["--uitest-empty", "--notifications-auth", "notDetermined", "--start-screen", "achievements"])
         let counter = app.otherElements["achievements.counter"]
         XCTAssertTrue(counter.waitForExistence(timeout: 20))
-        XCTAssertEqual(counter.value as? String, "0 з 108 відкрито", "пасхалки невидимі й у лічильнику")
+        XCTAssertEqual(counter.value as? String, "0 з 101 відкрито", "пасхалки невидимі й у лічильнику")
 
         selectCategory(app, "stats")
         let tile = app.buttons["achievements.tile.stats.bullseye"]
@@ -381,7 +381,7 @@ final class SmokeUITests: XCTestCase {
 
         let counter = app.otherElements["achievements.counter"]
         XCTAssertTrue(counter.waitForExistence(timeout: 5))
-        XCTAssertEqual(counter.value as? String, "1 з 108 відкрито, пасхалок знайдено: 1",
+        XCTAssertEqual(counter.value as? String, "1 з 101 відкрито, пасхалок знайдено: 1",
                        "«Темна сторона» — у лічильнику, пасхалка — окремо")
         let tile = app.buttons["achievements.tile.egg.disco"]
         XCTAssertTrue(tile.waitForExistence(timeout: 5))
