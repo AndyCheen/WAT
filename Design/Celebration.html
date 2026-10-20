@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WaterTracker — свято відкриття (WAT-60)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Токени — DESIGN-TOKENS.md §2, як у LevelRoad.html. Кадр 402×874, 1px = 1pt.
+   Нових кольорів теми немає: золото — unlockedIconBg, вода — градієнт кільця 1a, XP — success. */
+:root{
+  --screen:#f7fbff; --card:#fff; --chip:#eaf4ff;
+  --text:#1f4a72; --muted:#8aa1bd; --btn-text:#3d8fd6; --accent:#5aa9f0;
+  --line:rgba(31,74,114,.10); --track:#e4f0fb; --dot-off:#dce8f3;
+  --orange:#ff8a3d; --success:#3fb56f; --success-text:#3ea86b;
+  --gold-bg:#fff2e2; --gold-ring:#ffd9b0; --locked:#e6e8eb;
+  --ring-a:#bfe3ff; --ring-b:#6bb6f2; --water-a:#6bb6f2; --water-b:#3d8fd6;
+  --xp-bg:#e7f6ee; --glow:rgba(255,184,110,.30); --ray:rgba(255,184,110,.15);
+  --shadow:0 8px 24px rgba(30,60,120,.06);
+}
+.dark{
+  --screen:#0c1524; --card:#161f33; --chip:#17233a;
+  --text:#eaf2ff; --muted:#8ba0bd; --btn-text:#bcd8ff; --accent:#7cc4ff;
+  --line:rgba(255,255,255,.08); --track:rgba(255,255,255,.08); --dot-off:rgba(255,255,255,.14);
+  --gold-bg:#17233a; --gold-ring:rgba(255,170,90,.45); --locked:rgba(255,255,255,.10);
+  --ring-a:#8fd0ff; --ring-b:#3b6ef5; --water-a:#3b6ef5; --water-b:#2a55c9;
+  --xp-bg:rgba(63,181,111,.16); --glow:rgba(255,170,90,.13); --ray:rgba(255,170,90,.07);
+  --shadow:0 8px 24px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#e9eef5;font-family:Nunito,system-ui,sans-serif;color:#1f4a72;padding:40px 28px 80px}
+h1{font-size:20px;font-weight:800;margin-bottom:6px}
+h2{font-size:16px;font-weight:800;margin:44px 0 6px}
+.lead{font-size:13px;font-weight:700;color:#5c7291;margin-bottom:18px;max-width:1262px;line-height:1.5}
+.lead b{color:#1f4a72}
+code{font-size:12px}
+.num{font-family:Fredoka,Nunito,sans-serif}
+button{font-family:inherit}
+.row{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+.frame-wrap{width:402px}
+.frame-cap{font-size:12px;font-weight:800;letter-spacing:.3px;color:#5c7291;margin-bottom:8px;text-transform:uppercase}
+.frame-note{font-size:12px;font-weight:700;color:#5c7291;margin-top:10px;line-height:1.5}
+.frame-note b{color:#1f4a72}
+.frame{width:402px;height:874px;background:var(--screen);border-radius:38px;position:relative;overflow:hidden;
+       box-shadow:0 18px 50px rgba(31,74,114,.18);color:var(--text);user-select:none}
+
+/* ---------- панель ---------- */
+.ctl{background:#fff;border-radius:18px;padding:16px 18px;max-width:1262px;display:flex;gap:14px 28px;flex-wrap:wrap;box-shadow:0 6px 20px rgba(31,74,114,.08);margin-bottom:24px}
+.ctl label{font-size:12px;font-weight:900;color:#5c7291;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:6px}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+.btns button{height:30px;padding:0 12px;border-radius:999px;border:0;background:#dbe6f3;color:#1f4a72;font:800 13px Nunito;cursor:pointer}
+.btns button.on{background:#5aa9f0;color:#fff}
+.btns button.go{background:#1f4a72;color:#fff}
+
+/* ---------- головний (контекст дії) ---------- */
+.home{position:absolute;inset:0;padding:58px 26px 0;display:flex;flex-direction:column;align-items:center}
+.h-top{width:100%;display:flex;align-items:center;justify-content:space-between;height:40px}
+.drop{height:38px;padding:0 13px 0 10px;border-radius:999px;background:var(--chip);display:flex;align-items:center;gap:6px;font-size:16px;position:relative}
+.drop b{font-size:17px;font-weight:600;color:var(--accent)}
+.drop i{position:absolute;top:-1px;right:-1px;width:9px;height:9px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 2px var(--screen);display:none}
+.drop.new i{display:block}
+.h-day{font-size:15px;font-weight:800}
+.h-ic{width:38px;height:38px;border-radius:999px;background:var(--chip);display:flex;align-items:center;justify-content:center;font-size:16px}
+.ring{width:242px;height:242px;position:relative;margin:26px 0 14px}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .trk{fill:none;stroke:var(--track);stroke-width:17}
+.ring .val{fill:none;stroke-width:17;stroke-linecap:round;transition:stroke-dashoffset .75s cubic-bezier(.22,1,.36,1)}
+.ring-c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring-c b{font-size:52px;font-weight:600;line-height:1}
+.ring-c span{font-size:14px;font-weight:800;color:var(--muted);margin-top:6px}
+.ring.done .ring-c span{color:var(--success-text)}
+.cap{height:34px;padding:0 14px;border-radius:999px;background:var(--chip);display:flex;align-items:center;font-size:13px;font-weight:800;color:var(--btn-text);margin-bottom:22px}
+.qbs{display:flex;gap:10px;width:100%}
+.qb{flex:1;height:56px;border-radius:18px;background:var(--chip);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:var(--btn-text);cursor:pointer;transition:transform .15s,background .15s,color .15s}
+.qb.press{transform:scale(.92);background:var(--accent);color:#fff}
+.other{margin-top:12px;font-size:14px;font-weight:800;color:var(--btn-text)}
+.h-sec{align-self:flex-start;margin:24px 0 10px;font-size:13px;font-weight:800;letter-spacing:.3px}
+.task{width:100%;height:56px;border-radius:18px;background:var(--card);box-shadow:var(--shadow);display:flex;align-items:center;gap:12px;padding:0 16px;margin-bottom:10px;font-size:15px;font-weight:600}
+.task .ck{width:24px;height:24px;flex:none;border-radius:50%;border:2px solid var(--dot-off);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#fff}
+.task .ck.on{background:var(--success);border-color:var(--success)}
+.task .pr{margin-left:auto;font-size:13px;font-weight:800;color:var(--muted)}
+.opening{position:absolute;inset:0;background:#0c1524;color:#eaf2ff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;z-index:3;transition:opacity .45s}
+.opening b{font-size:64px;font-weight:600}
+.opening span{font-size:14px;font-weight:800;opacity:.7}
+.opening.gone{opacity:0;pointer-events:none}
+
+/* «Знання»: останній слайд історії */
+.story{position:absolute;inset:0;background:linear-gradient(180deg,#5aa9f0,#2f6fc0);color:#fff;padding:58px 26px 40px;display:flex;flex-direction:column}
+.story .bars{display:flex;gap:5px}
+.story .bars i{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.95)}
+.story .k{margin-top:26px;font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;opacity:.8}
+.story h3{font-size:28px;font-weight:800;line-height:1.2;margin-top:10px}
+.story p{font-size:17px;font-weight:700;line-height:1.45;margin-top:14px;opacity:.92}
+.story .art{margin:40px auto 0;font-size:92px}
+.story .done{margin-top:auto;height:56px;border-radius:18px;background:#fff;color:#2f6fc0;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;transition:transform .15s}
+.story .done.press{transform:scale(.94)}
+
+/* ---------- вікно свята: спільне ---------- */
+.cel{position:absolute;inset:0;z-index:10;display:none}
+.cel.on{display:block}
+.cel .bg{position:absolute;inset:0}
+.cw{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;padding:70px 28px 40px;text-align:center}
+.c-body{flex:1;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-bottom:20px}
+.c-label{font-size:12px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:var(--orange);margin-top:26px}
+.c-title{font-size:30px;font-weight:800;line-height:1.15;margin-top:8px}
+.c-line{font-size:16px;font-weight:700;color:var(--muted);line-height:1.4;margin-top:10px;max-width:310px}
+.c-xp{margin-top:16px;height:32px;padding:0 14px;border-radius:999px;background:var(--xp-bg);color:var(--success-text);font-size:15px;font-weight:800;display:inline-flex;align-items:center}
+.c-next{margin-top:14px;font-size:13px;font-weight:800;color:var(--btn-text)}
+.c-note{margin-top:10px;font-size:13px;font-weight:800;color:var(--orange)}
+.c-foot{width:100%;display:flex;flex-direction:column;align-items:center;gap:14px}
+.c-dots{display:flex;gap:6px}
+.c-dots i{width:7px;height:7px;border-radius:4px;background:var(--dot-off);transition:width .25s}
+.c-dots i.on{background:var(--accent);width:20px}
+.c-lv{width:100%;display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:20px;background:var(--card);box-shadow:var(--shadow);text-align:left}
+.c-lv .d{width:46px;height:46px;border-radius:50%;flex:none;position:relative;display:flex;align-items:center;justify-content:center;
+         background:conic-gradient(var(--accent) 0 var(--deg,40deg),var(--dot-off) var(--deg,40deg) 360deg)}
+.c-lv .d::after{content:"";position:absolute;inset:5px;border-radius:50%;background:var(--card)}
+.c-lv .d b{position:relative;z-index:1;font-size:19px;font-weight:600}
+.c-lv .t b{display:block;font-size:16px;font-weight:800}
+.c-lv .t span{font-size:13px;font-weight:700;color:var(--muted)}
+.c-btn{width:100%;height:56px;border-radius:18px;border:0;background:var(--accent);color:#fff;font:800 17px Nunito;cursor:pointer}
+.c-link{font-size:15px;font-weight:800;color:var(--btn-text);cursor:pointer;background:none;border:0;font-family:inherit;margin-top:-2px}
+.in{animation:fadeup .45s cubic-bezier(.22,1,.36,1) both}
+@keyframes fadeup{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+@keyframes pop{0%{transform:scale(.2);opacity:0}55%{opacity:1}100%{transform:scale(1);opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes wobble{0%,100%{transform:rotate(0)}20%{transform:rotate(-12deg)}40%{transform:rotate(10deg)}60%{transform:rotate(-7deg)}80%{transform:rotate(4deg)}}
+@keyframes squeeze{0%{transform:scaleX(1)}50%{transform:scaleX(0)}100%{transform:scaleX(1)}}
+.squeeze{animation:squeeze .5s ease-in-out}
+.wob{animation:wobble .7s ease-in-out 2}
+.hint-tap{position:absolute;left:0;right:0;bottom:22px;text-align:center;font-size:12px;font-weight:800;color:var(--muted);z-index:2}
+.flash{position:absolute;left:24px;right:24px;bottom:110px;z-index:20;background:#1f4a72;color:#fff;border-radius:16px;padding:14px 16px;font-size:14px;font-weight:800;text-align:center;animation:fadeup .3s both}
+
+/* частинки: краплі-конфеті */
+.burst{position:absolute;left:50%;top:0;width:0;height:0;pointer-events:none}
+.cf{position:absolute;left:-5px;top:-6px;width:10px;height:13px;border-radius:50% 50% 50% 50%/62% 62% 38% 38%;background:var(--c);opacity:0;
+    animation:burst 1.7s cubic-bezier(.15,.7,.3,1) var(--d) forwards}
+@keyframes burst{0%{opacity:1;transform:translate(0,0) rotate(0) scale(.5)}
+  32%{opacity:1;transform:translate(var(--x),var(--y)) rotate(calc(var(--r) * .4)) scale(1)}
+  100%{opacity:0;transform:translate(calc(var(--x) * 1.18),calc(var(--y) + 430px)) rotate(var(--r)) scale(.9)}}
+
+/* ---------- A · Медаль ---------- */
+.va .bg{background:var(--screen)}
+.hero{position:relative;width:150px;height:150px;flex:none}
+.hero .burst{top:50%}
+.va .glow{position:absolute;left:50%;top:50%;width:560px;height:560px;margin:-280px 0 0 -280px;border-radius:50%;
+          background:radial-gradient(circle,var(--glow) 0,transparent 60%);animation:fadein .6s both}
+.va .rays{position:absolute;left:50%;top:50%;width:620px;height:620px;margin:-310px 0 0 -310px;
+          background:repeating-conic-gradient(from 0deg,var(--ray) 0 6deg,transparent 6deg 20deg);
+          -webkit-mask:radial-gradient(circle,#000 0,transparent 62%);mask:radial-gradient(circle,#000 0,transparent 62%);
+          animation:spin 30s linear infinite,fadein .8s .2s both}
+.medal{width:150px;height:150px;flex:none;border-radius:50%;background:var(--gold-bg);position:relative;
+       box-shadow:0 0 0 7px var(--gold-ring),0 18px 40px rgba(255,138,61,.22);display:flex;align-items:center;justify-content:center;font-size:72px}
+.medal.pop{animation:pop .7s cubic-bezier(.34,1.56,.64,1) both}
+.medal.q{background:var(--locked);box-shadow:0 0 0 7px var(--dot-off)}
+.medal.q span{font-size:56px;font-weight:900;color:var(--muted);font-family:Fredoka}
+.medal::after{content:"";position:absolute;inset:0;border-radius:50%;
+              background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.55) 50%,transparent 65%);background-size:250% 100%;
+              background-position:120% 0;animation:shine 1.2s .7s ease-out both}
+.dark .medal::after{background-image:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.18) 50%,transparent 65%)}
+@keyframes shine{to{background-position:-40% 0}}
+
+/* ---------- B · Хвиля ---------- */
+.vb .bg{background:transparent}
+.vb .water{position:absolute;left:0;right:0;bottom:0;height:0;background:linear-gradient(180deg,var(--water-a),var(--water-b));
+           transition:height 1s cubic-bezier(.22,1,.36,1)}
+.vb.fill .water{height:100%}
+.vb.still .water{transition:none}
+.vb .wv{position:absolute;left:0;width:200%;height:26px;animation:wave 3.2s linear infinite}
+.vb .wv path{fill:var(--water-a)}
+.vb .wv.w1{top:-25px}
+.vb .wv.w2{top:-31px;opacity:.45;animation-duration:5.2s}
+@keyframes wave{to{transform:translateX(-50%)}}
+.vb .bubs{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.vb .bubs i{position:absolute;bottom:-20px;border-radius:50%;background:rgba(255,255,255,.22);animation:rise2 linear infinite}
+@keyframes rise2{to{transform:translateY(-920px)}}
+.bubble{width:164px;height:164px;flex:none;border-radius:50%;position:relative;display:flex;align-items:center;justify-content:center;font-size:76px;
+        background:radial-gradient(circle at 34% 30%,rgba(255,255,255,.42),rgba(255,255,255,.12) 42%,rgba(255,255,255,.06) 70%);
+        box-shadow:inset 0 0 0 2px rgba(255,255,255,.6)}
+.bubble.up{animation:bub 1.1s cubic-bezier(.22,1,.36,1) both}
+@keyframes bub{0%{transform:translateY(560px) scale(.55)}72%{transform:translateY(-12px) scale(1.04)}100%{transform:none}}
+.bubble .rip{position:absolute;inset:-2px;border-radius:50%;box-shadow:0 0 0 2px rgba(255,255,255,.55);opacity:0;animation:rip 1.2s ease-out both}
+@keyframes rip{0%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(1.9)}}
+.bubble.q span{font-size:60px;font-weight:900;color:#fff;font-family:Fredoka;opacity:.9}
+.vb .c-label{color:rgba(255,255,255,.78)}
+.vb .c-title{color:#fff}
+.vb .c-line{color:rgba(255,255,255,.88)}
+.vb .c-xp{background:rgba(255,255,255,.2);color:#fff}
+.vb .c-next{color:#fff}
+.vb .c-note{color:#ffe1c4}
+.vb .c-lv{background:rgba(255,255,255,.14);box-shadow:none;color:#fff}
+.vb .c-lv .t span{color:rgba(255,255,255,.82)}
+.vb .c-lv .d{background:conic-gradient(#fff 0 var(--deg,40deg),rgba(255,255,255,.25) var(--deg,40deg) 360deg)}
+.vb .c-lv .d::after{background:var(--water-b)}
+.vb .c-btn{background:#fff;color:var(--water-b)}
+.dark .vb .c-btn{color:#2a55c9}
+.vb .c-link{color:#fff}
+.vb .c-dots i{background:rgba(255,255,255,.35)}
+.vb .c-dots i.on{background:#fff}
+
+/* ---------- C · Вітрина ---------- */
+.vc .bg{background:var(--screen)}
+.vc .cw{padding-top:70px}
+.vc .cnt{line-height:1}
+.vc .cnt em{display:block;font-style:normal;font-size:11px;font-weight:800;letter-spacing:.3px;color:var(--muted);margin-bottom:6px;text-transform:uppercase}
+.vc .cnt b{font-size:34px;font-weight:600;color:var(--accent)}
+.vc .cnt span{font-size:20px;font-weight:500;color:var(--muted);margin-left:3px}
+.vc .cnt .egg{display:none;margin-left:10px;font-size:18px;font-weight:600;color:var(--orange);vertical-align:4px}
+.vc .cnt .egg.on{display:inline}
+.shelf{display:grid;grid-template-columns:repeat(4,1fr);gap:16px 8px;width:100%;margin-top:18px;padding:18px 10px;border-radius:24px;background:var(--card);box-shadow:var(--shadow)}
+.slot{width:56px;height:56px;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:26px;background:var(--gold-bg);transition:transform .3s}
+.slot.lock{background:var(--locked)}
+.slot.lock span{opacity:.28;filter:grayscale(1)}
+.slot.q span{font-family:Fredoka;font-weight:700;font-size:20px;color:var(--muted);opacity:1;filter:none}
+.slot.empty{background:transparent;box-shadow:inset 0 0 0 2px var(--accent);animation:pulse 1s ease-in-out infinite}
+.slot.empty span{opacity:0}
+@keyframes pulse{50%{box-shadow:inset 0 0 0 2px var(--accent),0 0 0 6px rgba(90,169,240,.18)}}
+.slot.landed{animation:land .5s cubic-bezier(.34,1.56,.64,1)}
+@keyframes land{0%{transform:scale(.6)}100%{transform:scale(1)}}
+.flyer{position:absolute;z-index:5;width:128px;height:128px;border-radius:50%;background:var(--gold-bg);box-shadow:0 0 0 6px var(--gold-ring),0 16px 36px rgba(255,138,61,.22);
+       display:flex;align-items:center;justify-content:center;font-size:62px;transition:transform .7s cubic-bezier(.65,0,.35,1),opacity .2s}
+.flyer.pop{animation:pop .6s cubic-bezier(.34,1.56,.64,1) both}
+.vc .txt{margin-top:22px;display:flex;flex-direction:column;align-items:center}
+.vc .c-title{margin-top:0}
+.nx{width:100%;margin-top:18px;padding:12px 16px;border-radius:18px;background:var(--chip);text-align:left}
+.nx .h{display:flex;gap:10px;font-size:14px;font-weight:800;white-space:nowrap}
+.nx .h span{margin-left:auto;color:var(--muted)}
+.nx .bar{height:6px;border-radius:3px;background:var(--track);margin-top:8px;overflow:hidden}
+.nx .bar i{display:block;height:100%;border-radius:3px;background:var(--accent);width:0;transition:width .8s .3s cubic-bezier(.22,1,.36,1)}
+
+/* ---------- Reduce Motion: лише поява, без частинок, польоту й хвилі ---------- */
+.reduce *{animation:none !important;transition:opacity .2s !important}
+.reduce .in{animation:fadein .25s both !important}
+.reduce .cf,.reduce .rays,.reduce .bubs{display:none}
+.reduce .vb .wv{display:none}
+
+/* ---------- тиждень до / після ---------- */
+.panel{background:#fff;border-radius:22px;padding:20px 22px;max-width:1262px;box-shadow:0 6px 20px rgba(31,74,114,.08)}
+.wk{display:grid;grid-template-columns:96px repeat(7,1fr) 74px;gap:8px;align-items:start}
+.wk .hd{font-size:12px;font-weight:900;color:#5c7291;text-transform:uppercase;letter-spacing:.3px;text-align:center}
+.wk .rl{font-size:13px;font-weight:900;color:#5c7291;padding-top:6px}
+.wk .rl small{display:block;font-size:11px;font-weight:800;color:#8aa1bd}
+.wk .cell{min-height:44px;border-radius:14px;background:#f3f7fb;padding:6px;display:flex;flex-wrap:wrap;gap:4px;align-content:flex-start;justify-content:center}
+.wk .cell.now{background:#f1f3f6}
+.em{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;position:relative;cursor:default}
+.em.old{background:#e6e8eb}
+.em.gone{background:#e6e8eb;opacity:.45}
+.em.gone::after{content:"";position:absolute;left:4px;right:4px;top:50%;height:2px;background:#c3cddb;transform:rotate(-35deg)}
+.em.new{background:#fff2e2;box-shadow:0 0 0 2px #ffd9b0}
+.em.self{background:#eaf4ff;box-shadow:0 0 0 2px #b9d4ee}
+.em:hover::before{content:attr(data-t);position:absolute;bottom:36px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#1f4a72;color:#fff;font-size:12px;font-weight:800;padding:5px 9px;border-radius:9px;z-index:3}
+.tot{font-size:26px;font-weight:600;text-align:center;padding-top:4px}
+.tot.a{color:#ff8a3d}
+.tot.b{color:#5aa9f0}
+.sum{display:flex;gap:10px 26px;flex-wrap:wrap;margin-top:16px;font-size:13px;font-weight:800;color:#5c7291}
+.sum b{color:#1f4a72}
+.legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-size:12px;font-weight:800;color:#5c7291;align-items:center}
+.legend .em{width:22px;height:22px;font-size:11px}
+.rules{columns:2 520px;column-gap:40px;max-width:1262px;font-size:13px;font-weight:700;color:#3d4d66;line-height:1.5}
+.rules li{margin:0 0 10px 18px;break-inside:avoid}
+.rules b{color:#1f4a72}
+.cmp{display:flex;gap:22px;flex-wrap:wrap;margin:6px 0 4px}
+.toast-old{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px 10px;white-space:nowrap;background:#1f4a72;color:#fff;border-radius:16px;padding:12px 16px;font-size:14px;font-weight:800}
+.toast-old b{color:#9fd0ff}
+.toast-old s{opacity:.55;font-weight:700}
+</style>
+</head>
+<body>
+
+<h1>Свято відкриття — досягнення рідкісні й помітні (WAT-60)</h1>
+<p class="lead">
+  Зараз досягнення відкривається тостом на 3 с, тост — один на дію, і рівень важливіший: «Ціль дня», «3 дні поспіль» і «Знову в ритмі»
+  ховаються за «Рівень N!». Водночас «Розминка» за 10 порцій отримує свій тост із вібрацією. Пропоную дві речі разом:
+  <b>досягнень у перший тиждень — утричі менше</b> (каталог — <code>SPEC-ACHIEVEMENTS-CATALOG.md</code> §10), а <b>кожне — окреме вікно на весь екран</b>,
+  яке не зникає само. Одна дія — одне вікно: досягнення в ньому головне, рівень і приз рівня — рядком унизу (П2 аудиту).
+</p>
+<div class="cmp">
+  <div class="toast-old">Зараз, день 1, 20:30: <span>Рівень 3!</span> <s>🎯 Ціль дня</s> <s>✅ Усе на сьогодні</s></div>
+  <div class="toast-old">Зараз, день 2: <span>🏅 Досягнення: Розминка</span> <b>Подивитись</b></div>
+</div>
+
+<h2>Вікно відкриття: три варіанти поруч</h2>
+<p class="lead">Усі три кадри грають ту саму подію. Тисни кнопку порції чи «Готово» в кадрі, щоб повторити дію, і кнопки у вікні — «Далі», «Обрати приз», «Пізніше».
+  Вміст однаковий і мінімальний: знак, назва, опис із картки, XP і рядок «Далі» — наступна сходинка того самого правила, якщо до неї вже ≥ 10 %. Кнопка — одна. Рішення від 20.10.2026 — <b>B «Хвиля»</b>; ТЗ — <code>SPEC-ACHIEVEMENTS.md</code> §8.</p>
+<div class="ctl">
+  <div><label>Подія</label><div class="btns" data-g="ev">
+    <button data-v="first">Перша порція</button>
+    <button data-v="goal" class="on">Норма + рівень 2</button>
+    <button data-v="streak">Серія + вибір призу</button>
+    <button data-v="two">Два за дію: п'ятірка + тижнева мета + 🎁</button>
+    <button data-v="secret">🤫 Таємне, поки тебе не було</button>
+    <button data-v="egg">🥚 Пасхалка</button>
+    <button data-v="elsewhere">Поза головним: «Знання»</button>
+  </div></div>
+  <div><label>Тема</label><div class="btns" data-g="theme"><button data-v="light" class="on">Світла</button><button data-v="dark">Темна</button></div></div>
+  <div><label>Рух</label><div class="btns" data-g="motion"><button data-v="full" class="on">Повний</button><button data-v="reduce">Reduce Motion</button></div></div>
+  <div><label>&nbsp;</label><div class="btns"><button class="go" id="replay">▶ Програти знову</button></div></div>
+</div>
+
+<div class="row" id="frames">
+  <div class="frame-wrap">
+    <div class="frame-cap">A · Медаль</div>
+    <div class="frame" id="f-a"><div class="ctx"></div><div class="cel va"></div></div>
+    <div class="frame-note">Класика: медаль вистрибує в сяйві, краплі-конфеті, блиск. Читається за секунду, однаково працює для таємного
+      («?» перевертається), пасхалки (яйце тріскається), кількох досягнень і рівня з призом. Тло — колір екрана, тож вікно не сперечається з водою кільця.</div>
+  </div>
+  <div class="frame-wrap">
+    <div class="frame-cap">B · Хвиля — обрано 20.10.2026</div>
+    <div class="frame" id="f-b"><div class="ctx"></div><div class="cel vb"></div></div>
+    <div class="frame-note"><b>Обрано.</b> Найбільш «водяний»: екран заливає хвиля, досягнення спливає бульбашкою й лопається хвилями. Найсильніше відчуття «нарешті».
+      Фон — вода історій звіту й «Знань» (<code>WTStoryBackground</code> + <code>WTStoryWaves</code>), градієнт <code>ringEnd → waterDeep</code>, без нових кольорів. З кільцем норми не плутається: спершу доливається кільце, потім знизу піднімається вода на весь екран. Контраст білого тексту — пункт дизайн-приймання.</div>
+  </div>
+  <div class="frame-wrap">
+    <div class="frame-cap">C · Вітрина</div>
+    <div class="frame" id="f-c"><div class="ctx"></div><div class="cel vc"></div></div>
+    <div class="frame-note">Медаль летить на полицю, лічильник «N з 102» росте, унизу — смуга до наступної сходинки. Найкраще «заохочує далі» й показує колекцію.
+      Ризик: елементів більше, ніж у A, а «N з 102» на першому тижні (2 з 102) радше лякає, ніж тішить.</div>
+  </div>
+</div>
+
+<h2>Перший тиждень: до і після</h2>
+<p class="lead">Виміряно симуляцією <code>AttentionAuditWeek1Tests</code> (той самий тиждень пн 2 – нд 8 листопада 2026) на поточному каталозі й на прототипі
+  пропозиції; «Тижнева мета» — за журналом завдань того самого прогону. Наведи на знак — назва. Сірі закреслені — зняті з каталогу або відсунуті з тижня; блакитна обвідка — свідома дія «Дослідника».</p>
+<div class="panel">
+  <div class="ctl" style="box-shadow:none;padding:0 0 16px;margin:0">
+    <div><label>Хто</label><div class="btns" data-g="who">
+      <button data-v="typical" class="on">Типовий · норма 5 з 7</button>
+      <button data-v="diligent">Старанний · норма 7 з 7, рівно в ціль</button>
+      <button data-v="explorer">Дослідник · пробує функції</button>
+    </div></div>
+  </div>
+  <div class="wk" id="wk"></div>
+  <div class="sum" id="sum"></div>
+  <div class="legend">
+    <span><span class="em old" style="display:inline-flex">💧</span> зараз</span>
+    <span><span class="em gone" style="display:inline-flex">🏺</span> знято чи відсунуто</span>
+    <span><span class="em new" style="display:inline-flex">🎯</span> лишається — окреме вікно</span>
+    <span><span class="em self" style="display:inline-flex">✍️</span> свідома дія</span>
+  </div>
+</div>
+
+<h2>Правила показу</h2>
+<ul class="rules">
+  <li><b>Кожне досягнення — вікно на весь екран</b>, а не тост. Не закривається само; перші 0,5 с не реагує на дотик, щоб другий тап по кнопці порції його не змів.</li>
+  <li><b>Одна дія — одне вікно.</b> Кілька досягнень — сторінки з крапками й «Далі» (до трьох; більше — одна сторінка «Нові досягнення: N» сіткою, як після оновлення).</li>
+  <li><b>Віха + рівень — одне свято (П2).</b> Рівень, піднятий тією самою дією, — рядок на останній сторінці. Рівень із вибором чи 🎁 міняє кнопку на «Обрати приз» / «Відкрити 🎁» і додає «Пізніше». Рівень без досягнення — тост, як зараз.</li>
+  <li><b>Нічого не губиться.</b> Невідсвятковане лежить у черзі в базі. Вікно чекає, поки закриються онбординг, шторка, звіт, історія «Знань», вікно «Шлях рівнів». Відкрите з віджета, сповіщення, «Команд» чи завершеним учорашнім днем — на першому відкритті з підписом «Поки тебе не було».</li>
+  <li><b>Вібрація — одна на дію.</b> Вікно має свою, нову семантичну <code>.achievement</code>; без вікна закрита норма важливіша за рівень (П2).</li>
+  <li><b>Побачене — не «нове».</b> Після вікна досягнення не запалює крапку на краплі рівня (П5б): людина його вже бачила.</li>
+  <li><b>Таємне 🤫</b> — «?» перевертається в знак. <b>Пасхалка 🥚</b> — яйце тріскається; перша — ще рядок «Пасхалка! Тут їх більше».</li>
+  <li><b>Текст — одне речення</b> про зроблене, без роду. «Далі: …» — наступна сходинка того самого правила з каталогу (без ручних текстів); немає сходинки — немає рядка.</li>
+  <li><b>Reduce Motion</b> — лише поява, без частинок, польоту й хвилі. VoiceOver — «Нове досягнення: Ціль дня. Уперше випито денну норму. Плюс 25 XP».</li>
+</ul>
+
+<script>
+/* ===================== дані подій ===================== */
+const EV = {
+  // Опис — `details` з картки досягнення; «Далі» — те саме правило, прогрес від 10 % (SPEC-ACHIEVEMENTS §8.4).
+  first:{ctx:'home',from:0,add:200,btn:0,goal:2000,level0:1,
+    pages:[{e:'💧',t:'Перша крапля',l:'Перший запис води',xp:25}],
+    shelf:[],level:null},
+  goal:{ctx:'home',from:1600,add:500,btn:1,goal:2000,level0:1,
+    pages:[{e:'🎯',t:'Ціль дня',l:'Випито денну норму',xp:25,next:'🖐️ Перша п\'ятірка · 1 / 5',nx:{t:'🖐️ Перша п\'ятірка',v:1,of:5}}],
+    shelf:['💧'],level:{n:2,deg:30,sub:'⚡ Подвійний XP — у призах'}},
+  streak:{ctx:'home',from:1500,add:500,btn:1,goal:2000,level0:3,
+    pages:[{e:'🔥',t:'3 дні поспіль',l:'3 дні поспіль із нормою',xp:25,next:'⭐ Тиждень поспіль · 3 / 7',nx:{t:'⭐ Тиждень поспіль',v:3,of:7}}],
+    shelf:['💧','🎯'],level:{n:4,deg:20,sub:'Обери приз: 🧊 або ⚡',act:'choice'}},
+  two:{ctx:'home',from:1800,add:200,btn:0,goal:2000,level0:5,
+    pages:[{e:'🖐️',t:'Перша п\'ятірка',l:'5 днів із нормою',xp:25,next:'📅 Марафон · 5 / 20',nx:{t:'📅 Марафон',v:5,of:20}},
+           {e:'📋',t:'Тижнева мета',l:'Виконано перше тижневе завдання',xp:25}],
+    shelf:['💧','🎯','🔥','🌱'],level:{n:6,deg:15,sub:'🎁 Таємний приз чекає',act:'mystery'}},
+  secret:{ctx:'open',from:0,goal:2000,level0:4,
+    pages:[{e:'🍎',t:'В яблучко',l:'3 дні рівно норма, до мілілітра',xp:100,secret:true,label:'Поки тебе не було · таємне'}],
+    shelf:['💧','🎯','🔥'],level:null},
+  egg:{ctx:'home',from:900,add:314,btn:3,custom:true,goal:2000,level0:3,
+    pages:[{e:'🥧',t:'Пі',l:'314 мл — майже π',xp:25,egg:true,note:'Пасхалка! Тут їх більше'}],
+    shelf:['💧','🎯','✍️'],level:null},
+  elsewhere:{ctx:'learn',goal:2000,level0:2,
+    pages:[{e:'💡',t:'Цікавинка',l:'Дочитано першу історію в «Знаннях»',xp:15}],
+    shelf:['💧','🎯'],level:null}
+};
+const UPCOMING = ['🔥','⭐','🖐️','🌱','🎉','📅','📋','🪣','☄️','🧠'];
+const TOTAL = 102;
+const S = {ev:'goal', theme:'light', motion:'full', who:'typical'};
+const reduce = () => S.motion === 'reduce';
+
+/* ===================== кадри ===================== */
+const FR = [
+  {id:'a', v:'a', el:document.getElementById('f-a')},
+  {id:'b', v:'b', el:document.getElementById('f-b')},
+  {id:'c', v:'c', el:document.getElementById('f-c')}
+];
+FR.forEach(f => { f.ctx = f.el.querySelector('.ctx'); f.cel = f.el.querySelector('.cel'); f.token = 0; });
+
+function later(f, tk, ms, fn){ setTimeout(() => { if (f.token === tk) fn(); }, reduce() ? Math.round(ms * .45) : ms); }
+
+const C = 2 * Math.PI * 88;
+function homeHTML(f, ev, ml, level, opening){
+  const p = Math.min(1, ml / ev.goal), done = ml >= ev.goal;
+  const tasks = ev.ctx === 'open'
+    ? [['Перша склянка', false, '0 / 1'], ['Пів норми до 14:00', false, '0 / 1000']]
+    : [['Добери пів норми до 14:00', true, ''], ['Ще дві порції після 18:00', done, done ? '' : '1 / 2']];
+  return `<div class="home">
+    <div class="h-top"><div class="drop">💧<b class="num">${level}</b><i></i></div><div class="h-day">${ev.ctx === 'open' ? 'Вівторок' : 'Понеділок'}</div><div class="h-ic">📖</div></div>
+    <div class="ring ${done ? 'done' : ''}"><svg viewBox="0 0 200 200"><defs><linearGradient id="g${f.id}" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="var(--ring-a)"/><stop offset="1" stop-color="var(--ring-b)"/></linearGradient></defs>
+      <circle class="trk" cx="100" cy="100" r="88"/><circle class="val" cx="100" cy="100" r="88" stroke="url(#g${f.id})"
+      stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - p)}"/></svg>
+      <div class="ring-c"><b class="num">${ml}</b><span>${done ? '✓ норму закрито' : 'з ' + ev.goal + ' мл'}</span></div></div>
+    <div class="cap">${ev.ctx === 'open' ? '🌅 Ранок · ціль до 12:00' : done ? '🌆 Вечір · ✓' : '🌆 Вечір · ще ' + (ev.goal - ml) + ' мл'}</div>
+    <div class="qbs"><div class="qb">200 мл</div><div class="qb">500 мл</div><div class="qb">1 л</div></div>
+    <div class="other">Інше · ${ev.custom ? '314' : '330'} мл</div>
+    <div class="h-sec">СЬОГОДНІ</div>
+    ${tasks.map(t => `<div class="task"><div class="ck ${t[1] ? 'on' : ''}">${t[1] ? '✓' : ''}</div>${t[0]}<span class="pr">${t[2]}</span></div>`).join('')}
+  </div>${opening ? '<div class="opening"><b class="num">07:42</b><span>відкриття застосунку</span></div>' : ''}`;
+}
+
+function storyHTML(){
+  return `<div class="story"><div class="bars"><i></i><i></i><i></i><i></i></div>
+    <div class="k">Вода й тіло · 4 з 4</div><h3>Скільки води треба тілу</h3>
+    <p>Норма — не «8 склянок», а твоя вага, рух і погода. Застосунок рахує її для тебе — і змінює, коли змінюєшся ти.</p>
+    <div class="art">🫗</div><div class="done">Готово</div></div>`;
+}
+
+function setRing(f, ml, ev){
+  const ring = f.ctx.querySelector('.ring'); if (!ring) return;
+  const done = ml >= ev.goal;
+  ring.querySelector('.val').style.strokeDashoffset = C * (1 - Math.min(1, ml / ev.goal));
+  ring.classList.toggle('done', done);
+  const b = ring.querySelector('.ring-c b'), from = +b.textContent, t0 = performance.now(), dur = reduce() ? 1 : 700;
+  (function tick(now){ const k = Math.max(0, Math.min(1, (now - t0) / dur)); b.textContent = Math.round(from + (ml - from) * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(tick); })(t0);
+  ring.querySelector('.ring-c span').textContent = done ? '✓ норму закрито' : 'з ' + ev.goal + ' мл';
+  const cap = f.ctx.querySelector('.cap'); if (cap) cap.textContent = done ? '🌆 Вечір · ✓' : '🌆 Вечір · ще ' + (ev.goal - ml) + ' мл';
+  if (done) f.ctx.querySelectorAll('.task .ck').forEach(c => { c.classList.add('on'); c.textContent = '✓'; c.parentElement.querySelector('.pr').textContent = ''; });
+}
+
+/* ===================== програвання ===================== */
+function play(f){
+  const ev = EV[S.ev], tk = ++f.token;
+  f.page = 0;
+  f.cel.className = 'cel ' + {a:'va', b:'vb', c:'vc'}[f.v];
+  f.cel.innerHTML = '';
+  if (ev.ctx === 'learn') {
+    f.ctx.innerHTML = storyHTML();
+    const done = f.ctx.querySelector('.done');
+    done.onclick = () => { if (f.cel.classList.contains('on')) return; play(f); };
+    later(f, tk, 700, () => done.classList.add('press'));
+    later(f, tk, 950, () => done.classList.remove('press'));
+    later(f, tk, 1250, () => show(f, tk));
+  } else if (ev.ctx === 'open') {
+    f.ctx.innerHTML = homeHTML(f, ev, 0, ev.level0, true);
+    later(f, tk, 600, () => f.ctx.querySelector('.opening').classList.add('gone'));
+    later(f, tk, 1300, () => show(f, tk));
+  } else {
+    f.ctx.innerHTML = homeHTML(f, ev, ev.from, ev.level0, false);
+    const btns = f.ctx.querySelectorAll('.qb');
+    const trigger = () => {
+      if (f.cel.classList.contains('on')) return;
+      const target = ev.custom ? f.ctx.querySelector('.other') : btns[ev.btn];
+      target.classList.add('press');
+      later(f, tk, 220, () => target.classList.remove('press'));
+      later(f, tk, 160, () => setRing(f, ev.from + ev.add, ev));
+      later(f, tk, ev.from + ev.add >= ev.goal ? 1150 : 650, () => show(f, tk));
+    };
+    btns.forEach(b => b.onclick = () => { play(f); });
+    f.ctx.querySelector('.other').onclick = () => { play(f); };
+    later(f, tk, 650, trigger);
+  }
+}
+
+function show(f, tk){
+  f.cel.classList.add('on');
+  if (f.v === 'b') { f.cel.classList.remove('fill', 'still'); }
+  renderPage(f, tk, true);
+}
+
+function labelFor(p){ return p.label || (p.secret ? 'Таємне досягнення' : p.egg ? 'Пасхалка' : 'Нове досягнення'); }
+
+function footHTML(f, ev, i){
+  const last = i === ev.pages.length - 1, n = ev.pages.length;
+  const dots = n > 1 ? `<div class="c-dots">${ev.pages.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div>` : '';
+  const lv = last && ev.level ? `<div class="c-lv in" style="animation-delay:${reduce() ? 0 : .9}s"><div class="d" style="--deg:${ev.level.deg}deg"><b class="num">${ev.level.n}</b></div>
+      <div class="t"><b>Рівень ${ev.level.n}</b><span>${ev.level.sub}</span></div></div>` : '';
+  let btn = 'Чудово', link = '';
+  if (!last) btn = 'Далі';
+  else if (ev.level && ev.level.act === 'choice') { btn = 'Обрати приз'; link = '<button class="c-link" data-a="later">Пізніше</button>'; }
+  else if (ev.level && ev.level.act === 'mystery') { btn = 'Відкрити 🎁'; link = '<button class="c-link" data-a="later">Пізніше</button>'; }
+  return `<div class="c-foot">${dots}${lv}<button class="c-btn" data-a="${last ? (ev.level && ev.level.act ? 'road' : 'close') : 'next'}">${btn}</button>${link}</div>`;
+}
+
+function textHTML(p, delay){
+  const d = reduce() ? 0 : delay;
+  return `<div class="c-label in" style="animation-delay:${d}s">${labelFor(p)}</div>
+    <div class="c-title in" style="animation-delay:${d + .08}s">${p.t}</div>
+    <div class="c-line in" style="animation-delay:${d + .16}s">${p.l}</div>
+    <div class="c-xp in num" style="animation-delay:${d + .26}s">+<span class="xpv">0</span>&nbsp;XP</div>
+    ${p.note ? `<div class="c-note in" style="animation-delay:${d + .36}s">${p.note}</div>` : ''}
+    ${p.next ? `<div class="c-next in" style="animation-delay:${d + .36}s">Далі: ${p.next}</div>` : ''}`;
+}
+
+function countXp(f, p, tk, delay){
+  const el = f.cel.querySelector('.xpv'); if (!el) return;
+  later(f, tk, delay, () => {
+    const t0 = performance.now(), dur = reduce() ? 1 : 600;
+    (function tick(now){ const k = Math.max(0, Math.min(1, (now - t0) / dur)); el.textContent = Math.round(p.xp * k); if (k < 1 && f.token === tk) requestAnimationFrame(tick); })(t0);
+  });
+  // У прихованій вкладці rAF стоїть — кінцеве число виставляє таймер.
+  later(f, tk, delay + 800, () => { el.textContent = p.xp; });
+}
+
+function confetti(host, eggShell){
+  if (reduce()) return '';
+  const cols = eggShell ? ['#fff8ec', '#ffe9c8', '#f3e1c2', '#fff2e2'] : ['#5aa9f0', '#ff8a3d', '#3fb56f', '#ffd77a', '#7cc4ff', '#ff8a3d'];
+  let h = '';
+  for (let k = 0; k < (eggShell ? 14 : 28); k++) {
+    const a = (k / (eggShell ? 14 : 28)) * Math.PI * 2 + Math.random() * .3, r = 90 + Math.random() * 110;
+    h += `<i class="cf" style="--c:${cols[k % cols.length]};--x:${Math.cos(a) * r}px;--y:${Math.sin(a) * r - 40}px;--r:${Math.random() * 540 - 270}deg;--d:${Math.random() * .12}s"></i>`;
+  }
+  return h;
+}
+
+function renderPage(f, tk, first){
+  const ev = EV[S.ev], i = f.page, p = ev.pages[i];
+  if (f.v === 'a') renderA(f, ev, p, i, tk);
+  if (f.v === 'b') renderB(f, ev, p, i, tk, first);
+  if (f.v === 'c') renderC(f, ev, p, i, tk, first);
+  f.cel.querySelectorAll('[data-a]').forEach(b => b.onclick = () => act(f, b.dataset.a));
+}
+
+/* ----- A · Медаль ----- */
+function renderA(f, ev, p, i, tk){
+  const face = p.secret ? '<span>?</span>' : p.egg ? '🥚' : p.e;
+  f.cel.innerHTML = `<div class="bg"></div>
+    <div class="cw"><div class="c-body"><div class="hero"><div class="glow"></div><div class="rays"></div>
+      <div class="medal pop ${p.secret ? 'q' : ''}">${face}</div><div class="burst"></div></div>
+      ${textHTML(p, p.secret || p.egg ? 1.15 : .45)}</div>${footHTML(f, ev, i)}</div>`;
+  const medal = f.cel.querySelector('.medal'), burst = f.cel.querySelector('.burst');
+  if (p.secret || p.egg) {
+    if (p.egg) later(f, tk, 350, () => medal.classList.add('wob'));
+    later(f, tk, p.egg ? 1250 : 800, () => {
+      medal.classList.add('squeeze');
+      later(f, tk, 250, () => { medal.classList.remove('q', 'wob'); medal.innerHTML = p.e; burst.innerHTML = confetti(burst, p.egg); });
+    });
+    countXp(f, p, tk, 1500);
+  } else {
+    later(f, tk, 180, () => { burst.innerHTML = confetti(burst); });
+    countXp(f, p, tk, 750);
+  }
+}
+
+/* ----- B · Хвиля ----- */
+const WAVE = 'M0 14 Q 50 0 100 14 T 200 14 T 300 14 T 400 14 T 500 14 T 600 14 T 700 14 T 800 14 V 26 H 0 Z';
+function renderB(f, ev, p, i, tk, first){
+  const face = p.secret ? '<span>?</span>' : p.egg ? '🥚' : p.e;
+  let bubs = '';
+  for (let k = 0; k < 14; k++) { const s = 4 + Math.random() * 10; bubs += `<i style="left:${Math.random() * 100}%;width:${s}px;height:${s}px;animation-duration:${5 + Math.random() * 6}s;animation-delay:${-Math.random() * 8}s"></i>`; }
+  const keepWater = !first;
+  f.cel.innerHTML = `<div class="water"><svg class="wv w2" viewBox="0 0 800 26" preserveAspectRatio="none"><path d="${WAVE}"/></svg>
+      <svg class="wv w1" viewBox="0 0 800 26" preserveAspectRatio="none"><path d="${WAVE}"/></svg><div class="bubs">${bubs}</div></div>
+    <div class="cw"><div class="c-body">
+      <div class="bubble ${p.secret ? 'q' : ''}" style="opacity:0">${face}</div>
+      ${textHTML(p, (p.secret || p.egg ? 1.9 : 1.35) - (keepWater ? .6 : 0))}</div>${footHTML(f, ev, i)}</div>`;
+  if (keepWater) f.cel.classList.add('fill', 'still');
+  else later(f, tk, 40, () => f.cel.classList.add('fill'));
+  const bubble = f.cel.querySelector('.bubble');
+  later(f, tk, keepWater ? 0 : 450, () => {
+    bubble.style.opacity = 1; bubble.classList.add('up');
+    later(f, tk, 1000, () => {
+      if (p.secret || p.egg) {
+        if (p.egg) bubble.classList.add('wob');
+        later(f, tk, p.egg ? 900 : 350, () => {
+          bubble.classList.add('squeeze');
+          later(f, tk, 250, () => { bubble.classList.remove('q', 'wob'); bubble.innerHTML = p.e + '<i class="rip"></i>'; });
+        });
+      } else bubble.insertAdjacentHTML('beforeend', '<i class="rip"></i><i class="rip" style="animation-delay:.25s"></i>');
+    });
+  });
+  countXp(f, p, tk, keepWater ? 900 : 1700);
+}
+
+/* ----- C · Вітрина ----- */
+function renderC(f, ev, p, i, tk, first){
+  const have = ev.shelf.concat(ev.pages.slice(0, i).filter(x => !x.egg).map(x => x.e));
+  const count = have.length, egg = !!p.egg;
+  const upcoming = UPCOMING.filter(e => !have.includes(e) && !ev.pages.some(x => x.e === e));
+  const slots = [];
+  have.forEach(e => slots.push(`<div class="slot"><span>${e}</span></div>`));
+  if (!egg) slots.push(`<div class="slot empty ${p.secret ? 'q lock' : ''}" data-target><span>${p.secret ? '???' : p.e}</span></div>`);
+  let u = 0; while (slots.length < 8) slots.push(`<div class="slot lock"><span>${upcoming[u++] || '💧'}</span></div>`);
+  const nx = p.nx ? `<div class="nx in" style="animation-delay:${reduce() ? 0 : 1.5}s"><div class="h">Далі: ${p.nx.t}<span class="num">${p.nx.v}${p.nx.u || ''} / ${p.nx.of}${p.nx.u || ''}</span></div>
+      <div class="bar"><i data-w="${Math.round(p.nx.v / p.nx.of * 100)}"></i></div></div>` : '';
+  const q = Object.assign({}, p, {next: null});
+  f.cel.innerHTML = `<div class="bg"></div><div class="cw">
+      <div class="cnt"><em>Твоя вітрина</em><b class="num cv">${count}</b><span class="num">з ${TOTAL}</span><span class="egg num ${egg ? '' : ''}" data-egg>🥚 1</span></div>
+      <div class="shelf">${slots.slice(0, 8).join('')}</div>
+      <div class="c-body"><div class="txt">${textHTML(q, 1.35)}${nx}</div></div>${footHTML(f, ev, i)}</div>
+    <div class="flyer pop" style="left:137px;top:330px">${p.secret ? '?' : egg ? '🥚' : p.e}</div>`;
+  const flyer = f.cel.querySelector('.flyer');
+  const target = egg ? f.cel.querySelector('[data-egg]') : f.cel.querySelector('[data-target]');
+  if (egg) target.style.visibility = 'hidden', target.classList.add('on');
+  later(f, tk, p.secret || egg ? 1150 : 750, () => {
+    if (p.secret || egg) { flyer.textContent = p.e; }
+    const r = target.getBoundingClientRect(), frame = f.el.getBoundingClientRect();
+    const dx = r.left + r.width / 2 - (frame.left + 137 + 64), dy = r.top + r.height / 2 - (frame.top + 330 + 64);
+    flyer.style.animation = 'none';
+    flyer.style.transform = `translate(${dx}px,${dy}px) scale(${egg ? .22 : 56 / 128})`;
+    later(f, tk, 700, () => {
+      flyer.style.opacity = 0;
+      if (egg) { target.style.visibility = 'visible'; }
+      else { target.classList.remove('empty', 'q', 'lock'); target.innerHTML = `<span>${p.e}</span>`; target.classList.add('landed');
+             f.cel.querySelector('.cv').textContent = count + 1; }
+    });
+  });
+  if (reduce()) { flyer.style.display = 'none'; if (egg) target.style.visibility = 'visible'; else { target.classList.remove('empty', 'q', 'lock'); target.innerHTML = `<span>${p.e}</span>`; f.cel.querySelector('.cv').textContent = count + 1; } }
+  later(f, tk, 1600, () => f.cel.querySelectorAll('.nx .bar i').forEach(b => b.style.width = b.dataset.w + '%'));
+  countXp(f, p, tk, 1700);
+}
+
+/* ----- кнопки вікна ----- */
+function act(f, a){
+  const ev = EV[S.ev];
+  if (a === 'next') { f.page++; renderPage(f, f.token, false); return; }
+  f.cel.classList.remove('on', 'fill', 'still');
+  f.cel.innerHTML = '';
+  const drop = f.ctx.querySelector('.drop b');
+  if (drop && ev.level) drop.textContent = ev.level.n;
+  if (a === 'road') flash(f, ev.level.act === 'choice' ? '→ вікно «Шлях рівнів» на рівні ' + ev.level.n + ': вибір 🧊 або ⚡' : '→ вікно «Шлях рівнів»: розкриття 🎁 рівня ' + ev.level.n);
+  else if (a === 'later' && ev.level) flash(f, 'Приз рівня ' + ev.level.n + ' чекає на «Прогресі» — крапка на донаті');
+  else flash(f, 'Досягнення вже побачене — крапки на краплі рівня немає');
+}
+function flash(f, text){
+  const d = document.createElement('div'); d.className = 'flash'; d.textContent = text; f.el.appendChild(d);
+  setTimeout(() => d.remove(), 2600);
+}
+
+/* ===================== тиждень до / після ===================== */
+const NAMES = {'🔔':'На звʼязку','💧':'Перша крапля','🌅':'Добрий ранок','📋':'Перше завдання','🏺':'Глечик','🎯':'Ціль дня','✅':'Усе на сьогодні',
+  '🔟':'Розминка','🪜':'Перехрестя','🗃️':'Колекція','🍎':'В яблучко','💦':'Струмок','🔥':'3 дні поспіль','🌱':'Знову в ритмі','🛟':'Вчасно',
+  '🔓':'Перша скриня','🪣':'Відро','⏰':'Чуйність','🖐️':'Перша п\'ятірка','🥛':'Вісім склянок','〰️':'Рівна крива','🫗':'Склянка наполовину повна',
+  '♊':'Як дві краплі води','🏹':'Влучність','🏃':'На крок попереду','🎉':'Вихідні в ритмі','⭐':'Тиждень поспіль','✍️':'Своя мірка','🔙':'Друга думка',
+  '🌈':'Ранок, день і вечір','💡':'Цікавинка','🎲':'Подвійна гра','🌓':'Темна сторона','🖼️':'Вітрина'};
+const WEEK = {
+  typical:{before:[['🔔','💧','🌅','📋','🏺','🎯','✅'],['🔟','🪜'],['🗃️','🍎','💦','🔥'],[],['🌱','🛟','🔓'],['🪣'],['⏰','🖐️']],
+           after:[['💧','🎯'],[],['🔥'],[],['🌱'],[],['🖐️','📋']],
+           sum:['День 1: <b>7 → 2</b>','Тиждень: <b>19 → 6</b>','XP тижня: <b>1611 → ≈ 1230</b>, з досягнень <b>530 → 150</b>','Рівень на 7-й день: <b>7 → 6</b> (день 1: 3 → 2)','Без власного показу: <b>10 → 0</b>']},
+  diligent:{before:[['🔔','💧','🌅','📋','🏺','🎯','✅','🥛'],['🗃️','〰️','🍎','🔟','🫗','💦','🪜'],['♊','🔥','🔓'],[],['🖐️','🪣'],['🏹'],['🏃','🎉','⭐']],
+           after:[['💧','🎯'],[],['🔥'],['🍎'],['🖐️','📋'],[],['🎉','⭐']],
+           sum:['День 1: <b>8 → 2</b>','Тиждень: <b>24 → 8</b>','XP тижня: <b>2248 → ≈ 1570</b>, з досягнень <b>880 → 200</b>','Рівень на 7-й день: <b>9 → 7</b>','Найбільше за день: <b>8 → 2</b>']},
+  explorer:{before:[['🔔','💧','🌅','✍️','🏺','🔙','📋','🗃️','🎯','✅','🌈'],['〰️','💡','🔟','💦','🪜'],['🍎','🎲','🔥','🔓'],['🌓'],['🌱','🛟','🪣'],[],['🖼️','⏰','🖐️']],
+           after:[['💧','✍️','🎯'],['💡'],['🎲','🔥'],['🌓'],['🌱'],[],['🖐️','📋']],
+           sum:['День 1: <b>11 → 3</b> (третє — свідома «Своя мірка»)','Тиждень: <b>27 → 10</b>, з них 4 — свідомі дії','XP тижня: <b>2165 → ≈ 1520</b>, з досягнень <b>915 → 270</b>','Рівень на 7-й день: <b>8 → 7</b>']}
+};
+const SELF = new Set(['✍️','💡','🎲','🌓']);
+const AFTER_NAMES = {'📋':'Тижнева мета'};
+function renderWeek(){
+  const w = WEEK[S.who], days = ['Пн 1','Вт 2','Ср 3','Чт 4','Пт 5','Сб 6','Нд 7'];
+  const em = (e, cls, after) => `<span class="em ${cls}" data-t="${(after && AFTER_NAMES[e]) || NAMES[e] || e}">${e}</span>`;
+  let h = '<div></div>' + days.map(d => `<div class="hd">${d}</div>`).join('') + '<div class="hd">Разом</div>';
+  // Сірим закреслено те, чого в цей день більше немає: знято або відсунуто на інший день.
+  h += '<div class="rl">Зараз<small>поточний каталог</small></div>' + w.before.map((d, i) => `<div class="cell now">${d.map(e => em(e, w.after[i].includes(e) && !(AFTER_NAMES[e]) ? 'old' : 'gone')).join('')}</div>`).join('')
+     + `<div class="tot a num">${w.before.flat().length}</div>`;
+  h += '<div class="rl">Пропоную<small>прототип каталогу</small></div>' + w.after.map(d => `<div class="cell">${d.map(e => em(e, SELF.has(e) ? 'self' : 'new', true)).join('')}</div>`).join('')
+     + `<div class="tot b num">${w.after.flat().length}</div>`;
+  document.getElementById('wk').innerHTML = h;
+  document.getElementById('sum').innerHTML = w.sum.map(s => `<span>${s}</span>`).join('');
+}
+
+/* ===================== панель ===================== */
+function applyTheme(){ FR.forEach(f => { f.el.classList.toggle('dark', S.theme === 'dark'); f.el.classList.toggle('reduce', reduce()); }); }
+document.querySelectorAll('.btns[data-g]').forEach(g => g.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  g.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  S[g.dataset.g] = b.dataset.v;
+  if (g.dataset.g === 'who') { renderWeek(); return; }
+  applyTheme(); FR.forEach(play);
+}));
+document.getElementById('replay').onclick = () => FR.forEach(play);
+// Стан з адреси — щоб поділитися конкретним кадром: Celebration.html#ev=secret&theme=dark&who=explorer
+new URLSearchParams(location.hash.slice(1)).forEach((v, k) => {
+  const b = document.querySelector(`.btns[data-g="${k}"] button[data-v="${v}"]`);
+  if (!b) return;
+  b.parentElement.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  S[k] = v;
+});
+applyTheme(); FR.forEach(play); renderWeek();
+</script>
+</body>
+</html>
