@@ -25,6 +25,9 @@ public final class SettingsModel {
         quickAmounts = services.hydration.quickAddAmounts()
     }
 
+    /// Зміни не з цього екрана — повторний онбординг поверх нього (WAT-56).
+    var epoch: Int { services.epoch }
+
     public func refresh() {
         goalMl = services.hydration.currentGoal()
         quickAmounts = services.hydration.quickAddAmounts()

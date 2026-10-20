@@ -170,3 +170,18 @@ public enum ScheduleOfferOutcome: Int, Codable, Sendable {
     /// Закрили ✕ або застосунок закрили з відкритим вікном — спитаємо через 7 днів.
     case dismissed
 }
+
+/// Особливий стан, що змінює норму (WAT-56, SPEC-ONBOARDING §3.1): EFSA окремо додає воду лише для цих двох.
+/// Питається тільки при статі «Жінка»; стан тимчасовий — повторний онбординг його знімає.
+public enum BodyCondition: Int, Codable, CaseIterable, Sendable {
+    case none = 0, pregnancy, breastfeeding
+}
+
+/// Чим закінчився перший онбординг (SPEC-ONBOARDING §6, §8). Не «пройшли / ні»: після «Пропустити»
+/// він не відкривається сам, але й пройденим не вважається.
+public enum OnboardingState: Int, Codable, Sendable {
+    /// Ще не показували — на першому запуску відкриється сам, якщо в базі немає жодної порції.
+    case notShown = 0
+    case skipped
+    case completed
+}
