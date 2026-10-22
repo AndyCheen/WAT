@@ -47,6 +47,20 @@ final class VolumeUnitLabelTests: XCTestCase {
         XCTAssertEqual(metric.first { $0.key == "big.gulp" }!.valueLabel, "500 / 1000")
     }
 
+    /// Одиниця після чисел — у системі людини (WAT-52 поверх WAT-58): в унціях «унц.» без переходу в літри,
+    /// і VoiceOver — словом, узгодженим з ціллю.
+    func testVolumeAchievementUnitLabelInOunces() {
+        let env = GameEnv()
+        env.addIntakeEvent(500)
+        env.profiles.profile().volumeUnit = .usFluidOunces
+        let items = env.game.achievementSnapshots()
+        let bucket = items.first { $0.key == "volume.10l" }!
+        XCTAssertEqual("\(bucket.progressLabel) \(bucket.unitLabel!)", "17/676 унц.", "унції — цілі, без літрів")
+        XCTAssertEqual(bucket.spokenProgress, "17 із 676 унцій")
+        XCTAssertEqual(items.first { $0.key == "big.gulp" }!.spokenProgress, "17 із 34 унції")
+        XCTAssertNil(items.first { $0.key == "portions.100" }!.unitLabel, "порції — штуки")
+    }
+
     // MARK: - Точні об'єми в унціях (WAT-59)
 
     /// Найменша порція — 50 мл у метричній, 2 унц. (59 мл) в унціях; 50 мл на межі степера теж «2 унц.».

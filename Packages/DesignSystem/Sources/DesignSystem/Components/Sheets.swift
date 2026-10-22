@@ -65,7 +65,9 @@ public struct WTSheet<Content: View>: View {
                 .transition(.move(edge: .bottom))
             }
         }
-        .ignoresSafeArea()
+        // Лише контейнер, не клавіатуру: шторка з полем (точний ввід у «Інше», WAT-50) має підніматися над нею,
+        // а не ховати під нею кнопку дії. Решта шторок клавіатури не викликає — для них нічого не змінюється.
+        .ignoresSafeArea(.container)
     }
 
     private var scrimOpacity: Double {
@@ -293,13 +295,14 @@ public struct WTAchievementDetail: View {
             .padding(.horizontal, 14)
             .frame(height: 30)
             .background(WTColor.success.opacity(0.12), in: Capsule())
-        case .progress(let fraction, let label):
+        case .progress(let fraction, let label, let unit):
             // Спершу «навіщо мені це», потім «скільки лишилось».
             reward
             VStack(spacing: 4) {
                 WTProgressBar(fraction: fraction, height: 8)
-                Text(label)
-                    .font(WTFont.number(12, .semibold))
+                // Числа — Fredoka (§11), одиниця — Nunito: у Fredoka немає кирилиці, і «л» упало б у системний.
+                (Text(label).font(WTFont.number(12, .semibold))
+                    + Text(unit.map { " \($0)" } ?? "").font(WTFont.text(12, .heavy)))
                     .foregroundStyle(theme.textMuted)
             }
         case .caption(let caption):
@@ -310,6 +313,8 @@ public struct WTAchievementDetail: View {
                 .foregroundStyle(theme.textMuted)
                 .multilineTextAlignment(.center)
                 .frame(minHeight: 30)
+        case .locked:
+            reward
         case .hidden:
             EmptyView()
         }

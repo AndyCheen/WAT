@@ -157,6 +157,10 @@ public final class HomeViewModel {
     private var permissionOfferPending = false
     public var openHistoryId: UUID?
     public var customAmount: Int = 300
+    /// Точний ввід у «Інше» (WAT-50): набрані цифри, поки поле в фокусі; `nil` — поле показує `customAmount`.
+    public private(set) var customTyped: String?
+    /// Стерте до порожнього поле повертає попереднє число, а не нуль: передумати не має нічого міняти.
+    @ObservationIgnored private var customBeforeTyping = 300
 
     // Вікно «Склянка» (§7.1).
     public var glassStage: GlassStage = .pour
@@ -248,12 +252,15 @@ public final class HomeViewModel {
     /// Кнопка «Інше» — з останнім доданим через шторку об'ємом (WAT-45). Тап по сповіщенню йде
     /// через `apply(_:)` з типовою порцією P: текст сповіщення називає саме її (§6.4).
     public func openCustom() {
+        customTyped = nil
         customAmount = services.hydration.customAmountStart()
         present(.custom)
     }
 
     public func confirmCustom() {
-        let amount = Intake.clamp(customAmount)
+        guard isCustomAmountValid else { return }
+        customTyped = nil
+        let amount = customAmount
         services.hydration.rememberCustomAmount(amount)
         add(amount, viaCustom: true)
         dismissSheet()
@@ -261,7 +268,59 @@ public final class HomeViewModel {
 
     /// ±50 мл або ±1 унц. (`VolumeSteps.custom`, WAT-46).
     public func stepCustom(up: Bool) {
+        endCustomTyping()
         customAmount = services.hydration.steppedCustomAmount(customAmount, up: up)
+    }
+
+    public func selectCustom(_ ml: Int) {
+        customTyped = nil
+        customAmount = ml
+    }
+
+    // MARK: - Точний ввід у «Інше» (WAT-50)
+
+    /// Без нього «Пі» (314 мл) і «Дзеркало» (паліндром за день) з інтерфейсу не виконати: степер і чипи — сітка 50 мл,
+    /// а чотиризначного паліндрома, кратного 50, немає (SPEC-ACHIEVEMENTS-CATALOG §9). Цифри — в одиницях людини:
+    /// в унціях набирають унції, а `customAmount` лишається в мілілітрах (WAT-46).
+    public var customFieldText: String { customTyped ?? volumeUnit.number(customAmount) }
+
+    /// Поза 50…2000 мл «Додати» неактивна: мовчки записати 50 замість набраного «5» — гірше, ніж не дати натиснути.
+    public var isCustomAmountValid: Bool { Intake.isValid(customAmount) }
+
+    /// Рядком, а не інтерполяцією в `Text`: та локалізувала б межу як «2 000». В унціях межі — цілі унції, що
+    /// влазять у 50…2000 мл: «від 2 до 67 унц.», бо 1 унц. — це 30 мл, а 68 — вже 2011 мл.
+    public var customUnitCaption: String {
+        guard !isCustomAmountValid else { return volumeUnit.symbol }
+        let low = volumeUnit.unitsRoundedUp(Intake.minAmountMl)
+        let high = volumeUnit.isMetric
+            ? Intake.maxAmountMl
+            : Int((Double(Intake.maxAmountMl) / volumeUnit.mlPerUnit).rounded(.down))
+        return "від \(low) до \(high) \(volumeUnit.symbol)"
+    }
+
+    /// Тап по числу: набране замінює значення, а не дописується до нього — поки нічого не набрано, видно попереднє.
+    public func beginCustomTyping() {
+        guard customTyped == nil else { return }
+        customBeforeTyping = customAmount
+        customTyped = ""
+    }
+
+    /// Лише цифри, без нулів попереду й не більше чотирьох: п'ята цифра однаково вивела б за 2000 мл,
+    /// а вставлене «0,33 л» не має зламати поле.
+    public func typeCustom(_ text: String) {
+        // `TextField` пише в прив'язку й сам, на початку редагування, — те саме число, ще до зміни фокуса.
+        // Прийняти це за ввід — і поле не очиститься, а набране допишеться до старого: «3» → «3300».
+        guard customTyped != nil else { return }
+        let digits = String(text.filter { $0.isASCII && $0.isNumber }.drop(while: { $0 == "0" }).prefix(4))
+        customTyped = digits
+        customAmount = Int(digits).map { volumeUnit.milliliters(units: $0) } ?? customBeforeTyping
+    }
+
+    /// Клавіатуру сховали — недобране число стає в межі порції, а не лишає «Додати» неактивною.
+    public func endCustomTyping() {
+        guard customTyped != nil else { return }
+        customTyped = nil
+        customAmount = Intake.clamp(customAmount)
     }
 
     public func remove(id: UUID) {
@@ -382,6 +441,7 @@ public final class HomeViewModel {
     public func apply(_ intent: AppRouter.HomeIntent) {
         switch intent {
         case .customAmount(let ml):
+            customTyped = nil
             customAmount = Intake.clamp(ml)
             present(.custom)
         case .achievement(let key):

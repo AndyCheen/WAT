@@ -122,6 +122,7 @@ public final class AchievementEngine {
                 category: definition.category,
                 value: showsProgress ? progress?.value ?? 0 : 0,
                 target: definition.target,
+                unit: definition.unit,
                 isUnlocked: isUnlocked,
                 isSecret: definition.isSecret,
                 rewardXp: definition.rewardXp,

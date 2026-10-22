@@ -178,12 +178,12 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
 
         app.buttons["home.add.custom"].tap()
-        let value = app.staticTexts["custom.value"]
+        let value = app.textFields["custom.value"]
         XCTAssertTrue(value.waitForExistence(timeout: 5))
-        XCTAssertEqual(value.label, "300")
+        XCTAssertEqual(value.value as? String, "300")
 
         app.buttons["500"].tap()
-        XCTAssertEqual(value.label, "500")
+        XCTAssertEqual(value.value as? String, "500")
 
         app.buttons["custom.confirm"].tap()
         dismissCelebrationIfPresent(app)
@@ -204,9 +204,49 @@ final class SmokeUITests: XCTestCase {
         dismissCelebrationIfPresent(app)
 
         app.buttons["home.add.custom"].tap()
-        let value = app.staticTexts["custom.value"]
+        let value = app.textFields["custom.value"]
         XCTAssertTrue(value.waitForExistence(timeout: 5))
-        XCTAssertEqual(value.label, "350")
+        XCTAssertEqual(value.value as? String, "350")
+    }
+
+    /// Тап по числу в «Інше» — цифрова клавіатура, і точний об'єм, якого немає на сітці 50 мл (WAT-50).
+    /// 314 мл — ще й пасхалка «Пі»: годинник закріплено, щоб порція не припала на повню чи 11:11.
+    func testCustomSheetAcceptsExactAmountFromKeyboard() {
+        let app = launch(["--uitest-empty", "--uitest-now", "2026-10-01T09:00:00+03:00"])
+        XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
+        // Перша порція через «Інше» — окремо: «Перша крапля» й «Своя мірка» інакше стали б у вікні відкриття
+        // поруч із пасхалкою, і першою сторінкою була б не вона.
+        let confirm = app.buttons["custom.confirm"]
+        app.buttons["home.add.custom"].tap()
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
+        XCTAssertTrue(confirm.waitForNonExistence(timeout: 5))
+        dismissCelebrationIfPresent(app)
+
+        app.buttons["home.add.custom"].tap()
+        let value = app.textFields["custom.value"]
+        XCTAssertTrue(value.waitForExistence(timeout: 5))
+        value.tap()
+
+        // `typeText` сам падає, якщо фокуса ніде немає: тап по числу мав поставити курсор у поле.
+        app.typeText("5")
+        XCTAssertEqual(app.staticTexts["custom.unit"].label, "від 50 до 2000 мл")
+        XCTAssertFalse(confirm.isEnabled, "поза межами порції «Додати» неактивна")
+        app.typeText(XCUIKeyboardKey.delete.rawValue)
+        app.typeText("314")
+        XCTAssertEqual(value.value as? String, "314")
+        XCTAssertTrue(confirm.isEnabled)
+        let keyboard = app.keyboards.firstMatch
+        XCTAssertTrue(keyboard.exists, "цифрова клавіатура")
+        XCTAssertLessThanOrEqual(confirm.frame.maxY, keyboard.frame.minY,
+                                 "шторка піднялася над клавіатурою, а не сховала кнопку під нею")
+        XCTAssertTrue(confirm.isHittable)
+
+        confirm.tap()
+        XCTAssertTrue(confirm.waitForNonExistence(timeout: 5))
+        let found = dismissCelebrationIfPresent(app, timeout: 5)
+        XCTAssertTrue(found.contains { $0.hasPrefix("Пасхалка: Пі") }, "\(found)")
+        XCTAssertTrue(app.staticTexts["314 мл"].exists, "порція зʼявилась в історії")
     }
 
     func testGoalChangeInSettingsRecalculatesProgress() {
@@ -342,6 +382,52 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(card.waitForExistence(timeout: 5))
         XCTAssertEqual(card.label, "???")
         XCTAssertEqual(card.value as? String, "«Ні краплі зайвої». Таємне досягнення", "ні умови, ні прогресу")
+    }
+
+    /// Разове досягнення — без смуги й «0/1» і на плитці, і в картці (WAT-51); багатокрокове — з прогресом.
+    func testOneStepAchievementHasNoProgressBar() {
+        let app = launch(["--uitest-empty", "--notifications-auth", "notDetermined", "--start-screen", "achievements"])
+        XCTAssertTrue(app.otherElements["achievements.counter"].waitForExistence(timeout: 20))
+
+        selectCategory(app, "water")
+        let once = app.buttons["achievements.tile.first.drop"]
+        XCTAssertTrue(once.waitForExistence(timeout: 5))
+        XCTAssertEqual(once.value as? String, "Ще не відкрито")
+        XCTAssertFalse(app.staticTexts["0/1"].exists, "у жодної плитки сітки")
+        XCTAssertEqual(app.buttons["achievements.tile.volume.10l"].value as? String, "Прогрес 0 із 20 літрів")
+
+        once.tap()
+        let card = app.otherElements["achievements.detail"]
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        XCTAssertTrue((card.value as? String)?.hasPrefix("Перший запис води. Ще не відкрито. +") ?? false,
+                      card.value as? String ?? "картка без значення")
+        XCTAssertFalse(app.staticTexts["0 / 1"].exists, "і в картці — лише нагорода")
+    }
+
+    /// Об'єм — у літрах, як на кнопках порцій (WAT-52): «Відро» після склянки — «0.2/20 л», а не «250/20000».
+    /// Порція — з віджета: так вона доходить і до вже відкритого екрана 2e (`epoch`), без переходів.
+    func testVolumeAchievementShowsLitres() {
+        let app = launch([
+            "--uitest-empty", "--notifications-auth", "notDetermined", "--uitest-now", "2026-10-01T11:25:00+03:00",
+            "--widget-action", "add:250", "--start-screen", "achievements"
+        ])
+        XCTAssertTrue(app.otherElements["achievements.counter"].waitForExistence(timeout: 20))
+        // Перша порція — «Перша крапля»: вікно відкриття модальне й закриває собою екран 2e (WAT-62).
+        dismissCelebrationIfPresent(app, timeout: 5)
+
+        selectCategory(app, "water")
+        let bucket = app.buttons["achievements.tile.volume.10l"]
+        XCTAssertTrue(bucket.waitForExistence(timeout: 5))
+        let counted = NSPredicate(format: "value == %@", "Прогрес 0,2 із 20 літрів")
+        wait(for: [expectation(for: counted, evaluatedWith: bucket)], timeout: 10)
+        XCTAssertEqual(app.buttons["achievements.tile.big.gulp"].value as? String,
+                       "Прогрес 250 із 1000 мілілітрів", "ціль до 1 л — мілілітри")
+
+        bucket.tap()
+        let card = app.otherElements["achievements.detail"]
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        XCTAssertTrue((card.value as? String)?.hasPrefix("20 л води загалом. Прогрес 0,2 із 20 літрів. +") ?? false,
+                      card.value as? String ?? "картка без значення")
     }
 
     /// Пасхалка: до знахідки її не видно, знахідка — своє вікно з підписом «Пасхалка», а потім «🥚 1» поруч із
