@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WaterTracker — завдання на головному (WAT-29)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Токени — DESIGN-TOKENS.md §2, як у DayPart.html. Кадр 402×874, 1px = 1pt.
+   Нових кольорів немає: терміновість несподіваного — orange (той самий, що в серії) на 12 % прозорості. */
+:root{
+  --screen:#f7fbff; --card:#fff; --chip:#eaf4ff; --button:#eaf4ff;
+  --text:#1f4a72; --muted:#8aa1bd; --btn-text:#3d8fd6; --accent:#5aa9f0;
+  --line:rgba(31,74,114,.10); --track:#e4f0fb; --dot-off:#dce8f3;
+  --orange:#ff8a3d; --success:#3ea86b; --r1:#bfe3ff; --r2:#6bb6f2;
+  --deep1:#5aa9f0; --deep2:#3b6ef5;
+  --r-chip:12px; --r-control:14px; --r-pill:999px;
+}
+.dark{
+  --screen:#0c1524; --card:#161f33; --chip:#17233a; --button:#17233a;
+  --text:#eaf2ff; --muted:#8ba0bd; --btn-text:#bcd8ff; --accent:#7cc4ff;
+  --line:rgba(255,255,255,.08); --track:rgba(255,255,255,.08); --dot-off:rgba(255,255,255,.14);
+  --r1:#8fd0ff; --r2:#3b6ef5; --deep1:#2f6fd6; --deep2:#1b3f9e;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#e9eef5;font-family:Nunito,system-ui,sans-serif;color:#1f4a72;padding:40px 28px 80px}
+h1{font-size:20px;font-weight:800;margin-bottom:6px}
+h2{font-size:16px;font-weight:800;margin:40px 0 6px}
+.lead{font-size:13px;font-weight:700;color:#5c7291;margin-bottom:18px;max-width:1000px;line-height:1.5}
+.lead b{color:#1f4a72}
+.row{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+.frame-wrap{width:402px}
+.frame-cap{font-size:12px;font-weight:800;letter-spacing:.3px;color:#5c7291;margin-bottom:8px;text-transform:uppercase}
+.frame-cap em{font-style:normal;color:#3ea86b}
+.frame-note{font-size:12px;font-weight:700;color:#5c7291;margin-top:10px;line-height:1.45}
+.frame-note b{color:#1f4a72}
+.frame{width:402px;height:874px;background:var(--screen);border-radius:38px;position:relative;overflow:hidden;
+       box-shadow:0 18px 50px rgba(31,74,114,.18);color:var(--text);user-select:none}
+.num{font-family:Fredoka,Nunito,sans-serif}
+.rules{max-width:1000px;font-size:13px;font-weight:700;color:#5c7291;line-height:1.55;padding-left:18px}
+.rules li{margin-bottom:6px}
+.rules b{color:#1f4a72}
+
+/* ---------- панель керування ---------- */
+.ctl{background:#fff;border-radius:18px;padding:16px 18px;max-width:1262px;display:grid;grid-template-columns:1fr 1fr;gap:14px 28px;
+     box-shadow:0 6px 20px rgba(31,74,114,.08)}
+.ctl label{font-size:12px;font-weight:900;color:#5c7291;letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:6px}
+.time{display:flex;align-items:center;gap:14px}
+.time input{flex:1;accent-color:#5aa9f0}
+.time b{font-family:Fredoka;font-size:28px;font-weight:600;min-width:84px}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+.btns button{height:30px;padding:0 12px;border-radius:999px;border:0;background:#dbe6f3;color:#1f4a72;font:800 13px Nunito;cursor:pointer}
+.btns button.on{background:#5aa9f0;color:#fff}
+.btns button.go{background:#1f4a72;color:#fff}
+.btns button:disabled{opacity:.4;cursor:default}
+.vo{grid-column:1/-1;font-size:13px;font-weight:700;color:#5c7291;line-height:1.5}
+.vo b{color:#1f4a72}
+
+/* ---------- головний екран (1a) ---------- */
+.home{position:absolute;inset:0;padding:64px 26px 40px;overflow-y:auto;scrollbar-width:none}
+.home::-webkit-scrollbar{display:none}
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
+.gear{width:42px;height:42px;border-radius:50%;background:var(--chip);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:20px}
+.hright{display:flex;align-items:center;gap:12px}
+.book{width:42px;height:42px;border-radius:50%;background:var(--chip);display:flex;align-items:center;justify-content:center;font-size:18px}
+.streak{display:flex;align-items:center;gap:4px;font-family:Fredoka;font-weight:600;font-size:18px}
+.streak span{font-size:20px}
+.lvl{width:38px;height:44px;position:relative}
+.lvl svg{position:absolute;inset:0}
+.lvl b{position:absolute;inset:14px 0 0;text-align:center;color:#fff;font-family:Fredoka;font-weight:600;font-size:15px}
+.ringwrap{display:flex;flex-direction:column;align-items:center;padding:4px 0 22px}
+.ring{position:relative;width:242px;height:242px}
+.ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.ring svg circle{transition:stroke-dashoffset .6s cubic-bezier(.22,1.2,.36,1)}
+.rin{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.rin .pct{font-family:Fredoka;font-size:64px;font-weight:600;line-height:1}
+.rin .vol{font-size:17px;font-weight:700;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 14px;border-radius:var(--r-pill);background:var(--chip);
+      margin-top:14px;font-size:14px;font-weight:800;color:var(--text);white-space:nowrap}
+.pill .dot{color:var(--muted)}
+.pill.ok{background:rgba(62,168,107,.12);color:var(--success)}
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:28px}
+.quick div{height:50px;border-radius:var(--r-control);background:var(--button);color:var(--btn-text);display:flex;align-items:center;justify-content:center;
+           font-weight:700;font-size:16px;cursor:pointer;transition:transform .12s}
+.quick div:active{transform:scale(.96)}
+.quick div.acc{background:var(--accent);color:#fff}
+.sec{font-size:15px;font-weight:900;letter-spacing:.3px;color:var(--muted)}
+.qhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.qhead .act{font-size:13px;font-weight:900;color:var(--btn-text);cursor:pointer}
+.sub{font-size:12px;font-weight:900;letter-spacing:.3px;color:var(--accent);margin:14px 0 4px;text-transform:uppercase}
+.sub span{color:var(--muted)}
+.empty{font-size:14px;font-weight:800;color:var(--muted);padding:8px 0}
+.hist{margin-top:22px}
+.hrow{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-weight:700;font-size:15px}
+.hrow span{color:var(--muted);font-size:13px;font-weight:800}
+
+/* ---------- рядок завдання (спільне) ---------- */
+.q{position:relative;display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);
+   max-height:80px;transition:max-height .35s ease,opacity .3s ease,padding .35s ease}
+.q .c{width:26px;height:26px;border-radius:50%;flex:0 0 auto;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:900}
+.q .c svg{transform:rotate(-90deg)}
+.q .c.done{background:var(--accent)}
+.q .tt{flex:1;min-width:0}
+.q .t{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.q .s{font-size:12px;font-weight:800;color:var(--muted);margin-top:1px}
+.q .p{font-size:12px;font-weight:900;color:var(--muted);white-space:nowrap}
+.q .xp{font-size:11px;font-weight:900;color:var(--btn-text);background:var(--chip);border-radius:8px;padding:2px 6px;white-space:nowrap}
+.q.isdone .t{color:var(--muted)}
+.q.cele .c{animation:pop .45s cubic-bezier(.22,1.6,.36,1)}
+.q.cele .t{color:var(--text)}
+.q.out{max-height:0;opacity:0;padding:0;border-bottom-color:transparent;overflow:hidden}
+.fly{position:absolute;right:0;top:4px;font-family:Fredoka;font-weight:600;font-size:16px;color:var(--btn-text);pointer-events:none;
+     animation:fly 1.3s ease-out forwards}
+@keyframes pop{0%{transform:scale(.2)}100%{transform:scale(1)}}
+@keyframes fly{0%{opacity:0;transform:translateY(8px)}20%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-22px)}}
+@keyframes slidein{0%{opacity:0;transform:translateY(-10px) scale(.97)}100%{opacity:1;transform:none}}
+
+/* ---------- A. Розділи + картка несподіваного ---------- */
+.surA{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;background:var(--chip);margin-bottom:6px;position:relative;
+      max-height:90px;transition:max-height .35s ease,opacity .3s ease,margin .35s ease,padding .35s ease}
+.surA.new{animation:slidein .45s cubic-bezier(.22,1.3,.36,1)}
+.surA .ic{width:38px;height:38px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;flex:0 0 auto}
+.surA .tt{flex:1;min-width:0}
+.surA .k{font-size:11px;font-weight:900;letter-spacing:.3px;color:var(--orange);text-transform:uppercase}
+.surA .t{font-weight:800;font-size:15px}
+.surA .s{font-size:12px;font-weight:800;color:var(--muted)}
+.surA .tm{text-align:right}
+.surA .tm b{display:block;font-family:Fredoka;font-weight:600;font-size:22px;line-height:1}
+.surA .tm span{font-size:11px;font-weight:900;color:var(--btn-text)}
+.surA.ok{background:rgba(90,169,240,.18)}
+.surA.out{max-height:0;opacity:0;margin:0;padding:0 14px;overflow:hidden}
+
+/* ---------- B. Плитки ---------- */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tiles.one{grid-template-columns:1fr}
+.tile{position:relative;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px 12px 11px;min-height:104px;display:flex;flex-direction:column;
+      transition:opacity .3s ease,transform .3s ease}
+.tile .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.tile .c{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:14px}
+.tile .c svg{transform:rotate(-90deg)}
+.tile .c.done{background:var(--accent)}
+.tile .t{font-weight:800;font-size:14px;line-height:1.25;flex:1}
+.tile .p{font-size:12px;font-weight:900;color:var(--muted);margin-top:6px}
+.tile.cele .c{animation:pop .45s cubic-bezier(.22,1.6,.36,1)}
+.tile.out{opacity:0;transform:scale(.92)}
+.tile.isdone .t{color:var(--muted)}
+.wk{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);position:relative;
+    max-height:80px;transition:max-height .35s ease,opacity .3s ease,padding .35s ease}
+.wk .tt{flex:1;min-width:0}
+.wk .t{font-weight:700;font-size:15px}
+.wk .dots{display:flex;gap:5px;margin-top:5px}
+.wk .dots i{width:9px;height:9px;border-radius:50%;background:var(--dot-off)}
+.wk .dots i.on{background:var(--accent)}
+.wk .dots i.today{box-shadow:0 0 0 2px var(--accent) inset;background:transparent}
+.wk .dots i.today.on{background:var(--accent);box-shadow:none}
+.wk .p{font-size:12px;font-weight:900;color:var(--muted)}
+.wk.out{max-height:0;opacity:0;padding:0;overflow:hidden}
+.wk.cele .p{color:var(--btn-text)}
+.surB{position:relative;display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:20px;color:#fff;
+      background:linear-gradient(135deg,var(--deep1),var(--deep2));margin-bottom:10px;
+      max-height:100px;transition:max-height .35s ease,opacity .3s ease,margin .35s ease,padding .35s ease}
+.surB.new{animation:slidein .45s cubic-bezier(.22,1.3,.36,1)}
+.surB .ic{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:20px;flex:0 0 auto}
+.surB .tt{flex:1}
+.surB .k{font-size:11px;font-weight:900;letter-spacing:.3px;opacity:.8;text-transform:uppercase}
+.surB .t{font-weight:900;font-size:16px}
+.surB .s{font-size:12px;font-weight:800;opacity:.85}
+.surB .tm{text-align:right}
+.surB .tm b{display:block;font-family:Fredoka;font-weight:600;font-size:26px;line-height:1}
+.surB .tm span{font-size:11px;font-weight:900;opacity:.85}
+.surB.out{max-height:0;opacity:0;margin:0;padding:0 16px;overflow:hidden}
+
+/* ---------- C. Один список ---------- */
+.q .c.zap{background:var(--accent);font-size:14px}
+.tpill{font-size:12px;font-weight:900;color:var(--orange);background:rgba(255,138,61,.12);border-radius:999px;padding:4px 9px;white-space:nowrap}
+.q.new{animation:slidein .45s cubic-bezier(.22,1.3,.36,1)}
+
+/* ---------- віджет «Прогрес» (M) ---------- */
+.wwrap{background:linear-gradient(160deg,#9ec9f0,#5d8fd6);border-radius:38px;padding:28px 19px;width:402px}
+.wwrap.dark{background:linear-gradient(160deg,#1a2a48,#0b1424)}
+.w{width:364px;height:170px;border-radius:22px;background:var(--card);color:var(--text);display:flex;gap:14px;padding:15px 16px;
+   box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.w .l{width:122px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer}
+.w .r{flex:1;border-left:1px solid var(--track);padding-left:12px;cursor:pointer;min-width:0;display:flex;flex-direction:column}
+.w .l:hover,.w .r:hover{outline:2px dashed rgba(90,169,240,.5);outline-offset:3px;border-radius:8px}
+.w .lbl{font-size:10px;font-weight:900;letter-spacing:.3px;color:var(--muted);text-transform:uppercase}
+.w .bar{height:8px;border-radius:4px;background:var(--track);overflow:hidden}
+.w .bar i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.w .wq{display:flex;align-items:center;gap:8px;padding:4px 0}
+.w .wq .t{flex:1;font-weight:700;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.w .wq .p{font-size:11px;font-weight:900;color:var(--muted);white-space:nowrap}
+.w .wq .z{width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.w .wq .tp{font-size:11px;font-weight:900;color:var(--orange)}
+.w .done{font-size:13px;font-weight:800;color:var(--muted);padding:4px 0}
+.wcap{font-size:12px;font-weight:700;color:#5c7291;margin-top:10px;line-height:1.45;width:402px}
+
+/* ---------- сповіщення ---------- */
+.lock{width:402px;height:200px;border-radius:38px;background:linear-gradient(160deg,#2b4f86,#0f2547);padding:22px 14px;position:relative;overflow:hidden}
+.lock .clock{position:absolute;top:16px;left:0;right:0;text-align:center;color:rgba(255,255,255,.85);font:600 15px Fredoka}
+.ntf{position:absolute;left:14px;right:14px;top:52px;background:rgba(245,247,250,.86);backdrop-filter:blur(14px);border-radius:22px;padding:12px 14px;
+     color:#111;font-family:-apple-system,system-ui,sans-serif;animation:slidein .45s cubic-bezier(.22,1.3,.36,1)}
+.ntf .h{display:flex;align-items:center;gap:8px;font-size:12px;color:#666;margin-bottom:4px}
+.ntf .h i{width:20px;height:20px;border-radius:6px;background:linear-gradient(160deg,#7cc4ff,#3b6ef5);display:block}
+.ntf .h span{flex:1;text-transform:uppercase;letter-spacing:.2px}
+.ntf b{display:block;font-size:15px;margin-bottom:2px}
+.ntf p{font-size:14px;line-height:1.3}
+.ntf .act{margin-top:8px;display:inline-block;background:rgba(0,0,0,.08);border-radius:10px;padding:5px 10px;font-size:13px;font-weight:600}
+.lock .none{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:30px;
+            color:rgba(255,255,255,.75);font:700 14px Nunito;line-height:1.45}
+</style>
+</head>
+<body>
+
+<h1>Завдання на головному — макет (WAT-29)</h1>
+<p class="lead">
+  Рішення від 20.10.2026: завдання живуть <b>лише на головному</b> (з 3f блок «ЗАВДАННЯ» прибрано — WAT-35) і у віджеті
+  <b>«Прогрес»</b>. Одночасно на екрані — не більше п'яти рядків: несподіване, 2 на сьогодні, 2 на тиждень; виконані
+  ховаються за «Виконані · N». Свято — <b>у самому рядку</b> (галочка, «+N XP», вібрація), без тоста.
+  <br>Тисни кнопки порцій прямо в кадрах або на панелі, рухай час — побачиш, як завдання закриваються, як після дедлайну
+  тихо зникають і як о 13:30 чи 16:10 з'являється несподіване. Три кадри показують <b>той самий стан</b>; погоджено варіант A,
+  B і C лишаються для історії рішення. ТЗ — <code>SPEC-QUESTS.md</code>.
+</p>
+
+<div class="ctl">
+  <div>
+    <label>Час</label>
+    <div class="time"><input id="t" type="range" min="360" max="1410" step="5"><b id="tv">07:10</b></div>
+    <div class="btns" style="margin-top:8px">
+      <button data-jump="430">07:10</button><button data-jump="805">13:25</button><button data-jump="965">16:05</button>
+      <button data-jump="1230">20:30</button>
+    </div>
+  </div>
+  <div>
+    <label>Порція зараз</label>
+    <div class="btns"><button class="go" data-add="150">+150 мл</button><button class="go" data-add="250">+250 мл</button>
+      <button class="go" data-add="500">+500 мл</button><button data-reset>Скинути день</button></div>
+    <label style="margin-top:12px">Тема</label>
+    <div class="btns"><button data-theme="light" class="on">Світла</button><button data-theme="dark">Темна</button></div>
+  </div>
+  <div>
+    <label>Сценарій</label>
+    <div class="btns" id="scBtns"></div>
+  </div>
+  <div>
+    <label>Несподіване</label>
+    <div class="btns" id="surBtns">
+      <button data-sur="none" class="on">Немає</button>
+      <button data-sur="n1">Н1 · Склянка зараз · 13:30</button>
+      <button data-sur="n4">Н4 · Блискавка · 16:10</button>
+    </div>
+  </div>
+  <div class="vo" id="vo"></div>
+</div>
+
+<h2>Головний: три варіанти блоку «Завдання»</h2>
+<div class="row">
+  <div class="frame-wrap">
+    <div class="frame-cap">A · Розділи — <em>погоджено 22.10.2026</em></div>
+    <div class="frame" id="fA"><div class="home"></div></div>
+    <div class="frame-note">Як нинішній блок на 3f, перенесений на головний: «Сьогодні» / «Цього тижня · ще N дн.», рядок з
+      міні-кільцем прогресу й XP. Несподіване — картка зверху з відліком. <b>За:</b> знайоме, читається списком, XP видно.
+      <b>Проти:</b> дві підписані секції — на рядок вище.</div>
+  </div>
+  <div class="frame-wrap">
+    <div class="frame-cap">B · Плитки</div>
+    <div class="frame" id="fB"><div class="home"></div></div>
+    <div class="frame-note">Щоденні — дві плитки поруч, тижневі — рядки з крапками днів (як 7 крапок серії). Несподіване —
+      яскрава картка. <b>За:</b> найбільш «ігрове», тиждень видно з першого погляду. <b>Проти:</b> плитки вищі за рядки —
+      історія з'їжджає нижче, а одне щоденне (ритм вимкнено) розтягується на всю ширину.</div>
+  </div>
+  <div class="frame-wrap">
+    <div class="frame-cap">C · Один список</div>
+    <div class="frame" id="fC"><div class="home"></div></div>
+    <div class="frame-note">Без підзаголовків: несподіване — перший рядок з таймером-пігулкою, тижневі — з підписом «тиждень ·
+      ще N дн.». XP не показано. <b>За:</b> найменше елементів. <b>Проти:</b> не видно, скільки дає завдання, і тижневі
+      менш помітні.</div>
+  </div>
+</div>
+
+<h2>Віджет «Прогрес» (M) і сповіщення несподіваного</h2>
+<div class="row">
+  <div>
+    <div class="wwrap" id="wW"></div>
+    <div class="wcap">Праворуч — до трьох рядків: несподіване з живим таймером (у застосунку — <code>Text(timerInterval:)</code>,
+      без перезавантаження таймлайну), далі невиконані щоденні, потім тижневе. Ліва половина відкриває «Прогрес» (3f),
+      права — головний. Майбутнє несподіване вже лежить у знімку й з'являється за таймлайном у свою хвилину.</div>
+  </div>
+  <div>
+    <div class="lock" id="lock"></div>
+    <div class="wcap">Несподіване приходить <b>замість</b> найближчого нагадування, а не поруч із ним; емодзі — лише на початку
+      заголовка, текст — на «ти» й без роду. Без дозволу на сповіщення живе лише на головному й у віджеті.
+      Несподівані — не раніше 8-го дня користування.</div>
+  </div>
+</div>
+
+<h2>Правила, які показує макет</h2>
+<ol class="rules">
+  <li><b>Один блок, до 5 рядків.</b> Несподіване → 2 на сьогодні → 2 на тиждень. Виконані — за «Виконані · N» (WAT-12).</li>
+  <li><b>Свято — у рядку:</b> кружок → галочка, «+N XP» спливає, вібрація <code>WTFeedback.questDone</code>; за 1,5 с рядок
+    згортається. Тоста немає. Якщо та сама порція відкрила досягнення (вікно WAT-60), рядок святкує після вікна.</li>
+  <li><b>Дедлайн минув — рядок тихо зникає</b>, без «провалено» («Склянка після підйому» після 08:00, «Половина до 14:00»
+    після 14:00). Тижневі згоряють у неділю о 23:59.</li>
+  <li><b>Прогрес:</b> об'єм — «ще N мл» (вгору до 50, як у капсули частини доби), кількість — «2/4», тижневі — «2/5 дн.».
+    Числа — в одиницях людини.</li>
+  <li><b>Несподіване</b> до свого часу невидиме; у вікні — картка з відліком; виконане — «Готово · ⚡ у призах»; час
+    минув — зникає без сліду.</li>
+  <li><b>Сценарії:</b> після дня без норми — лише легкі; «Ритм дня» вимкнено — одне щоденне й без капсули; у перший тиждень —
+    стартові й одне легке тижневе; з п'ятниці по неділю тижневих не видають — «з понеділка».</li>
+</ol>
+
+<script>
+const WAKE=420, GOAL=2000;
+const BLOCKS=[{n:'Ранок',from:420,to:660,t:600},{n:'День',from:660,to:1020,t:800},{n:'Вечір',from:1020,to:1260,t:600}];
+const DAYS=['Пн','Вт','Ср','Чт','Пт','Сб','Нд'];
+
+/* Каталог — ті самі ID, що в узгодженому списку WAT-29. */
+const Q={
+  d1:{t:'Чверть норми до 10:00',xp:15,k:'vol',ev:c=>dl(c,c.totalBy(600),500,600)},
+  d2:{t:'Половина до 14:00',xp:25,k:'vol',ev:c=>dl(c,c.totalBy(840),1000,840)},
+  d3:{t:'Норма до 20:00',xp:25,k:'vol',ev:c=>dl(c,c.totalBy(1200),GOAL,1200)},
+  d5:{t:'Склянка після підйому',xp:15,k:'vol',ev:c=>dl(c,c.sumIn(0,WAKE+60),250,WAKE+60)},
+  d6:{t:'4 склянки від 150 мл',xp:15,k:'cnt',ev:c=>({cur:Math.min(4,c.count(150)),target:4})},
+  d8:{t:'Вода в кожній частині',xp:15,k:'cnt',ev:c=>({cur:c.blocksWithPortion(),target:3})},
+  s1:{t:'Перша склянка',xp:15,k:'cnt',ev:c=>({cur:Math.min(1,c.count(50)),target:1})},
+  s2:{t:'Половина норми',xp:15,k:'vol',ev:c=>({cur:c.total(),target:1000})},
+  t1:{t:'Норма 5 днів',xp:100,k:'week',target:5,today:c=>c.total()>=GOAL},
+  t1e:{t:'Норма 3 дні',xp:75,k:'week',target:3,today:c=>c.total()>=GOAL},
+  t5:{t:'5 ранків зі склянкою',xp:75,k:'week',target:5,today:c=>c.sumIn(0,WAKE+60)>=250},
+  t4:{t:'Вихідні з нормою',xp:100,k:'week',target:2,today:()=>false,sub:'з суботи'},
+};
+const SUR={
+  n1:{t:'Склянка зараз',at:810,dur:60,target:250,xp:25,kind:'Несподіване',
+      nt:'⚡ Несподіване завдання',nb:'Випий склянку до 14:30 — і приз «Подвійний XP» твій.'},
+  n4:{t:'Блискавка: 15 хвилин',at:970,dur:15,target:150,xp:25,kind:'Блискавка',
+      nt:'⚡ Блискавка: 15 хвилин',nb:'150 мл до 16:25 — встигнеш? Нагорода — приз «Подвійний XP».'},
+};
+const SC={
+  normal:{label:'Звичайний день',day:2,rhythm:true,daily:['d2','d5'],weekly:[{id:'t1',prev:[1,1]},{id:'t5',prev:[1,0]}],sur:true,
+          vo:'Середа. Пара «Темп» + «Ритм»: <b>Д2</b> (середнє, 25 XP) + <b>Д5</b> (легке, 15 XP) — сума складності 3 ≤ 4. Тижневі: «Сталість» Т1 і «Звичка» Т5.'},
+  missed:{label:'Після дня без норми',day:2,rhythm:true,daily:['d1','d6'],weekly:[{id:'t1',prev:[1,0]},{id:'t5',prev:[1,1]}],sur:true,
+          vo:'Середа, учора норму не закрито — сьогодні <b>лише легкі</b>: Д1 + Д6 (сума складності 2), щоб не додавати тиску.'},
+  off:{label:'«Ритм дня» вимкнено',day:3,rhythm:false,daily:['d3'],weekly:[{id:'t1',prev:[1,1,0]},{id:'t4',prev:[]}],sur:true,
+       vo:'Четвер, «просто норма за день»: <b>одне</b> щоденне, капсули частини доби немає, завдань на частини доби — теж.'},
+  day1:{label:'День 1 (стартові)',day:1,rhythm:true,first:true,daily:['s1','s2'],weekly:[{id:'t1e',prev:[0]}],sur:false,
+        vo:'Перший день: <b>стартова пара</b> — «Перша склянка» закривається першою ж порцією. У перший тиждень — одне легке тижневе, несподіваних немає (з 8-го дня).'},
+  fri:{label:'П’ятниця, перший тиждень',day:4,rhythm:true,first:true,daily:['d2','d8'],weekly:null,sur:false,
+       vo:'П’ятниця: до кінця тижня менше 4 днів — тижневі з’являться в понеділок (свіжий старт). Несподіваних у перший тиждень немає.'},
+};
+
+const S={min:430,portions:[],sc:'normal',sur:'none',dark:false,showDone:false,cele:new Map(),seenSur:false};
+
+function dl(c,cur,target,deadline){return {cur,target,expired:c.now>deadline&&cur<target}}
+function ctx(){
+  const now=S.min, ps=S.portions.filter(p=>p.min<=now);
+  const sum=a=>a.reduce((s,p)=>s+p.ml,0);
+  return {now,
+    total:()=>sum(ps),
+    totalBy:m=>sum(ps.filter(p=>p.min<=m)),
+    sumIn:(a,b)=>sum(ps.filter(p=>p.min>=a&&p.min<=b)),
+    count:minMl=>ps.filter(p=>p.ml>=minMl).length,
+    blocksWithPortion:()=>BLOCKS.filter((b,i)=>ps.some(p=>p.ml>=150&&(i===0?p.min<b.to:i===BLOCKS.length-1?p.min>=b.from:p.min>=b.from&&p.min<b.to))).length,
+    blockDrunk:i=>sum(ps.filter(p=>i===0?p.min<BLOCKS[0].to:i===BLOCKS.length-1?p.min>=BLOCKS[i].from:p.min>=BLOCKS[i].from&&p.min<BLOCKS[i].to)),
+  };
+}
+const hh=m=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+const vol=ml=>ml<1000?`${ml} мл`:`${String(+(ml/1000).toFixed(2))} л`;
+const up50=ml=>Math.ceil(ml/50)*50;
+
+/* Стан усіх завдань на зараз — один для трьох кадрів і віджета. */
+function state(){
+  const c=ctx(), sc=SC[S.sc];
+  const daily=sc.daily.map(id=>{const d=Q[id],r=d.ev(c);const done=r.cur>=r.target;
+    return {id,title:d.t,xp:d.xp,k:d.k,cur:r.cur,target:r.target,done,expired:!!r.expired,f:Math.min(1,r.cur/r.target),
+            label:done?'Готово':d.k==='vol'?`ще ${vol(up50(r.target-r.cur))}`:`${r.cur}/${r.target}`};});
+  const left=7-sc.day;
+  const weekly=sc.weekly?sc.weekly.map(w=>{const d=Q[w.id];const today=d.today(c);const cur=Math.min(d.target,w.prev.filter(Boolean).length+(today?1:0));
+    const done=cur>=d.target;
+    return {id:w.id,title:d.t,xp:d.xp,k:'week',cur,target:d.target,done,f:cur/d.target,label:done?'Готово':`${cur}/${d.target} дн.`,
+            sub:d.sub||`ще ${left} дн.`,prev:w.prev,today};}):null;
+  let sur=null;
+  if(sc.sur&&S.sur!=='none'){const s=SUR[S.sur];const end=s.at+s.dur;
+    if(c.now>=s.at){const got=c.sumIn(s.at,Math.min(c.now,end));const done=got>=s.target;
+      if(done||c.now<end)sur={id:S.sur,...s,got,done,end,minLeft:end-c.now,f:Math.min(1,got/s.target)};}}
+  return {c,sc,daily,weekly,sur,left};
+}
+
+function ringSvg(size,stroke,f,color='var(--accent)'){
+  const r=(size-stroke)/2,C=2*Math.PI*r;
+  return `<svg width="${size}" height="${size}"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--track)" stroke-width="${stroke}"/>
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-linecap="round"
+      stroke-dasharray="${C}" stroke-dashoffset="${C*(1-f)}"/></svg>`;
+}
+function lvlDrop(n,w=38,h=44){return `<div class="lvl" style="width:${w}px;height:${h}px"><svg viewBox="0 0 38 44" width="${w}" height="${h}"><path d="M19 2C19 2 4 18 4 28a15 15 0 0 0 30 0C34 18 19 2 19 2Z" fill="var(--accent)"/></svg><b style="${w<38?'font-size:12px;inset:11px 0 0':''}">${n}</b></div>`}
+
+/* Що показувати в списку: невиконане, щойно виконане (свято) або все, коли розгорнуто «Виконані». */
+const visible=q=>!q.expired&&(!q.done||S.cele.has(q.id)||S.showDone);
+function celeCls(q){if(!S.cele.has(q.id))return q.done?' isdone':'';return S.cele.get(q.id)==='out'?' cele out':' cele';}
+
+function shell(st,quests){
+  const c=st.c,total=c.total(),f=Math.min(1,total/GOAL),R=105,C=2*Math.PI*R;
+  let pill='';
+  if(st.sc.rhythm&&c.now<BLOCKS[2].to){
+    const i=c.now<BLOCKS[0].to?0:c.now<BLOCKS[1].to?1:2,b=BLOCKS[i],drunk=c.blockDrunk(i);
+    pill=drunk>=b.t?`<div class="pill ok">✓ ${b.n} закрито</div>`:`<div class="pill">${b.n} <span class="dot">·</span> ще ${vol(up50(b.t-drunk))} до ${hh(b.to)}</div>`;
+  }
+  const hist=[...S.portions].filter(p=>p.min<=c.now).sort((a,b)=>b.min-a.min).slice(0,3);
+  return `<div class="hdr"><div class="gear">⚙</div><div class="hright"><div class="book">📖</div><div class="streak"><span>🔥</span>12</div>${lvlDrop(7)}</div></div>
+  <div class="ringwrap"><div class="ring"><svg width="242" height="242">
+    <circle cx="121" cy="121" r="${R}" fill="none" stroke="var(--track)" stroke-width="22"/>
+    <circle cx="121" cy="121" r="${R}" fill="none" stroke="var(--r2)" stroke-width="22" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-f)}"/></svg>
+    <div class="rin"><div class="pct">${Math.round(total/GOAL*100)}%</div><div class="vol">${vol(total)} з ${vol(GOAL)}</div></div></div>${pill}</div>
+  <div class="quick"><div data-add="150">150 мл</div><div data-add="250">250 мл</div><div data-add="500">500 мл</div><div class="acc" data-add="350">Інше</div></div>
+  ${quests}
+  <div class="hist"><div class="sec" style="margin-bottom:6px">ІСТОРІЯ</div>${hist.length?hist.map(p=>`<div class="hrow">+${vol(p.ml)}<span>${hh(p.min)}</span></div>`).join(''):'<div class="empty">Сьогодні ще без води</div>'}</div>`;
+}
+function head(st){
+  const all=[...st.daily,...(st.weekly||[]),...(st.sur?[st.sur]:[])],n=all.filter(q=>q.done&&!q.expired).length;
+  return `<div class="qhead"><span class="sec">ЗАВДАННЯ</span>${n?`<span class="act" data-toggle>${S.showDone?'Сховати':`Виконані · ${n}`}</span>`:''}</div>`;
+}
+const fly=q=>S.cele.get(q.id)==='in'?`<span class="fly">+${q.xp} XP</span>`:'';
+// «Усе на сьогодні 🎉» — лише коли виконано все. Якщо щось прострочене, секція просто зникає: «провалено» не кажемо,
+// а виконане лежить у «Виконані · N».
+const allDailyDone=st=>st.daily.every(q=>q.done)&&!st.daily.some(q=>S.cele.has(q.id))&&!S.showDone;
+const dailyGone=st=>!st.daily.some(visible)&&!allDailyDone(st);
+
+/* ---------- A ---------- */
+function rowA(q){
+  return `<div class="q${celeCls(q)}"><div class="c ${q.done?'done':''}">${q.done?'✓':ringSvg(26,3.5,q.f)}</div>
+    <div class="tt"><div class="t">${q.title}</div></div><span class="xp">+${q.xp}</span><span class="p">${q.label}</span>${fly(q)}</div>`;
+}
+function surA(s){
+  if(!visible(s))return '';
+  const cls=S.cele.has(s.id)?(S.cele.get(s.id)==='out'?' ok out':' ok'):(S.newSur?' new':'');
+  return `<div class="surA${cls}"><div class="ic">⚡</div><div class="tt"><div class="k">${s.kind}</div><div class="t">${s.t}</div>
+    <div class="s">${s.done?'Готово · ⚡ у призах':`${vol(s.target)} до ${hh(s.end)} · ще ${vol(up50(s.target-s.got))}`}</div></div>
+    <div class="tm">${s.done?`<b>✓</b>`:`<b>${s.minLeft} хв</b>`}<span>+${s.xp} XP · ⚡</span></div>${fly(s)}</div>`;
+}
+function renderA(st){
+  const d=st.daily.filter(visible),w=st.weekly?st.weekly.filter(visible):null;
+  return head(st)+(st.sur?surA(st.sur):'')+
+    (dailyGone(st)?'':`<div class="sub">Сьогодні</div>${d.map(rowA).join('')}${allDailyDone(st)?'<div class="empty">Усе на сьогодні 🎉</div>':''}`)+
+    (st.weekly?`<div class="sub">Цього тижня <span>· ще ${st.left} дн.</span></div>${w.map(rowA).join('')}${!w.length?'<div class="empty">Тиждень закрито 🎉</div>':''}`
+      :`<div class="sub">Цього тижня</div><div class="empty">Тижневі завдання — з понеділка</div>`);
+}
+
+/* ---------- B ---------- */
+function tileB(q){
+  return `<div class="tile${celeCls(q)}"><div class="top"><div class="c ${q.done?'done':''}">${q.done?'✓':ringSvg(30,4,q.f)}</div><span class="xp" style="font-size:11px;font-weight:900;color:var(--btn-text);background:var(--chip);border-radius:8px;padding:2px 6px">+${q.xp} XP</span></div>
+    <div class="t">${q.title}</div><div class="p">${q.label}</div>${fly(q).replace('class="fly"','class="fly" style="top:auto;bottom:10px;right:12px"')}</div>`;
+}
+function weekB(q,st){
+  const dots=DAYS.map((_,i)=>{const pastOn=i<st.sc.day&&q.prev[i-(st.sc.day-q.prev.length)];const isToday=i===st.sc.day;
+    return `<i class="${pastOn?'on':''}${isToday?' today'+(q.today?' on':''):''}" title="${DAYS[i]}"></i>`;}).join('');
+  return `<div class="wk${celeCls(q)}"><div class="tt"><div class="t">${q.title}</div><div class="dots">${dots}</div></div>
+    <span class="xp" style="font-size:11px;font-weight:900;color:var(--btn-text);background:var(--chip);border-radius:8px;padding:2px 6px">+${q.xp}</span><span class="p">${q.label}</span>${fly(q)}</div>`;
+}
+function surB(s){
+  if(!visible(s))return '';
+  const cls=S.cele.has(s.id)?(S.cele.get(s.id)==='out'?' out':''):(S.newSur?' new':'');
+  return `<div class="surB${cls}"><div class="ic">⚡</div><div class="tt"><div class="k">${s.kind} · +${s.xp} XP і ⚡</div><div class="t">${s.t}</div>
+    <div class="s">${s.done?'Готово · ⚡ у призах':`${vol(s.target)} до ${hh(s.end)}`}</div></div>
+    <div class="tm">${s.done?'<b>✓</b>':`<b>${s.minLeft}</b><span>хв</span>`}</div>${fly(s).replace('class="fly"','class="fly" style="color:#fff"')}</div>`;
+}
+function renderB(st){
+  const d=st.daily.filter(visible),w=st.weekly?st.weekly.filter(visible):null;
+  return head(st)+(st.sur?surB(st.sur):'')+
+    (d.length?`<div class="tiles${d.length===1?' one':''}">${d.map(tileB).join('')}</div>`:'')+
+    (allDailyDone(st)?'<div class="empty">Усе на сьогодні 🎉</div>':'')+
+    (st.weekly?`<div class="sub" style="margin-top:16px">Цього тижня <span>· ще ${st.left} дн.</span></div>${w.map(q=>weekB(q,st)).join('')}`
+      :`<div class="sub" style="margin-top:16px">Цього тижня</div><div class="empty">Тижневі завдання — з понеділка</div>`);
+}
+
+/* ---------- C ---------- */
+function rowC(q){
+  return `<div class="q${celeCls(q)}"><div class="c ${q.done?'done':''}">${q.done?'✓':ringSvg(26,3.5,q.f)}</div>
+    <div class="tt"><div class="t">${q.title}</div>${q.k==='week'?`<div class="s">тиждень · ${q.sub}</div>`:''}</div><span class="p">${q.label}</span>${fly(q)}</div>`;
+}
+function surC(s){
+  if(!visible(s))return '';
+  const cls=S.cele.has(s.id)?(S.cele.get(s.id)==='out'?' cele out':' cele'):(S.newSur?' new':'');
+  return `<div class="q${cls}"><div class="c ${s.done?'done':'zap'}">${s.done?'✓':'⚡'}</div>
+    <div class="tt"><div class="t">${s.t}</div><div class="s">${s.done?'готово · ⚡ у призах':`несподіване · ${vol(s.target)} до ${hh(s.end)}`}</div></div>
+    ${s.done?'<span class="p">Готово</span>':`<span class="tpill">⏱ ${s.minLeft} хв</span>`}${fly(s)}</div>`;
+}
+function renderC(st){
+  const d=st.daily.filter(visible),w=st.weekly?st.weekly.filter(visible):[];
+  return head(st)+(st.sur?surC(st.sur):'')+d.map(rowC).join('')+w.map(rowC).join('')+
+    (!st.weekly?'<div class="q"><div class="tt"><div class="s" style="margin:0">Тижневі завдання — з понеділка</div></div></div>':'')+
+    (allDailyDone(st)&&!w.length?'<div class="empty">Усе виконано 🎉</div>':'');
+}
+
+/* ---------- віджет ---------- */
+function renderWidget(st){
+  const rows=[];
+  if(st.sur&&!st.sur.done)rows.push(`<div class="wq"><span class="z">⚡</span><span class="t">${st.sur.t}</span><span class="tp">${st.sur.minLeft} хв</span></div>`);
+  // Три рядки: несподіване забирає місце одного щоденного, тижневе — завжди одне.
+  const mini=q=>`<div class="wq">${ringSvg(20,4,q.f).replace('<svg','<svg style="transform:rotate(-90deg);flex:0 0 auto"')}<span class="t">${q.title}</span><span class="p">${q.label}</span></div>`;
+  st.daily.filter(q=>!q.done&&!q.expired).slice(0,rows.length?1:2).forEach(q=>rows.push(mini(q)));
+  // Прострочене без жодного виконаного — рядка «Сьогодні» немає зовсім, як і на головному.
+  const today=rows.length?rows.join(''):st.daily.every(q=>q.done)?'<div class="done">✓ Усе на сьогодні</div>':'';
+  let html=today?`<div class="lbl">Сьогодні</div>${today}`:'';
+  const wk=st.weekly&&(st.weekly.find(q=>!q.done)||null);
+  html+=`<div class="lbl" style="margin-top:${today?4:0}px">Цього тижня</div>`+(st.weekly?(wk?mini(wk):'<div class="done">✓ Тиждень закрито</div>'):'<div class="done">З понеділка</div>');
+  document.getElementById('wW').innerHTML=`<div class="w"><div class="l" title="Тап → «Прогрес» (3f)"><div style="display:flex;align-items:center;gap:8px">${lvlDrop(7,30,35)}
+      <div><div style="font-weight:900;font-size:15px">Рівень 7</div><div style="font-size:11px;font-weight:800;color:var(--muted)">80 XP до 8</div></div></div>
+      <div class="bar"><i style="width:62%"></i></div>
+      <div style="display:flex;align-items:center;gap:8px"><span style="font-size:20px">🔥</span><span style="font-family:Fredoka;font-weight:600;font-size:20px">12</span><span style="font-size:12px;font-weight:800;color:var(--muted);line-height:1.2">днів<br>поспіль</span></div></div>
+    <div class="r" title="Тап → головний">${html}</div></div>`;
+}
+function renderLock(st){
+  const el=document.getElementById('lock'),sc=SC[S.sc];
+  if(!sc.sur){el.innerHTML='<div class="none">У перший тиждень несподіваних немає — з 8-го дня.</div>';return;}
+  if(S.sur==='none'){el.innerHTML='<div class="none">Обери несподіване на панелі.</div>';return;}
+  const s=SUR[S.sur];
+  if(S.min<s.at){el.innerHTML=`<div class="clock">${hh(S.min)}</div><div class="none">Прийде о ${hh(s.at)} — замість найближчого нагадування.<br>Пересунь час.</div>`;return;}
+  if(st.sur&&!st.sur.done){el.innerHTML=`<div class="clock">${hh(S.min)}</div><div class="ntf"><div class="h"><i></i><span>WaterTracker</span>${S.min-s.at?`${S.min-s.at} хв тому`:'зараз'}</div>
+    <b>${s.nt}</b><p>${s.nb}</p><span class="act">+250 мл</span></div>`;return;}
+  el.innerHTML=`<div class="clock">${hh(S.min)}</div><div class="none">${st.sur&&st.sur.done?'Виконано — сповіщення прибрано з Центру сповіщень.':'Час вийшов — сповіщення прибрано, завдання тихо зникло.'}</div>`;
+}
+
+function render(){
+  const st=state();
+  document.getElementById('tv').textContent=hh(S.min);
+  document.getElementById('t').value=S.min;
+  [['fA',renderA],['fB',renderB],['fC',renderC]].forEach(([id,fn])=>{
+    const f=document.getElementById(id),home=f.querySelector('.home'),top=home.scrollTop;
+    f.classList.toggle('dark',S.dark);home.innerHTML=shell(st,fn(st));home.scrollTop=top;});
+  document.getElementById('wW').classList.toggle('dark',S.dark);
+  renderWidget(st);renderLock(st);
+  document.getElementById('vo').innerHTML=SC[S.sc].vo;
+  document.querySelectorAll('#surBtns button').forEach(b=>{b.disabled=!SC[S.sc].sur&&b.dataset.sur!=='none';b.classList.toggle('on',b.dataset.sur===S.sur);});
+  S.newSur=false;
+}
+
+/* Порція: що закрилось саме нею — святкує в рядку, далі згортається. */
+function add(ml){
+  const before=doneIds();
+  S.portions.push({min:S.min,ml});
+  const after=doneIds();
+  const fresh=[...after].filter(id=>!before.has(id));
+  fresh.forEach(id=>S.cele.set(id,'in'));
+  render();
+  if(fresh.length){
+    setTimeout(()=>{fresh.forEach(id=>S.cele.has(id)&&S.cele.set(id,'out'));render();},1500);
+    setTimeout(()=>{fresh.forEach(id=>S.cele.delete(id));render();},1900);
+  }
+}
+function doneIds(){const st=state();return new Set([...st.daily,...(st.weekly||[]),...(st.sur?[st.sur]:[])].filter(q=>q.done).map(q=>q.id));}
+function setTime(m){
+  const wasVisible=!!state().sur;S.min=m;S.cele.clear();
+  if(!wasVisible&&state().sur)S.newSur=true;
+  render();
+}
+function reset(){S.portions=[];S.cele.clear();S.showDone=false;S.min=430;render();}
+
+const scBtns=document.getElementById('scBtns');
+scBtns.innerHTML=Object.entries(SC).map(([k,v])=>`<button data-sc="${k}" class="${k===S.sc?'on':''}">${v.label}</button>`).join('');
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-add],[data-jump],[data-sc],[data-sur],[data-theme],[data-reset],[data-toggle]');if(!t)return;
+  if(t.dataset.add)add(+t.dataset.add);
+  else if(t.dataset.jump)setTime(+t.dataset.jump);
+  else if(t.dataset.sc){S.sc=t.dataset.sc;if(!SC[S.sc].sur)S.sur='none';scBtns.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===t));reset();}
+  else if(t.dataset.sur){S.sur=t.dataset.sur;S.cele.clear();render();}
+  else if(t.dataset.theme){S.dark=t.dataset.theme==='dark';document.querySelectorAll('[data-theme]').forEach(b=>b.classList.toggle('on',b===t));render();}
+  else if(t.hasAttribute('data-reset'))reset();
+  else if(t.hasAttribute('data-toggle')){S.showDone=!S.showDone;render();}
+});
+document.getElementById('t').addEventListener('input',e=>setTime(+e.target.value));
+render();
+</script>
+</body>
+</html>
