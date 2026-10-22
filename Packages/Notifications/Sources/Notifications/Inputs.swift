@@ -149,9 +149,9 @@ public struct StreakInput: Sendable, Equatable {
 
 /// Завдання, на які спираються вставки контексту (§12.2) і ранковий варіант тексту (§14.2).
 public struct QuestHints: Sendable, Equatable {
-    /// «Випити воду зранку» активне й не виконане.
+    /// «Склянка після підйому» активне й не виконане.
     public var morningQuestActive = false
-    /// Назва щоденного завдання, якому бракує одного запису.
+    /// Назва щоденного завдання про склянки, якому бракує однієї.
     public var oneEntryLeftTitle: String?
     /// Неділя, і тижневе завдання закривається сьогоднішньою нормою.
     public var weeklyClosesToday: WeeklyHint?

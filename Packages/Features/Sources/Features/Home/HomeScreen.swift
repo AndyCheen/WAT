@@ -263,7 +263,7 @@ public struct HomeScreen: View {
             .padding(.bottom, 14)
 
             ForEach(model.visibleQuests) { quest in
-                WTTaskRow(title: quest.title, progress: quest.progressLabel, isDone: quest.isDone)
+                WTTaskRow(title: model.questTitle(quest), progress: model.questProgress(quest), isDone: quest.isDone)
             }
 
             if model.allQuestsDone && !model.showCompletedQuests {

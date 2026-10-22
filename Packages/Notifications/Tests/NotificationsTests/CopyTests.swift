@@ -48,7 +48,7 @@ final class CopyCatalogTests: XCTestCase {
     func testNoGenderedPastTenseAndNoFormalYou() {
         let inserts = [
             NotificationCopy.streakInsert(365), NotificationCopy.boostInsert(remaining: "11 год 55 хв"),
-            NotificationCopy.questInsert(title: "Додати 4 записи"), NotificationCopy.weeklyInsert(xp: 100),
+            NotificationCopy.questInsert(title: "3 склянки до 12:30 пп"), NotificationCopy.weeklyInsert(xp: 150),
             NotificationCopy.bounceBackInsert(xp: 25), EchoText.body,
             EchoText.comebackGift.title, EchoText.comebackGift.body,
             EchoText.achievement("Тиждень поспіль").title, EchoText.level(12).title,
@@ -103,7 +103,7 @@ final class CopyCatalogTests: XCTestCase {
     func testInsertsKeepBodiesShort() {
         let inserts = [
             NotificationCopy.streakInsert(365), NotificationCopy.boostInsert(remaining: "11 год 55 хв"),
-            NotificationCopy.questInsert(title: "Додати 4 записи"), NotificationCopy.weeklyInsert(xp: 100),
+            NotificationCopy.questInsert(title: "3 склянки до 12:30 пп"), NotificationCopy.weeklyInsert(xp: 150),
             NotificationCopy.bounceBackInsert(xp: 25)
         ]
         for insert in inserts { XCTAssertLessThanOrEqual(insert.count, 100, insert) }
@@ -183,10 +183,10 @@ final class TextComposerTests: XCTestCase {
 
     func testQuestInsertOnlyToday() {
         var context = Fixture.context(at: Fixture.date(7))
-        context.quests.oneEntryLeftTitle = "Додати 4 записи"
+        context.quests.oneEntryLeftTitle = "5 склянок від 150 мл"
         let reminders = plan(context).items.filter { $0.type == .reminder }
-        XCTAssertTrue(reminders.filter { $0.dayKey.day == 1 }.allSatisfy { $0.body.contains("«Додати 4 записи»") })
-        XCTAssertTrue(reminders.filter { $0.dayKey.day == 2 }.allSatisfy { !$0.body.contains("«Додати 4 записи»") })
+        XCTAssertTrue(reminders.filter { $0.dayKey.day == 1 }.allSatisfy { $0.body.contains("«5 склянок від 150 мл»") })
+        XCTAssertTrue(reminders.filter { $0.dayKey.day == 2 }.allSatisfy { !$0.body.contains("«5 склянок від 150 мл»") })
     }
 
     /// «Знову в ритмі» — у ранковій склянці того дня, якщо немає ранкового порятунку (§12.5 Б).

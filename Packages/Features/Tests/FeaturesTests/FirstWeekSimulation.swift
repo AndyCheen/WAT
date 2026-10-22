@@ -454,8 +454,8 @@ final class FirstWeekSimulation {
         let quests = services.gamification.dailyQuests() + services.gamification.weeklyQuests()
         let done = Set(quests.filter(\.isDone).map { "\($0.id)" })
         for quest in quests where quest.isDone && !lastQuestsDone.contains("\(quest.id)") {
-            days[index].quests.append(quest.title)
-            signals.append("завдання: \(quest.title)")
+            days[index].quests.append(QuestPresenter.title(quest))
+            signals.append("завдання: \(QuestPresenter.title(quest))")
         }
         lastQuestsDone.formUnion(done)
 

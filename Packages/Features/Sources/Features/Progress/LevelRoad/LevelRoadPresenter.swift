@@ -2,6 +2,7 @@ import Foundation
 import Core
 import DesignSystem
 import Gamification
+import Persistence
 
 /// Рядок драбини — готові значення для `WTRoadRow` і карток.
 struct LevelRoadRow: Identifiable, Equatable {
@@ -185,8 +186,11 @@ enum LevelRoadPresenter {
     static func guideRows(rules: XPRules, dayRhythm: Bool, unit: VolumeUnit = .milliliters,
                           format: TimeFormat = .hours24) -> [WTXPGuideRow] {
         let scale = { (xp: Int) in Int((Double(xp) * rules.xpMultiplier).rounded()) }
-        let dailyQuest = QuestCatalog.all.filter { $0.scope == .daily }.map(\.rewardXp).min() ?? 0
-        let weeklyQuest = QuestCatalog.all.filter { $0.scope == .weekly }.map(\.rewardXp).min() ?? 0
+        // Діапазон за складністю (SPEC-QUESTS §8): «+15–40 XP».
+        let questRange = { (scope: QuestScope) -> String in
+            let range = rules.questXpRange(scope)
+            return "+\(scale(range.lowerBound))–\(scale(range.upperBound)) XP"
+        }
         let achievement = AchievementCatalog.active.map(\.rewardXp).min() ?? 0
         let streakCap = String(format: "%.1f", rules.streakMultiplierCap).replacingOccurrences(of: ".", with: ",")
 
@@ -197,8 +201,8 @@ enum LevelRoadPresenter {
             rows.append(WTXPGuideRow(emoji: "⏰", title: "Ціль частини доби", value: "+\(scale(rules.perDayPartGoal)) XP"))
         }
         rows += [
-            WTXPGuideRow(emoji: "✅", title: "Щоденне завдання", value: "+\(scale(dailyQuest)) XP"),
-            WTXPGuideRow(emoji: "📅", title: "Тижневе завдання", value: "+\(scale(weeklyQuest)) XP"),
+            WTXPGuideRow(emoji: "✅", title: "Щоденне завдання", value: questRange(.daily)),
+            WTXPGuideRow(emoji: "📅", title: "Тижневе завдання", value: questRange(.weekly)),
             WTXPGuideRow(emoji: "🏅", title: "Досягнення", value: "від \(scale(achievement)) XP"),
             WTXPGuideRow(emoji: "🔥", title: "Серія множить XP за воду", value: "до ×\(streakCap)"),
             WTXPGuideRow(emoji: "⚡", title: "Буст до \(format.clock(0))", value: "×2 чи ×3")

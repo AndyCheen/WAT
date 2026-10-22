@@ -88,6 +88,12 @@ public final class ProgressViewModel {
     }
 
     public var completedQuestCount: Int { dailyQuests.completed.count + weeklyQuests.completed.count }
+    func questTitle(_ quest: QuestSnapshot) -> String {
+        QuestPresenter.title(quest, unit: services.profile.volumeUnit, format: services.profile.timeFormat)
+    }
+    func questProgress(_ quest: QuestSnapshot) -> String {
+        QuestPresenter.progressLabel(quest, unit: services.profile.volumeUnit)
+    }
 
     // MARK: - Анімовані переходи
 

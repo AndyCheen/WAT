@@ -7,7 +7,7 @@ struct CopyVariant: Equatable {
     enum Requirement: Equatable {
         /// Текст з `{since}` — лише коли сьогодні вже була порція.
         case since
-        /// «Почнімо з води» — лише коли активне завдання «Випити воду зранку».
+        /// «Почнімо з води» — лише коли активне завдання «Склянка після підйому».
         case morningQuest
         /// «…одна склянка, і норму закрито» — лише коли бракує не більше склянки.
         case singleGlass
@@ -132,7 +132,7 @@ enum NotificationCopy {
     }
 
     static func questInsert(title: String) -> String {
-        "Ще 1 запис — і «\(title)» виконано"
+        "Ще одна склянка — і «\(title)» виконано"
     }
 
     static func weeklyInsert(xp: Int) -> String {

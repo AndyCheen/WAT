@@ -43,7 +43,7 @@ final class IntegrationTests: XCTestCase {
     func testBecameActiveAfterMidnightStartsTheNewDay() throws {
         let clock = try XCTUnwrap(services.clock as? FixedClock)
         services.hydration.addIntake(amountMl: 2000)
-        XCTAssertEqual(services.gamification.dailyQuests().first { $0.key == "daily.goal" }?.progress, 2000)
+        XCTAssertEqual(services.gamification.dailyQuests().first { $0.key == "starter.halfGoal" }?.progress, 2000)
         let epochBefore = services.epoch
 
         clock.set(Self.date(day: 19, hour: 8))
@@ -51,10 +51,9 @@ final class IntegrationTests: XCTestCase {
 
         XCTAssertGreaterThan(services.epoch, epochBefore, "екрани отримали сигнал перечитати знімки")
         XCTAssertEqual(services.calendar.today.rawValue, "2026-07-19")
-        XCTAssertEqual(
-            services.gamification.dailyQuests().first { $0.key == "daily.goal" }?.progress, 0,
-            "щоденні завдання нової доби створено з нуля"
-        )
+        let fresh = services.gamification.dailyQuests()
+        XCTAssertEqual(fresh.map(\.key), ["daily.wakeGlass", "starter.firstGoal"], "день 2 людини (SPEC-QUESTS §3.3)")
+        XCTAssertTrue(fresh.allSatisfy { $0.progress == 0 }, "щоденні завдання нової доби створено з нуля")
         XCTAssertEqual(services.gamification.streakSummary().current, 1, "учорашній день зараховано в серію")
     }
 
@@ -67,7 +66,7 @@ final class IntegrationTests: XCTestCase {
             services.gamification.achievementSnapshots().first { $0.key == "first.drop" }!.isUnlocked,
             "розблоковано «Першу краплю»"
         )
-        XCTAssertEqual(services.gamification.dailyQuests().first { $0.key == "daily.goal" }?.progress, 500)
+        XCTAssertEqual(services.gamification.dailyQuests().first { $0.key == "starter.halfGoal" }?.progress, 500)
         XCTAssertEqual(services.insights.evenness().totalMl, 500)
     }
 
@@ -82,7 +81,7 @@ final class IntegrationTests: XCTestCase {
         XCTAssertFalse(
             services.gamification.achievementSnapshots().first { $0.key == "first.drop" }!.isUnlocked
         )
-        XCTAssertEqual(services.gamification.dailyQuests().first { $0.key == "daily.goal" }?.progress, 0)
+        XCTAssertEqual(services.gamification.dailyQuests().first { $0.key == "starter.halfGoal" }?.progress, 0)
     }
 
     /// Тост «Скасувати» веде сюди: відкат відкату має повернути стан усіх модулів,
@@ -90,7 +89,7 @@ final class IntegrationTests: XCTestCase {
     func testRestoreRollsForwardEveryModule() {
         let result = services.hydration.addIntake(amountMl: 500)!
         let xpAfterAdd = services.gamification.levelProgress().totalXp
-        let questAfterAdd = services.gamification.dailyQuests().first { $0.key == "daily.goal" }?.progress
+        let questAfterAdd = services.gamification.dailyQuests().first { $0.key == "starter.halfGoal" }?.progress
 
         services.hydration.removeIntake(id: result.intakeId)
         services.hydration.restoreIntake(id: result.intakeId)
@@ -101,7 +100,7 @@ final class IntegrationTests: XCTestCase {
             services.gamification.achievementSnapshots().first { $0.key == "first.drop" }!.isUnlocked,
             "досягнення розблокувалось повторно"
         )
-        XCTAssertEqual(services.gamification.dailyQuests().first { $0.key == "daily.goal" }?.progress, questAfterAdd)
+        XCTAssertEqual(services.gamification.dailyQuests().first { $0.key == "starter.halfGoal" }?.progress, questAfterAdd)
         XCTAssertEqual(services.insights.evenness().totalMl, 500)
     }
 
@@ -156,7 +155,7 @@ final class IntegrationTests: XCTestCase {
 
         XCTAssertTrue(services.hydration.todaySnapshot().goalMet)
         XCTAssertEqual(services.gamification.streakSummary().current, 1)
-        XCTAssertTrue(services.gamification.dailyQuests().first { $0.key == "daily.goal" }!.isDone)
+        XCTAssertTrue(services.gamification.dailyQuests().first { $0.key == "starter.halfGoal" }!.isDone)
         XCTAssertGreaterThan(services.insights.evenness().score, 0)
     }
 

@@ -123,6 +123,11 @@ public final class AppServices {
         // Досягнення «Увімкни сповіщення» рахуються, лише коли система дозволила (SPEC-ACHIEVEMENTS-CATALOG §4.4).
         let notifications = self.notifications
         gamification.notificationsAuthorized = { notifications.authorization == .authorized }
+        // «Норма без нагадувань» — лише тим, кому нагадування справді приходять (SPEC-QUESTS §3.1).
+        gamification.remindersActive = {
+            notifications.authorization == .authorized && profiles.profile().notificationsEnabled
+                && notifications.settings.remindersEnabled
+        }
     }
 
     /// Перший запуск: профіль, норма, пресети, підписка гейміфікації й сповіщень.

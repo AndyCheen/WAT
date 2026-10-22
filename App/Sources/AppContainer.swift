@@ -38,6 +38,8 @@ enum AppContainer {
             widgetReloader: WidgetCenterReloader(),
             widgetPicker: launch.isUITest ? nil : .shared
         )
+        // До `bootstrap()`: завдання видаються першою ж подією дня — стартовим перерахунком.
+        services.gamification.questForcing = launch.quests
         services.bootstrap()
         if launch.seedsDemoData {
             FixtureSeeder.seed(into: services)
