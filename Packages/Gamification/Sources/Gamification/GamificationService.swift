@@ -10,8 +10,8 @@ import Metrics
 @MainActor
 public final class GamificationService: MetricsSubscriber {
     let store: GamificationStoreProtocol
-    private let dayLogs: DayLogRepositoryProtocol
-    private let profiles: ProfileRepositoryProtocol
+    let dayLogs: DayLogRepositoryProtocol
+    let profiles: ProfileRepositoryProtocol
     let metrics: MetricsService
     let calendar: CalendarService
 
@@ -35,6 +35,9 @@ public final class GamificationService: MetricsSubscriber {
     /// Чи дозволено сповіщення в системі — ставить `AppServices`: пакет сповіщень звідси не видно.
     /// Головний вимикач — у профілі. Разом вони вирішують, чи рахуються досягнення «Увімкни сповіщення».
     public var notificationsAuthorized: () -> Bool = { true }
+    /// Нагадування справді приходять: головний вимикач, дозвіл і самі нагадування увімкнено. Ставить `AppServices`.
+    /// Без цього не видається «Норма без нагадувань» (SPEC-QUESTS §3.1).
+    public var remindersActive: () -> Bool = { false }
 
     /// Історія днів для правил досягнень — кеш із точковим оновленням (WAT-24).
     lazy var history = DayHistory(dayLogs: dayLogs, calendar: calendar, profile: { [unowned self] in self.profile })
@@ -44,6 +47,8 @@ public final class GamificationService: MetricsSubscriber {
     var gameFactsCache: [GameFact: Double]?
     /// «N подій за хвилину» — скидається, коли приходить подія цієї метрики.
     var burstCache: [String: Double] = [:]
+    /// Дні завдань — скидаються подією дня, повністю — на `refresh`.
+    var questDays: [String: QuestDay] = [:]
 
     public init(
         store: GamificationStoreProtocol,
@@ -83,11 +88,11 @@ public final class GamificationService: MetricsSubscriber {
     public func refresh(at date: Date) -> [String] {
         history.reload()
         invalidateAchievementCaches()
+        questDays.removeAll()
+        quests.resetIssueChecks()
         grantLevelRewards(at: date)
         recomputeStreaks(at: date)
-        let context = makeContext(at: date)
-        quests.ensureInstances(context: context, level: xp.progress().level, dayRhythm: profile.dayRhythmEnabled)
-        let completed = quests.evaluate(context: context, triggerRef: nil)
+        let completed = runQuests(at: date, triggerRef: nil)
         awardQuestXP(completed, at: date)
         recordAllDailyQuestsIfDone(completed, at: date)
         let unlocked = evaluateAchievements(at: date, triggerRef: nil, announce: false)
@@ -105,6 +110,7 @@ public final class GamificationService: MetricsSubscriber {
 
         let date = event.occurredAt
         noteAchievementInputs(changedBy: [event])
+        noteQuestInputs(changedBy: [event])
 
         if event.name == .dayGoalMet {
             recomputeStreaks(at: date)
@@ -125,10 +131,8 @@ public final class GamificationService: MetricsSubscriber {
             awardBounceBackIfDue(event)
         }
 
-        let context = makeContext(at: date)
-        quests.ensureInstances(context: context, level: xp.progress().level, dayRhythm: profile.dayRhythmEnabled)
         let levelBefore = xp.progress().level
-        let completed = quests.evaluate(context: context, triggerRef: event.sourceRef)
+        let completed = runQuests(at: date, triggerRef: event.sourceRef)
         awardQuestXP(completed, at: date)
         recordAllDailyQuestsIfDone(completed, at: date)
 
@@ -170,16 +174,20 @@ public final class GamificationService: MetricsSubscriber {
 
         let date = events.first?.occurredAt ?? calendar.now
         noteAchievementInputs(changedBy: events)
+        noteQuestInputs(changedBy: events)
         // 1. Забираємо XP, нарахований саме цією дією.
         xp.revert(refId: sourceRef, at: date)
         // 2. Серія перераховується з денних логів — вона вже врахувала зміну.
         recomputeStreaks(at: date)
 
-        let context = makeContext(at: date)
         // 3. Завдання та досягнення знімаються, якщо умова більше не виконується.
-        let reopened = quests.revert(context: context, sourceRef: sourceRef, policy: revertPolicy)
+        let reopened = quests.revert(at: date, now: max(date, calendar.now), inputs: questInputs(at: date),
+                                     policy: revertPolicy)
         for quest in reopened {
             xp.revert(refId: quest.id, at: date)
+            // `quest.completed` і `quest.weeklyCompleted` — до відкату досягнень: інакше «Тижнева мета» й «Сотня
+            // завдань» трималися б на події завдання, якого вже немає (SPEC-QUESTS §7).
+            metrics.revert(sourceRef: quest.id, at: date)
             // «Усе на сьогодні» трималось на цьому завданні.
             if quest.periodKey.count == 10 {
                 metrics.revert(sourceRef: Self.allDailyQuestsRef(DayKey(rawValue: quest.periodKey)), at: date)
@@ -217,12 +225,6 @@ public final class GamificationService: MetricsSubscriber {
             freezeTokens: freezes, lastCountedDay: summary.lastCountedDay
         )
     }
-    public func dailyQuests(at date: Date? = nil) -> [QuestSnapshot] {
-        inUserUnits(quests.snapshots(scope: .daily, at: date ?? calendar.now))
-    }
-    public func weeklyQuests(at date: Date? = nil) -> [QuestSnapshot] {
-        inUserUnits(quests.snapshots(scope: .weekly, at: date ?? calendar.now))
-    }
     public func achievementSnapshots() -> [AchievementSnapshot] {
         let snapshots = achievements.snapshots(gates: achievementGates)
         let unit = profile.volumeUnit
@@ -241,19 +243,6 @@ public final class GamificationService: MetricsSubscriber {
         }
     }
 
-    /// Підписи об'ємних завдань — у системі людини (WAT-46); у мілілітрах — як були.
-    private func inUserUnits(_ snapshots: [QuestSnapshot]) -> [QuestSnapshot] {
-        let unit = profile.volumeUnit
-        guard !unit.isMetric else { return snapshots }
-        return snapshots.map { snapshot in
-            guard let definition = QuestCatalog.definition(snapshot.key), definition.rule.measuresVolume else {
-                return snapshot
-            }
-            var shown = snapshot
-            shown.ounces = unit
-            return shown
-        }
-    }
     public var hasUnseenAchievements: Bool { achievements.hasUnseenUnlocks }
 
     /// Черга вікна відкриття (WAT-60, SPEC-ACHIEVEMENTS §8.5) — знімки в одиницях людини, за часом відкриття.
@@ -713,23 +702,6 @@ public final class GamificationService: MetricsSubscriber {
             name: .streakCurrent, value: Double(value), occurredAt: date,
             sourceRef: DeterministicID.uuid(from: "streak:\(day):\(value)")
         ))
-    }
-
-    private func awardQuestXP(_ quests: [QuestInstance], at date: Date) {
-        for quest in quests {
-            guard let definition = QuestCatalog.definition(quest.defKey) else { continue }
-            xp.award(amount: definition.rewardXp, reason: .questCompleted, refId: quest.id, at: date)
-            metrics.record(MetricEvent(
-                name: .questCompleted, value: 1, occurredAt: date, sourceRef: quest.id,
-                payload: ["key": quest.defKey]
-            ))
-            if definition.scope == .weekly {
-                metrics.record(MetricEvent(
-                    name: .weeklyQuestCompleted, value: 1, occurredAt: date, sourceRef: quest.id,
-                    payload: ["key": quest.defKey]
-                ))
-            }
-        }
     }
 
     func awardAchievementXP(_ definitions: [AchievementDefinition], at date: Date) {
