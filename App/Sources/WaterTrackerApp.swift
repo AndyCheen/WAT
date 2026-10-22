@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 import Core
 import Persistence
+import Gamification
 import Features
 import Notifications
 import Widgets
@@ -89,6 +90,9 @@ struct LaunchConfiguration {
     let onboarding: OnboardingMode?
     /// `--onboarding-design scene|steps` — тимчасовий перемикач дизайну онбордингу (до WAT-57).
     let onboardingDesign: OnboardingDesign?
+    /// `--quests daily:daily.wakeGlass,daily.glasses;weekly:weekly.goalDays=5` — саме ці завдання повз пікери
+    /// (WAT-63): e2e не мають залежати від зерна профілю. Лише DEBUG.
+    let quests: QuestForcing?
 
     static var current: LaunchConfiguration {
         let arguments = ProcessInfo.processInfo.arguments
@@ -148,7 +152,14 @@ struct LaunchConfiguration {
             seedsScheduleShift: arguments.contains("--seed-schedule-shift"),
             widgetActions: value(after: "--widget-action"),
             onboarding: onboarding,
-            onboardingDesign: value(after: "--onboarding-design").flatMap(OnboardingDesign.init(rawValue:))
+            onboardingDesign: value(after: "--onboarding-design").flatMap(OnboardingDesign.init(rawValue:)),
+            quests: {
+                #if DEBUG
+                value(after: "--quests").flatMap(QuestForcing.init(argument:))
+                #else
+                nil
+                #endif
+            }()
         )
     }
 }

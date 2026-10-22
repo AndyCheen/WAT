@@ -330,9 +330,11 @@ struct LearnPresenter {
                                   label: "\(context.blocks.count) цілі"))
         }
         bonuses += [.init(emoji: "✅", title: "Завдання", detail: "щоденне / тижневе",
-                          value: "+\(scaled(questXp(.daily))) / +\(scaled(questXp(.weekly)))"),
+                          value: "\(questXp(.daily)) / \(questXp(.weekly))"),
                     .init(emoji: "🔥", title: "Серія", detail: "множить XP за воду", value: "до ×\(decimal(rules.streakMultiplierCap))")]
-        segments.append(.init(emoji: "✅", value: scaled(questXp(.daily)), label: "завдання"))
+        // Типова пара щоденних — легке й середнє, ≈ 40 XP на день (SPEC-QUESTS §8).
+        let questPair = rules.questXp(scope: .daily, difficulty: .easy) + rules.questXp(scope: .daily, difficulty: .medium)
+        segments.append(.init(emoji: "✅", value: scaled(questPair), label: "завдання"))
         let visible = AchievementCatalog.active.filter { !$0.secrecy.isEgg }.count
         return [
             LearnSlide(kind: .fact, kicker: "Вода", title: "За кожні \(unit.portion(step)) — а не за натискання",
@@ -504,8 +506,10 @@ struct LearnPresenter {
         }
     }
 
-    private func questXp(_ scope: QuestScope) -> Int {
-        QuestCatalog.all.filter { $0.scope == scope }.map(\.rewardXp).min() ?? 0
+    /// «+15–40» — діапазон за складністю (SPEC-QUESTS §8).
+    private func questXp(_ scope: QuestScope) -> String {
+        let range = context.rules.questXpRange(scope)
+        return "+\(scaled(range.lowerBound))–\(scaled(range.upperBound))"
     }
 
     /// XP з урахуванням загального множника балансу — як у довіднику «Звідки XP».

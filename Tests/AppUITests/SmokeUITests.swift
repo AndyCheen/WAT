@@ -102,19 +102,19 @@ final class SmokeUITests: XCTestCase {
     }
 
     func testCompletedQuestsHideBehindToggle() {
-        let app = launch(["--uitest-empty"])
+        // Завдання — повз пікер (`--quests`): вибір пікера залежить від зерна профілю й дня.
+        let app = launch(["--uitest-empty", "--quests", "daily:daily.glasses"])
         XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
 
-        // Денні слоти детерміновані: «Випити денну норму» + «Додати 4 записи».
-        let questRow = app.staticTexts["Додати 4 записи"]
+        // Норма 2000 мл і склянка 250 — N = 5.
+        let questRow = app.staticTexts["5 склянок від 150 мл"]
         let toggle = app.buttons["home.tasks.toggleCompleted"]
         XCTAssertTrue(questRow.exists, "невиконане завдання видно одразу")
         XCTAssertFalse(toggle.exists, "ховати нема чого, доки нічого не виконано")
 
-        // 4 × 500 мл закривають обидва завдання: і норму, і кількість записів.
-        // Перша порція й закрита норма — вікна відкриття: кожне закриваємо, інакше наступний тап у нього.
-        for _ in 0..<4 {
-            app.buttons["home.add.500"].tap()
+        // 5 × 200 мл закривають завдання. Перша порція — вікно відкриття: закриваємо, інакше наступний тап у нього.
+        for _ in 0..<5 {
+            app.buttons["home.add.200"].tap()
             dismissCelebrationIfPresent(app, timeout: 2)
         }
 

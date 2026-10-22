@@ -180,7 +180,7 @@ public struct ProgressScreen: View {
                 .padding(.vertical, 8)
         } else {
             ForEach(quests) { quest in
-                WTTaskRow(title: quest.title, progress: quest.progressLabel, isDone: quest.isDone)
+                WTTaskRow(title: model.questTitle(quest), progress: model.questProgress(quest), isDone: quest.isDone)
             }
         }
     }

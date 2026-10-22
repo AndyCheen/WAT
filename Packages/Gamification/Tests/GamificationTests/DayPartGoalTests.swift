@@ -145,13 +145,14 @@ final class DayPartGoalTests: XCTestCase {
         XCTAssertEqual(activeAwards(env).count, 2, "наступна порція в блоці 12–17 закриває його")
     }
 
-    /// Завдання на частину доби — у пулі лише з ритмом дня.
+    /// Завдання на частину доби — у пулі лише з ритмом дня; без нього щоденне одне (SPEC-QUESTS §2).
     func testDayPartQuestsAreMarked() {
-        XCTAssertEqual(QuestCatalog.all.filter(\.isDayPartQuest).map(\.key), ["daily.morning"])
-        let env = GameEnv()
+        XCTAssertEqual(QuestCatalog.active.filter(\.isDayPartQuest).map(\.key),
+                       ["daily.closeBlock", "daily.everyBlock", "daily.allBlocks", "weekly.perfectDays"])
+        XCTAssertTrue(QuestCatalog.definition("daily.morning")!.isDayPartQuest, "архівне — за метрикою частини доби")
+        let env = GameEnv(quests: nil)
         setDayRhythm(false, env)
-        env.addIntake(250, hour: 9)
-        XCTAssertFalse(env.game.dailyQuests().contains { $0.key == "daily.morning" })
-        XCTAssertEqual(env.game.dailyQuests().count, QuestCatalog.dailySlots)
+        env.game.refresh(at: GameEnv.date(day: 19, hour: 9))
+        XCTAssertEqual(env.game.dailyQuests(at: GameEnv.date(day: 19, hour: 9)).map(\.key), ["starter.firstGlass"])
     }
 }

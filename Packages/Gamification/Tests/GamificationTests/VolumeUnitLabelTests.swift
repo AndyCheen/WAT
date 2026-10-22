@@ -3,31 +3,10 @@ import Core
 import Persistence
 @testable import Gamification
 
-/// Підписи об'ємних завдань і досягнень у системі людини (WAT-46). Мілілітри — як були.
+/// Підписи об'ємних досягнень у системі людини (WAT-46). Мілілітри — як були. Завдання — `QuestPresenterTests`
+/// у `Features`: тексти завдань складає презентер (WAT-63).
 @MainActor
 final class VolumeUnitLabelTests: XCTestCase {
-    func testVolumeQuestLabelInOunces() {
-        var quest = QuestSnapshot(id: UUID(), key: "daily.morning", title: "Випити воду зранку", scope: .daily,
-                                  progress: 120, target: 200, isDone: false, rewardXp: 25)
-        XCTAssertEqual(quest.progressLabel, "120/200")
-        quest.ounces = .usFluidOunces
-        XCTAssertEqual(quest.progressLabel, "4/7")
-    }
-
-    /// Сервіс позначає лише об'ємні завдання: лічильник записів лишається «1/4».
-    func testServiceMarksOnlyVolumeQuests() {
-        let env = GameEnv()
-        _ = env.addIntake(120, hour: 9)
-        env.profiles.profile().volumeUnit = .usFluidOunces
-        let quests = env.game.dailyQuests()
-        XCTAssertEqual(quests.first { $0.key == "daily.goal" }?.ounces, .usFluidOunces)
-        XCTAssertNil(quests.first { $0.key == "daily.entries4" }?.ounces)
-        XCTAssertEqual(quests.first { $0.key == "daily.entries4" }?.progressLabel, "1/4")
-
-        env.profiles.profile().volumeUnit = .milliliters
-        XCTAssertNil(env.game.dailyQuests().first { $0.key == "daily.goal" }?.ounces)
-    }
-
     /// Прогрес об'ємних досягнень — в унціях; опис із числом — лише в драбини «води загалом» (WAT-58:
     /// у каталозі WAT-24 «Великий ковток» — «Літрова пляшка», без числа, тож опис лишається).
     func testVolumeAchievementsInOunces() {

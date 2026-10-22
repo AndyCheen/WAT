@@ -16,6 +16,7 @@ extension WidgetSnapshot {
             .enumerated()
             .map { index, item in Portion(id: DeterministicID.uuid(from: "widget-sample-\(index)"), at: at(item.0), ml: item.1) }
         let total = portions.reduce(0) { $0 + $1.ml }
+        let glasses = portions.filter { $0.ml >= 150 }.count
         let curve = schedule.curve(goalMl: 2000)
         let reserve = HydrationReserve.make(
             portions: portions, capacityMl: HydrationReserve.capacity(typicalPortionMl: 250), now: now,
@@ -33,12 +34,12 @@ extension WidgetSnapshot {
             streak: Streak(current: 12, countsToday: false),
             level: Level(level: 7, xpIntoLevel: 120, xpForNextLevel: 200),
             dailyQuests: [
-                Quest(title: "Випити денну норму", progressLabel: "\(total * 100 / 2000)%",
-                      fraction: Double(total) / 2000, isDone: false),
-                Quest(title: "Додати 4 записи", progressLabel: portions.count >= 4 ? "Готово" : "\(portions.count)/4",
-                      fraction: Double(portions.count) / 4, isDone: portions.count >= 4)
+                Quest(title: "Половина до 14:00", progressLabel: total >= 1000 ? "Готово" : WidgetPresenter.left(1000 - total),
+                      fraction: min(1, Double(total) / 1000), isDone: total >= 1000),
+                Quest(title: "5 склянок від 150 мл", progressLabel: glasses >= 5 ? "Готово" : "\(glasses)/5",
+                      fraction: min(1, Double(glasses) / 5), isDone: glasses >= 5)
             ],
-            weeklyQuests: [Quest(title: "Стрік 7 днів поспіль", progressLabel: "5/7", fraction: 5.0 / 7, isDone: false)],
+            weeklyQuests: [Quest(title: "Норма 5 днів", progressLabel: "3/5 дн.", fraction: 3.0 / 5, isDone: false)],
             reserve: reserve
         )
     }

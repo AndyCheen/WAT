@@ -1,4 +1,5 @@
 import Foundation
+import Persistence
 
 /// Таблиця нарахувань XP — стартовий баланс (PLAN.md §13.2, потребує підтвердження).
 /// Усі числа зібрані тут, щоб перебалансувати гру не чіпаючи логіку.
@@ -14,13 +15,17 @@ public struct XPRules: Sendable, Equatable {
     public var xpMultiplier: Double
     public var perDayPartGoal: Int
     public var perDailyGoal: Int
-    public var perDailyQuest: Int
-    public var perWeeklyQuest: Int
+    /// XP завдань за складністю: легке, середнє, складне (SPEC-QUESTS §3, калібрування — WAT-25).
+    public var dailyQuestXp: [Int]
+    public var weeklyQuestXp: [Int]
+    /// Несподівані (SPEC-QUESTS §6.5): до години — коротке, частина доби чи день — довге.
+    public var surpriseShortXp: Int
+    public var surpriseLongXp: Int
     public var streakMultiplierStep: Double
     public var streakMultiplierCap: Double
 
     // Нагороди за повернення (SPEC-NOTIFICATIONS §12.5).
-    /// «Знову в ритмі» — як щоденне завдання.
+    /// «Знову в ритмі» — як середнє щоденне завдання.
     public var perBounceBack: Int
     /// Серія, обрив якої вартий бонусу: інакше чергування «норма — пропуск — норма» стало б фармом.
     public var bounceBackMinStreak: Int
@@ -36,8 +41,10 @@ public struct XPRules: Sendable, Equatable {
         xpMultiplier: Double = 1,
         perDayPartGoal: Int = 10,
         perDailyGoal: Int = 50,
-        perDailyQuest: Int = 25,
-        perWeeklyQuest: Int = 100,
+        dailyQuestXp: [Int] = [15, 25, 40],
+        weeklyQuestXp: [Int] = [75, 100, 150],
+        surpriseShortXp: Int = 25,
+        surpriseLongXp: Int = 50,
         streakMultiplierStep: Double = 0.05,
         streakMultiplierCap: Double = 1.5,
         perBounceBack: Int = 25,
@@ -51,8 +58,10 @@ public struct XPRules: Sendable, Equatable {
         self.xpMultiplier = xpMultiplier
         self.perDayPartGoal = perDayPartGoal
         self.perDailyGoal = perDailyGoal
-        self.perDailyQuest = perDailyQuest
-        self.perWeeklyQuest = perWeeklyQuest
+        self.dailyQuestXp = dailyQuestXp
+        self.weeklyQuestXp = weeklyQuestXp
+        self.surpriseShortXp = surpriseShortXp
+        self.surpriseLongXp = surpriseLongXp
         self.streakMultiplierStep = streakMultiplierStep
         self.streakMultiplierCap = streakMultiplierCap
         self.perBounceBack = perBounceBack
@@ -65,6 +74,18 @@ public struct XPRules: Sendable, Equatable {
     /// Серія збільшує коефіцієнт досвіду (ТЗ §5.3).
     public func multiplier(streak: Int) -> Double {
         min(streakMultiplierCap, 1 + Double(max(0, streak)) * streakMultiplierStep)
+    }
+
+    /// XP завдання за складністю. Фіксується на інстансі в мить видачі (SPEC-QUESTS §8).
+    public func questXp(scope: QuestScope, difficulty: QuestDifficulty) -> Int {
+        let table = scope == .weekly ? weeklyQuestXp : dailyQuestXp
+        return table.isEmpty ? 0 : table[min(table.count, difficulty.rawValue) - 1]
+    }
+
+    /// Діапазон XP виду завдань — для довідника «Звідки XP» і «Знань» (SPEC-QUESTS §8).
+    public func questXpRange(_ scope: QuestScope) -> ClosedRange<Int> {
+        let table = scope == .weekly ? weeklyQuestXp : dailyQuestXp
+        return (table.min() ?? 0)...(table.max() ?? 0)
     }
 
     /// XP за порцію — приріст накопиченого за день: ⌊k·після⌋ − ⌊k·до⌋. Так п'ять порцій по 50 мл дають

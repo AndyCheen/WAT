@@ -16,7 +16,10 @@ struct GameEnv {
     let profiles: ProfileRepository
     let game: GamificationService
 
-    init(day: Int = 18, hour: Int = 14, goalMl: Int = 2000) {
+    /// - Parameter quests: завдання повз пікери (`--quests`) — ставиться до `bootstrap()`, бо видача йде першою подією.
+    ///   Типово — жодних: «Перша склянка» дня 1 закривається першою ж порцією й міняла б XP у кожному тесті про XP.
+    ///   `nil` — справжні пікери.
+    init(day: Int = 18, hour: Int = 14, goalMl: Int = 2000, quests: QuestForcing? = QuestForcing()) {
         container = Database.makeInMemoryContainer()
         let context = container.mainContext
         clock = FixedClock(now: Self.date(day: day, hour: hour))
@@ -30,6 +33,7 @@ struct GameEnv {
             store: store, dayLogs: dayLogs, profiles: profiles,
             metrics: metrics, calendar: calendar
         )
+        game.questForcing = quests
         game.bootstrap()
     }
 

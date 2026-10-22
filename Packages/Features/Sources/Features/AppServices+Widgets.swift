@@ -138,9 +138,11 @@ extension AppServices {
         let streak = gamification.streakSummary()
         let level = gamification.levelProgress()
         let quest = { (quest: QuestSnapshot) in
-            WidgetSnapshot.Quest(title: quest.title, progressLabel: quest.progressLabel, fraction: quest.fraction,
-                                 isDone: quest.isDone)
+            WidgetSnapshot.Quest(title: QuestPresenter.title(quest, unit: profile.volumeUnit, format: profile.timeFormat),
+                                 progressLabel: QuestPresenter.progressLabel(quest, unit: profile.volumeUnit),
+                                 fraction: quest.fraction, isDone: quest.isDone)
         }
+        let quests = gamification.questBoard(at: now)
         let typical = plan.typicalPortionMl > 0 ? plan.typicalPortionMl : profile.glassMl
         let reserve = HydrationReserve.make(
             portions: portions, capacityMl: HydrationReserve.capacity(typicalPortionMl: typical), now: now,
@@ -165,8 +167,8 @@ extension AppServices {
             streak: WidgetSnapshot.Streak(current: streak.current, countsToday: streak.lastCountedDay == today),
             level: WidgetSnapshot.Level(level: level.level, xpIntoLevel: level.xpIntoLevel,
                                         xpForNextLevel: level.xpForNextLevel),
-            dailyQuests: gamification.dailyQuests(at: now).map(quest),
-            weeklyQuests: gamification.weeklyQuests(at: now).map(quest),
+            dailyQuests: quests.daily.map(quest),
+            weeklyQuests: quests.weekly.map(quest),
             dayPartXp: Int(Double(gamification.xp.rules.perDayPartGoal) * gamification.xp.boostMultiplier(at: now)),
             reserve: reserve, lastAction: lastAction
         )

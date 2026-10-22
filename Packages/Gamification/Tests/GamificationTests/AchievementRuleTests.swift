@@ -472,7 +472,7 @@ final class AchievementRuleTests: XCTestCase {
     // MARK: - Гра (§4.6)
 
     func testLevelMilestonesAndQuests() {
-        let env = GameEnv()
+        let env = GameEnv(quests: nil)
         env.reachLevel(5)
         env.game.refresh(at: env.clock.now)
         XCTAssertNil(env.achievement("level.5"), "«Струмок» знято (WAT-60): у рівня своє свято")
@@ -482,18 +482,19 @@ final class AchievementRuleTests: XCTestCase {
 
         for hour in [9, 11, 13, 15] { env.drink(500, on: "2026-07-18", hour: hour) }
         XCTAssertFalse(env.isUnlocked("quest.first"), "щоденні завдання «Тижневої мети» не дають (WAT-60)")
-        XCTAssertEqual(env.progressValue("quest.allDaily"), 1, "норма й 4 записи — обидва щоденні, день 1 з 10")
+        XCTAssertEqual(env.progressValue("quest.allDaily"), 1, "«Перша склянка» й «Половина норми» — обидві стартові, день 1 з 10")
     }
 
-    /// «Тижнева мета» — перше тижневе завдання: «Випити норму 5 днів» (WAT-60).
+    /// «Тижнева мета» — перше тижневе завдання. У перший тиждень людини воно одне — «Норма 3 дні» (SPEC-QUESTS §5.2).
     func testWeeklyGoalOpensWithTheFirstWeeklyQuest() {
-        let env = GameEnv()
-        let week = env.days(from: "2026-07-13", to: "2026-07-17")
+        let env = GameEnv(quests: nil)
+        let week = env.days(from: "2026-07-13", to: "2026-07-15")
         for day in week.dropLast() { env.goalDay(day) }
         XCTAssertFalse(env.isUnlocked("quest.first"))
         XCTAssertEqual(env.metrics.events(.weeklyQuestCompleted).count, 0)
+        XCTAssertEqual(env.store.quests(scope: .weekly, periodKey: "2026-W29").map(\.defKey), ["weekly.goalDays"])
 
-        env.goalDay(week[4])
+        env.goalDay(week[2])
         XCTAssertTrue(env.isUnlocked("quest.first"))
         XCTAssertEqual(env.achievement("quest.first")?.title, "Тижнева мета")
         XCTAssertEqual(env.metrics.events(.weeklyQuestCompleted).count, 1)
@@ -501,7 +502,8 @@ final class AchievementRuleTests: XCTestCase {
 
     /// «Без хвостів» — 10 днів, коли виконано всі щоденні завдання (WAT-60).
     func testNoTailsNeedsTenDays() {
-        let env = GameEnv()
+        // Те саме щоденне щодня: тест про лік днів, а не про вибір пікера.
+        let env = GameEnv(quests: QuestForcing(daily: ["starter.firstGoal"]))
         env.clock.set(GameEnv.date("2026-07-30", hour: 23))
         let days = env.days(from: "2026-07-20", to: "2026-07-29")
         for day in days {

@@ -79,24 +79,28 @@ extension AppServices {
         )
     }
 
-    /// Підказки для вставок контексту (§12.2) і ранкового варіанта тексту (§14.2).
+    /// Підказки для вставок контексту (§12.2) і ранкового варіанта тексту (§14.2) — з нового каталогу завдань
+    /// (SPEC-QUESTS §9.4).
     private func questHints(at now: Date) -> QuestHints {
-        func metricKey(_ quest: QuestSnapshot) -> MetricKey? {
-            guard case .metric(let key, _, _) = QuestCatalog.definition(quest.key)?.rule.source else { return nil }
-            return key
-        }
-        let daily = gamification.dailyQuests(at: now).filter { !$0.isDone }
+        let board = gamification.questBoard(at: now)
+        let daily = board.daily.filter { !$0.isDone }
         var hints = QuestHints()
-        hints.morningQuestActive = daily.contains { metricKey($0) == .partMorning }
-        hints.oneEntryLeftTitle = daily.first { metricKey($0) == .intakeCount && $0.target - $0.progress == 1 }?.title
+        hints.morningQuestActive = daily.contains { $0.key == "daily.wakeGlass" }
+        hints.oneEntryLeftTitle = daily.first {
+            ["daily.glasses", "daily.glassesBy"].contains($0.key) && $0.target - $0.progress == 1
+        }.map { QuestPresenter.title($0, unit: profile.volumeUnit, format: profile.timeFormat) }
 
-        // Неділя: тижневе завдання «норма N днів» закривається сьогоднішньою нормою.
+        // Неділя без норми: тижневе закривається сьогоднішньою нормою — «норма N днів» без одного дня чи вихідні
+        // з уже закритою суботою.
         let isSunday = calendar.calendar.component(.weekday, from: now) == 1
-        if isSunday, !hydration.todaySnapshot().goalMet,
-           let weekly = gamification.weeklyQuests(at: now).first(where: {
-               !$0.isDone && metricKey($0) == .dayGoalMet && $0.target - $0.progress == 1
-           }) {
-            hints.weeklyClosesToday = QuestHints.WeeklyHint(title: weekly.title, xp: weekly.rewardXp)
+        if isSunday, !hydration.todaySnapshot().goalMet, let weekly = board.weekly.first(where: { quest in
+            !quest.isDone && (quest.key == "weekly.goalDays" || quest.key == "weekly.weekend")
+                && quest.target - quest.progress == 1
+        }) {
+            hints.weeklyClosesToday = QuestHints.WeeklyHint(
+                title: QuestPresenter.title(weekly, unit: profile.volumeUnit, format: profile.timeFormat),
+                xp: weekly.rewardXp
+            )
         }
         return hints
     }

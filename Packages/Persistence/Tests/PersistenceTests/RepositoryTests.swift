@@ -109,6 +109,19 @@ final class RepositoryTests: XCTestCase {
         XCTAssertEqual(dayLogs.earliestDayKey()?.rawValue, "2026-05-02")
     }
 
+    func testFirstActiveDayKeySkipsDaysWithoutPortions() {
+        XCTAssertNil(dayLogs.firstActiveDayKey())
+        // Знімок розкладу створює запис дня без порцій — днем людини він не є.
+        _ = dayLogs.dayLog(for: DayKey(rawValue: "2026-05-02"), goalMl: 2000, timeZoneId: "Europe/Kyiv")
+        XCTAssertNil(dayLogs.firstActiveDayKey())
+        for day in ["2026-07-18", "2026-06-11"] {
+            dayLogs.dayLog(for: DayKey(rawValue: day), goalMl: 2000, timeZoneId: "Europe/Kyiv").entriesCount = 1
+        }
+        dayLogs.save()
+        XCTAssertEqual(dayLogs.firstActiveDayKey()?.rawValue, "2026-06-11")
+        XCTAssertEqual(dayLogs.earliestDayKey()?.rawValue, "2026-05-02")
+    }
+
     /// Якір рядка крапок на головному (WAT-11). Заразом перевіряє, що предикат
     /// із порівнянням двох полів моделі SwiftData справді виконується, а не тихо
     /// падає в `try?` і не віддає `nil`.

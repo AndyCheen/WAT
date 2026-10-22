@@ -648,6 +648,8 @@ public final class HomeViewModel {
 
     public var visibleQuests: [QuestSnapshot] { showCompletedQuests ? quests : quests.active }
     public var completedQuestCount: Int { quests.completed.count }
+    func questTitle(_ quest: QuestSnapshot) -> String { QuestPresenter.title(quest, unit: volumeUnit, format: timeFormat) }
+    func questProgress(_ quest: QuestSnapshot) -> String { QuestPresenter.progressLabel(quest, unit: volumeUnit) }
     public var allQuestsDone: Bool { !quests.isEmpty && quests.active.isEmpty }
 
     // MARK: - Тости

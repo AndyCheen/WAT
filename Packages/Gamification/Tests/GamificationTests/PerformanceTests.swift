@@ -9,7 +9,7 @@ final class PerformanceTests: XCTestCase {
     /// Сценарій сідера: багато порцій підряд. Тут ловимо квадратичну складність
     /// у нарахуванні XP і перерахунку серій.
     func testBulkIntakeThroughput() {
-        let env = GameEnv()
+        let env = GameEnv(quests: nil)
         let start = Date()
         for index in 0..<200 {
             env.addIntakeEvent(200, hour: 8 + index % 12, day: 1 + index % 18)
@@ -22,7 +22,7 @@ final class PerformanceTests: XCTestCase {
     /// Те саме зі справжніми порціями в денних логах: XP за частину доби (§9) на кожну порцію
     /// читає порції дня — цей шлях не має повертати складність, яку прибрали кеші.
     func testBulkIntakeWithDayLogs() {
-        let env = GameEnv()
+        let env = GameEnv(quests: nil)
         let start = Date()
         for index in 0..<200 {
             env.addIntake(200, hour: 8 + index % 12, day: 1 + index % 18)
@@ -35,7 +35,7 @@ final class PerformanceTests: XCTestCase {
     /// Правила досягнень ходять історією днів (WAT-24). Рік історії не має робити порцію помітно дорожчою:
     /// факти запам'ятовуються, а порція оновлює лише свій день.
     func testIntakeWithAYearOfHistory() {
-        let env = GameEnv()
+        let env = GameEnv(quests: nil)
         env.clock.set(GameEnv.date("2027-07-18", hour: 14))
         for day in env.days(from: "2026-07-18", to: "2027-07-17") {
             let log = env.dayLogs.dayLog(for: DayKey(rawValue: day), goalMl: 2000, timeZoneId: "Europe/Kyiv")

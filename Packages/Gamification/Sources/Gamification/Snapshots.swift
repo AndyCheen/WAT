@@ -21,45 +21,81 @@ public struct StreakSummary: Equatable, Sendable {
     public static let empty = StreakSummary(current: 0, longest: 0, freezeTokens: 0, lastCountedDay: nil)
 }
 
+/// Завдання для UI. Тексти тут не складаються: назву (час, одиниці, плюраль) і підпис прогресу будує
+/// `QuestPresenter` у `Features` з шаблону `title` і параметрів інстансу.
 public struct QuestSnapshot: Equatable, Identifiable, Sendable {
     public let id: UUID
     public let key: String
-    public let title: String
     public let scope: QuestScope
+    /// `nil` — архівне (SPEC-QUESTS §3.7).
+    public let slot: QuestSlot?
+    public let title: QuestTitle
+    public let kind: QuestKind
+    /// Мілілітри для `.volume`, штуки для `.count`, дні для `.days`.
     public let progress: Double
     public let target: Double
     public let isDone: Bool
+    public let difficulty: QuestDifficulty?
+    /// XP з інстансу — те, що буде нараховано (буст і загальний множник — зверху).
     public let rewardXp: Int
-    /// Система об'єму для підпису, якщо завдання про об'єм і людина рахує в унціях (WAT-46).
-    public var ounces: VolumeUnit?
+    /// Мить, після якої невиконане тихо зникає (§7).
+    public let deadline: Date?
+    /// T у назві («Половина до 14:00»).
+    public let deadlineMinute: Int?
+    /// N у назві («Норма 5 днів»).
+    public let count: Int?
+    /// Блок Д7 і скільки блоків у дні — щоб назвати його «ранок / день / вечір».
+    public let blockIndex: Int?
+    public let blockCount: Int?
 
     public init(
-        id: UUID, key: String, title: String, scope: QuestScope,
-        progress: Double, target: Double, isDone: Bool, rewardXp: Int
+        id: UUID, key: String, scope: QuestScope, slot: QuestSlot?, title: QuestTitle, kind: QuestKind,
+        progress: Double, target: Double, isDone: Bool, difficulty: QuestDifficulty?, rewardXp: Int,
+        deadline: Date? = nil, deadlineMinute: Int? = nil, count: Int? = nil, blockIndex: Int? = nil,
+        blockCount: Int? = nil
     ) {
         self.id = id
         self.key = key
-        self.title = title
         self.scope = scope
+        self.slot = slot
+        self.title = title
+        self.kind = kind
         self.progress = progress
         self.target = target
         self.isDone = isDone
+        self.difficulty = difficulty
         self.rewardXp = rewardXp
-    }
-
-    /// «Готово» або «3/4» — формат з макетів 1a і 3f.
-    public var progressLabel: String {
-        if isDone { return "Готово" }
-        if target >= 1000 {
-            return "\(Int((progress / target * 100).rounded()))%"
-        }
-        if let ounces {
-            return "\(ounces.units(Int(min(progress, target))))/\(ounces.units(Int(target)))"
-        }
-        return "\(Int(min(progress, target)))/\(Int(target))"
+        self.deadline = deadline
+        self.deadlineMinute = deadlineMinute
+        self.count = count
+        self.blockIndex = blockIndex
+        self.blockCount = blockCount
     }
 
     public var fraction: Double { target > 0 ? min(1, progress / target) : 0 }
+}
+
+/// Усі завдання головного (SPEC-QUESTS §9.1): щоденні й тижневі без прострочених невиконаних.
+public struct QuestBoard: Equatable, Sendable {
+    public var daily: [QuestSnapshot]
+    public var weekly: [QuestSnapshot]
+    /// Пт–Нд без тижневих: «Тижневі завдання — з понеділка».
+    public var weeklyStartsMonday: Bool
+    /// Днів до кінця тижня разом із сьогоднішнім — «ЦЬОГО ТИЖНЯ · ЩЕ 5 ДН.».
+    public var weekDaysLeft: Int
+    /// Несподіване — WAT-65; до нього завжди `nil`.
+    public var surprise: QuestSnapshot?
+
+    public init(daily: [QuestSnapshot] = [], weekly: [QuestSnapshot] = [], weeklyStartsMonday: Bool = false,
+                weekDaysLeft: Int = 7, surprise: QuestSnapshot? = nil) {
+        self.daily = daily
+        self.weekly = weekly
+        self.weeklyStartsMonday = weeklyStartsMonday
+        self.weekDaysLeft = weekDaysLeft
+        self.surprise = surprise
+    }
+
+    public static let empty = QuestBoard()
 }
 
 /// Розріз списку квестів на активні й виконані.
@@ -110,7 +146,7 @@ public struct AchievementSnapshot: Equatable, Identifiable, Sendable {
     public let lockedCaption: String?
     /// Додатковий рядок картки — «Пасхалка! Тут їх більше» у першої знайденої.
     public let note: String?
-    /// Як у `QuestSnapshot`: досягнення про об'єм у людини, що рахує в унціях (WAT-46).
+    /// Досягнення про об'єм у людини, що рахує в унціях (WAT-46).
     public var ounces: VolumeUnit?
 
     public var id: String { key }

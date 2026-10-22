@@ -97,6 +97,8 @@ final class LevelRoadFeatureTests: XCTestCase {
         XCTAssertEqual(rows.first?.value, "+8 XP", "множник балансу — і в довіднику")
         XCTAssertEqual(rows.first { $0.title == "Норма дня" }?.value, "+100 XP")
         XCTAssertTrue(rows.contains { $0.title == "Ціль частини доби" })
+        XCTAssertEqual(rows.first { $0.title == "Щоденне завдання" }?.value, "+30–80 XP", "діапазон за складністю ×2")
+        XCTAssertEqual(rows.first { $0.title == "Тижневе завдання" }?.value, "+150–300 XP")
 
         let plain = LevelRoadPresenter.guideRows(rules: .default, dayRhythm: false)
         XCTAssertFalse(plain.contains { $0.title == "Ціль частини доби" }, "без ритму дня XP за частини немає")

@@ -19,7 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 796 unit-тестів 10 пакетів (+7 аудиту на вимогу), без симулятора — швидкий цикл
+make test-packages  # 842 unit-тести 10 пакетів (+7 аудиту на вимогу), без симулятора — швидкий цикл
 make test-ui        # 66 e2e-сценаріїв (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
@@ -141,6 +141,21 @@ Features → Widgets → DesignSystem → Core
 Після дії картка показує підтвердження й закривається сама (`successHold`); поки діє буст,
 на донаті рівня 3f — бейдж «⚡×2» (на краплі головного — свідомо ні). Таймер — «06:53», без секунд.
 
+**Завдання** (WAT-63, SPEC-QUESTS, план — QUESTS-PLAN §1): щоденні — слоти «Темп» і «Ритм», тижневі — «Сталість» і
+«Звичка», дні 1–2 — стартові; каталог — `Gamification/Quests/QuestCatalog.swift`, **ключі не міняти**: на них ротація.
+Видача — першою подією дня й тижня (`QuestEngine.ensureInstances`), вибір — чисті `DailyQuestPicker` /
+`WeeklyQuestPicker` (`StableHash` від зерна профілю, історія — до вчора, `QuestHistory`). Умова — `DayCondition` на
+`QuestDay` (порції, розклад і норма зі знімка дня; кеш на сервісі скидає подія дня), одна для щоденних і «день
+зараховано» тижневих; тижневі рахують дні **від дня видачі**. «До T» — строго раніше; T, N і блок фіксуються на
+інстансі, об'ємні цілі — у мілілітрах показаного числа (`QuestRules.shownMl`: «8 унц.» — 237 мл). XP — за складністю з
+`XPRules`, **на інстансі в мить видачі**; буст множить, серія — ні. Невиконане з минулим дедлайном — `.expired` мовчки, з
+дошки зникає й відкатом не оживає. Відкат завдання відкочує й його події шини (`quest.completed` / `weeklyCompleted`) —
+до відкату досягнень. Архівні ключі (`daily.goal`, `daily.entries4`…) не видаються, але інстанс доживає свій період з
+`legacyXp`. «≤ 2 за 7 днів» — разом із сьогоднішнім (`recentDays` = 6), на легкому дні не знімається; Д5 видається за
+20 хв до дедлайну, решта — за годину (`minLeadMinutes`). «Норма без нагадувань» — лише з `remindersActive` (ставить
+`AppServices`). Тексти — не в знімку: `QuestSnapshot.title` — шаблон `QuestTitle`, рядок складає `QuestPresenter`
+(`Features/Quests`); дошка — `questBoard(at:)`. У тестах `GameEnv` типово **без завдань** (`QuestForcing()`): «Перша
+склянка» закривається першою ж порцією й міняла б XP кожного тесту; `quests: nil` — справжні пікери.
 Подарунок за повернення й «Знову в ритмі» дії екран дізнається з черги `GamificationService.takeRecentUnlocks()`
 (`HydrationService` про гейміфікацію не знає). `HomeViewModel` чистить чергу **до** дії й читає
 **після** — інакше тост отримають розблокування зі старту чи повернутої порції. Досягнення з неї головний не показує —
@@ -401,6 +416,9 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
   сценарії); `--notification-tap reminder|morning|evening|rescue|comeback|echo|report` імітує тап
   (`morning` — вікно «Склянка», `report` — звіт за минулий тиждень);
   `--uitest-now 2026-10-01T07:00:00+03:00` фіксує годинник для DEBUG-екрана «План сповіщень».
+- Завдання в e2e: `--quests daily:daily.wakeGlass,daily.glasses;weekly:weekly.goalDays=5` (лише DEBUG) видає саме ці
+  завдання повз пікери — вибір пікера залежить від зерна профілю й дня. Без прапорця під `--uitest-*` — звичайний пікер:
+  на `--uitest-empty` це стартові «Перша склянка» й «Половина норми». Ставиться до `bootstrap()`.
 - Віджети в e2e: домашній екран у XCUITest нестабільний, тож в'юшки — у DEBUG-галереї `--start-screen widgets`
   (кнопки кличуть `AppServices.perform` напряму, ідентифікатори `widget.add.<мл>` / `widget.undo`), дії —
   `--widget-action add:250,undo`, переходи — `XCUIDevice.shared.system.open(watertracker://…)` (не `app.open`:
