@@ -39,6 +39,8 @@ final class ScheduleFeatureTests: XCTestCase {
             services.hydration.addIntake(amountMl: 500, source: .seed, at: Self.date(day, 13))
             services.hydration.addIntake(amountMl: 300, source: .seed, at: Self.date(day, 20, 30))
         }
+        // Як демо-історія: відкрите сідом — відсвятковане, інакше вікно відкриття (WAT-60) чекало б раніше за пропозицію.
+        services.settleCelebrations()
     }
 
     private func moveDays(_ days: Int) {
@@ -204,15 +206,19 @@ final class ScheduleFeatureTests: XCTestCase {
         _ = services.router.takePath()
 
         model.add(250)
+        // Порція о 12:00 знаходить пасхалку «Опівдні»: вікно відкриття — теж не «чистий» головний.
+        openApp(model, activation: 4)
+        XCTAssertNotEqual(model.sheet, .schedule, "вікно відкриття ще на екрані")
+        services.dismissCelebration()
         model.remove(id: try XCTUnwrap(model.history.first?.id))
         XCTAssertEqual(model.toast?.message, "Порцію видалено")
-        openApp(model, activation: 4)
+        openApp(model, activation: 5)
         XCTAssertNotEqual(model.sheet, .schedule, "тост ще на екрані")
         model.dismissToast()
 
-        openApp(model, activation: 4)
-        XCTAssertNil(model.sheet, "те саме відкриття вдруге не перевіряється")
         openApp(model, activation: 5)
+        XCTAssertNil(model.sheet, "те саме відкриття вдруге не перевіряється")
+        openApp(model, activation: 6)
         XCTAssertEqual(model.sheet, .schedule)
         XCTAssertEqual(services.profile.scheduleOfferOutcome, .dismissed, "показ записано одразу")
     }

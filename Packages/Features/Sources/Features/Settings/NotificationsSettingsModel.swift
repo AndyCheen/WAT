@@ -60,7 +60,7 @@ public final class NotificationsSettingsModel {
         services.profiles.save()
         services.touch()
         if enabling, services.notifications.authorization == .notDetermined {
-            Task { await services.notifications.requestAuthorization() }
+            Task { await services.requestNotificationAuthorization() }
         }
     }
 

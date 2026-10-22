@@ -75,6 +75,8 @@ public enum FixtureSeeder {
         services.profile.scheduleOfferShownAt = calendar.now
         services.profile.scheduleOfferOutcome = .accepted
         services.profiles.save()
+        // Відкрите демо-історією — відсвятковане, як після оновлення: інакше вікно перекрило б перший кадр e2e.
+        services.settleCelebrations()
         services.touch()
     }
 
@@ -92,6 +94,7 @@ public enum FixtureSeeder {
             }
         }
         services.gamification.refresh(at: calendar.now)
+        services.settleCelebrations()
         services.touch()
     }
 

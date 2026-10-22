@@ -215,7 +215,7 @@ public final class OnboardingModel {
         switch reminders {
         case .notAsked, .postponed:
             Task {
-                await services.notifications.requestAuthorization()
+                await services.requestNotificationAuthorization()
                 remindersRevision &+= 1
                 next()
             }

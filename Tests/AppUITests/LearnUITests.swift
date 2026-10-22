@@ -38,6 +38,8 @@ final class LearnUITests: XCTestCase {
         XCTAssertTrue(finish.isHittable)
 
         app.buttons["learn.done"].tap()
+        // «Цікавинка» — вікном уже після історії (WAT-60).
+        XCTAssertTrue(dismissCelebrationIfPresent(app).first?.contains("Цікавинка") ?? false)
         XCTAssertTrue(story.waitForExistence(timeout: 5))
         XCTAssertTrue(story.label.contains("прочитано"), "обкладинка дочитаної — з ✓: \(story.label)")
     }

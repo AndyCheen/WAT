@@ -85,7 +85,8 @@ final class FirstWeekSimulation {
 
     struct DayTally {
         var homeToasts: [String] = []
-        var announcements: [String] = []
+        /// Вікна відкриття (WAT-60): назви сторінок і рядок рівня.
+        var celebrations: [String] = []
         var achievements: [String] = []
         var hiddenAchievements: [String] = []
         var levels: [Int] = []
@@ -124,8 +125,11 @@ final class FirstWeekSimulation {
     private var lastPending: Set<Int> = []
     private var lastPrizeIds: Set<UUID> = []
     private var lastQuestsDone: Set<String> = []
-    /// Тости поточної дії: досягнення чи рівень без свого тоста — «тихі».
+    /// Тости поточної дії: рівень без свого тоста й без рядка у вікні — «тихий».
     private var momentToasts: [String] = []
+    /// Що поточна дія відсвяткувала вікном: досягнення без вікна — «тихі».
+    private var momentCelebrated: Set<String> = []
+    private var momentLevelRows: Set<Int> = []
 
     init(_ week: [[Portion]], explorer: Bool = false, configure: @escaping (AppServices) -> Void = { _ in }) {
         self.week = week
@@ -178,16 +182,13 @@ final class FirstWeekSimulation {
             for (number, portion) in portions.enumerated() {
                 let at = Self.date(day: day, portion.hour, portion.minute)
                 momentToasts = []
+                momentCelebrated = []
+                momentLevelRows = []
                 await open(at: at)
                 var moment = Moment(day: day, time: Self.clockText(portion.hour, portion.minute),
                                     action: Self.describe(portion))
-                // Відкриття зранку могло показати глобальний тост (завершений учорашній день).
-                if let announcement = services.unlockAnnouncement {
-                    days[index].announcements.append(announcement.message)
-                    momentToasts.append(announcement.message)
-                    moment.signals.append("тост поверх екрана: \(announcement.message)")
-                    services.dismissUnlockAnnouncement()
-                }
+                // Відкриття зранку могло показати вікно «Поки тебе не було» (завершений учорашній день).
+                moment.signals += drainCelebrations(day: day, source: Self.openingWindow)
                 moment.signals += perform(portion, day: day)
                 moment.signals += collectDiff(day: day)
                 // Увечері, після останньої порції, — зазирнути в «Прогрес»: забрати призи шляху рівнів,
@@ -236,7 +237,33 @@ final class FirstWeekSimulation {
         for item in services.notifications.lastPlan.items { plannedById[item.id] = item }
     }
 
-    /// Порція на головному: тост дії, черга тостів, шторки, вібрація.
+    /// Підписи сигналів вікна — за ними `AchievementBudgetTests` рахує «одна дія — одне вікно».
+    static let actionWindow = "вікно дії"
+    static let openingWindow = "вікно на відкритті"
+    static let screenWindow = "вікно поверх екрана"
+
+    /// Вікно відкриття, якщо є: записати й закрити, як людина. Закрите вікно може показати наступне —
+    /// відкрите, поки перше було на екрані.
+    private func drainCelebrations(day: Int, source: String) -> [String] {
+        var signals: [String] = []
+        for _ in 0..<5 {
+            guard let shown = services.celebration else { break }
+            var text = shown.pages.map { "\($0.emoji) \($0.title)" }.joined(separator: ", ")
+            if let level = shown.level {
+                text += " + рівень \(level.number)"
+                momentLevelRows.insert(level.number)
+            }
+            days[min(day, 7) - 1].celebrations.append(text)
+            momentCelebrated.formUnion(shown.keys)
+            signals.append("\(source): \(text)")
+            services.dismissCelebration(later: true)
+            // Як `HomeScreen`: після вікна — крапки й шторка дозволу, що чекала.
+            model.celebrationDidClose()
+        }
+        return signals
+    }
+
+    /// Порція на головному: вікно чи тост дії, шторки, вібрація.
     private func perform(_ portion: Portion, day: Int) -> [String] {
         var signals: [String] = []
         if portion.custom {
@@ -250,11 +277,13 @@ final class FirstWeekSimulation {
             days[day - 1].haptics.append(text)
             signals.append("вібрація: \(text)")
         }
+        signals += drainCelebrations(day: day, source: Self.actionWindow)
         signals += drainToasts(day: day)
         if portion.undo, let id = model.history.first(where: { $0.amountMl == portion.ml })?.id {
             model.remove(id: id)
-            // «Порцію видалено · Скасувати» — без «Скасувати»: порція справді помилкова.
+            // «Порцію видалено · Скасувати» — без «Скасувати»: порція справді помилкова. Вікно — після тоста.
             signals += drainToasts(day: day)
+            signals += drainCelebrations(day: day, source: Self.actionWindow)
         }
         return signals
     }
@@ -263,7 +292,8 @@ final class FirstWeekSimulation {
         switch kind {
         case .levelUp(let level): return "рівень \(level)"
         case .goalReached: return "норма"
-        case .achievementUnlocked: return "досягнення"
+        case .celebration: return "вікно"
+        case .gift: return "подарунок"
         case .added, .removed, .capped: return nil
         }
     }
@@ -301,13 +331,8 @@ final class FirstWeekSimulation {
                 break
             }
             services.touch()
-            services.announceUnlocks()
-            if let announcement = services.unlockAnnouncement {
-                days[day - 1].announcements.append(announcement.message)
-                momentToasts.append(announcement.message)
-                signals.append("тост поверх екрана: \(announcement.message)")
-                services.dismissUnlockAnnouncement()
-            }
+            services.presentCelebrations(context: .action)
+            signals += drainCelebrations(day: day, source: Self.screenWindow)
         }
         signals += collectDiff(day: day)
         services.gamification.markAchievementsSeen()
@@ -320,12 +345,7 @@ final class FirstWeekSimulation {
     private func exploreExtras(day: Int, after number: Int) -> [String] {
         var signals: [String] = []
         func announce() {
-            if let announcement = services.unlockAnnouncement {
-                days[day - 1].announcements.append(announcement.message)
-                momentToasts.append(announcement.message)
-                signals.append("тост поверх екрана: \(announcement.message)")
-                services.dismissUnlockAnnouncement()
-            }
+            signals += drainCelebrations(day: day, source: Self.screenWindow)
         }
         switch (day, number) {
         case (2, 1):
@@ -334,7 +354,8 @@ final class FirstWeekSimulation {
             services.record(.screenOpened(.learn))
             if let story = LearnCatalog.stories.first(where: { $0.id == "app.start" }) {
                 services.finishLearnStory(story)
-                services.announceUnlocks()
+                // Як `LearnStoryScreen`: кінець паузи історії показує, що назбиралось.
+                services.presentCelebrations(context: .action)
             }
             signals.append("дочитано «Перші кроки»")
             announce()
@@ -343,7 +364,7 @@ final class FirstWeekSimulation {
             if let boost = services.gamification.prizes().first(where: { $0.key == RewardCatalog.boostKey && $0.state == .ready }) {
                 _ = services.gamification.activateBoost(prizeId: boost.id)
                 services.touch()
-                services.announceUnlocks()
+                services.presentCelebrations(context: .action)
                 signals.append("увімкнено ⚡")
                 announce()
             }
@@ -393,13 +414,10 @@ final class FirstWeekSimulation {
             days[index].achievements.append(title)
             signals.append("досягнення: \(title)")
         }
-        // Відкрите, про яке не сказав жоден тост цієї дії: тост дії один, рівень важливіший.
+        // Відкрите, яке не відсвяткувало жодне вікно цієї дії (WAT-60: кожне відкриття — вікно).
         let toastsText = momentToasts.joined(separator: " | ")
-        for key in new.sorted() {
-            let snapshot = snapshots.first { $0.key == key }!
-            if !toastsText.contains(snapshot.title), !toastsText.contains("Нові досягнення") {
-                days[index].hiddenAchievements.append(snapshot.title)
-            }
+        for key in new.sorted() where !momentCelebrated.contains(key) {
+            days[index].hiddenAchievements.append(snapshots.first { $0.key == key }!.title)
         }
         lastUnlocked = unlocked
 
@@ -409,7 +427,7 @@ final class FirstWeekSimulation {
         if level.level > known {
             for value in (known + 1)...level.level {
                 days[index].levels.append(value)
-                if !toastsText.contains("Рівень \(value)!") {
+                if !toastsText.contains("Рівень \(value)!"), !momentLevelRows.contains(value) {
                     days[index].silentLevels.append(value)
                     signals.append("рівень \(value) (без тоста)")
                 } else {
@@ -462,14 +480,14 @@ final class FirstWeekSimulation {
         }
 
         var lines: [String] = ["", "===== \(title) ====="]
-        lines.append("день | порцій | мл | тости гол. | тости глоб. | досягн. | без тоста | рівні | рівні без тоста | вузли | призи | крапки | шторки | вібр. | сповіщ. (акт/тихі) | XP")
+        lines.append("день | порцій | мл | тости гол. | вікна | досягн. | без вікна | рівні | рівні без свята | вузли | призи | крапки | шторки | вібр. | сповіщ. (акт/тихі) | XP")
         for (index, tally) in days.enumerated() {
             let entries = delivered[index]
             let passive = entries.filter { $0.type == .report }.count
             let portions = moments.filter { $0.day == index + 1 && $0.action.hasPrefix("+") }.count
             let ml = services.hydration.snapshot(for: DayKey(rawValue: Self.dayKey(index + 1))).totalMl
             lines.append([
-                "\(index + 1)", "\(portions)", "\(ml)", "\(tally.homeToasts.count)", "\(tally.announcements.count)",
+                "\(index + 1)", "\(portions)", "\(ml)", "\(tally.homeToasts.count)", "\(tally.celebrations.count)",
                 "\(tally.achievements.count)", "\(tally.hiddenAchievements.count)", "\(tally.levels.count)",
                 "\(tally.silentLevels.count)",
                 "\(tally.nodes.count)", "\(tally.prizes.count)", "\(tally.dots.count)", "\(tally.sheets.count)",
@@ -481,10 +499,10 @@ final class FirstWeekSimulation {
             lines.append("")
             lines.append("— день \(index + 1) —")
             lines.append("  тости головного: \(tally.homeToasts)")
-            lines.append("  тости поверх екрана: \(tally.announcements)")
+            lines.append("  вікна відкриття: \(tally.celebrations)")
             lines.append("  досягнення: \(tally.achievements)")
-            lines.append("  без власного тоста: \(tally.hiddenAchievements)")
-            lines.append("  рівні: \(tally.levels) (без тоста: \(tally.silentLevels)); вузли: \(tally.nodes); призи: \(tally.prizes)")
+            lines.append("  без вікна: \(tally.hiddenAchievements)")
+            lines.append("  рівні: \(tally.levels) (без тоста й рядка: \(tally.silentLevels)); вузли: \(tally.nodes); призи: \(tally.prizes)")
             lines.append("  завдання: \(tally.quests)")
             lines.append("  крапки: \(tally.dots); шторки: \(tally.sheets); вібрація: \(tally.haptics)")
             let notes = delivered[index].sorted { $0.fireAt < $1.fireAt }.map { entry -> String in

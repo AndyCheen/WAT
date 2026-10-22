@@ -143,6 +143,8 @@ extension AppServices {
         let result = hydration.addIntake(amountMl: amount, source: .notification)
         notifications.endAttribution()
         let unlocks = gamification.takeRecentUnlocks()
+        // Застосунок на екрані — вікно одразу: відкриття, що показало б його, не буде.
+        if result != nil, isForeground { presentCelebrations(context: .whileAway) }
         guard let result, !isForeground else { return nil }
         return EchoContent.make(unlocks: unlocks, levelBefore: levelBefore,
                                 levelAfter: gamification.levelProgress().level, intakeId: result.intakeId)

@@ -68,7 +68,6 @@ public struct RootView: View {
                     onOpenProgress: { path.append(.progress) },
                     onOpenLevelRoad: { path.append(.levelRoad) },
                     onOpenStats: { path.append(.stats) },
-                    onOpenAchievements: { path.append(.achievements) },
                     onOpenPrize: { path.append(.prizeCard($0)) },
                     onOpenLearn: { path.append($0.map { .learnStory($0) } ?? .learn) },
                     // Поки відкритий онбординг, пропозиція графіка чекає — головний під ним не «чистий».
@@ -80,7 +79,6 @@ public struct RootView: View {
                 }
             }
             // Усередині контейнера: тема (`wtTheme`) діє лише на його вміст.
-            .overlay(alignment: .bottom) { unlockToast }
             .overlay {
                 if let onboarding {
                     OnboardingScreen(model: onboarding)
@@ -88,9 +86,14 @@ public struct RootView: View {
                         .zIndex(1)
                 }
             }
+            // Над усім — і над стеком, і над шторками, і над онбордингом (поки він відкритий, вікно чекає).
+            .overlay { celebrationOverlay }
         }
         .onAppear {
             if let mode = onboardingOnLaunch, onboarding == nil { openOnboarding(mode, animated: false) }
+        }
+        .onChange(of: onboarding == nil, initial: true) { _, closed in
+            if closed { services.endCelebrationPause(.onboarding) } else { services.beginCelebrationPause(.onboarding) }
         }
         // Тап по сповіщенню, зокрема той, що запустив застосунок: `initial` — бо при холодному
         // старті маршрут з'являється раніше за перший кадр.
@@ -103,22 +106,25 @@ public struct RootView: View {
         }
     }
 
-    // MARK: - Тост розблокувань поза головним
+    // MARK: - Вікно відкриття (WAT-60)
 
-    /// «Відкриття» й пасхалки трапляються де завгодно — тост поверх стека. Головний показує свій.
+    /// Вікно відкриття досягнень — над будь-яким екраном (SPEC-ACHIEVEMENTS §8). `id` — кожне вікно програє
+    /// свою появу заново.
     @ViewBuilder
-    private var unlockToast: some View {
-        if let announcement = services.unlockAnnouncement {
-            WTToast(
-                announcement.message,
-                // На екрані досягнень «Подивитись» відкривало б його вдруге.
-                actionTitle: path.last == .achievements ? nil : "Подивитись",
-                onAction: path.last == .achievements ? nil : { path.append(.achievements) },
-                onDismiss: { withAnimation(WTAnimation.toast) { services.dismissUnlockAnnouncement() } }
+    private var celebrationOverlay: some View {
+        if let celebration = services.celebration {
+            WTCelebration(
+                pages: celebration.pages,
+                level: celebration.level,
+                finishTitle: celebration.finishTitle,
+                laterTitle: celebration.laterTitle,
+                appearDelay: celebration.appearDelay,
+                onFinish: { withAnimation(WTAnimation.fade) { services.dismissCelebration() } },
+                onLater: { withAnimation(WTAnimation.fade) { services.dismissCelebration(later: true) } }
             )
-            .id(announcement.id)
-            .padding(.bottom, 28)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .id(celebration.id)
+            .transition(.opacity)
+            .zIndex(2)
         }
     }
 

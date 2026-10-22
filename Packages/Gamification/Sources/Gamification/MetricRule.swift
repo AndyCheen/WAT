@@ -32,10 +32,10 @@ public struct RuleContext {
 
 /// Декларативна умова поверх реєстру метрик.
 /// Нове завдання чи досягнення — це рядок у каталозі, а не новий код.
-public struct MetricRule: Sendable {
-    public enum Aggregate: Sendable { case sum, count, max }
+public struct MetricRule: Sendable, Equatable {
+    public enum Aggregate: Sendable, Equatable { case sum, count, max }
 
-    public enum Source: Sendable {
+    public enum Source: Sendable, Equatable {
         case metric(MetricKey, MetricPeriodType, Aggregate)
         /// Поточна серія — читається зі стану, тому чесно зменшується після відкату.
         case currentStreak

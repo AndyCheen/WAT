@@ -21,46 +21,46 @@ final class AchievementsFeatureTests: XCTestCase {
         services.bootstrap()
     }
 
-    // MARK: - Тост (§8)
+    // MARK: - Вікно відкриття (§8)
 
-    func testFirstIntakeShowsAchievementToastThatOpensTheCard() {
+    /// Назви сторінок вікна, що зараз на екрані.
+    private var shownTitles: [String] { services.celebration?.pages.map(\.title) ?? [] }
+
+    func testFirstIntakeOpensTheWindowInsteadOfAToast() {
         let model = HomeViewModel(services: services)
         model.add(200)
 
-        XCTAssertEqual(model.toast?.message, "🏅 Досягнення: Перша крапля")
-        XCTAssertEqual(model.toast?.action, .showAchievement("first.drop"))
-        XCTAssertEqual(model.pulse?.kind, .achievementUnlocked)
-        XCTAssertTrue(model.hasNewAchievements)
+        XCTAssertEqual(shownTitles, ["Перша крапля"])
+        XCTAssertEqual(services.celebration?.context, .action)
+        XCTAssertEqual(services.celebration?.pages.first?.label, "Нове досягнення")
+        XCTAssertEqual(services.celebration?.finishTitle, "Чудово")
+        XCTAssertNil(model.toast, "досягнення — вікно, а не тост")
+        XCTAssertEqual(model.pulse?.kind, .celebration, "вібрує саме вікно, у мить появи")
 
-        model.performToastAction()
-
-        XCTAssertEqual(model.achievementDetail?.key, "first.drop", "«Подивитись» відкриває картку одразу")
-        XCTAssertFalse(model.hasNewAchievements, "крапка гасне після перегляду картки")
+        services.dismissCelebration()
+        model.celebrationDidClose()
+        XCTAssertNil(services.celebration)
+        XCTAssertFalse(model.hasNewAchievements, "після «Чудово» крапки «нове» за відсвятковане немає (§13 п. 14)")
     }
 
-    func testSeveralUnlocksInOneActionGiveOneToastLeadingToTheScreen() {
+    func testSeveralUnlocksInOneActionArePagesOfOneWindow() {
         let model = HomeViewModel(services: services)
-        var opened = false
-        model.onOpenAchievements = { opened = true }
-        // XP за воду й за досягнення дав би рівень, а тост рівня важливіший. Тут перевіряємо саме
-        // тост досягнень, тож увесь XP — у десять разів менший.
         services.gamification.xp.rules = services.gamification.xp.rules
             .applyingBalance([XPRules.BalanceKey.xpMultiplier: "0.1"])
 
         model.add(1000) // «Перша крапля» й «Великий ковток»: решта з WAT-60 — не з першого дня
 
-        XCTAssertEqual(model.toast?.message, "🏅 Нові досягнення: 2")
-        XCTAssertEqual(model.toast?.action, .showAllAchievements)
-        model.performToastAction()
-        XCTAssertTrue(opened, "кілька досягнень — дія веде на екран 2e")
+        XCTAssertEqual(shownTitles, ["Перша крапля", "Великий ковток"])
+        XCTAssertNil(model.toast)
     }
 
-    func testIntakeWithoutUnlockGivesNoAchievementToast() {
+    func testIntakeWithoutUnlockGivesNoWindowAndNoToast() {
         let model = HomeViewModel(services: services)
         model.add(200)
-        model.dismissToast()
+        services.dismissCelebration()
 
         model.add(200)
+        XCTAssertNil(services.celebration)
         XCTAssertNil(model.toast)
     }
 
@@ -133,17 +133,23 @@ final class AchievementsFeatureTests: XCTestCase {
 
     // MARK: - Таємні й пасхалки (SPEC-ACHIEVEMENTS-CATALOG §4.9–4.10)
 
-    /// Пасхалка — свій тост, окремий лічильник «🥚 N», рядок у картці першої.
-    func testEggHasItsOwnToastAndCounter() {
+    /// Пасхалка — своя сторінка вікна, окремий лічильник «🥚 N», рядок у картці першої.
+    func testEggHasItsOwnPageAndCounter() {
         let home = HomeViewModel(services: services)
         home.customAmount = 300
         home.confirmCustom()
-        XCTAssertEqual(home.toast?.message, "🏅 Нові досягнення: 2", "«Перша крапля» і «Своя мірка»")
-        home.dismissToast()
+        XCTAssertEqual(shownTitles, ["Перша крапля", "Своя мірка"])
+        services.dismissCelebration()
 
         home.customAmount = 314
         home.confirmCustom()
-        XCTAssertEqual(home.toast?.message, "🥚 Пасхалка: Пі")
+        let egg = services.celebration?.pages.first
+        XCTAssertEqual(egg?.title, "Пі")
+        XCTAssertEqual(egg?.label, "Пасхалка")
+        XCTAssertEqual(egg?.reveal, .egg)
+        XCTAssertEqual(egg?.note, "Пасхалка! Тут їх більше", "перша — «Тут їх більше» замість «Далі»")
+        XCTAssertNil(egg?.next)
+        services.dismissCelebration()
 
         let screen = AchievementsViewModel(services: services)
         screen.reload()
@@ -170,10 +176,10 @@ final class AchievementsFeatureTests: XCTestCase {
                        .caption("Увімкни «Ритм дня» в налаштуваннях"))
     }
 
-    // MARK: - Тост поза головним
+    // MARK: - Вікно поза головним
 
-    /// Після оновлення досягнення відкриваються з історії — один тост на всі (SPEC-ACHIEVEMENTS-CATALOG §6).
-    func testUpdateBackfillsFromHistoryWithOneToast() {
+    /// Після оновлення досягнення відкриваються з історії — одне вікно «Поки тебе не було» на всі (§8.5).
+    func testUpdateBackfillsFromHistoryWithOneWindow() {
         var c = DateComponents()
         c.year = 2026; c.month = 7; c.day = 18; c.hour = 10
         var cal = Calendar(identifier: .gregorian)
@@ -189,24 +195,51 @@ final class AchievementsFeatureTests: XCTestCase {
         updated.dayLogs.save()
 
         updated.bootstrap()
-        XCTAssertTrue(updated.unlockAnnouncement?.message.hasPrefix("🏅 Нові досягнення:") ?? false,
-                      updated.unlockAnnouncement?.message ?? "тоста немає")
-        XCTAssertNil(services.unlockAnnouncement, "чиста установка — нічого заднім числом")
+        let window = updated.celebration
+        XCTAssertEqual(window?.context, .whileAway)
+        XCTAssertEqual(window?.pages.count, 1, "більше трьох — одна сторінка сіткою")
+        XCTAssertTrue(window?.pages.first?.title.hasPrefix("Нові досягнення:") ?? false, window?.pages.first?.title ?? "вікна немає")
+        XCTAssertEqual(window?.pages.first?.label, "Поки тебе не було")
+        XCTAssertNil(services.celebration, "чиста установка — нічого заднім числом")
     }
 
-    func testDiscoveryOutsideHomeIsAnnounced() {
+    /// Відкрите до версії з вікном — відсвятковане: оновлення не вивалює вікно за минуле (§8.5).
+    func testUnlockedBeforeTheUpdateIsAlreadyCelebrated() {
+        services.hydration.addIntake(amountMl: 200)
+        services.settleCelebrations()
+        services.profile.celebrationsSince = nil
+        services.bootstrap()
+        XCTAssertNil(services.celebration)
+        XCTAssertFalse(services.hasPendingCelebrations)
+    }
+
+    func testDiscoveryOutsideHomeIsCelebrated() {
         services.record(.xpGuideOpened)
-        XCTAssertEqual(services.unlockAnnouncement?.message, "🥚 Пасхалка: Вивести на чисту воду")
-        services.dismissUnlockAnnouncement()
+        XCTAssertEqual(shownTitles, ["Вивести на чисту воду"])
+        XCTAssertEqual(services.celebration?.pages.first?.label, "Пасхалка")
+        services.dismissCelebration()
 
         services.record(.xpGuideOpened)
-        XCTAssertNil(services.unlockAnnouncement, "повтор нічого не відкриває")
+        XCTAssertNil(services.celebration, "повтор нічого не відкриває")
+    }
+
+    /// «Темна сторона» — вікном поверх налаштувань, а не після повернення на головний.
+    func testDarkThemeInSettingsCelebratesOverSettings() {
+        let settings = SettingsModel(services: services)
+        settings.setThemeMode(.dark)
+        XCTAssertEqual(shownTitles, ["Темна сторона"])
     }
 
     func testFiveThemeChangesInAMinuteFindTheDisco() {
         let settings = SettingsModel(services: services)
-        for index in 0..<5 { settings.setThemeMode(index % 2 == 0 ? .dark : .light) }
-        XCTAssertEqual(services.unlockAnnouncement?.message, "🥚 Пасхалка: Дискотека")
+        var celebrated: [String] = []
+        for index in 0..<5 {
+            settings.setThemeMode(index % 2 == 0 ? .dark : .light)
+            // Вікно людина закриває, перш ніж перемикати далі.
+            celebrated += shownTitles
+            services.dismissCelebration()
+        }
+        XCTAssertEqual(celebrated, ["Темна сторона", "Дискотека"])
     }
 
     /// Скільки екранів — стільки й ціль «Як риба у воді»; кожен рахується раз.
@@ -216,54 +249,60 @@ final class AchievementsFeatureTests: XCTestCase {
             services.record(.screenOpened(screen))
             services.record(.screenOpened(screen))
         }
-        XCTAssertNil(services.unlockAnnouncement)
+        XCTAssertNil(services.celebration)
         services.record(.screenOpened(AppScreen.allCases.last!))
-        XCTAssertEqual(services.unlockAnnouncement?.message, "🥚 Пасхалка: Як риба у воді")
+        XCTAssertEqual(shownTitles, ["Як риба у воді"])
     }
 
-    /// Прийнятий графік — свій тост, а «Свій ритм» — наступним, не поверх нього.
-    func testAcceptedScheduleQueuesTheSecretAfterItsToast() {
+    /// Прийнятий графік — свій тост, а «Свій ритм» — вікном після нього, не поверх.
+    func testAcceptedScheduleCelebratesTheSecretAfterItsToast() {
         let home = HomeViewModel(services: services)
         home.openSchedule(ScheduleSuggestionDemo.wakeEarly.suggestion(for: services.profile.weekSchedule))
         home.acceptSchedule()
-        XCTAssertFalse(home.toast?.message.contains("Досягнення") ?? true, "спершу — новий графік")
+        XCTAssertNotNil(home.toast, "спершу — новий графік")
+        XCTAssertNil(services.celebration, "вікно чекає тоста")
         home.dismissToast()
-        XCTAssertEqual(home.toast?.message, "🏅 Досягнення: Свій ритм")
+        XCTAssertEqual(shownTitles, ["Свій ритм"])
+        XCTAssertEqual(services.celebration?.pages.first?.label, "Таємне досягнення")
+        XCTAssertEqual(services.celebration?.pages.first?.reveal, .secret)
     }
 
-    /// «Нерішучість» — після тоста зі «Скасувати»: повернути порцію важливіше.
-    func testRemovalQueuesIndecisionAfterUndoToast() {
+    /// «Нерішучість» — вікном після тоста зі «Скасувати»: повернути порцію важливіше.
+    func testRemovalCelebratesIndecisionAfterUndoToast() {
         let home = HomeViewModel(services: services)
         home.add(200)
-        home.dismissToast()
+        services.dismissCelebration()
         for attempt in 1...3 {
             home.add(250)
             home.dismissToast()
             let id = home.history.first { $0.amountMl == 250 }!.id
             home.remove(id: id)
             XCTAssertEqual(home.toast?.action, .restoreIntake(id))
+            XCTAssertNil(services.celebration, "поверх «Скасувати» вікна немає")
             home.dismissToast()
-            if attempt < 3 { XCTAssertNil(home.toast, "«Друга думка» знято (WAT-60) — за одне скасування тоста немає") }
+            if attempt < 3 { XCTAssertNil(services.celebration, "«Друга думка» знято (WAT-60) — за одне скасування нічого") }
         }
-        XCTAssertEqual(home.toast?.message, "🏅 Досягнення: Нерішучість")
+        XCTAssertEqual(shownTitles, ["Нерішучість"])
     }
 
-    func testFinishedWeekReportIsAnnouncedAfterClosing() {
+    /// Відкрите на останньому слайді звіту — вікном після закриття, не поверх «Готово».
+    func testFinishedWeekReportIsCelebratedAfterClosing() {
         let calendar = services.calendar
         let report = ReportViewModel(
             services: services, periods: [calendar.period(.week, containing: calendar.dayKey(offsetDays: -7, from: calendar.today))]
         )
+        report.appeared()
         report.slideIndex = report.slides.count - 1
-        XCTAssertNil(services.unlockAnnouncement, "поверх історії тост ліг би на «Готово»")
-        report.announceUnlocks()
-        XCTAssertEqual(services.unlockAnnouncement?.message, "🏅 Досягнення: Історія тижня")
+        XCTAssertNil(services.celebration, "поверх історії вікно лягло б на «Готово»")
+        report.disappeared()
+        XCTAssertEqual(shownTitles, ["Історія тижня"])
     }
 
     func testOnlyAPastDayCountsForLookingBack() {
         let stats = StatsViewModel(services: services)
         stats.select(day: services.calendar.today)
-        XCTAssertNil(services.unlockAnnouncement)
+        XCTAssertNil(services.celebration)
         stats.select(day: services.calendar.dayKey(offsetDays: -3, from: services.calendar.today))
-        XCTAssertEqual(services.unlockAnnouncement?.message, "🏅 Досягнення: Погляд у минуле")
+        XCTAssertEqual(shownTitles, ["Погляд у минуле"])
     }
 }

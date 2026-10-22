@@ -51,6 +51,8 @@ final class ScheduleUITests: XCTestCase {
         app.buttons["schedule.accept"].tap()
         waitForDisappearance(title)
         assertToast(app, "Графік оновлено: 06:30–22:00")
+        // «Свій ритм» — вікном після тоста, не поверх нього (WAT-60).
+        XCTAssertTrue(dismissCelebrationIfPresent(app, timeout: 8).first?.contains("Свій ритм") ?? false)
 
         openNotificationsScreen(app)
         XCTAssertEqual(app.staticTexts["notifications.wake"].label, "06:30")
@@ -95,6 +97,7 @@ final class ScheduleUITests: XCTestCase {
 
         app.buttons["schedule.accept"].tap()
         assertToast(app, "Графік вихідних оновлено: 10:00–22:00")
+        dismissCelebrationIfPresent(app, timeout: 8)
 
         openNotificationsScreen(app)
         XCTAssertEqual(app.staticTexts["notifications.wake"].label, "08:00")

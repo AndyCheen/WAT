@@ -101,9 +101,17 @@ Features → Widgets → DesignSystem → Core
 «Вчасно» — лише після вечірнього порятунку, «На крок попереду») публікує `NotificationService` з ref `day.goalMet` —
 відкат норми їх знімає. «Тижнева мета» (ключ `quest.first`) — подія `quest.weeklyCompleted` з ref завдання.
 «Темна сторона» — лише вибір у «Налаштуваннях», не системна тема.
-Дії «Відкриттів» і пасхалок — `AppServices.record(_:)`: подія на шину й тост `unlockAnnouncement` поверх будь-якого
-екрана (`RootView`); головний показує свій і ставить наступний у чергу (`queuedToast`), звіт і довідник XP — після
-закриття. Відкрите `refresh` (після оновлення, нова доба) — один тост на відкритті.
+**Вікно відкриття «Хвиля»** (WAT-62, SPEC-ACHIEVEMENTS §8): кожне відкрите — вікно на весь екран, не тост. Черга — у
+базі: невідсвятковане = відкрите не раніше `UserProfile.celebrationsSince`, без `AchievementProgress.celebratedAt`, не
+зняте (`GamificationService.pendingCelebrations(since:)`). `celebrationsSince` ставить `bootstrap()` **до** стартового
+перерахунку (відкрите раніше — відсвятковане), демо й сіди — `settleCelebrations()` після сіду. Показ —
+`AppServices.presentCelebrations(context:level:)`, оверлей `RootView` над усім; закриття (`dismissCelebration`) ставить
+`celebratedAt` і `seenAt`, відкат `celebratedAt` не скидає. Паузи — за причиною (`CelebrationPause`): онбординг, шторки
+й тости головного, звіт, історія «Знань», «Шлях рівнів», картка призу, системний запит дозволу; кінець останньої паузи
+показує все, що назбиралось. На відкритті й опівночі — `.whileAway`, «Поки тебе не було». Дії «Відкриттів» і пасхалок —
+`AppServices.record(_:)`: подія на шину й вікно поверх будь-якого екрана. Тексти — `CelebrationPresenter` (до трьох
+сторінок, далі сітка; «Далі» — `AchievementCatalog.higherSteps` від 10 %), вигляд — `WTCelebration`. Рівень тієї самої
+дії — рядок у вікні, без досягнень — тост; святкується раз (`UserProfile.highestCelebratedLevel`).
 
 **Призи** (SPEC-PRIZES): у каталозі 🧊 `streak.freeze`, ⚡ `xp.double` і 🌟 `xp.triple` (лише з таємних).
 Приз **і є** жетон — дія лише з картки: `useFreeze(prizeId:)` / `activateBoost(prizeId:)` (будь-який буст, один на раз).
@@ -129,9 +137,10 @@ Features → Widgets → DesignSystem → Core
 Після дії картка показує підтвердження й закривається сама (`successHold`); поки діє буст,
 на донаті рівня 3f — бейдж «⚡×2» (на краплі головного — свідомо ні). Таймер — «06:53», без секунд.
 
-Що саме відкрила конкретна дія, екран дізнається з черги `GamificationService.takeRecentUnlocks()`
+Подарунок за повернення й «Знову в ритмі» дії екран дізнається з черги `GamificationService.takeRecentUnlocks()`
 (`HydrationService` про гейміфікацію не знає). `HomeViewModel` чистить чергу **до** дії й читає
-**після** — інакше тост отримають розблокування зі старту чи повернутої порції.
+**після** — інакше тост отримають розблокування зі старту чи повернутої порції. Досягнення з неї головний не показує —
+їх святкує вікно з черги в базі.
 
 ### Композиційний корінь
 
@@ -340,7 +349,7 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
 - Показ/приховування шторок — **тільки через `withAnimation(WTAnimation.sheet)`**
   (див. `HomeViewModel.present(_:)`). Пряме присвоєння `model.sheet = …` обходить
   `withAnimation`, і перехід `WTSheet` не програється взагалі. Вікно «Склянка» на весь екран —
-  теж `HomeSheet` (`.glass`): так порція з нього йде тим самим шляхом із тостами розблокувань.
+  теж `HomeSheet` (`.glass`): так порція з нього йде тим самим шляхом, а вікно відкриття чекає, поки воно закриється.
 - Кілька `ForEach` в одному `LazyVGrid` — з різними ідентифікаторами: однакові 0…6 зливають комірки
   (мозаїка місяця губила перший тиждень).
 - Поповер від кнопки — `wtPopoverAnchor()` на кнопці + `wtPopover(...)` на **корені** екрана:
@@ -348,6 +357,9 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
 - Фон кола досягнення — `theme.unlockedIconBg` / `theme.lockedIconBg`, не `WTColor.goldIconBg`
   напряму: той фіксовано світлий і «світиться» в темній темі. Те саме для призів —
   `theme.prizeIconBg`, не `WTColor.prizeIconBg`.
+- Безкінечний рух поряд із кнопкою — `TimelineView` з `Canvas`, не з `Shape`: дві фігури, перебудовані щокадру,
+  ковтали перший тап по «Чудово» у вікні відкриття (WAT-62). Блокування кнопки на час — перевіркою часу в дії,
+  не `allowsHitTesting`.
 - Макети розраховані на кадр 402 × 874 pt; Dynamic Type обмежено `.wtTypeSizeLimit()`
   у `WTThemedContainer`.
 
@@ -360,8 +372,12 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
 - Позначення «переглянуто» — лише в `reload()` з `onAppear`, не в `init` моделі: інакше
   друге читання вже не бачить нових, і крапки «нове» не з'являються зовсім (WAT-23).
 - Сітка 2e лінива, а досягнень 101: плитку шукати після фільтра категорії (`achievements.category.option.<key>`),
-  інакше вона може бути ще не на екрані. Тост досягнень на справжньому годиннику нестабільний (повня, 11:11, 1 квітня
+  інакше вона може бути ще не на екрані. Вікно відкриття на справжньому годиннику нестабільне (повня, 11:11, 1 квітня
   відкривають таємні) — закріплюй `--uitest-now`.
+- Вікно відкриття модальне й на весь екран: сценарій, що додає першу порцію на `--uitest-empty` чи робить «Відкриття»
+  (тема, кнопки порцій, історія «Знань», графік), закриває його `dismissCelebrationIfPresent(app)`
+  (`Tests/AppUITests/CelebrationHelpers.swift`) — інакше наступний тап ляже у вікно. Помічник чекає появи (≈ 0,6 с
+  після дії), тож на кроках без вікна давай йому малий `timeout`.
 - Прапорці запуску (`App/Sources/WaterTrackerApp.swift`, `LaunchConfiguration`):
   `--uitest-empty` (чиста in-memory БД), `--uitest-demo` (демо-історія),
   `--seed-demo`, `--start-screen progress|level-road|achievements|prizes|stats|settings|portion-buttons|notifications|notification-plan|report|schedule-suggestion|widgets|learn|onboarding`

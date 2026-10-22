@@ -29,8 +29,9 @@ public struct ReportScreen: View {
                 slide(model.slides[index], isLast: index == model.slides.count - 1)
             }
         }
-        // «Історія тижня» відкривається на останньому слайді, а тост про неї — вже під звітом.
-        .onDisappear { model.announceUnlocks() }
+        // «Історія тижня» відкривається на останньому слайді, а вікно про неї — вже після звіту.
+        .onAppear { model.appeared() }
+        .onDisappear { model.disappeared() }
     }
 
     // MARK: - Слайди

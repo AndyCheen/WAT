@@ -98,7 +98,6 @@ public final class LevelRoadModel {
         guard let key = selectedKey(level: level), claimedLevel == nil,
               services.gamification.claimChoice(level: level, key: key) else { return }
         services.touch()
-        services.announceUnlocks()
         sendFeedback(.goalReached)
         withAnimation(WTAnimation.toast) { claimedLevel = level }
         collapseTask?.cancel()
@@ -127,13 +126,13 @@ public final class LevelRoadModel {
         }
     }
 
-    /// Відкрите таємним призом («Перша скриня», «Щаслива зірка») — тостом після показу вмісту, не поверх нього.
+    /// Відкрите таємним призом («Перша скриня», «Щаслива зірка») чекає закриття вікна «Шлях рівнів»
+    /// (`CelebrationPause.levelRoad`): вікно відкриття поверх скрині сховало б її вміст.
     func finishReveal() {
         withAnimation(WTAnimation.fade) {
             reveal = nil
             reload()
         }
-        services.announceUnlocks()
     }
 
     // MARK: - Довідник «Звідки XP» (§16.14)
@@ -145,9 +144,11 @@ public final class LevelRoadModel {
 
     func setGuide(_ shown: Bool) {
         withAnimation(WTAnimation.fade) { showsGuide = shown }
-        // Пасхалка «Вивести на чисту воду» — тостом після довідника, а не поверх нього.
-        if shown { services.record(.xpGuideOpened, announce: false) } else { services.announceUnlocks() }
-        if shown { sendFeedback(.tap) }
+        // Пасхалка «Вивести на чисту воду» — після вікна «Шлях рівнів», не поверх довідника.
+        if shown {
+            services.record(.xpGuideOpened)
+            sendFeedback(.tap)
+        }
     }
 
     private func sendFeedback(_ value: WTFeedback) {

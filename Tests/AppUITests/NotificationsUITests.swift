@@ -23,13 +23,16 @@ final class NotificationsUITests: XCTestCase {
     }
 
     /// На першому запуску системного запиту немає; після першої порції — шторка з поясненням,
-    /// і з'являється вона після тоста «Перша крапля», а не поверх нього (критерій §19.1).
+    /// і з'являється вона після вікна «Перша крапля», а не поверх нього (критерій §19.1, WAT-60).
     func testPermissionSheetFollowsFirstIntake() {
         let app = launch(["--uitest-empty", "--notifications-auth", "notDetermined"])
         XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
         XCTAssertFalse(app.buttons["permission.enable"].exists, "на першому запуску запиту немає")
 
         app.buttons["home.add.200"].tap()
+        XCTAssertTrue(app.buttons["celebration.primary"].waitForExistence(timeout: 3), "спершу — вікно відкриття")
+        XCTAssertFalse(app.buttons["permission.enable"].exists, "шторка не перекриває вікно")
+        dismissCelebrationIfPresent(app)
 
         let enable = app.buttons["permission.enable"]
         XCTAssertTrue(enable.waitForExistence(timeout: 8))
@@ -43,6 +46,7 @@ final class NotificationsUITests: XCTestCase {
         let app = launch(["--uitest-empty", "--notifications-auth", "notDetermined"])
         XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
         app.buttons["home.add.200"].tap()
+        dismissCelebrationIfPresent(app)
 
         let later = app.buttons["permission.later"]
         XCTAssertTrue(later.waitForExistence(timeout: 8))
@@ -68,6 +72,8 @@ final class NotificationsUITests: XCTestCase {
         XCTAssertEqual(app.staticTexts["notifications.glass"].label, "275 мл", "крок склянки — 25 мл")
 
         app.buttons["notifications.wake.plus"].tap()
+        // «Мій графік» — вікном поверх екрана «Сповіщення» (WAT-60).
+        XCTAssertTrue(dismissCelebrationIfPresent(app).first?.contains("Мій графік") ?? false)
         XCTAssertEqual(app.staticTexts["notifications.wake"].label, "08:15", "крок часу — 15 хв")
 
         let add = app.buttons["notifications.quiet.add"]
@@ -144,6 +150,8 @@ final class NotificationsUITests: XCTestCase {
 
         app.buttons["glass.record"].tap()
         waitForDisappearance(app.buttons["glass.record"])
+        // «Перша крапля» — вікном після «Склянки», не поверх неї (WAT-60).
+        dismissCelebrationIfPresent(app)
         let percent = app.staticTexts["home.percent"]
         XCTAssertTrue(percent.waitForExistence(timeout: 5))
         XCTAssertTrue(percent.label.hasPrefix("8"), "150 мл з 2000 — 8 %: \(percent.label)")
@@ -171,6 +179,8 @@ final class NotificationsUITests: XCTestCase {
         XCTAssertTrue(app.buttons["report.previous"].isHittable)
         done.tap()
         waitForDisappearance(close)
+        // «Історія тижня» — вікном уже після звіту (WAT-60).
+        XCTAssertTrue(dismissCelebrationIfPresent(app).first?.contains("Історія тижня") ?? false)
     }
 
     /// Рядки етапу B на екрані «Сповіщення»: чекпоінти й звіти з днем тижня (§15.1).

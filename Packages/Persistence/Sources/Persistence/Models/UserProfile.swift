@@ -56,6 +56,13 @@ public final class UserProfile {
     public var scheduleOfferOutcomeRaw: Int = ScheduleOfferOutcome.none.rawValue
     public var scheduleOfferShiftMinutes: Int = 0
 
+    /// Відкрите раніше — відсвятковане (WAT-60, SPEC-ACHIEVEMENTS §8.5): ставить `AppServices.bootstrap()` на першому
+    /// запуску версії з вікном відкриття, інакше оновлення показало б вікно на десятки сторінок.
+    public var celebrationsSince: Date?
+    /// Найвищий рівень, який уже святкували тостом чи рядком у вікні: рівень, знятий відкатом порції й досягнутий
+    /// знову, удруге не святкується.
+    public var highestCelebratedLevel: Int = 0
+
     public init(createdAt: Date = Date()) {
         self.createdAt = createdAt
     }

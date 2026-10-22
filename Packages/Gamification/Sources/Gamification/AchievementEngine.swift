@@ -82,6 +82,7 @@ public final class AchievementEngine {
             progress.unlockedAt = nil
             progress.unlockedByRef = nil
             progress.seenAt = nil
+            // `celebratedAt` лишається: відкрите знову вдруге вікна не отримує (SPEC-ACHIEVEMENTS §8.5).
             relocked.append(definition.key)
             counts.all -= 1
             if towardCore { counts.core -= 1 }
@@ -149,6 +150,34 @@ public final class AchievementEngine {
         progress.seenAt = date
         store.save()
     }
+
+    /// Ключі невідсвяткованого (SPEC-ACHIEVEMENTS §8.5): відкрите не раніше `since`, без `celebratedAt`, за часом
+    /// відкриття. Зняте з каталогу в черзі не буває — навіть відкрите до архівації й невідсвятковане.
+    public func pendingCelebrations(since: Date) -> [String] {
+        store.allAchievementProgress()
+            .compactMap { progress -> (key: String, at: Date, order: Int)? in
+                guard let unlockedAt = progress.unlockedAt, unlockedAt >= since, progress.celebratedAt == nil,
+                      let definition = AchievementCatalog.definition(progress.defKey), !definition.isRetired else { return nil }
+                return (progress.defKey, unlockedAt, Self.catalogIndex[progress.defKey] ?? 0)
+            }
+            .sorted { ($0.at, $0.order) < ($1.at, $1.order) }
+            .map(\.key)
+    }
+
+    /// Вікно закрили: відсвятковане ще й побачене — крапка «нове» за нього не загоряється (§8.3).
+    public func markCelebrated(keys: [String], at date: Date) {
+        for key in keys {
+            guard let progress = store.achievementProgress(defKey: key), progress.isUnlocked else { continue }
+            if progress.celebratedAt == nil { progress.celebratedAt = date }
+            if progress.seenAt == nil { progress.seenAt = date }
+        }
+        store.save()
+    }
+
+    /// Порядок каталогу — для відкритого одним проходом: однаковий час, а сторінки вікна мають іти стабільно.
+    private static let catalogIndex: [String: Int] = Dictionary(
+        uniqueKeysWithValues: AchievementCatalog.all.enumerated().map { ($1.key, $0) }
+    )
 
     public var hasUnseenUnlocks: Bool {
         store.allAchievementProgress().contains { $0.isUnlocked && $0.seenAt == nil }
