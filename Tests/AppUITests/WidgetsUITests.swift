@@ -40,6 +40,8 @@ final class WidgetsUITests: XCTestCase {
         let add = app.buttons["widget.add.250"].firstMatch
         XCTAssertTrue(add.waitForExistence(timeout: 15))
         add.tap()
+        // Застосунок на екрані — «Перша крапля» й «На робочому столі» одразу вікном (WAT-60).
+        dismissCelebrationIfPresent(app)
 
         let undo = app.buttons["widget.undo"].firstMatch
         XCTAssertTrue(undo.waitForExistence(timeout: 5))
@@ -64,6 +66,7 @@ final class WidgetsUITests: XCTestCase {
         XCTAssertTrue(hint.waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["widget.other.close.quickAdd"].exists)
         hint.tap()
+        dismissCelebrationIfPresent(app)
 
         XCTAssertTrue(app.buttons["widget.undo"].firstMatch.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["+150 мл"].firstMatch.exists)
@@ -74,6 +77,7 @@ final class WidgetsUITests: XCTestCase {
         let app = launch(["--uitest-empty", "--widget-action", "add:500"])
         let percent = app.staticTexts["home.percent"]
         XCTAssertTrue(percent.waitForExistence(timeout: 15))
+        dismissCelebrationIfPresent(app)
         XCTAssertTrue(app.staticTexts["500 мл"].waitForExistence(timeout: 5), "порція в історії")
         XCTAssertEqual(percent.label, "25%")
     }

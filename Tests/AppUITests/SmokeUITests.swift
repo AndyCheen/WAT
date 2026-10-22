@@ -16,13 +16,6 @@ final class SmokeUITests: XCTestCase {
         return app
     }
 
-    /// Перша порція відкриває «Першу краплю», і тост лягає на перший рядок історії: з капсулою
-    /// частини доби (WAT-40) історія стоїть нижче, і тап по рядку влучав би в тост.
-    private func waitForToastToHide(_ app: XCUIApplication) {
-        let toast = app.staticTexts["toast.message"]
-        if toast.exists { XCTAssertTrue(toast.waitForNonExistence(timeout: 6)) }
-    }
-
     // MARK: - Головний екран
 
     func testLaunchesWithEmptyState() {
@@ -37,6 +30,8 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(percent.waitForExistence(timeout: 15))
 
         app.buttons["home.add.500"].tap()
+        // «Перша крапля» — вікно на весь екран (WAT-60): головне під ним для XCUITest не досяжне.
+        dismissCelebrationIfPresent(app)
 
         XCTAssertEqual(percent.label, "25%", "500 мл від норми 2000 мл")
         XCTAssertTrue(app.staticTexts["500 мл"].exists, "порція зʼявилась в історії")
@@ -58,6 +53,7 @@ final class SmokeUITests: XCTestCase {
         confirm.tap()                                // 300 мл — значення за замовчуванням
         // Шторка зникає з анімацією: тап до її кінця влучив би в неї, а не в кнопку.
         XCTAssertTrue(confirm.waitForNonExistence(timeout: 5))
+        dismissCelebrationIfPresent(app)             // «Перша крапля» і «Своя мірка»
         app.buttons["home.add.custom"].tap()
         let chip = app.buttons["250"]
         XCTAssertTrue(chip.waitForExistence(timeout: 5))
@@ -69,6 +65,7 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(pill.isHittable, "капсулу справді видно, а не лише в дереві")
 
         app.buttons["home.add.200"].tap()
+        dismissCelebrationIfPresent(app, timeout: 2)
         XCTAssertEqual(pill.label, "Ранок і полудень закрито", "порція, що закриває частину, одразу дає ✓")
     }
 
@@ -115,7 +112,11 @@ final class SmokeUITests: XCTestCase {
         XCTAssertFalse(toggle.exists, "ховати нема чого, доки нічого не виконано")
 
         // 4 × 500 мл закривають обидва завдання: і норму, і кількість записів.
-        for _ in 0..<4 { app.buttons["home.add.500"].tap() }
+        // Перша порція й закрита норма — вікна відкриття: кожне закриваємо, інакше наступний тап у нього.
+        for _ in 0..<4 {
+            app.buttons["home.add.500"].tap()
+            dismissCelebrationIfPresent(app, timeout: 2)
+        }
 
         XCTAssertFalse(questRow.exists, "виконане завдання зникає зі списку")
         XCTAssertTrue(app.staticTexts["Усі завдання виконані 🎉"].exists)
@@ -136,9 +137,9 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(percent.waitForExistence(timeout: 15))
 
         app.buttons["home.add.500"].tap()
+        dismissCelebrationIfPresent(app)
         XCTAssertEqual(percent.label, "25%")
 
-        waitForToastToHide(app)
         app.staticTexts["500 мл"].tap()
         app.buttons["history.delete"].firstMatch.tap()
 
@@ -151,7 +152,7 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(percent.waitForExistence(timeout: 15))
 
         app.buttons["home.add.500"].tap()
-        waitForToastToHide(app)
+        dismissCelebrationIfPresent(app)
         app.staticTexts["500 мл"].tap()
         app.buttons["history.delete"].firstMatch.tap()
         XCTAssertEqual(percent.label, "0%")
@@ -185,6 +186,7 @@ final class SmokeUITests: XCTestCase {
         XCTAssertEqual(value.label, "500")
 
         app.buttons["custom.confirm"].tap()
+        dismissCelebrationIfPresent(app)
         XCTAssertEqual(app.staticTexts["home.percent"].label, "25%")
     }
 
@@ -199,7 +201,7 @@ final class SmokeUITests: XCTestCase {
         app.buttons["350"].tap()
         confirm.tap()
         XCTAssertTrue(confirm.waitForNonExistence(timeout: 5))
-        waitForToastToHide(app)
+        dismissCelebrationIfPresent(app)
 
         app.buttons["home.add.custom"].tap()
         let value = app.staticTexts["custom.value"]
@@ -211,6 +213,7 @@ final class SmokeUITests: XCTestCase {
         let app = launch(["--uitest-empty"])
         XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
         app.buttons["home.add.500"].tap()
+        dismissCelebrationIfPresent(app)
 
         app.buttons["home.settings"].tap()
         let goal = app.staticTexts["settings.goal"]
@@ -317,25 +320,6 @@ final class SmokeUITests: XCTestCase {
         XCTAssertFalse(card.waitForExistence(timeout: 1), "хрестик закриває картку")
     }
 
-    /// Годинник закріплено: на справжньому порція могла б припасти на повню чи 11:11 і відкрити ще й таємне.
-    func testFirstIntakeShowsAchievementToastLeadingToTheCard() {
-        let app = launch(["--uitest-empty", "--uitest-now", "2026-10-01T09:00:00+03:00"])
-        XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
-
-        app.buttons["home.add.200"].tap()
-
-        let message = app.staticTexts["toast.message"]
-        XCTAssertTrue(message.waitForExistence(timeout: 3))
-        XCTAssertEqual(message.label, "🏅 Досягнення: Перша крапля")
-        let action = app.buttons["toast.action"]
-        XCTAssertTrue(action.isHittable, "тост має бути в межах екрана, а не просто існувати")
-        action.tap()
-
-        let card = app.otherElements["achievements.detail"]
-        XCTAssertTrue(card.waitForExistence(timeout: 5), "«Подивитись» відкриває картку одразу")
-        XCTAssertEqual(card.label, "Перша крапля")
-    }
-
     // MARK: - Таємні й пасхалки (SPEC-ACHIEVEMENTS-CATALOG §4.9–4.10)
 
     /// Таємне з підказкою — сіра плитка «???», у картці лише підказка; пасхалок у лічильнику немає.
@@ -360,24 +344,28 @@ final class SmokeUITests: XCTestCase {
         XCTAssertEqual(card.value as? String, "«Ні краплі зайвої». Таємне досягнення", "ні умови, ні прогресу")
     }
 
-    /// Пасхалка: до знахідки її не видно, знахідка — свій тост, а потім «🥚 1» поруч із лічильником і рядок
-    /// «Пасхалка! Тут їх більше» в картці. «Дискотека» — п'ять змін теми за хвилину.
-    func testEasterEggIsFoundWithItsOwnToast() {
+    /// Пасхалка: до знахідки її не видно, знахідка — своє вікно з підписом «Пасхалка», а потім «🥚 1» поруч із
+    /// лічильником і рядок «Пасхалка! Тут їх більше» в картці. «Дискотека» — п'ять змін теми за хвилину.
+    func testEasterEggIsFoundWithItsOwnWindow() {
         let app = launch(["--uitest-empty", "--notifications-auth", "notDetermined", "--start-screen", "settings"])
         let theme = app.buttons["settings.theme"]
         XCTAssertTrue(theme.waitForExistence(timeout: 20))
-        // Після картки «Одиниці» (WAT-58) рядок теми — нижче краю екрана: XCUITest докручує до нього на кожному тапі,
-        // а після першого тост «Темна сторона» лягає туди, куди влучив би наступний. Докручуємо один раз заздалегідь.
+        // Після картки «Одиниці» (WAT-58) рядок теми — нижче краю екрана: докручуємо один раз заздалегідь.
         app.swipeUp()
         XCTAssertTrue(theme.isHittable)
-        for _ in 0..<5 { theme.tap() }
+        // Перша зміна на темну — «Темна сторона»: вікно поверх налаштувань, закрити й перемикати далі.
+        theme.tap()
+        XCTAssertTrue(dismissCelebrationIfPresent(app).first?.contains("Темна сторона") ?? false)
+        for _ in 0..<4 { theme.tap() }
 
-        let message = app.staticTexts["toast.message"]
-        let egg = expectation(for: NSPredicate(format: "label == %@", "🥚 Пасхалка: Дискотека"), evaluatedWith: message)
-        wait(for: [egg], timeout: 5)
-        let action = app.buttons["toast.action"]
-        XCTAssertTrue(action.isHittable, "тост на екрані, а не лише в дереві")
-        action.tap()
+        let found = dismissCelebrationIfPresent(app, timeout: 5)
+        XCTAssertTrue(found.first?.hasPrefix("Пасхалка: Дискотека") ?? false, "\(found)")
+
+        app.buttons["nav.back"].firstMatch.tap()
+        app.buttons["home.level"].tap()
+        let all = app.buttons["progress.allAchievements"]
+        XCTAssertTrue(all.waitForExistence(timeout: 5))
+        all.tap()
 
         let counter = app.otherElements["achievements.counter"]
         XCTAssertTrue(counter.waitForExistence(timeout: 5))
@@ -532,6 +520,8 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(first.waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["portions.home.reset"].exists, "типові — повертати нічого")
         app.buttons["portions.home.0.plus"].tap()
+        // «Свої кнопки» — вікном поверх екрана (WAT-60).
+        dismissCelebrationIfPresent(app)
         XCTAssertEqual(first.label, "250 мл")
         // До 1 л — мілілітри по 50, від 1 л — літри по 100 мл; кожен тап змінює підпис.
         let second = app.staticTexts["portions.home.1"]
@@ -579,8 +569,8 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(cup.waitForExistence(timeout: 5))
         XCTAssertEqual(cup.label, "8 унц.")
         cup.tap()
+        dismissCelebrationIfPresent(app)
         XCTAssertEqual(app.staticTexts["home.volume"].label, "8 / 68 унц.")
-        waitForToastToHide(app)
 
         app.buttons["home.settings"].tap()
         let milliliters = app.buttons["settings.units.volume.0"]
@@ -618,8 +608,8 @@ final class SmokeUITests: XCTestCase {
 
         XCTAssertEqual(pill.label, "До 12:00 пп бракує 700 мл, лишилось 35 хвилин")
         app.buttons["home.add.200"].tap()
+        dismissCelebrationIfPresent(app)
         XCTAssertTrue(app.staticTexts["11:25 дп"].waitForExistence(timeout: 5), "час порції в історії")
-        waitForToastToHide(app)
 
         app.buttons["home.settings"].tap()
         let notifications = app.buttons["settings.notifications"]
@@ -648,6 +638,8 @@ final class SmokeUITests: XCTestCase {
         app.buttons["home.settings"].tap()
         XCTAssertTrue(app.staticTexts["Темна тема"].waitForExistence(timeout: 5))
         app.buttons["settings.theme"].tap()
+        // «Темна сторона» — вікном поверх налаштувань (WAT-60).
+        dismissCelebrationIfPresent(app)
         app.buttons["nav.back"].tap()
 
         XCTAssertTrue(app.staticTexts["home.percent"].exists, "екран лишається робочим у темній темі")
