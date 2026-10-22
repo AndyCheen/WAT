@@ -51,8 +51,10 @@ public enum QuestScope: Int, Codable, CaseIterable, Sendable {
     case daily = 0, weekly, adhoc
 }
 
+/// `cancelled` — у кінці, бо raw зберігається: несподіване, скасоване до появи (норму вже закрито), —
+/// не проігноване (SPEC-QUESTS §6.4).
 public enum QuestState: Int, Codable, Sendable {
-    case active = 0, completed, expired, claimed
+    case active = 0, completed, expired, claimed, cancelled
 }
 
 /// `questType` і `badge` прибрано (SPEC-PRIZES §3.2): предмет без дії — це досягнення

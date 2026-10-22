@@ -10,6 +10,9 @@ public protocol DayLogRepositoryProtocol: AnyObject {
     func dayLogs(in month: MonthKey) -> [DayLog]
     func allDayLogs() -> [DayLog]
     func earliestDayKey() -> DayKey?
+    /// Перший день хоч з однією порцією — «день 1» людини для завдань (SPEC-QUESTS §4.1). `earliestDayKey`
+    /// тут не годиться: `DayLog` без порцій створює й знімок розкладу.
+    func firstActiveDayKey() -> DayKey?
     func firstGoalMetDayKey() -> DayKey?
     /// Останній день із порціями раніше за `day` — для подарунка за повернення (§12.5).
     func lastActiveDayKey(before day: DayKey) -> DayKey?
@@ -70,6 +73,15 @@ public final class DayLogRepository: DayLogRepositoryProtocol {
         descriptor.fetchLimit = 1
         guard let first = (try? context.fetch(descriptor))?.first else { return nil }
         return DayKey(rawValue: first.dayKey)
+    }
+
+    public func firstActiveDayKey() -> DayKey? {
+        var descriptor = FetchDescriptor<DayLog>(
+            predicate: #Predicate { $0.entriesCount > 0 },
+            sortBy: [SortDescriptor(\.dayKey)]
+        )
+        descriptor.fetchLimit = 1
+        return (try? context.fetch(descriptor))?.first.map { DayKey(rawValue: $0.dayKey) }
     }
 
     /// Найперший день, у який норму було закрито. `nil`, якщо такого ще не було.
