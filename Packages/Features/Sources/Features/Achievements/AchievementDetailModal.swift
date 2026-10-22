@@ -27,26 +27,30 @@ struct AchievementDetailModal: View {
 extension AchievementSnapshot {
     var rewardLabel: String { "+\(rewardXp) XP за виконання" }
 
-    /// Під назвою плитки: прогрес, підпис вимкненої функції чи нічого — у відкритого й таємного.
+    /// Під назвою плитки: прогрес, підпис вимкненої функції чи нічого — у відкритого, таємного й разового.
     var tileStatus: WTAchievementStatus {
         if isUnlocked { return .unlocked }
         if isMasked { return .hidden }
         if let lockedCaption { return .caption(lockedCaption) }
-        return .progress(fraction: fraction, label: progressLabel)
+        if isOneStep { return .locked }
+        return .progress(fraction: fraction, label: progressLabel, unit: unitLabel)
     }
 
     /// Нижній слот картки — той самий розклад, лише з «5 / 7» замість «5/7».
     var detailStatus: WTAchievementStatus {
-        if case .progress = tileStatus { return .progress(fraction: fraction, label: valueLabel) }
+        if case .progress = tileStatus { return .progress(fraction: fraction, label: valueLabel, unit: unitLabel) }
         return tileStatus
     }
 
-    /// «Відкрито» / «Прогрес 5 із 7» — VoiceOver читає «5/7» як «5 слеш 7». Таємне — «Таємне досягнення».
+    /// «Відкрито» / «Прогрес 5 із 7» / «Прогрес 3,4 із 10 літрів» — VoiceOver читає «5/7» як «5 слеш 7».
+    /// Таємне — «Таємне досягнення», разове — «Ще не відкрито»: «прогрес 0 із 1» про досягнення,
+    /// що або є, або ні, нічого не каже.
     var progressAccessibilityValue: String {
         if isUnlocked { return "Відкрито" }
         if isMasked { return "Таємне досягнення" }
         if let lockedCaption { return lockedCaption }
-        return "Прогрес \(shownValue) із \(shownTarget)"
+        if isOneStep { return "Ще не відкрито" }
+        return "Прогрес \(spokenProgress)"
     }
 
     /// Опис, стан і нагорода одним рядком — картка для VoiceOver один елемент.

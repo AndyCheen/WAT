@@ -57,6 +57,71 @@ final class AchievementPresentationTests: XCTestCase {
         XCTAssertEqual(items.first { $0.key == "big.gulp" }!.valueLabel, "600 / 1000")
     }
 
+    // MARK: - Підпис прогресу: об'єм у мл / л (WAT-52)
+
+    /// Одиниця — від правила, не позначкою в рядку: об'єм міряють лише «Великий ковток» і драбина `volume.*`.
+    func testVolumeUnitComesFromTheRule() {
+        let volume = AchievementCatalog.all.filter { $0.unit == .milliliters }.map(\.key)
+        XCTAssertEqual(Set(volume), [
+            "big.gulp", "volume.1l", "volume.10l", "volume.50l", "volume.100l",
+            "volume.250l", "volume.500l", "volume.1000l"
+        ])
+        XCTAssertEqual(AchievementCatalog.definition("portions.1000")?.unit, .count, "1000 порцій — штуки, хоч ціль та сама, що в «Ковтка»")
+        XCTAssertEqual(AchievementRule.count(.intakeAdded).unit, .count, "кількість подій — штуки й на об'ємній метриці")
+        XCTAssertEqual(AchievementRule.metric(MetricRule(key: .partMorning)).unit, .milliliters)
+    }
+
+    /// Ціль понад 1 л — літри з крапкою, як на кнопках порцій; плитка компактно, картка з пробілами.
+    func testVolumeAboveOneLitreIsShownInLitres() {
+        func bucket(_ ml: Double) -> AchievementSnapshot { Self.item("volume.10l", value: ml, target: 10_000, unit: .milliliters) }
+
+        XCTAssertEqual(bucket(0).progressLabel, "0/10")
+        XCTAssertEqual(bucket(0).valueLabel, "0 / 10")
+        XCTAssertEqual(bucket(0).unitLabel, "л")
+        XCTAssertEqual(bucket(3450).progressLabel, "3.4/10", "десяті — вниз")
+        XCTAssertEqual(bucket(3000).progressLabel, "3/10", "без «3.0»")
+        XCTAssertEqual(bucket(9999).progressLabel, "9.9/10", "у закритого не «10/10»")
+
+        func ton(_ ml: Double) -> AchievementSnapshot { Self.item("volume.1000l", value: ml, target: 1_000_000, unit: .milliliters) }
+        XCTAssertEqual(ton(0).progressLabel, "0/1000")
+        XCTAssertEqual(ton(500).progressLabel, "0.5/1000")
+        XCTAssertEqual(ton(123_456).progressLabel, "123/1000", "від 10 л — цілі літри: десяті там шум")
+        XCTAssertEqual(ton(999_999).valueLabel, "999 / 1000")
+    }
+
+    /// Ціль до 1 л — мілілітри: так на кнопках порцій, і «0.25/1 л» про одну пляшку читається гірше.
+    func testVolumeUpToOneLitreStaysInMillilitres() {
+        let gulp = Self.item("big.gulp", value: 250, target: 1000, unit: .milliliters)
+        XCTAssertEqual(gulp.progressLabel, "250/1000")
+        XCTAssertEqual(gulp.valueLabel, "250 / 1000")
+        XCTAssertEqual(gulp.unitLabel, "мл")
+        XCTAssertEqual(gulp.spokenProgress, "250 із 1000 мілілітрів")
+    }
+
+    /// VoiceOver — словами: «слеш» і літеру «л» він не перекладає. Слово узгоджене з ціллю, кома — українська.
+    func testSpokenProgressUsesWordsAndAgreesWithTarget() {
+        XCTAssertEqual(Self.item("a", value: 3450, target: 10_000, unit: .milliliters).spokenProgress, "3,4 із 10 літрів")
+        XCTAssertEqual(Self.item("b", value: 1200, target: 2000, unit: .milliliters).spokenProgress, "1,2 із 2 літри")
+        XCTAssertEqual(Self.item("c", value: 1200, target: 2500, unit: .milliliters).spokenProgress, "1,2 із 2,5 літра")
+        XCTAssertEqual(Self.item("d", value: 5, target: 7).spokenProgress, "5 із 7", "штуки — як і були")
+        XCTAssertNil(Self.item("d", value: 5, target: 7).unitLabel)
+        XCTAssertEqual(Self.item("d", value: 5, target: 7).progressLabel, "5/7")
+    }
+
+    /// Знімок із рушія несе одиницю з каталогу: «Відро» після 600 мл — «0.6/20 л», «Ковток» — «600/1000 мл».
+    func testEngineSnapshotsCarryTheUnit() {
+        let env = GameEnv()
+        env.addIntakeEvent(600)
+
+        let items = env.game.achievementSnapshots()
+        let bucket = items.first { $0.key == "volume.10l" }!
+        XCTAssertEqual(bucket.unit, .milliliters)
+        XCTAssertEqual("\(bucket.progressLabel) \(bucket.unitLabel!)", "0.6/20 л")
+        let gulp = items.first { $0.key == "big.gulp" }!
+        XCTAssertEqual("\(gulp.valueLabel) \(gulp.unitLabel!)", "600 / 1000 мл")
+        XCTAssertEqual(items.first { $0.key == "streak.30" }!.unit, .count)
+    }
+
     // MARK: - Фільтр стану (§3.2)
 
     func testStateFilters() {
@@ -133,12 +198,12 @@ final class AchievementPresentationTests: XCTestCase {
     // MARK: - Допоміжне
 
     private static func item(
-        _ key: String, value: Double, target: Double,
+        _ key: String, value: Double, target: Double, unit: AchievementUnit = .count,
         unlocked: Bool = false, at date: Date? = nil, isNew: Bool = false
     ) -> AchievementSnapshot {
         AchievementSnapshot(
             key: key, title: key, details: "", emoji: "💧", category: .water,
-            value: value, target: target, isUnlocked: unlocked, isSecret: false,
+            value: value, target: target, unit: unit, isUnlocked: unlocked, isSecret: false,
             rewardXp: 10, unlockedAt: unlocked ? (date ?? Date(timeIntervalSince1970: 0)) : nil,
             isNew: isNew
         )

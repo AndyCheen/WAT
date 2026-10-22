@@ -117,7 +117,8 @@ enum CelebrationPresenter {
             .compactMap { byKey[$0.key] }
             .first { !$0.isUnlocked }
         guard let next, next.lockedCaption == nil, !next.isMasked, next.fraction >= nextMinFraction else { return nil }
-        return "Далі: \(next.emoji) \(next.title) · \(next.valueLabel)"
+        // Без одиниці «Відро» читалося б як «3.4 / 10» — чого саме, незрозуміло (WAT-52).
+        return "Далі: \(next.emoji) \(next.title) · \(next.valueLabel)\(next.unitLabel.map { " \($0)" } ?? "")"
     }
 
     /// Більше трьох за раз — заднім числом після оновлення чи за кілька днів поза застосунком (§8.1).

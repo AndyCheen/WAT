@@ -46,6 +46,18 @@ public enum AchievementRule: Sendable, Equatable {
             return false
         }
     }
+
+    /// Що міряє прогрес — від правила, а не позначкою в рядку каталогу (WAT-52): нова драбина
+    /// на `.history(.countedMl)` дістане літри сама, і забути позначку нема як.
+    var unit: AchievementUnit { measuresVolume ? .milliliters : .count }
+}
+
+/// Одиниця прогресу досягнення — як його підписати на плитці, в картці й для VoiceOver.
+public enum AchievementUnit: Sendable, Equatable {
+    /// Дні, порції, рівні — «5/7».
+    case count
+    /// Об'єм: «950/1000 мл», «3.4/10 л», в унціях — «17/34 унц.» (`AchievementSnapshot.progressLabel`).
+    case milliliters
 }
 
 public enum GameFact: Sendable, Hashable {
@@ -145,6 +157,7 @@ public struct AchievementDefinition: Sendable, Identifiable {
 
     public var id: String { key }
     public var rewardXp: Int { difficulty.rewardXp(category: category) }
+    public var unit: AchievementUnit { rule.unit }
     public var isSecret: Bool { secrecy != .none }
 
     /// Об'єм для `volumeDetails`: найменша порція системи для «Наперстка», решті — ціль.

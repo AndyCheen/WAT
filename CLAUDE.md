@@ -19,8 +19,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 750 unit-тестів 10 пакетів (+7 аудиту на вимогу), без симулятора — швидкий цикл
-make test-ui        # 60 e2e-сценаріїв (XCUITest) у симуляторі
+make test-packages  # 796 unit-тестів 10 пакетів (+7 аудиту на вимогу), без симулятора — швидкий цикл
+make test-ui        # 66 e2e-сценаріїв (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
 make clean
@@ -134,6 +134,10 @@ Features → Widgets → DesignSystem → Core
 місце; крок — 50 мл до 1 л і 100 мл від 1 л (`PresetRules.stepped`); дублі дозволені, тож `ForEach` кнопок і чипів — за позицією, не за значенням. Підпис — `HomeScreen.amountTitle`
 (до 1 л — мл, далі «1.05 л»), один для головного й налаштувань. «Інше» з
 кнопки — з `UserProfile.lastCustomAmountMl` (`HomeViewModel.openCustom`), зі сповіщення — з P через `apply(_:)`.
+Тап по числу в «Інше» — цифрова клавіатура, точний об'єм 50…2000 (WAT-50): без нього «Пі» (314 мл) і «Дзеркало»
+(паліндром за день) з інтерфейсу не виконати — на сітці 50 мл немає ні 314, ні жодного чотиризначного паліндрома.
+Набране живе в `HomeViewModel.customTyped` — в одиницях людини (в унціях — цілі унції 2…67), `customAmount` — мл;
+`WTSheet` ігнорує лише `.container`, тож шторка стає над клавіатурою.
 Після дії картка показує підтвердження й закривається сама (`successHold`); поки діє буст,
 на донаті рівня 3f — бейдж «⚡×2» (на краплі головного — свідомо ні). Таймер — «06:53», без секунд.
 

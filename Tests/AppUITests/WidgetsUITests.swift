@@ -97,7 +97,7 @@ final class WidgetsUITests: XCTestCase {
 
         XCTAssertTrue(open("watertracker://stats", in: app, expecting: app.staticTexts["Норма води"]))
         XCTAssertTrue(open("watertracker://progress", in: app, expecting: app.buttons["progress.level"]))
-        XCTAssertTrue(open("watertracker://custom", in: app, expecting: app.staticTexts["custom.value"]))
+        XCTAssertTrue(open("watertracker://custom", in: app, expecting: app.textFields["custom.value"]))
     }
 
     /// URL ззовні iOS підтверджує діалогом «Відкрити у програмі «Вода»?» — не щоразу й не одразу. Тап по
