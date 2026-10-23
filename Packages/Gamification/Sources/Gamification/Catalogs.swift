@@ -195,6 +195,10 @@ public enum AchievementCatalog {
         // Ключ — від «Першого завдання» (WAT-60): хто його вже має, лишається з «Тижневою метою».
         .init(key: "quest.first", title: "Тижнева мета", details: "Виконано перше тижневе завдання", emoji: "📋",
               category: .game, difficulty: .easy, rule: .count(.weeklyQuestCompleted), target: 1),
+        // Гейт: з вимкненими несподіваними його не виконати (коментар WAT-61 у WAT-29).
+        .init(key: "quest.firstSurprise", title: "Несподіванка", details: "Виконано перше несподіване завдання",
+              emoji: "⏱️", category: .game, difficulty: .easy, rule: .count(.surpriseQuestCompleted), target: 1,
+              gate: .surpriseQuests),
         .init(key: "quest.allDaily", title: "Без хвостів", details: "10 днів, коли виконано всі щоденні завдання",
               emoji: "✅", category: .game, difficulty: .medium, rule: .count(.questsAllDaily), target: 10),
         .init(key: "quest.100", title: "Сотня завдань", details: "Виконано 100 завдань", emoji: "🗂️",

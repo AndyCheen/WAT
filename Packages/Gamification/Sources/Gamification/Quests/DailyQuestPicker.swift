@@ -11,15 +11,21 @@ public struct QuestPick: Sendable, Equatable {
     public var deadlineMinute: Int?
     public var blockIndex: Int?
     public var count: Int?
+    /// Несподіване: хвилина появи (`deadlineMinute` — кінець вікна).
+    public var startMinute: Int?
+    /// Н3 — день тижня, 0 — понеділок.
+    public var weekdayIndex: Int?
 
     public init(key: String, difficulty: QuestDifficulty, rewardXp: Int, deadlineMinute: Int? = nil,
-                blockIndex: Int? = nil, count: Int? = nil) {
+                blockIndex: Int? = nil, count: Int? = nil, startMinute: Int? = nil, weekdayIndex: Int? = nil) {
         self.key = key
         self.difficulty = difficulty
         self.rewardXp = rewardXp
         self.deadlineMinute = deadlineMinute
         self.blockIndex = blockIndex
         self.count = count
+        self.startMinute = startMinute
+        self.weekdayIndex = weekdayIndex
     }
 }
 

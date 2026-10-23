@@ -5,11 +5,13 @@ import Metrics
 
 /// Досягнення в координаторі (WAT-24, SPEC-ACHIEVEMENTS-CATALOG): входи правил, прохід і кеші.
 extension GamificationService {
-    /// Функції, від яких залежать досягнення: «Ритм дня» й сповіщення (дозвіл у системі + головний вимикач).
+    /// Функції, від яких залежать досягнення: «Ритм дня», сповіщення (дозвіл у системі + головний вимикач) і
+    /// несподівані завдання.
     public var achievementGates: AchievementGates {
         AchievementGates(
             dayRhythm: profile.dayRhythmEnabled,
-            notifications: profile.notificationsEnabled && notificationsAuthorized()
+            notifications: profile.notificationsEnabled && notificationsAuthorized(),
+            surpriseQuests: profile.surpriseQuestsPerWeek > 0
         )
     }
 

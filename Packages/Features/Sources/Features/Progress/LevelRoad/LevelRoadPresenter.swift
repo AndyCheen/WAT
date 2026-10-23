@@ -203,6 +203,8 @@ enum LevelRoadPresenter {
         rows += [
             WTXPGuideRow(emoji: "✅", title: "Щоденне завдання", value: questRange(.daily)),
             WTXPGuideRow(emoji: "📅", title: "Тижневе завдання", value: questRange(.weekly)),
+            // Приз за несподіване — у підписі: без нього рядок обіцяв би лише XP (SPEC-QUESTS §8).
+            WTXPGuideRow(emoji: "🎲", title: "Несподіване завдання", value: questRange(.adhoc) + " і ⚡"),
             WTXPGuideRow(emoji: "🏅", title: "Досягнення", value: "від \(scale(achievement)) XP"),
             WTXPGuideRow(emoji: "🔥", title: "Серія множить XP за воду", value: "до ×\(streakCap)"),
             WTXPGuideRow(emoji: "⚡", title: "Буст до \(format.clock(0))", value: "×2 чи ×3")

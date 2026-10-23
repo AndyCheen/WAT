@@ -63,6 +63,10 @@ public final class UserProfile {
     /// знову, удруге не святкується.
     public var highestCelebratedLevel: Int = 0
 
+    /// «Несподівані завдання» на екрані «Сповіщення» (SPEC-QUESTS §9.5): 0 — вимкнено, 1 чи 2 на тиждень. Тут, а не в
+    /// `NotificationSettings`: несподіване живе й без сповіщень — на головному й у віджеті.
+    public var surpriseQuestsPerWeek: Int = 2
+
     public init(createdAt: Date = Date()) {
         self.createdAt = createdAt
     }

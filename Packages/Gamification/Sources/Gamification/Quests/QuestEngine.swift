@@ -9,14 +9,18 @@ public struct QuestForcing: Sendable, Equatable {
     public var daily: [String]
     /// Ключ і N.
     public var weekly: [(key: String, count: Int?)]
+    /// Несподіване й хвилина його появи сьогодні. Без нього під форсуванням несподіваних немає зовсім.
+    public var surprise: (key: String, minute: Int)?
 
-    public init(daily: [String] = [], weekly: [(key: String, count: Int?)] = []) {
+    public init(daily: [String] = [], weekly: [(key: String, count: Int?)] = [],
+                surprise: (key: String, minute: Int)? = nil) {
         self.daily = daily
         self.weekly = weekly
+        self.surprise = surprise
     }
 
-    /// `daily:daily.wakeGlass,daily.glasses;weekly:weekly.goalDays=5,weekly.wakeGlassDays=5`. Невідомі ключі
-    /// пропускаються; без жодного відомого — `nil`.
+    /// `daily:daily.wakeGlass,daily.glasses;weekly:weekly.goalDays=5,weekly.wakeGlassDays=5;surprise:surprise.glassNow@13:30`.
+    /// Невідомі ключі пропускаються; без жодного відомого — `nil`.
     public init?(argument: String) {
         var forcing = QuestForcing()
         for section in argument.split(separator: ";") {
@@ -31,17 +35,23 @@ public struct QuestForcing: Sendable, Equatable {
                     guard let key = item.first, QuestCatalog.definition(key)?.scope == .weekly else { return nil }
                     return (key, item.count > 1 ? Int(item[1]) : nil)
                 }
+            case "surprise":
+                let item = parts[1].split(separator: "@").map(String.init)
+                let clock = item.count > 1 ? item[1].split(separator: ":").compactMap { Int($0) } : []
+                guard let key = item.first, QuestCatalog.definition(key)?.scope == .adhoc, clock.count == 2 else { continue }
+                forcing.surprise = (key, clock[0] * 60 + clock[1])
             default:
                 continue
             }
         }
-        guard !forcing.daily.isEmpty || !forcing.weekly.isEmpty else { return nil }
+        guard !forcing.daily.isEmpty || !forcing.weekly.isEmpty || forcing.surprise != nil else { return nil }
         self = forcing
     }
 
     public static func == (lhs: QuestForcing, rhs: QuestForcing) -> Bool {
         lhs.daily == rhs.daily && lhs.weekly.map(\.key) == rhs.weekly.map(\.key)
             && lhs.weekly.map(\.count) == rhs.weekly.map(\.count)
+            && lhs.surprise?.key == rhs.surprise?.key && lhs.surprise?.minute == rhs.surprise?.minute
     }
 }
 
@@ -62,6 +72,9 @@ public final class QuestEngine {
     private let calendar: CalendarService
 
     public var forcing: QuestForcing?
+    /// Несподівані від пікера. Під `--uitest-*` вимкнено: демо-історія старша за 8 днів, і картка перекрила б чужі
+    /// сценарії (QUESTS-PLAN §3.8). Форсоване (`forcing.surprise`) видається й так.
+    public var surprisesEnabled = true
     /// Періоди, для яких видачу вже перевірено: подій кілька на порцію, а пошук інстансів — запит у базу.
     /// Тижневий — разом із днем: у понеділок завдань могло не бути (не відкривали), а у вівторок — уже видаються.
     private var checkedPeriods: Set<String> = []
@@ -78,7 +91,13 @@ public final class QuestEngine {
 
     /// Видає завдання дня й тижня, якщо їх ще немає: першою подією дня (§4) і тижня (§5). Інстанси архівних
     /// ключів, що вже є за сьогодні чи тиждень, лишаються, і нових поверх них не додаємо (§3.7).
-    func ensureInstances(day: DayKey, at date: Date, daily: () -> DailyPickInput, weekly: () -> WeeklyPickInput) {
+    ///
+    /// Несподіване планується тут же, разом зі щоденними, — і лише тоді (§6.1): так «перша дія дня» означає саме
+    /// її, а не перший запуск після оновлення чи вбитого застосунку.
+    ///
+    /// - Parameter surprise: входи `SurprisePicker`; `nil` — не сьогодні (подія з минулого дня).
+    func ensureInstances(day: DayKey, at date: Date, daily: () -> DailyPickInput, weekly: () -> WeeklyPickInput,
+                         surprise: () -> SurprisePickInput? = { nil }) {
         let dayKey = day.rawValue
         if checkedPeriods.insert("day|\(dayKey)").inserted, instances(periodKey: dayKey).isEmpty {
             let input = daily()
@@ -86,6 +105,7 @@ public final class QuestEngine {
                 forced.daily.compactMap { QuestCatalog.definition($0).map { DailyQuestPicker.resolve($0, input) } }
             } ?? DailyQuestPicker.pick(input)
             for pick in picks { insert(pick, periodKey: dayKey, day: day, at: date, expires: true) }
+            issueSurprise(day: day, at: date, daily: picks, input: surprise)
         }
         let weekKey = calendar.weekKey(for: date).rawValue
         if checkedPeriods.insert("week|\(weekKey)|\(dayKey)").inserted, instances(periodKey: weekKey).isEmpty {
@@ -95,6 +115,34 @@ public final class QuestEngine {
             } ?? WeeklyQuestPicker.pick(input)
             for pick in picks { insert(pick, periodKey: weekKey, day: day, at: date, expires: false) }
         }
+    }
+
+    private func issueSurprise(day: DayKey, at date: Date, daily: [QuestPick], input: () -> SurprisePickInput?) {
+        let periodKey = Self.surprisePeriodKey(day)
+        guard instances(periodKey: periodKey).isEmpty, forcing?.surprise != nil || (forcing == nil && surprisesEnabled),
+              var input = input() else { return }
+        input.dailyKeys = daily.map(\.key)
+        input.dailyBlockIndex = daily.first { $0.key == "daily.closeBlock" }?.blockIndex
+        let pick = forcing?.surprise.map { forced in SurprisePicker.resolve(forced.key, start: forced.minute, input) }
+            ?? SurprisePicker.pick(input)
+        guard let pick, let start = pick.startMinute, let end = pick.deadlineMinute else { return }
+        let instance = QuestInstance(
+            defKey: pick.key, periodKey: periodKey, target: 1, assignedAt: moment(day, minute: start),
+            expiresAt: moment(day, minute: end), rewardXp: pick.rewardXp, difficultyRaw: pick.difficulty.rawValue,
+            deadlineMinute: end, blockIndex: pick.blockIndex, weekdayIndex: pick.weekdayIndex
+        )
+        store.insertQuest(instance)
+        periodCache[periodKey, default: []].append(instance)
+        store.save()
+    }
+
+    /// Несподіване — свій період на день: у списку щоденних воно зіпсувало б «усі щоденні виконано» й «не вчорашнє».
+    public static func surprisePeriodKey(_ day: DayKey) -> String { "adhoc:\(day.rawValue)" }
+
+    /// День інстансу: щоденне й несподіване — свій день; тижневе — понеділок свого тижня не зберігає, тож `nil`.
+    static func day(of instance: QuestInstance) -> DayKey? {
+        let key = instance.periodKey.hasPrefix("adhoc:") ? String(instance.periodKey.dropFirst(6)) : instance.periodKey
+        return key.count == 10 ? DayKey(rawValue: key) : nil
     }
 
     /// Нова доба чи перемкнений пояс: перевірити видачу заново.
@@ -127,6 +175,14 @@ public final class QuestEngine {
         var changed = false
         for instance in instances(at: date) where instance.state == .active || instance.isDone {
             guard let definition = QuestCatalog.definition(instance.defKey) else { continue }
+            // Несподіване до появи не виконується — лише скасовується (§6.4): порції до появи не рахуються.
+            if definition.scope == .adhoc, instance.state == .active, now < instance.assignedAt {
+                if isCancelled(instance, inputs: inputs) {
+                    instance.state = .cancelled
+                    changed = true
+                }
+                continue
+            }
             let result = progress(instance, definition, at: date, inputs: inputs)
             changed = apply(result, to: instance) || changed
             if result.met, instance.state == .active {
@@ -142,6 +198,21 @@ public final class QuestEngine {
         }
         if changed { store.save() }
         return justCompleted
+    }
+
+    /// Скасування до появи (§6.4) — не «проігноровано»: людина його не бачила. Норму закрито, або для Н1 і Н2 частина
+    /// вже йде за темпом — випито в блоці не менше, ніж крива чекає до появи. Н2 з'являється на початку блоку, де
+    /// крива чекає нуль, тож для нього — лише вже закритий блок.
+    private func isCancelled(_ instance: QuestInstance, inputs: QuestInputs) -> Bool {
+        guard let dayKey = Self.day(of: instance) else { return false }
+        let day = inputs.day(dayKey)
+        if day.goalMet { return true }
+        guard instance.blockIndex != nil, let block = day.block(instance.blockIndex) else { return false }
+        if block.isReached(by: day.portions) { return true }
+        let start = calendar.minuteOfDay(instance.assignedAt)
+        let expected = day.curve.target(fromMinute: Double(block.fromMinute), toMinute: Double(start))
+        let drunk = block.drunkMl(of: day.portions.filter { $0.minute < start })
+        return expected > 0 && Double(drunk) >= expected
     }
 
     /// Пише прогрес лише коли він змінився: зайвий запис робить модель брудною, а `save()` — дорожчим.
@@ -175,8 +246,9 @@ public final class QuestEngine {
     }
 
     private func instances(at date: Date) -> [QuestInstance] {
-        instances(periodKey: calendar.dayKey(for: date).rawValue)
-            + instances(periodKey: calendar.weekKey(for: date).rawValue)
+        let day = calendar.dayKey(for: date)
+        return instances(periodKey: day.rawValue) + instances(periodKey: calendar.weekKey(for: date).rawValue)
+            + instances(periodKey: Self.surprisePeriodKey(day))
     }
 
     private func instances(periodKey: String) -> [QuestInstance] {
@@ -196,6 +268,7 @@ public final class QuestEngine {
         let isWeekly = definition.scope == .weekly
         let params = QuestParams(
             deadlineMinute: isWeekly ? nil : instance.deadlineMinute,
+            startMinute: definition.scope == .adhoc ? calendar.minuteOfDay(instance.assignedAt) : nil,
             goalMedianMinute: isWeekly ? instance.deadlineMinute : nil,
             blockIndex: instance.blockIndex, count: instance.count, glassMl: inputs.glassMl, unit: inputs.unit
         )
@@ -205,7 +278,7 @@ public final class QuestEngine {
 
     /// Дні періоду: щоденне — свій день, тижневе — від дня видачі до сьогодні в межах тижня (§5.7).
     private func days(of instance: QuestInstance, isWeekly: Bool, at date: Date, inputs: QuestInputs) -> [QuestDay] {
-        guard isWeekly else { return [inputs.day(DayKey(rawValue: instance.periodKey))] }
+        guard isWeekly else { return Self.day(of: instance).map { [inputs.day($0)] } ?? [] }
         let from = calendar.dayKey(for: instance.assignedAt)
         let sunday = calendar.dayKey(offsetDays: 6, from: calendar.weekStart(of: from))
         let to = min(calendar.dayKey(for: date), sunday)
@@ -230,13 +303,17 @@ public final class QuestEngine {
         }
         let daily = instances(periodKey: today.rawValue)
         let weekly = instances(periodKey: weekKey)
+        // Несподіване — і ще не видиме: головний і віджет показують його рівно в хвилину появи без нової дії, а план
+        // сповіщень ставить на неї `.challenge` (§6.4, §6.6). Видимість — `QuestSnapshot.isVisible(at:)`.
+        let surprise = instances(periodKey: Self.surprisePeriodKey(today)).first(where: isVisible)
         return QuestBoard(
             daily: visible(daily),
             weekly: visible(weekly),
             weeklyStartsMonday: weekly.isEmpty && daysLeft < WeeklyQuestPicker.minDaysLeft,
             weekDaysLeft: daysLeft,
             // Скасоване (`cancelled`) — не прострочене: його людина не бачила.
-            expiredDaily: daily.filter { !isVisible($0) && ($0.state == .expired || $0.state == .active) }.count
+            expiredDaily: daily.filter { !isVisible($0) && ($0.state == .expired || $0.state == .active) }.count,
+            surprise: surprise.flatMap { snapshot($0, blockCount: blockCount) }
         )
     }
 
@@ -254,9 +331,11 @@ public final class QuestEngine {
             isDone: instance.isDone, difficulty: QuestDifficulty(rawValue: instance.difficultyRaw),
             rewardXp: instance.rewardXp > 0 ? instance.rewardXp : definition.legacyXp,
             deadline: instance.expiresAt,
-            deadlineMinute: definition.scope == .daily ? instance.deadlineMinute : nil,
+            deadlineMinute: definition.scope == .weekly ? nil : instance.deadlineMinute,
             count: instance.count, blockIndex: instance.blockIndex,
-            blockCount: instance.blockIndex == nil ? nil : blockCount
+            blockCount: instance.blockIndex == nil ? nil : blockCount,
+            visibleFrom: definition.scope == .adhoc ? instance.assignedAt : nil,
+            weekdayIndex: instance.weekdayIndex
         )
     }
 

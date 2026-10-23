@@ -90,6 +90,8 @@ public struct QuestTitle: Sendable, Equatable {
         case volume(Int)
         /// Блок — «ранок / день / вечір» (`QuestSnapshot.blockIndex` з `blockCount`).
         case block
+        /// День тижня в називному — «Субота» (`QuestSnapshot.weekdayIndex`, Н3).
+        case weekday
 
         public init(stringLiteral value: String) { self = .text(value) }
     }
@@ -246,6 +248,22 @@ public enum QuestCatalog {
               condition: .daysCount(.shareBy(1, .personalGoal)), difficulty: .fixed(.medium), baseCount: 4)
     ]
 
+    /// §3.6 — несподівані (§6). Пікери щоденних їх не бачать: планує `SurprisePicker`, у першу дію дня.
+    /// Складність тут — лише вид нагороди: легке — до години (`surpriseShortXp`), середнє — частина доби чи день.
+    public static let surprise: [QuestDefinition] = [
+        .init(key: "surprise.glassNow", scope: .adhoc, slot: .surprise, title: .init("Склянка зараз"),
+              condition: .day(.window(.glass)), difficulty: .fixed(.easy)),
+        // Називає частину доби, тож без «Ритму дня» не видається (§0, п. 5). Н1 — ні: «склянка до 14:30» про частини
+        // не каже, а прогалину однаково латає.
+        .init(key: "surprise.closeBlock", scope: .adhoc, slot: .surprise, title: .init("Закрий ", .block, " до ", .time),
+              condition: .day(.blockReached), difficulty: .fixed(.medium), requirements: rhythm),
+        .init(key: "surprise.weekday", scope: .adhoc, slot: .surprise, title: .init(.weekday, " з нормою"),
+              condition: .day(.shareBy(1, .sleepMinus(minutes: SurpriseRules.latestEndBeforeSleep))),
+              difficulty: .fixed(.medium)),
+        .init(key: "surprise.flash", scope: .adhoc, slot: .surprise, title: .init("Блискавка: 15 хвилин"),
+              condition: .day(.window(.fixed(QuestRules.glassMinMl))), difficulty: .fixed(.easy))
+    ]
+
     /// §3.7 — не видаються, але інстанси поточного дня й тижня на момент оновлення доживають період з тим самим XP.
     public static let retired: [QuestDefinition] = [
         .init(key: "daily.goal", scope: .daily, slot: nil, title: .init("Випити денну норму"),
@@ -264,7 +282,7 @@ public enum QuestCatalog {
               difficulty: nil, legacyXp: 100, isRetired: true)
     ]
 
-    public static let all: [QuestDefinition] = tempo + rhythmSlot + starter + steady + habit + retired
+    public static let all: [QuestDefinition] = tempo + rhythmSlot + starter + steady + habit + surprise + retired
     public static let active: [QuestDefinition] = all.filter { !$0.isRetired }
 
     private static let byKey = Dictionary(all.map { ($0.key, $0) }, uniquingKeysWith: { first, _ in first })

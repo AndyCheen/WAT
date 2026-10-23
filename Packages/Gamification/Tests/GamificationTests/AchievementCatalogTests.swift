@@ -10,25 +10,26 @@ final class AchievementCatalogTests: XCTestCase {
     private let all = AchievementCatalog.active
 
     func testCatalogMatchesTheSpecCounts() {
-        XCTAssertEqual(AchievementCatalog.all.count, 118, "115 без «Бульк!» (§8) + 3 за «Знання», зі знятими")
+        XCTAssertEqual(AchievementCatalog.all.count, 119, "115 без «Бульк!» (§8) + 3 за «Знання» + «Несподіванка», зі знятими")
         XCTAssertEqual(AchievementCatalog.all.filter(\.isRetired).count, 7, "§10.1")
-        XCTAssertEqual(all.count, 111, "§10.4: 112 разом із «Несподіванкою», що чекає несподіваних завдань WAT-29")
+        XCTAssertEqual(all.count, 112, "§10.4: разом із «Несподіванкою» (WAT-65)")
         XCTAssertEqual(Set(AchievementCatalog.all.map(\.key)).count, AchievementCatalog.all.count, "ключі унікальні")
         XCTAssertEqual(all.filter { $0.secrecy.isEgg }.count, 10, "пасхалки — §4.10")
         XCTAssertEqual(all.filter { if case .hint = $0.secrecy { return true } else { return false } }.count, 16,
                        "таємні з підказкою — §4.9")
         XCTAssertEqual(all.filter { $0.gate == .dayRhythm }.count, 4)
         XCTAssertEqual(all.filter { $0.gate == .notifications }.count, 5)
+        XCTAssertEqual(all.filter { $0.gate == .surpriseQuests }.map(\.key), ["quest.firstSurprise"])
         XCTAssertEqual(all.filter(\.isCore).count, 76, "основний каталог — 76 (§10.4)")
 
         let byCategory = Dictionary(grouping: all.filter { !$0.secrecy.isEgg }, by: \.category).mapValues(\.count)
         XCTAssertEqual(byCategory, [
             .water: 12, .streak: 13, .regularity: 10, .dayRhythm: 10,
-            .stats: 6, .game: 15, .discovery: 15, .special: 20
+            .stats: 6, .game: 16, .discovery: 15, .special: 20
         ])
 
         let byDifficulty = Dictionary(grouping: all, by: \.difficulty).mapValues(\.count)
-        XCTAssertEqual(byDifficulty, [.easy: 42, .medium: 45, .hard: 15, .legendary: 9],
+        XCTAssertEqual(byDifficulty, [.easy: 43, .medium: 45, .hard: 15, .legendary: 9],
                        "§10.4: 43 легких — разом із «Несподіванкою»")
     }
 

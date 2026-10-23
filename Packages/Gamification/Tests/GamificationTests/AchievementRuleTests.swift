@@ -598,19 +598,19 @@ final class AchievementRuleTests: XCTestCase {
         XCTAssertFalse(open.isMasked)
     }
 
-    /// Пасхалки до знахідки немає ні в знімку, ні в лічильнику; після — «🥚 N» окремо від «N / 101».
+    /// Пасхалки до знахідки немає ні в знімку, ні в лічильнику; після — «🥚 N» окремо від «N / 102».
     func testEggsAreInvisibleUntilFoundAndCountedApart() {
         let env = GameEnv()
         let before = env.game.achievementSnapshots()
         XCTAssertFalse(before.contains { $0.key.hasPrefix("egg.") })
-        XCTAssertEqual(before.tally.total, 101)
+        XCTAssertEqual(before.tally.total, 102)
         XCTAssertEqual(before.tally.eggs, 0)
 
         env.drink(314, on: "2026-07-18", hour: 9)
         env.clock.advance(by: 60)
         env.drink(200, on: "2026-07-18", hour: 11, minute: 11)
         let after = env.game.achievementSnapshots()
-        XCTAssertEqual(after.tally.total, 101, "знайдена пасхалка лічильник не роздуває")
+        XCTAssertEqual(after.tally.total, 102, "знайдена пасхалка лічильник не роздуває")
         XCTAssertEqual(after.tally.eggs, 2)
         XCTAssertEqual(after.first { $0.key == "egg.pi" }?.note, "Пасхалка! Тут їх більше", "лише в першої знайденої")
         XCTAssertNil(after.first { $0.key == "egg.wish" }?.note)
