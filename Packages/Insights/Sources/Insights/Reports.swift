@@ -64,6 +64,15 @@ public struct WeakPart: Equatable, Sendable {
     public let toMinute: Int
 }
 
+/// Слабкий день тижня (SPEC-QUESTS §6.2): у цей день норма систематично не вдається, а в решту — вдається.
+/// Тригер несподіваного Н3 «{Субота} з нормою».
+public struct WeakWeekday: Equatable, Sendable {
+    /// 0 — понеділок.
+    public let index: Int
+    /// Медіана «випито / норма» цього дня тижня.
+    public let median: Double
+}
+
 /// Одна думка звіту — перше правило §11.4, що спрацювало.
 public enum ReportThought: Equatable, Sendable {
     /// 1. Системна прогалина: «Вечір — найслабше місце: у середньому 40 % від потрібного».
@@ -130,6 +139,12 @@ public enum ReportRules {
     public static let improvementPercent = 10
     public static let weekendGapPercent = 25
     public static let recordMinStreak = 3
+    /// Слабкий день тижня (SPEC-QUESTS §6.2): 6 тижнів, медіана дня < 0,7 при медіані решти ≥ 0,85, і щонайменше
+    /// 3 такі дні в історії — інакше один невдалий понеділок назвався б «слабким днем».
+    public static let weakWeekdayDays = 42
+    public static let weakWeekdayMedian = 0.7
+    public static let weakWeekdayOthersMedian = 0.85
+    public static let weakWeekdayMinDays = 3
 }
 
 extension InsightsService {
@@ -212,6 +227,32 @@ extension InsightsService {
             return WeakPart(title: block.title, key: key, median: median, toMinute: block.toMinute)
         }
         .min { $0.median < $1.median }
+    }
+
+    /// Слабкий день тижня за `days` (SPEC-QUESTS §6.2). Дні без порцій — нуль, але лише від першого дня людини:
+    /// тиждень до встановлення застосунку — не «пропущені дні». Кілька слабких — той, де медіана найменша.
+    public func weakWeekday(days: [DayKey]) -> WeakWeekday? {
+        guard let first = days.first, let last = days.last else { return nil }
+        let start = max(first, dayLogs.firstActiveDayKey() ?? last)
+        guard start <= last else { return nil }
+        let logs = Dictionary(dayLogs.dayLogs(from: start, to: last).map { ($0.dayKey, $0) },
+                              uniquingKeysWith: { first, _ in first })
+        var ratios: [Int: [Double]] = [:]
+        for day in days where day >= start {
+            let log = logs[day.rawValue]
+            let goal = log?.goalMlSnapshot ?? profiles.currentGoalMl(on: day)
+            let ratio = goal > 0 ? Double(log?.totalMl ?? 0) / Double(goal) : 1
+            ratios[day.weekdayIndex, default: []].append(ratio)
+        }
+        let median = { (values: [Double]) in InsightsCalculators.percentile(values.sorted(), 0.5) }
+        return ratios.compactMap { index, values -> WeakWeekday? in
+            let others = ratios.filter { $0.key != index }.flatMap(\.value)
+            guard values.count >= ReportRules.weakWeekdayMinDays, !others.isEmpty,
+                  median(values) < ReportRules.weakWeekdayMedian,
+                  median(others) >= ReportRules.weakWeekdayOthersMedian else { return nil }
+            return WeakWeekday(index: index, median: median(values))
+        }
+        .min { ($0.median, $0.index) < ($1.median, $1.index) }
     }
 
     // MARK: - Внутрішнє
