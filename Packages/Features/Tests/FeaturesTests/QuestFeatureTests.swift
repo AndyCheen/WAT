@@ -67,6 +67,129 @@ final class QuestFeatureTests: XCTestCase {
         XCTAssertEqual(QuestPresenter.progressLabel(snapshot("weekly.goalDays", isDone: true)), "Готово")
     }
 
+    func testAccessibilityLabels() {
+        XCTAssertEqual(QuestPresenter.accessibilityLabel(snapshot("daily.halfBy", deadline: 14 * 60, progress: 500,
+                                                                  target: 1000), xp: 25),
+                       "Половина до 14:00, ще 500 мл, 25 XP")
+        XCTAssertEqual(QuestPresenter.accessibilityLabel(snapshot("daily.glasses", count: 4, progress: 2, target: 4), xp: 15),
+                       "4 склянки від 150 мл, 2 з 4, 15 XP")
+        XCTAssertEqual(QuestPresenter.accessibilityLabel(snapshot("weekly.goalDays", count: 5, progress: 2, target: 5), xp: 100),
+                       "Норма 5 днів, 2 з 5 днів, 100 XP")
+        XCTAssertEqual(QuestPresenter.accessibilityLabel(snapshot("daily.wakeGlass", isDone: true), xp: 30),
+                       "Склянка після підйому, виконано, 30 XP")
+    }
+
+    func testSectionCaptions() {
+        XCTAssertEqual(QuestPresenter.weekLabel + " " + QuestPresenter.weekDaysLeft(5), "ЦЬОГО ТИЖНЯ · ЩЕ 5 ДН.")
+        XCTAssertEqual(QuestPresenter.completedToggle(count: 2, showing: false), "Виконані · 2")
+        XCTAssertEqual(QuestPresenter.completedToggle(count: 2, showing: true), "Сховати")
+    }
+
+    // MARK: - Блок головного (§9.1)
+
+    private func quest(_ key: String, done: Bool = false, deadline: Date? = nil) -> QuestSnapshot {
+        let definition = QuestCatalog.definition(key)!
+        return QuestSnapshot(id: UUID(), key: key, scope: definition.scope, slot: definition.slot, title: definition.title,
+                             kind: definition.kind, progress: done ? 1 : 0, target: 1, isDone: done, difficulty: .easy,
+                             rewardXp: 15, deadline: deadline)
+    }
+
+    func testBlockHidesDoneBehindToggleAndCelebrates() {
+        let wake = quest("daily.wakeGlass", done: true, deadline: Self.date(8, 0))
+        let glasses = quest("daily.glasses")
+        let week = quest("weekly.goalDays")
+        let board = QuestBoard(daily: [wake, glasses], weekly: [week], weekDaysLeft: 5)
+
+        let block = QuestBlock.make(board: board, now: Self.date(9, 0), celebrating: [], showCompleted: false)
+        XCTAssertEqual(block.today?.rows.map(\.key), ["daily.glasses"])
+        XCTAssertNil(block.today?.empty)
+        XCTAssertEqual(block.week?.rows.map(\.key), ["weekly.goalDays"])
+        XCTAssertEqual(block.weekDaysLeft, 5)
+        XCTAssertEqual(block.completedCount, 1, "виконане до дедлайну лишається у «Виконані»")
+
+        let celebrating = QuestBlock.make(board: board, now: Self.date(9, 0), celebrating: [wake.id], showCompleted: false)
+        XCTAssertEqual(celebrating.today?.rows.map(\.key), ["daily.wakeGlass", "daily.glasses"], "святкує — ще в списку")
+
+        let shown = QuestBlock.make(board: board, now: Self.date(9, 0), celebrating: [], showCompleted: true)
+        XCTAssertEqual(shown.today?.rows.count, 2, "«Виконані · N» розгортає виконані в їхніх секціях")
+    }
+
+    func testBlockEmptyStates() {
+        let now = Self.date(15, 0)
+        let doneA = quest("daily.halfBy", done: true), doneB = quest("daily.glasses", done: true)
+        let allDone = QuestBlock.make(board: QuestBoard(daily: [doneA, doneB], weekly: [quest("weekly.goalDays", done: true)]),
+                                      now: now, celebrating: [], showCompleted: false)
+        XCTAssertEqual(allDone.today, QuestBlock.Section(rows: [], empty: "Усе на сьогодні 🎉"))
+        XCTAssertEqual(allDone.week, QuestBlock.Section(rows: [], empty: "Тиждень закрито 🎉"))
+
+        // Одне виконане, друге зникло за дедлайном — «усе» не кажемо, секції немає.
+        let expired = QuestBlock.make(board: QuestBoard(daily: [doneA], expiredDaily: 1), now: now, celebrating: [],
+                                      showCompleted: false)
+        XCTAssertNil(expired.today)
+        XCTAssertEqual(expired.completedCount, 1)
+        XCTAssertFalse(expired.isEmpty, "заголовок із «Виконані · 1» лишається")
+
+        // Дедлайн минув, поки екран відкритий: дошку ще не перечитано, а рядка вже немає.
+        let late = QuestBlock.make(board: QuestBoard(daily: [quest("daily.wakeGlass", deadline: Self.date(8, 0))]),
+                                   now: Self.date(8, 0), celebrating: [], showCompleted: false)
+        XCTAssertNil(late.today)
+        XCTAssertTrue(late.isEmpty)
+
+        let friday = QuestBlock.make(board: QuestBoard(weeklyStartsMonday: true, weekDaysLeft: 3), now: now,
+                                     celebrating: [], showCompleted: false)
+        XCTAssertEqual(friday.week, QuestBlock.Section(rows: [], empty: "Тижневі завдання — з понеділка"))
+        XCTAssertNil(friday.weekDaysLeft, "«ще N дн.» — лише коли тижневі є")
+    }
+
+    // MARK: - Свято на головному (§9.2)
+
+    /// Перша порція відкриває «Першу краплю»: рядок святкує після вікна, вібрує вікно.
+    func testRowCelebratesAfterAchievementWindow() {
+        let (services, clock) = services(at: Self.date(7, 10), quests: QuestForcing(daily: ["daily.wakeGlass", "daily.glasses"]))
+        let model = HomeViewModel(services: services)
+        let wake = model.questBoard.daily.first { $0.key == "daily.wakeGlass" }!
+
+        model.add(250)
+        XCTAssertNotNil(services.celebration, "«Перша крапля»")
+        XCTAssertEqual(model.pulse?.kind, .celebration, "одна вібрація на дію")
+        XCTAssertEqual(model.pendingQuestIds, [wake.id])
+        XCTAssertTrue(model.celebratingQuestIds.isEmpty, "під вікном рядок не святкує")
+        XCTAssertEqual(model.questBlock().today?.rows.map(\.key), ["daily.wakeGlass", "daily.glasses"],
+                       "і не зникає, щоб не з'явитися знову")
+
+        services.dismissCelebration()
+        model.celebrationDidClose()
+        XCTAssertEqual(model.celebratingQuestIds, [wake.id])
+        XCTAssertTrue(model.pendingQuestIds.isEmpty)
+
+        model.finishQuestCelebration(wake.id)
+        XCTAssertEqual(model.questBlock().today?.rows.map(\.key), ["daily.glasses"], "згорнуто в «Виконані · 1»")
+        XCTAssertEqual(model.questBlock().completedCount, 1)
+
+        // Дедлайн другого не минає — а прострочене зникло б без `reload()`.
+        clock.set(Self.date(23, 59))
+        XCTAssertEqual(model.questBlock().today?.rows.map(\.key), ["daily.glasses"])
+    }
+
+    /// Без вікна й без гучнішої події дія з виконаним завданням вібрує `questDone` і святкує одразу.
+    func testRowCelebratesAtOnceWithQuestHaptic() {
+        let (services, _) = services(at: Self.date(9, 0), quests: QuestForcing(daily: ["daily.glasses"]))
+        let model = HomeViewModel(services: services)
+        for _ in 0..<4 {
+            model.add(200)
+            if services.celebration != nil {
+                services.dismissCelebration()
+                model.celebrationDidClose()
+            }
+        }
+        XCTAssertTrue(model.celebratingQuestIds.isEmpty)
+        model.add(200)
+        XCTAssertNil(services.celebration)
+        XCTAssertEqual(model.pulse?.kind, .questDone)
+        XCTAssertEqual(model.celebratingQuestIds.count, 1)
+        XCTAssertNil(model.toast, "тостів за завдання немає")
+    }
+
     // MARK: - Вставки сповіщень
 
     /// 19.10.2026 — понеділок.

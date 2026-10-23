@@ -97,6 +97,9 @@ final class FirstWeekSimulation {
         var sheets: [String] = []
         var haptics: [String] = []
         var quests: [String] = []
+        /// Ключі щоденних, виданих за день, і найбільше рядків «Сьогодні» на головному за раз (SPEC-QUESTS §10).
+        var dailyKeys: Set<String> = []
+        var maxDailyRows = 0
         var xp = 0
     }
 
@@ -294,6 +297,7 @@ final class FirstWeekSimulation {
         case .goalReached: return "норма"
         case .celebration: return "вікно"
         case .gift: return "подарунок"
+        case .questDone: return "завдання"
         case .added, .removed, .capped: return nil
         }
     }
@@ -458,6 +462,8 @@ final class FirstWeekSimulation {
             signals.append("завдання: \(QuestPresenter.title(quest))")
         }
         lastQuestsDone.formUnion(done)
+        days[index].dailyKeys.formUnion(services.gamification.questBoard().daily.map(\.key))
+        days[index].maxDailyRows = max(days[index].maxDailyRows, model.questBlock().today?.rows.count ?? 0)
 
         let dots = currentDots()
         for dot in dots.subtracting(lastDots).sorted() {

@@ -47,6 +47,8 @@ public struct HomePulse: Equatable, Identifiable {
         case added(Int)
         case goalReached
         case levelUp(Int)
+        /// Дія виконала завдання, і нічого гучнішого вона не дала (SPEC-QUESTS §9.2).
+        case questDone
         /// Дія відкрила досягнення — вібрує саме вікно відкриття, у мить появи (SPEC-ACHIEVEMENTS §8.6).
         case celebration
         /// Подарунок за повернення без досягнення — тост із призом (SPEC-NOTIFICATIONS §12.5 А).
@@ -111,7 +113,8 @@ public final class HomeViewModel {
 
     public private(set) var day: DaySnapshot
     public private(set) var history: [IntakeSnapshot] = []
-    public private(set) var quests: [QuestSnapshot] = []
+    /// Завдання головного (SPEC-QUESTS §9.1). Що з них видно — `questBlock()`: дедлайн минає й без дії.
+    public private(set) var questBoard: QuestBoard = .empty
     public private(set) var weekDots: [Bool] = Array(repeating: false, count: 7)
     public private(set) var level: LevelProgress
     public private(set) var streak: StreakSummary = .empty
@@ -134,6 +137,11 @@ public final class HomeViewModel {
     /// Виконані завдання сховані, доки користувач не попросить показати.
     /// Стан екранний: новий день і новий запуск починаються з активного списку.
     public private(set) var showCompletedQuests = false
+    /// Виконані дією на цьому екрані й ще не згорнуті в «Виконані · N» (§9.2).
+    public private(set) var celebratingQuestIds: Set<UUID> = []
+    /// Виконані тією самою дією, що відкрила вікно досягнення: святкують після нього. Поки чекають — лишаються в
+    /// списку, щоб не зникнути й не з'явитися знову.
+    public private(set) var pendingQuestIds: Set<UUID> = []
 
     /// Остання подія для гаптики. Читається екраном, не скидається вручну.
     public private(set) var pulse: HomePulse?
@@ -192,7 +200,7 @@ public final class HomeViewModel {
         history = services.hydration.intakes(for: services.calendar.today)
         dayCurve = services.hydration.schedule(for: day.dayKey).curve(goalMl: day.goalMl)
         dayPortions = history.map { TimedPortion(minute: services.calendar.minuteOfDay($0.createdAt), ml: $0.amountMl) }
-        quests = services.gamification.dailyQuests()
+        questBoard = services.gamification.questBoard()
         level = services.gamification.levelProgress()
         streak = services.gamification.streakSummary()
         quickAmounts = services.hydration.quickAddAmounts()
@@ -211,6 +219,9 @@ public final class HomeViewModel {
 
     public func add(_ ml: Int, viaCustom: Bool = false) {
         let levelBefore = level.level
+        let doneBefore = doneQuestIds
+        // Попередня дія відкрила вікно, яке так і не показалось (порцію відкотили): її завдання вже не святкуємо.
+        pendingQuestIds = []
         _ = services.gamification.takeRecentUnlocks()
         let result = services.hydration.addIntake(amountMl: ml)
         // «Своя мірка» — частина тієї самої дії, тож і тост у неї спільний.
@@ -233,7 +244,16 @@ public final class HomeViewModel {
         }
         offerNotificationsIfNeeded()
 
-        // Вібрація одна на дію: вікно вібрує саме, без нього закрита норма важливіша за рівень (П2 аудиту WAT-29).
+        // Завдання, закриті саме цією дією, святкують у рядку; поки на екрані вікно досягнення — після нього.
+        let questsDone = doneQuestIds.subtracting(doneBefore)
+        if celebrating {
+            pendingQuestIds = questsDone
+        } else {
+            celebrateQuests(questsDone)
+        }
+
+        // Вібрація одна на дію: вікно вібрує саме, без нього закрита норма важливіша за рівень, рівень — за
+        // завдання (П2 аудиту WAT-29, SPEC-QUESTS §9.2).
         if celebrating {
             pulse = HomePulse(kind: .celebration)
         } else if unlocked.comebackGift != nil {
@@ -242,6 +262,8 @@ public final class HomeViewModel {
             pulse = HomePulse(kind: .goalReached)
         } else if let toastLevel {
             pulse = HomePulse(kind: .levelUp(toastLevel))
+        } else if !questsDone.isEmpty {
+            pulse = HomePulse(kind: .questDone)
         } else if result.cappedAmountMl > 0 {
             pulse = HomePulse(kind: .capped)
         } else {
@@ -427,6 +449,11 @@ public final class HomeViewModel {
     /// Вікно відкриття закрили: крапка «нове» за відсвятковане не горить, і шторка дозволу, що чекала, — тепер.
     public func celebrationDidClose() {
         hasNewAchievements = services.gamification.hasUnseenAchievements
+        // Закрите вікно могло показати наступне — рядки чекають і його.
+        if services.celebration == nil, !services.hasPendingCelebrations, !pendingQuestIds.isEmpty {
+            celebrateQuests(pendingQuestIds)
+            pendingQuestIds = []
+        }
         presentPendingPermissionOffer()
     }
 
@@ -646,11 +673,41 @@ public final class HomeViewModel {
 
     // MARK: - Завдання
 
-    public var visibleQuests: [QuestSnapshot] { showCompletedQuests ? quests : quests.active }
-    public var completedQuestCount: Int { quests.completed.count }
+    /// Блок на цю хвилину. Екран викликає його з `TimelineView`: рядок із минулим дедлайном зникає, поки екран
+    /// відкритий. Час — від `Clock`, як у капсули частини доби.
+    func questBlock() -> QuestBlock {
+        QuestBlock.make(board: questBoard, now: services.calendar.now,
+                        celebrating: celebratingQuestIds.union(pendingQuestIds), showCompleted: showCompletedQuests)
+    }
+
+    func isCelebrating(_ quest: QuestSnapshot) -> Bool { celebratingQuestIds.contains(quest.id) }
+
+    /// Свято скінчилось — рядок згортається в «Виконані · N».
+    public func finishQuestCelebration(_ id: UUID) {
+        guard celebratingQuestIds.contains(id) else { return }
+        _ = withAnimation(WTAnimation.collapse) { celebratingQuestIds.remove(id) }
+    }
+
+    /// XP, яке нарахує виконання зараз: буст і загальний множник — як у `XPEngine.award`, серія завдань не множить.
+    func questXp(_ quest: QuestSnapshot) -> Int {
+        let xp = services.gamification.xp
+        return Int((Double(quest.rewardXp) * xp.boostMultiplier(at: services.calendar.now) * xp.rules.xpMultiplier).rounded())
+    }
+
     func questTitle(_ quest: QuestSnapshot) -> String { QuestPresenter.title(quest, unit: volumeUnit, format: timeFormat) }
     func questProgress(_ quest: QuestSnapshot) -> String { QuestPresenter.progressLabel(quest, unit: volumeUnit) }
-    public var allQuestsDone: Bool { !quests.isEmpty && quests.active.isEmpty }
+    func questAccessibilityLabel(_ quest: QuestSnapshot) -> String {
+        QuestPresenter.accessibilityLabel(quest, xp: questXp(quest), unit: volumeUnit, format: timeFormat)
+    }
+
+    private var doneQuestIds: Set<UUID> {
+        Set((questBoard.daily + questBoard.weekly).filter(\.isDone).map(\.id))
+    }
+
+    private func celebrateQuests(_ ids: Set<UUID>) {
+        guard !ids.isEmpty else { return }
+        withAnimation(WTAnimation.fade) { celebratingQuestIds.formUnion(ids) }
+    }
 
     // MARK: - Тости
 
