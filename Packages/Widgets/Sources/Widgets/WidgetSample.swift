@@ -33,9 +33,10 @@ extension WidgetSnapshot {
             schedule: Schedule(schedule), weekday: Schedule(schedule), homeButtons: [200, 500, 1000], glassMl: 250,
             streak: Streak(current: 12, countsToday: false),
             level: Level(level: 7, xpIntoLevel: 120, xpForNextLevel: 200),
+            // Опівдні заглушки обидва ще в роботі — так у галереї системи видно рядки, а не «✓ Усе на сьогодні».
             dailyQuests: [
-                Quest(title: "Половина до 14:00", progressLabel: total >= 1000 ? "Готово" : WidgetPresenter.left(1000 - total),
-                      fraction: min(1, Double(total) / 1000), isDone: total >= 1000),
+                Quest(title: "¾ норми до 17:30", progressLabel: total >= 1500 ? "Готово" : WidgetPresenter.left(1500 - total),
+                      fraction: min(1, Double(total) / 1500), isDone: total >= 1500, expiresAt: at(17 * 60 + 30)),
                 Quest(title: "5 склянок від 150 мл", progressLabel: glasses >= 5 ? "Готово" : "\(glasses)/5",
                       fraction: min(1, Double(glasses) / 5), isDone: glasses >= 5)
             ],

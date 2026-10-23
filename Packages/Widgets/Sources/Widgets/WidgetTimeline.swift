@@ -99,6 +99,12 @@ public enum WidgetTimeline {
                 add(reserve.zeroAt)
                 add(reserve.reminderAt)
             }
+            // Невиконане щоденне зникає за дедлайном і без нового знімка (SPEC-QUESTS §9.3).
+            if kind == .progress, snapshot.day == today {
+                for quest in snapshot.dailyQuests where !quest.isDone {
+                    add(quest.expiresAt)
+                }
+            }
         }
 
         if let step = kind.cadence {

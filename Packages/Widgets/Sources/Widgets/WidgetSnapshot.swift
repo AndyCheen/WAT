@@ -41,8 +41,14 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
     public var customHints: [Int]?
     public var streak: Streak
     public var level: Level
+    /// Щоденні без прострочених: невиконане з минулим дедлайном тихо зникає (SPEC-QUESTS §7).
     public var dailyQuests: [Quest]
     public var weeklyQuests: [Quest]
+    /// Пт–Нд без тижневих — «З понеділка» (SPEC-QUESTS §9.3). Необов'язкові, як і решта нових полів: знімок старішої
+    /// збірки в App Group мусить декодуватися.
+    public var weeklyStartsMonday: Bool?
+    /// Щоденні, що вже зникли за дедлайном невиконаними: тоді «✓ Усе на сьогодні» не показуємо.
+    public var expiredDailyQuests: Int?
     /// XP за закриту частину доби — з бустом, як нарахує гейміфікація.
     public var dayPartXp: Int
     public var reserve: HydrationReserve?
@@ -54,7 +60,8 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
         portions: [Portion], schedule: Schedule, weekday: Schedule, weekend: Schedule? = nil,
         dayRhythmEnabled: Bool = true, homeButtons: [Int], glassMl: Int, customHints: [Int]? = nil,
         streak: Streak, level: Level,
-        dailyQuests: [Quest] = [], weeklyQuests: [Quest] = [], dayPartXp: Int = 10,
+        dailyQuests: [Quest] = [], weeklyQuests: [Quest] = [], weeklyStartsMonday: Bool? = nil,
+        expiredDailyQuests: Int? = nil, dayPartXp: Int = 10,
         reserve: HydrationReserve? = nil, lastAction: LastAction? = nil
     ) {
         self.version = Self.currentVersion
@@ -77,6 +84,8 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
         self.level = level
         self.dailyQuests = dailyQuests
         self.weeklyQuests = weeklyQuests
+        self.weeklyStartsMonday = weeklyStartsMonday
+        self.expiredDailyQuests = expiredDailyQuests
         self.dayPartXp = dayPartXp
         self.reserve = reserve
         self.lastAction = lastAction
@@ -142,17 +151,23 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
 
     public struct Quest: Codable, Equatable, Sendable {
         public var title: String
-        /// «Готово», «3/4», «50 %» — `QuestSnapshot.progressLabel`.
+        /// «Готово», «2/4», «ще 500 мл», «2/5 дн.» — `QuestPresenter.progressLabel`.
         public var progressLabel: String
         public var fraction: Double
         public var isDone: Bool
+        /// Дедлайн щоденного: після нього невиконане зникає й без нового знімка — на цю мить є запис таймлайну.
+        public var expiresAt: Date?
 
-        public init(title: String, progressLabel: String, fraction: Double, isDone: Bool) {
+        public init(title: String, progressLabel: String, fraction: Double, isDone: Bool, expiresAt: Date? = nil) {
             self.title = title
             self.progressLabel = progressLabel
             self.fraction = fraction
             self.isDone = isDone
+            self.expiresAt = expiresAt
         }
+
+        /// Видно о `date`: виконане — завжди, невиконане — до дедлайну.
+        public func isVisible(at date: Date) -> Bool { isDone || (expiresAt.map { $0 > date } ?? true) }
     }
 
     public struct LastAction: Codable, Equatable, Sendable {
