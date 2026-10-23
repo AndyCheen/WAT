@@ -49,6 +49,8 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
     public var weeklyStartsMonday: Bool?
     /// Щоденні, що вже зникли за дедлайном невиконаними: тоді «✓ Усе на сьогодні» не показуємо.
     public var expiredDailyQuests: Int?
+    /// Несподіване сьогодні — і ще не видиме: віджет показує його в хвилину появи без нового знімка (SPEC-QUESTS §9.3).
+    public var surprise: Surprise?
     /// XP за закриту частину доби — з бустом, як нарахує гейміфікація.
     public var dayPartXp: Int
     public var reserve: HydrationReserve?
@@ -61,7 +63,7 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
         dayRhythmEnabled: Bool = true, homeButtons: [Int], glassMl: Int, customHints: [Int]? = nil,
         streak: Streak, level: Level,
         dailyQuests: [Quest] = [], weeklyQuests: [Quest] = [], weeklyStartsMonday: Bool? = nil,
-        expiredDailyQuests: Int? = nil, dayPartXp: Int = 10,
+        expiredDailyQuests: Int? = nil, surprise: Surprise? = nil, dayPartXp: Int = 10,
         reserve: HydrationReserve? = nil, lastAction: LastAction? = nil
     ) {
         self.version = Self.currentVersion
@@ -86,6 +88,7 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
         self.weeklyQuests = weeklyQuests
         self.weeklyStartsMonday = weeklyStartsMonday
         self.expiredDailyQuests = expiredDailyQuests
+        self.surprise = surprise
         self.dayPartXp = dayPartXp
         self.reserve = reserve
         self.lastAction = lastAction
@@ -168,6 +171,23 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
 
         /// Видно о `date`: виконане — завжди, невиконане — до дедлайну.
         public func isVisible(at date: Date) -> Bool { isDone || (expiresAt.map { $0 > date } ?? true) }
+    }
+
+    public struct Surprise: Codable, Equatable, Sendable {
+        public var title: String
+        public var visibleFrom: Date
+        public var expiresAt: Date
+        public var isDone: Bool
+
+        public init(title: String, visibleFrom: Date, expiresAt: Date, isDone: Bool) {
+            self.title = title
+            self.visibleFrom = visibleFrom
+            self.expiresAt = expiresAt
+            self.isDone = isDone
+        }
+
+        /// Невиконане — з хвилини появи до кінця вікна; виконаних «Прогрес» не показує.
+        public func isOpen(at date: Date) -> Bool { !isDone && visibleFrom <= date && expiresAt > date }
     }
 
     public struct LastAction: Codable, Equatable, Sendable {

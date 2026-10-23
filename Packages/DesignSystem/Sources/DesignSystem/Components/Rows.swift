@@ -480,3 +480,112 @@ public struct WTNewDot: View {
     .background(WTTheme.dark.screen)
     .dynamicTypeSize(.xLarge)
 }
+
+/// Картка несподіваного завдання над «СЬОГОДНІ» (SPEC-QUESTS §9.1, макет A «Розділи»): ⚡ у колі, позначка виду,
+/// назва, «ціль до часу · ще скільки», праворуч — живий відлік і нагорода. Виконане — «Готово · ⚡ у призах» на
+/// світлішому тлі; згортання після свята — `wtCelebrationHold`, як у рядків.
+public struct WTSurpriseCard: View {
+    @Environment(\.wtTheme) private var theme
+    private let kind: String
+    private let title: String
+    private let detail: String
+    private let reward: String
+    private let now: Date
+    private let deadline: Date?
+    private let isDone: Bool
+    private let accessibilityText: String
+    private let identifier: String
+    private let timerIdentifier: String
+
+    /// Ідентифікатори — на елементі тексту й на таймері окремо: на контейнері перший перекрив би другий.
+    ///
+    /// - Parameters:
+    ///   - now: мить від `Clock` моделі — початок відліку.
+    ///   - deadline: кінець вікна для `Text(timerInterval:)` — відлік іде сам, без перерисовки екрана.
+    public init(kind: String, title: String, detail: String, reward: String, now: Date, deadline: Date?, isDone: Bool,
+                accessibilityLabel: String, identifier: String, timerIdentifier: String) {
+        self.now = now
+        self.identifier = identifier
+        self.kind = kind
+        self.title = title
+        self.detail = detail
+        self.reward = reward
+        self.deadline = deadline
+        self.isDone = isDone
+        self.accessibilityText = accessibilityLabel
+        self.timerIdentifier = timerIdentifier
+    }
+
+    public var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle().fill(theme.accent)
+                Text("⚡").font(.system(size: 19))
+            }
+            .frame(width: Self.iconSize, height: Self.iconSize)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(kind)
+                    .font(WTFont.text(11, .black))
+                    .tracking(0.3)
+                    .foregroundStyle(WTColor.orange)
+                Text(title)
+                    .font(WTFont.display(15, .heavy))
+                    .foregroundStyle(theme.textPrimary)
+                    .lineLimit(1)
+                Text(detail)
+                    .font(WTFont.text(12, .heavy))
+                    .foregroundStyle(theme.textMuted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(accessibilityText)
+            .accessibilityIdentifier(identifier)
+
+            VStack(alignment: .trailing, spacing: 2) {
+                timer
+                Text(reward)
+                    .font(WTFont.text(11, .black))
+                    .foregroundStyle(theme.textButton)
+                    .lineLimit(1)
+                    .accessibilityHidden(true)
+            }
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
+        .background(isDone ? theme.accent.opacity(Self.doneTint) : theme.chip,
+                    in: RoundedRectangle(cornerRadius: WTRadius.button, style: .continuous))
+        .animation(WTAnimation.fade, value: isDone)
+    }
+
+    @ViewBuilder
+    private var timer: some View {
+        if isDone {
+            WTIcons.check(color: theme.accent, size: 18)
+                .frame(height: 22)
+                .accessibilityHidden(true)
+        } else if let deadline {
+            // Картка видима лише всередині вікна, тож межа попереду; `max` — щоб діапазон не перевернувся на межі.
+            Text(timerInterval: now...max(deadline, now), countsDown: true)
+                .font(WTFont.number(22, .semibold))
+                .monospacedDigit()
+                .foregroundStyle(theme.textPrimary)
+                .multilineTextAlignment(.trailing)
+                .accessibilityIdentifier(timerIdentifier)
+        }
+    }
+
+    static let iconSize: CGFloat = 38
+    /// Тло виконаної — акцент на 18 %, як `.surA.ok` у макеті.
+    static let doneTint = 0.18
+
+    /// Поява в хвилину `visibleFrom`: зверху з легким стисненням; з Reduce Motion — лише прозорість.
+    public static func appearance(reduceMotion: Bool) -> AnyTransition {
+        reduceMotion
+            ? .opacity
+            : .asymmetric(insertion: .move(edge: .top).combined(with: .scale(scale: 0.97)).combined(with: .opacity),
+                          removal: .opacity)
+    }
+}

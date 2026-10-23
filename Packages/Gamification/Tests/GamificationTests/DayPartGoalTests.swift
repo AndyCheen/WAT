@@ -148,7 +148,7 @@ final class DayPartGoalTests: XCTestCase {
     /// Завдання на частину доби — у пулі лише з ритмом дня; без нього щоденне одне (SPEC-QUESTS §2).
     func testDayPartQuestsAreMarked() {
         XCTAssertEqual(QuestCatalog.active.filter(\.isDayPartQuest).map(\.key),
-                       ["daily.closeBlock", "daily.everyBlock", "daily.allBlocks", "weekly.perfectDays"])
+                       ["daily.closeBlock", "daily.everyBlock", "daily.allBlocks", "weekly.perfectDays", "surprise.closeBlock"])
         XCTAssertTrue(QuestCatalog.definition("daily.morning")!.isDayPartQuest, "архівне — за метрикою частини доби")
         let env = GameEnv(quests: nil)
         setDayRhythm(false, env)

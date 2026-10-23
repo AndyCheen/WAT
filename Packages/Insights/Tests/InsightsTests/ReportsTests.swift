@@ -232,6 +232,33 @@ final class ReportsTests: XCTestCase {
         XCTAssertEqual(plain.rows, withRhythm.rows, "смуга — частка кривої, графік довідковий (§28, п. 9)")
     }
 
+    // MARK: - Слабкий день тижня (SPEC-QUESTS §6.2)
+
+    private var sixWeeks: [DayKey] { calendar.recentDays(ReportRules.weakWeekdayDays, endingAt: DayKey(rawValue: "2026-10-04")) }
+
+    func testWeakWeekdayFindsSaturday() {
+        for day in sixWeeks {
+            if day.weekdayIndex == 5 { drink(day.rawValue, 12, 0, 1000) } else { evenDay(day.rawValue) }
+        }
+        XCTAssertEqual(insights.weakWeekday(days: sixWeeks), WeakWeekday(index: 5, median: 0.5))
+    }
+
+    /// Дні без порцій після першого дня людини — нулі; до нього — не рахуються.
+    func testWeakWeekdayCountsEmptyDaysOnlyAfterFirstActive() {
+        for day in sixWeeks.suffix(21) where day.weekdayIndex != 6 { evenDay(day.rawValue) }
+        XCTAssertEqual(insights.weakWeekday(days: sixWeeks)?.index, 6, "три неділі без води — слабка неділя")
+
+        let two = Array(sixWeeks.suffix(14))
+        XCTAssertNil(insights.weakWeekday(days: two), "дві неділі — замало")
+    }
+
+    func testNoWeakWeekdayWhenOtherDaysAreWeakToo() {
+        for day in sixWeeks {
+            if day.weekdayIndex == 5 { drink(day.rawValue, 12, 0, 1000) } else { evenDay(day.rawValue, total: 1600) }
+        }
+        XCTAssertNil(insights.weakWeekday(days: sixWeeks), "решта — 0,8 < 0,85: слабкий не один день, а все")
+    }
+
     private func forgetfulEvening(_ day: String) {
         drink(day, 9, 0, 700)
         drink(day, 14, 0, 830)

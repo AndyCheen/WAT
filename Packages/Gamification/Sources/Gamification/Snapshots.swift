@@ -47,12 +47,16 @@ public struct QuestSnapshot: Equatable, Identifiable, Sendable {
     /// Блок Д7 і скільки блоків у дні — щоб назвати його «ранок / день / вечір».
     public let blockIndex: Int?
     public let blockCount: Int?
+    /// Несподіване: мить появи — до неї його не видно ніде (§6.4).
+    public let visibleFrom: Date?
+    /// Н3 — день тижня в назві, 0 — понеділок.
+    public let weekdayIndex: Int?
 
     public init(
         id: UUID, key: String, scope: QuestScope, slot: QuestSlot?, title: QuestTitle, kind: QuestKind,
         progress: Double, target: Double, isDone: Bool, difficulty: QuestDifficulty?, rewardXp: Int,
         deadline: Date? = nil, deadlineMinute: Int? = nil, count: Int? = nil, blockIndex: Int? = nil,
-        blockCount: Int? = nil
+        blockCount: Int? = nil, visibleFrom: Date? = nil, weekdayIndex: Int? = nil
     ) {
         self.id = id
         self.key = key
@@ -70,9 +74,20 @@ public struct QuestSnapshot: Equatable, Identifiable, Sendable {
         self.count = count
         self.blockIndex = blockIndex
         self.blockCount = blockCount
+        self.visibleFrom = visibleFrom
+        self.weekdayIndex = weekdayIndex
     }
 
     public var fraction: Double { target > 0 ? min(1, progress / target) : 0 }
+
+    /// Чи видно завдання в цю мить: несподіване — з хвилини появи; невиконане — до свого дедлайну. Одне правило для
+    /// головного, віджета й сповіщень.
+    public func isVisible(at date: Date) -> Bool {
+        (visibleFrom.map { $0 <= date } ?? true) && (isDone || (deadline.map { $0 > date } ?? true))
+    }
+
+    /// «Блискавка» — свій вид на картці, решта — «Несподіване» (§9.1).
+    public var isFlash: Bool { key == "surprise.flash" }
 }
 
 /// Усі завдання головного (SPEC-QUESTS §9.1): щоденні й тижневі без прострочених невиконаних.
@@ -86,7 +101,8 @@ public struct QuestBoard: Equatable, Sendable {
     /// Щоденні, що зникли за дедлайном невиконаними. Їх у `daily` немає, але без них «Усе на сьогодні 🎉»
     /// показалося б і тоді, коли виконано лише одне з двох (§9.1: тоді секції «Сьогодні» немає зовсім).
     public var expiredDaily: Int
-    /// Несподіване — WAT-65; до нього завжди `nil`.
+    /// Несподіване сьогодні — активне (і ще не видиме: `visibleFrom` у майбутньому) чи виконане. Прострочене й
+    /// скасоване сюди не потрапляють.
     public var surprise: QuestSnapshot?
 
     public init(daily: [QuestSnapshot] = [], weekly: [QuestSnapshot] = [], weeklyStartsMonday: Bool = false,

@@ -90,8 +90,8 @@ struct LaunchConfiguration {
     let onboarding: OnboardingMode?
     /// `--onboarding-design scene|steps` — тимчасовий перемикач дизайну онбордингу (до WAT-57).
     let onboardingDesign: OnboardingDesign?
-    /// `--quests daily:daily.wakeGlass,daily.glasses;weekly:weekly.goalDays=5` — саме ці завдання повз пікери
-    /// (WAT-63): e2e не мають залежати від зерна профілю. Лише DEBUG.
+    /// `--quests daily:daily.wakeGlass,daily.glasses;weekly:weekly.goalDays=5;surprise:surprise.glassNow@13:30` — саме ці
+    /// завдання повз пікери (WAT-63, WAT-65): e2e не мають залежати від зерна профілю. Лише DEBUG.
     let quests: QuestForcing?
 
     static var current: LaunchConfiguration {

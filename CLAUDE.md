@@ -19,8 +19,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 857 unit-тестів 10 пакетів (+7 аудиту на вимогу), без симулятора — швидкий цикл
-make test-ui        # 69 e2e-сценаріїв (XCUITest) у симуляторі
+make test-packages  # 889 unit-тестів 10 пакетів (+7 аудиту на вимогу), без симулятора — швидкий цикл
+make test-ui        # 71 e2e-сценарій (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
 make clean
@@ -80,8 +80,8 @@ Features → Widgets → DesignSystem → Core
 досягнення декларативні: `metricKey + comparator + target` у `Gamification/Catalogs.swift`,
 нова умова додається рядком у каталог, без коду.
 
-**Досягнення** (WAT-24, `SPEC-ACHIEVEMENTS-CATALOG.md`): 111 чинних у `AchievementCatalog` (з них 3 — за «Знання», WAT-53;
-112-ге — «Несподіванка» — разом із несподіваними завданнями WAT-29) (`Catalogs.swift`), ключі наявних
+**Досягнення** (WAT-24, `SPEC-ACHIEVEMENTS-CATALOG.md`): 112 чинних у `AchievementCatalog` (з них 3 — за «Знання», WAT-53,
+і «Несподіванка», WAT-65) (`Catalogs.swift`), ключі наявних
 не міняти — на них прогрес. Перший тиждень — 1–2 досягнення в день 1 (WAT-60, §10): нові — лише такі, що відкриваються не
 раніше 2-го тижня; межі тримає `AchievementBudgetTests` на тижні `FirstWeekSimulation` (звіт — `AttentionAuditWeek1Tests`,
 `WT_AUDIT=1`). Зняте — не видалення, а `retired: true` (`AchievementDefinition.isRetired`, 7 штук): не рахується в
@@ -94,12 +94,13 @@ Features → Widgets → DesignSystem → Core
 й перший-ліпший відкат зняли б відкрите. Сонцестояння й повня — `SkyCalendar`. Точний об'єм порції в умові — лише метричний («Пі»), інакше — найменша порція системи
 («Наперсток», `Intake.smallestAmountsMl`): цілими унціями 50 і 314 мл не набрати (WAT-59). XP — від складності
 (`AchievementDifficulty`), остаточні числа — WAT-25. Таємні — прапорець `AchievementSecrecy`: 🤫 у знімку вже «???»,
-підказка й без прогресу; 🥚 до знахідки у знімку немає зовсім, лічильник — `tally` (101 + «🥚 N»). Маскування — лише в
-`AchievementEngine.snapshots`, не у в'юсі. Залежні від «Ритму дня» й сповіщень (`AchievementGate`) поки функцію вимкнено
+підказка й без прогресу; 🥚 до знахідки у знімку немає зовсім, лічильник — `tally` (102 + «🥚 N»). Маскування — лише в
+`AchievementEngine.snapshots`, не у в'юсі. Залежні від «Ритму дня», сповіщень і несподіваних завдань (`AchievementGate`) поки функцію вимкнено
 не рахуються ні в проході, ні у відкаті й мають `lockedCaption`. Прохід — лише на подіях із `AchievementCatalog.triggers`
 (частини доби пропускаються), повторюється, поки XP за досягнення піднімає рівень. Факти сповіщень («Чуйність»,
 «Вчасно» — лише після вечірнього порятунку, «На крок попереду») публікує `NotificationService` з ref `day.goalMet` —
-відкат норми їх знімає. «Тижнева мета» (ключ `quest.first`) — подія `quest.weeklyCompleted` з ref завдання.
+відкат норми їх знімає. «Тижнева мета» (ключ `quest.first`) — подія `quest.weeklyCompleted` з ref завдання, «Несподіванка» (`quest.firstSurprise`) —
+`quest.surpriseCompleted`.
 «Темна сторона» — лише вибір у «Налаштуваннях», не системна тема.
 **Вікно відкриття «Хвиля»** (WAT-62, SPEC-ACHIEVEMENTS §8): кожне відкрите — вікно на весь екран, не тост. Черга — у
 базі: невідсвятковане = відкрите не раніше `UserProfile.celebrationsSince`, без `AchievementProgress.celebratedAt`, не
@@ -156,6 +157,18 @@ Features → Widgets → DesignSystem → Core
 `AppServices`). Тексти — не в знімку: `QuestSnapshot.title` — шаблон `QuestTitle`, рядок складає `QuestPresenter`
 (`Features/Quests`); дошка — `questBoard(at:)`. У тестах `GameEnv` типово **без завдань** (`QuestForcing()`): «Перша
 склянка» закривається першою ж порцією й міняла б XP кожного тесту; `quests: nil` — справжні пікери.
+**Несподівані** (WAT-65, SPEC-QUESTS §6, QUESTS-PLAN §3): Н1–Н4 — `QuestCatalog.surprise`, scope `.adhoc`, період
+`adhoc:<день>`. Вибір — чиста `SurprisePicker` (з 8-го дня, ≤ 1/день, не поспіль, ліміт `UserProfile.surpriseQuestsPerWeek`
+0/1/2, без прогалин — лише «Блискавка» й ≤ 1/тиждень, відступ після двох проігнорованих), дні-кандидати —
+`StableHash("<seed>|<week>|surprise")`. Планується **в тому ж проході, що й щоденні** (`QuestEngine.ensureInstances`), лише
+на сьогодні й лише в першу дію дня: перезапуск посеред дня не перепланує. Сигнали (`weakDayPart` 14 днів, `weakWeekday` 42)
+і тихі хвилини — замиканнями `gamification.surpriseSignals` / `quietMinutes` від `AppServices`. До `assignedAt` інстанс
+лише скасовується (`.cancelled` — норма закрита чи частина йде за темпом) і пише прогрес для тексту сповіщення; порції до
+появи вікна не рахуються; прострочене = проігноровано. Дошка несе несподіване **наперед** (`QuestSnapshot.visibleFrom`),
+видимість — `QuestSnapshot.isVisible(at:)`, одна для головного, віджета й сповіщень. Нагорода — XP 25/50 (`XPRules.questXp(scope:
+.adhoc…)`), подія `quest.surpriseCompleted` і ⚡ `grantPrize(…, ref: quest.id)` — один на інстанс, відкат не забирає.
+«Вимк» у «Сповіщеннях» (`setSurpriseQuestsPerWeek(0)`) скасовує сьогоднішнє. Картка — `WTSurpriseCard` над «Сьогодні»
+(`quest.surprise`, таймер `quest.surprise.timer`), тексти — `QuestPresenter.surprise*`.
 **Блок на головному** (WAT-64, варіант A, SPEC-QUESTS §9.1–9.2) — лише там і у віджеті «Прогрес», на 3f завдань немає
 (WAT-35). Що видно — чиста `QuestBlock.make(board:now:celebrating:showCompleted:)`: «Сьогодні» / «Цього тижня · ще N дн.»,
 виконані — за «Виконані · N»; невиконане з минулим дедлайном зникає й без дії (`TimelineView` будить екран, час — `Clock`).
@@ -215,7 +228,10 @@ Features → Widgets → DesignSystem → Core
   темпом `taperFactor` (½). Вікно — від відбою людини, не від `DayPart`; ваги `idealShare` не чіпати. Спад живе
   в приватних `pieces`, а `segments` лишаються по одному на частину доби — інакше `goalBlocks()` дав би блок
   і чекпоінт «до 20:00».
-- **Чекпоінт** забирає собі основне нагадування у вікні `[−45, +30]` — ланцюг далі від нього.
+- **Чекпоінт** забирає собі основне нагадування у вікні `[−45, +30]` — ланцюг далі від нього. Так само **несподіване**
+  `.challenge` (WAT-65, SPEC-QUESTS §6.6): `NotificationContext.surprise` (лише ще не видиме), id
+  `wt.challenge.<dayKey>.<HHmm>`, приходить рівно в мить появи й не зсувається (`ConflictResolver`): у конфлікті з
+  сильнішим — лише в застосунку. Тихі хвилини доби — `QuietWindow.minutes(onWeekday:)`, одні для плану й пікера.
   `SpecDaysTests` (§6.1) рахують лише тип 1, тож чекпоінти там вимкнені; повний день §6.3 — `CheckpointTests`.
 - **Капсула частини доби** під кільцем головного (WAT-40, §26) — підказка, коли чекпоінт мовчить:
   `PaceCurve.dayPartProgress` (ті самі `GoalBlock`), тексти — `DayPartPresenter` («ще N мл» вгору до 50,
@@ -256,7 +272,9 @@ Features → Widgets → DesignSystem → Core
   не міняти: поставлені віджети зникнуть. Кільце «Запасу» на екрані блокування — `Gauge`, не
   `ProgressView(timerInterval:)`: поза WidgetKit той — спінер.
 - **«Прогрес» (M)** (WAT-64, SPEC-QUESTS §9.3): ліва половина — `Link` на 3f, права — на головний. Права — лише
-  невиконані: до 2 щоденних і одне тижневе, стани — `WidgetPresenter.quests(_:at:)`. Знімок несе дедлайни
+  невиконані: до 2 щоденних і одне тижневе, стани — `WidgetPresenter.quests(_:at:)`. Несподіване (WAT-65) — першим
+  рядком із `Text(timerInterval:)`, і тоді щоденних один; `WidgetSnapshot.surprise` несе його наперед, таймлайн має записи
+  на `visibleFrom` і `expiresAt`. Знімок несе дедлайни
   (`Quest.expiresAt`), `expiredDailyQuests` і `weeklyStartsMonday` (усі нові поля — опційні: старий знімок у App Group
   декодується), таймлайн — запис на кожен дедлайн невиконаного щоденного.
 - **Тоновані віджети iOS 18** лишають від кольору лише прозорість: тема — `WTTheme.tinted` (`wtWidgetTheme()` за
@@ -404,7 +422,7 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
   зеленим. Для тостів і оверлеїв додатково перевіряти `isHittable` і межі вікна.
 - Позначення «переглянуто» — лише в `reload()` з `onAppear`, не в `init` моделі: інакше
   друге читання вже не бачить нових, і крапки «нове» не з'являються зовсім (WAT-23).
-- Сітка 2e лінива, а досягнень 101: плитку шукати після фільтра категорії (`achievements.category.option.<key>`),
+- Сітка 2e лінива, а досягнень 102: плитку шукати після фільтра категорії (`achievements.category.option.<key>`),
   інакше вона може бути ще не на екрані. Вікно відкриття на справжньому годиннику нестабільне (повня, 11:11, 1 квітня
   відкривають таємні) — закріплюй `--uitest-now`.
 - Вікно відкриття модальне й на весь екран: сценарій, що додає першу порцію на `--uitest-empty` чи робить «Відкриття»
@@ -427,12 +445,14 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
   `levelRoad.choice.*` / `levelRoad.mystery.*` за префіксом.
 - Сповіщення в e2e: під `--uitest-*` центр — у пам'яті з дозволом `--notifications-auth
   authorized|denied|notDetermined` (типово є — інакше шторка дозволу після першої порції ламала б
-  сценарії); `--notification-tap reminder|morning|evening|rescue|comeback|echo|report` імітує тап
+  сценарії); `--notification-tap reminder|morning|evening|rescue|comeback|echo|report|challenge` імітує тап
   (`morning` — вікно «Склянка», `report` — звіт за минулий тиждень);
   `--uitest-now 2026-10-01T07:00:00+03:00` фіксує годинник для DEBUG-екрана «План сповіщень».
-- Завдання в e2e: `--quests daily:daily.wakeGlass,daily.glasses;weekly:weekly.goalDays=5` (лише DEBUG) видає саме ці
-  завдання повз пікери — вибір пікера залежить від зерна профілю й дня. Без прапорця під `--uitest-*` — звичайний пікер:
-  на `--uitest-empty` це стартові «Перша склянка» й «Половина норми». Ставиться до `bootstrap()`. Рядок шукати за
+- Завдання в e2e: `--quests daily:daily.wakeGlass,daily.glasses;weekly:weekly.goalDays=5;surprise:surprise.glassNow@13:30`
+  (лише DEBUG) видає саме ці завдання повз пікери — вибір пікера залежить від зерна профілю й дня. Без прапорця під
+  `--uitest-*` — звичайний пікер: на `--uitest-empty` це стартові «Перша склянка» й «Половина норми»; **несподіваних без
+  `surprise:` немає зовсім** (`surprisesEnabled = false`): демо-історія старша за 8 днів, і картка перекрила б чужі
+  сценарії. Ставиться до `bootstrap()`. Рядок шукати за
   `quest.row.<ключ>` (`descendants(matching: .any)`): назва — частина його підпису, окремим `staticText` її немає.
   Підйом типово о 08:00 — дедлайн «Склянки після підйому» о 09:00.
 - Віджети в e2e: домашній екран у XCUITest нестабільний, тож в'юшки — у DEBUG-галереї `--start-screen widgets`
@@ -452,8 +472,8 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
 4. `GoalCalculatorSheet` готовий і покритий тестами, але не підключений (норму рахує онбординг — WAT-56).
 5. Одиниці (унції, фунти, 12 год) обираються в онбордингу, але поза ним діють лише у віджетах; перемикача в
    «Налаштуваннях» немає. Онбординг чорновий — фіналізація в WAT-57.
-6. Сповіщення: етап C (несподівані завдання) — WAT-38; повний редизайн екрана «Сповіщення» —
-   WAT-18; ассету звуку «булькання» (`drop.caf`) немає — грає системний.
+6. Сповіщення: сигнал «нагадування не допомагають» — WAT-38 (несподівані завдання зроблено в WAT-65); повний редизайн
+   екрана «Сповіщення» — WAT-18; ассету звуку «булькання» (`drop.caf`) немає — грає системний.
 
 ## Робота із задачами Linear
 

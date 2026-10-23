@@ -63,6 +63,8 @@ public struct MetricKey: RawRepresentable, Hashable, Codable, Sendable, Expressi
     /// Виконано тижневе завдання («Тижнева мета», WAT-60). Пишеться поруч із `quest.completed` з тим самим
     /// `sourceRef` — завданням, тож відкочується разом із ним.
     public static let weeklyQuestCompleted: MetricKey = "quest.weeklyCompleted"
+    /// Виконано несподіване завдання («Несподіванка», WAT-65). Як `quest.weeklyCompleted`: `sourceRef` — завдання.
+    public static let surpriseQuestCompleted: MetricKey = "quest.surpriseCompleted"
 
     // Відкриття функцій і пасхалки (SPEC-ACHIEVEMENTS-CATALOG §4.7, §4.10). Разові дії мають
     // детермінований `sourceRef` — повтор ідемпотентністю шини нічого не додає.

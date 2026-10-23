@@ -76,14 +76,17 @@ public struct XPRules: Sendable, Equatable {
         min(streakMultiplierCap, 1 + Double(max(0, streak)) * streakMultiplierStep)
     }
 
-    /// XP завдання за складністю. Фіксується на інстансі в мить видачі (SPEC-QUESTS §8).
+    /// XP завдання за складністю. Фіксується на інстансі в мить видачі (SPEC-QUESTS §8). Несподіване легке — до
+    /// години, решта — частина доби чи день (§6.5).
     public func questXp(scope: QuestScope, difficulty: QuestDifficulty) -> Int {
+        if scope == .adhoc { return difficulty == .easy ? surpriseShortXp : surpriseLongXp }
         let table = scope == .weekly ? weeklyQuestXp : dailyQuestXp
         return table.isEmpty ? 0 : table[min(table.count, difficulty.rawValue) - 1]
     }
 
     /// Діапазон XP виду завдань — для довідника «Звідки XP» і «Знань» (SPEC-QUESTS §8).
     public func questXpRange(_ scope: QuestScope) -> ClosedRange<Int> {
+        if scope == .adhoc { return min(surpriseShortXp, surpriseLongXp)...max(surpriseShortXp, surpriseLongXp) }
         let table = scope == .weekly ? weeklyQuestXp : dailyQuestXp
         return (table.min() ?? 0)...(table.max() ?? 0)
     }

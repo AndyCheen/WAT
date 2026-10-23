@@ -190,6 +190,12 @@ public struct NotificationsScreen: View {
                 }
             }
             WTDivider()
+            // Окремий рядок, а не вимикач: несподіване живе й без сповіщень — на головному й у віджеті (SPEC-QUESTS §9.5).
+            WTSegmentRow("Несподівані завдання · на тиждень", options: NotificationsSettingsModel.surpriseOptions,
+                         selection: model.surprisePerWeek, identifierPrefix: "notifications.surprise.option",
+                         onSelect: model.selectSurprisePerWeek)
+                .padding(.vertical, 10)
+            WTDivider()
             WTSettingRow("Ранкова склянка", subtitle: "Якщо зранку ще немає порцій") {
                 WTToggle(isOn: model.toggle(\.morningEnabled)).accessibilityIdentifier("notifications.morning")
             }

@@ -237,4 +237,92 @@ final class QuestFeatureTests: XCTestCase {
         XCTAssertEqual(hint?.title, "Норма 2 дні")
         XCTAssertEqual(hint?.xp, 75)
     }
+
+    // MARK: - Несподівані (WAT-65)
+
+    private func surprise(_ key: String, from: Date, until: Date, weekday: Int? = nil, block: Int? = nil,
+                          progress: Double = 0, target: Double = 250, isDone: Bool = false) -> QuestSnapshot {
+        let definition = QuestCatalog.definition(key)!
+        let minute = Calendar(identifier: .gregorian).dateComponents(in: TimeZone(identifier: "Europe/Kyiv")!, from: until)
+        return QuestSnapshot(id: UUID(), key: key, scope: .adhoc, slot: .surprise, title: definition.title, kind: .volume,
+                             progress: progress, target: target, isDone: isDone, difficulty: .easy, rewardXp: 25,
+                             deadline: until, deadlineMinute: minute.hour! * 60 + minute.minute!, blockIndex: block,
+                             blockCount: block == nil ? nil : 3, visibleFrom: from, weekdayIndex: weekday)
+    }
+
+    func testSurpriseCardTexts() {
+        let glass = surprise("surprise.glassNow", from: Self.date(13, 30), until: Self.date(14, 30), progress: 100)
+        XCTAssertEqual(QuestPresenter.title(glass), "Склянка зараз")
+        XCTAssertEqual(QuestPresenter.surpriseKind(glass), "НЕСПОДІВАНЕ")
+        XCTAssertEqual(QuestPresenter.surpriseDetail(glass), "250 мл до 14:30 · ще 150 мл")
+        XCTAssertEqual(QuestPresenter.surpriseDetail(glass, unit: .usFluidOunces, format: .hours12),
+                       "8 унц. до 2:30 пп · ще 6 унц.", "вгору до цілої унції")
+        XCTAssertEqual(QuestPresenter.surpriseReward(xp: 50), "+50 XP · ⚡")
+
+        let flash = surprise("surprise.flash", from: Self.date(16, 10), until: Self.date(16, 25), target: 150)
+        XCTAssertEqual(QuestPresenter.surpriseKind(flash), "БЛИСКАВКА")
+        XCTAssertEqual(QuestPresenter.title(surprise("surprise.weekday", from: Self.date(9), until: Self.date(20),
+                                                     weekday: 5)), "Субота з нормою")
+        XCTAssertEqual(QuestPresenter.title(surprise("surprise.closeBlock", from: Self.date(17), until: Self.date(20),
+                                                     block: 2)), "Закрий вечір до 20:00")
+        let done = surprise("surprise.glassNow", from: Self.date(13, 30), until: Self.date(14, 30), isDone: true)
+        XCTAssertEqual(QuestPresenter.surpriseDetail(done), "Готово · ⚡ у призах")
+    }
+
+    func testBlockShowsSurpriseOnlyInsideItsWindow() {
+        let quest = surprise("surprise.glassNow", from: Self.date(13, 30), until: Self.date(14, 30))
+        let board = QuestBoard(surprise: quest)
+        XCTAssertTrue(QuestBlock.make(board: board, now: Self.date(13, 29), celebrating: [], showCompleted: false).isEmpty)
+        XCTAssertEqual(QuestBlock.make(board: board, now: Self.date(13, 30), celebrating: [], showCompleted: false)
+            .surprise?.id, quest.id)
+        XCTAssertNil(QuestBlock.make(board: board, now: Self.date(14, 30), celebrating: [], showCompleted: false).surprise,
+                     "прострочене зникає без сліду")
+
+        let done = surprise("surprise.glassNow", from: Self.date(13, 30), until: Self.date(14, 30), isDone: true)
+        let doneBoard = QuestBoard(surprise: done)
+        let collapsed = QuestBlock.make(board: doneBoard, now: Self.date(15), celebrating: [], showCompleted: false)
+        XCTAssertNil(collapsed.surprise)
+        XCTAssertEqual(collapsed.completedCount, 1, "виконане — у «Виконані · N»")
+        XCTAssertEqual(QuestBlock.make(board: doneBoard, now: Self.date(15), celebrating: [done.id],
+                                       showCompleted: false).surprise?.id, done.id, "поки святкує")
+    }
+
+    /// Наперед — у контексті сповіщень і знімку віджета; після появи — лише на головному й у віджеті.
+    func testSurpriseReachesNotificationsAndWidget() {
+        let (services, clock) = services(at: Self.date(9, 0), quests: QuestForcing(surprise: ("surprise.flash", 16 * 60)))
+        let slot = services.makeNotificationContext().surprise
+        XCTAssertEqual(slot?.kind, .flash)
+        XCTAssertEqual(slot?.fireAt, Self.date(16, 0))
+        XCTAssertEqual(slot?.deadline, Self.date(16, 15))
+        XCTAssertEqual(slot?.targetMl, 150)
+        XCTAssertEqual(slot?.leftMl, 150)
+
+        let widget = services.makeWidgetSnapshot(plan: services.notifications.lastPlan).surprise
+        XCTAssertEqual(widget?.title, "Блискавка: 15 хвилин")
+        XCTAssertEqual(widget?.visibleFrom, Self.date(16, 0))
+        XCTAssertEqual(widget?.expiresAt, Self.date(16, 15))
+        XCTAssertFalse(widget!.isOpen(at: Self.date(15, 59)))
+        XCTAssertTrue(widget!.isOpen(at: Self.date(16, 1)))
+
+        clock.set(Self.date(16, 5))
+        XCTAssertNil(services.makeNotificationContext().surprise, "уже з'явилось — сповіщення не наздоганяє")
+    }
+
+    /// «Вимк» — сьогоднішнє зникає, «Несподіванка» замкнена з підписом гейта (§9.5).
+    func testSettingOffCancelsTodayAndLocksAchievement() {
+        let (services, _) = services(at: Self.date(9, 0), quests: QuestForcing(surprise: ("surprise.flash", 16 * 60)))
+        let model = NotificationsSettingsModel(services: services)
+        XCTAssertEqual(model.surprisePerWeek, 2, "типово — двічі на тиждень")
+        XCTAssertNil(services.gamification.achievementSnapshots().first { $0.key == "quest.firstSurprise" }?.lockedCaption)
+
+        model.selectSurprisePerWeek(0)
+        XCTAssertEqual(services.profile.surpriseQuestsPerWeek, 0)
+        XCTAssertNil(services.gamification.questBoard().surprise)
+        XCTAssertNil(services.makeNotificationContext().surprise)
+        XCTAssertEqual(services.gamification.achievementSnapshots().first { $0.key == "quest.firstSurprise" }?.lockedCaption,
+                       "Увімкни несподівані завдання")
+
+        model.selectSurprisePerWeek(1)
+        XCTAssertEqual(model.surprisePerWeek, 1)
+    }
 }

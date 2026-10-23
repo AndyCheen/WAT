@@ -12,6 +12,14 @@ public enum DeadlineRule: Sendable, Equatable {
     case personalGoal
     /// Кінець блоку цілі (Д7).
     case blockEnd
+    /// Z − m (Н3: норма до Z − 2 год).
+    case sleepMinus(minutes: Int)
+}
+
+/// Ціль вікна несподіваного: «склянка» — min(P, 250 мл), як у Д5 (Н1); або фіксований об'єм (Н4).
+public enum WindowTarget: Sendable, Equatable {
+    case glass
+    case fixed(Int)
 }
 
 /// Умова одного дня — спільна для щоденних, тижневих («день зараховано, якщо…») і несподіваних.
@@ -33,6 +41,8 @@ public enum DayCondition: Sendable, Equatable {
     case goal
     case halfGoal
     case anyPortion
+    /// Скільки випито у вікні [поява, кінець) несподіваного (Н1, Н4): порції до появи не рахуються (§6.4).
+    case window(WindowTarget)
 }
 
 /// Умова завдання цілком: день, дні тижня з умовою, або архівне правило шини.
@@ -52,6 +62,8 @@ public enum QuestCondition: Sendable, Equatable {
 public struct QuestParams: Sendable, Equatable {
     /// T, зафіксоване у мить видачі (щоденні). `nil` — рахувати з розкладу дня (тижневі).
     public var deadlineMinute: Int?
+    /// Початок вікна несподіваного — хвилина появи (`QuestInstance.assignedAt`).
+    public var startMinute: Int?
     /// Медіана закриття норми — опора особистого дедлайну дня, коли T не зафіксоване (Т8).
     public var goalMedianMinute: Int?
     public var blockIndex: Int?
@@ -60,9 +72,10 @@ public struct QuestParams: Sendable, Equatable {
     public var glassMl: Int
     public var unit: VolumeUnit
 
-    public init(deadlineMinute: Int? = nil, goalMedianMinute: Int? = nil, blockIndex: Int? = nil, count: Int? = nil,
-                glassMl: Int = 250, unit: VolumeUnit = .milliliters) {
+    public init(deadlineMinute: Int? = nil, startMinute: Int? = nil, goalMedianMinute: Int? = nil,
+                blockIndex: Int? = nil, count: Int? = nil, glassMl: Int = 250, unit: VolumeUnit = .milliliters) {
         self.deadlineMinute = deadlineMinute
+        self.startMinute = startMinute
         self.goalMedianMinute = goalMedianMinute
         self.blockIndex = blockIndex
         self.count = count
@@ -136,6 +149,8 @@ extension DeadlineRule {
             return QuestRules.personalGoalMinute(median: params.goalMedianMinute, sleepMinutes: day.schedule.sleepMinutes)
         case .blockEnd:
             return day.block(params.blockIndex)?.toMinute
+        case .sleepMinus(let minutes):
+            return day.schedule.sleepMinutes - minutes
         }
     }
 }
@@ -149,13 +164,13 @@ extension DayCondition {
         case .wakeGlass(let within): return day.schedule.wakeMinutes + within
         case .glasses(_, let rule): return rule?.minute(on: day, params: params)
         case .blockReached: return DeadlineRule.blockEnd.minute(on: day, params: params)
-        case .portionInEachBlock, .allBlocks, .goalAhead, .goal, .halfGoal, .anyPortion: return nil
+        case .portionInEachBlock, .allBlocks, .goalAhead, .goal, .halfGoal, .anyPortion, .window: return nil
         }
     }
 
     var hasDeadline: Bool {
         switch self {
-        case .shareBy, .wakeGlass, .blockReached: return true
+        case .shareBy, .wakeGlass, .blockReached, .window: return true
         case .glasses(_, let rule): return rule != nil
         case .portionInEachBlock, .allBlocks, .goalAhead, .goal, .halfGoal, .anyPortion: return false
         }
@@ -197,13 +212,22 @@ extension DayCondition {
             return .volume(day.totalMl, QuestRules.shownMl(Double(day.goalMl) / 2, unit: params.unit))
         case .anyPortion:
             return .count(day.isActive ? 1 : 0, 1)
+        case .window(let target):
+            let ml: Int
+            switch target {
+            case .glass: ml = min(params.glassMl, QuestRules.wakeGlassCapMl)
+            case .fixed(let fixed): ml = fixed
+            }
+            let start = params.startMinute ?? 0
+            let drunk = day.portions.reduce(0) { $1.minute >= start && $1.minute < deadline ? $0 + $1.ml : $0 }
+            return .volume(drunk, QuestRules.shownMl(Double(ml), unit: params.unit))
         }
     }
 
     /// Чи рахується прогрес у мілілітрах — для підпису «ще N мл».
     var measuresVolume: Bool {
         switch self {
-        case .shareBy, .wakeGlass, .blockReached, .goalAhead, .goal, .halfGoal: return true
+        case .shareBy, .wakeGlass, .blockReached, .goalAhead, .goal, .halfGoal, .window: return true
         case .glasses, .portionInEachBlock, .allBlocks, .anyPortion: return false
         }
     }

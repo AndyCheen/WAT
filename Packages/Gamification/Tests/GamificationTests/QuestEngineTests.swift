@@ -108,4 +108,116 @@ final class QuestEngineTests: XCTestCase {
         XCTAssertEqual(forcing?.weekly.map(\.count), [5, nil])
         XCTAssertNil(QuestForcing(argument: "daily:nope"))
     }
+
+    // MARK: - Несподівані (SPEC-QUESTS §6, WAT-65)
+
+    private func surpriseEnv(_ key: String, at minute: Int, hour: Int = 8) -> GameEnv {
+        GameEnv(day: 18, hour: hour, quests: QuestForcing(surprise: (key, minute)))
+    }
+
+    private func surpriseInstance(_ env: GameEnv) -> QuestInstance? {
+        env.store.quests(scope: .adhoc, periodKey: "adhoc:2026-07-18").first
+    }
+
+    /// ⚡ саме за завдання: рівні, підняті досягненнями, дають свої призи.
+    private func boosts(_ env: GameEnv) -> Int {
+        env.store.rewardItems(defKey: RewardCatalog.boostKey).filter { $0.source == .quest }.count
+    }
+
+    func testSurpriseIsInvisibleUntilItAppears() {
+        let env = surpriseEnv("surprise.flash", at: 16 * 60)
+        let surprise = env.game.questBoard().surprise
+        XCTAssertEqual(surprise?.visibleFrom, GameEnv.date(day: 18, hour: 16))
+        XCTAssertEqual(surprise?.deadline, GameEnv.date(day: 18, hour: 16, minute: 15))
+        XCTAssertFalse(surprise!.isVisible(at: env.clock.now), "у дошці наперед — для таймлайна й сповіщення")
+        XCTAssertTrue(surprise!.isVisible(at: GameEnv.date(day: 18, hour: 16, minute: 1)))
+        XCTAssertFalse(surprise!.isVisible(at: GameEnv.date(day: 18, hour: 16, minute: 15)))
+        XCTAssertTrue(env.game.dailyQuests().isEmpty, "несподіване — не щоденне")
+        XCTAssertEqual(surprise?.rewardXp, 25)
+        XCTAssertEqual(surprise?.kind, .volume)
+        XCTAssertEqual(surprise?.progress, 0, "до появи прогрес не рахується")
+    }
+
+    func testPortionsBeforeAppearanceDoNotCount() {
+        let env = surpriseEnv("surprise.flash", at: 16 * 60)
+        env.clock.set(GameEnv.date(day: 18, hour: 15, minute: 50))
+        env.addIntake(250, hour: 15, minute: 50)
+        XCTAssertEqual(surpriseInstance(env)?.state, .active, "норму не закрито — не скасовується")
+
+        env.clock.set(GameEnv.date(day: 18, hour: 16, minute: 5))
+        env.addIntake(100, hour: 16, minute: 5)
+        XCTAssertEqual(env.game.questBoard().surprise?.progress, 100, "порція о 15:50 — до появи")
+        XCTAssertFalse(env.game.questBoard().surprise!.isDone)
+
+        env.addIntake(50, hour: 16, minute: 6)
+        let done = env.game.questBoard().surprise!
+        XCTAssertTrue(done.isDone)
+        XCTAssertEqual(env.metrics.events(.surpriseQuestCompleted).count, 1)
+        XCTAssertEqual(boosts(env), 1, "⚡ у призах")
+        XCTAssertTrue(env.isUnlocked("quest.firstSurprise"), "«Несподіванка»")
+        XCTAssertEqual(env.store.xpEntries(refId: done.id).first?.amount, 25)
+    }
+
+    func testCancelledBeforeAppearanceByClosedGoal() {
+        let env = surpriseEnv("surprise.flash", at: 16 * 60)
+        env.clock.set(GameEnv.date(day: 18, hour: 12))
+        env.drink(2000, on: "2026-07-18", hour: 12)
+        XCTAssertEqual(surpriseInstance(env)?.state, .cancelled, "скасоване — не проігнороване (§6.4)")
+        XCTAssertNil(env.game.questBoard().surprise)
+    }
+
+    /// Н1: частина вже йде за темпом — випито в блоці не менше, ніж крива чекає до появи.
+    func testGlassNowCancelledWhenBlockIsOnPace() {
+        let env = surpriseEnv("surprise.glassNow", at: 13 * 60 + 30)
+        let block = env.game.questBoard().surprise!.blockIndex!
+        let from = env.profiles.profile().schedule(isWeekend: true).curve(goalMl: 2000).goalBlocks()[block].fromMinute
+        env.clock.set(GameEnv.date(day: 18, hour: 13, minute: 25))
+        env.addIntake(50, hour: from / 60, minute: from % 60 + 5)
+        XCTAssertEqual(surpriseInstance(env)?.state, .active, "50 мл — ще позаду кривої")
+        env.addIntake(400, hour: 13, minute: 25)
+        XCTAssertEqual(surpriseInstance(env)?.state, .cancelled)
+    }
+
+    func testExpiredIsIgnoredAndHidden() {
+        let env = surpriseEnv("surprise.flash", at: 16 * 60)
+        env.clock.set(GameEnv.date(day: 18, hour: 16, minute: 20))
+        env.game.refresh(at: env.clock.now)
+        XCTAssertEqual(surpriseInstance(env)?.state, .expired)
+        XCTAssertNil(env.game.questBoard().surprise)
+        XCTAssertEqual(boosts(env), 0)
+    }
+
+    /// ⚡ один на інстанс навіть після «відкат → знову виконано»; XP і подія відкочуються, приз — ні (§6.5).
+    func testBoostOncePerInstanceAcrossUndo() {
+        let env = surpriseEnv("surprise.flash", at: 16 * 60)
+        env.clock.set(GameEnv.date(day: 18, hour: 16, minute: 5))
+        let glass = env.addIntake(250, hour: 16, minute: 5)
+        let id = surpriseInstance(env)!.id
+        XCTAssertEqual(boosts(env), 1)
+
+        env.removeIntake(glass)
+        XCTAssertEqual(surpriseInstance(env)?.state, .active)
+        XCTAssertTrue(env.store.xpEntries(refId: id).allSatisfy { $0.revertedAt != nil }, "XP за завдання відкочено")
+        XCTAssertTrue(env.metrics.events(.surpriseQuestCompleted).isEmpty, "подію шини теж")
+        XCTAssertEqual(boosts(env), 1, "виданий приз не відкликається")
+
+        env.restoreIntake(glass)
+        XCTAssertTrue(env.game.questBoard().surprise!.isDone)
+        XCTAssertEqual(boosts(env), 1, "і вдруге не видається")
+    }
+
+    func testNoSurpriseUnderForcingWithoutIt() {
+        let env = GameEnv(day: 18, hour: 8, quests: QuestForcing(daily: ["daily.glasses"]))
+        XCTAssertNil(env.game.questBoard().surprise)
+        XCTAssertTrue(env.store.quests(scope: .adhoc, periodKey: nil).isEmpty)
+    }
+
+    func testSurpriseForcingArgument() {
+        let forcing = QuestForcing(argument: "surprise:surprise.glassNow@13:30")
+        XCTAssertEqual(forcing?.surprise?.key, "surprise.glassNow")
+        XCTAssertEqual(forcing?.surprise?.minute, 13 * 60 + 30)
+        XCTAssertTrue(forcing?.daily.isEmpty ?? false)
+        XCTAssertNil(QuestForcing(argument: "surprise:daily.glasses@13:30"), "лише несподівані")
+        XCTAssertNil(QuestForcing(argument: "surprise:surprise.flash"), "без хвилини")
+    }
 }

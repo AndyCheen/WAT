@@ -40,6 +40,8 @@ enum AppContainer {
         )
         // До `bootstrap()`: завдання видаються першою ж подією дня — стартовим перерахунком.
         services.gamification.questForcing = launch.quests
+        // Демо-історія старша за 8 днів — несподіване від пікера перекрило б чужі сценарії. Лише `--quests surprise:…`.
+        services.gamification.surprisesEnabled = !launch.isUITest
         services.bootstrap()
         if launch.seedsDemoData {
             FixtureSeeder.seed(into: services)

@@ -11,7 +11,8 @@ extension GamificationService {
         quests.ensureInstances(
             day: day, at: date,
             daily: { [unowned self] in self.dailyPickInput(day: day, at: date) },
-            weekly: { [unowned self] in self.weeklyPickInput(day: day) }
+            weekly: { [unowned self] in self.weeklyPickInput(day: day) },
+            surprise: { [unowned self] in self.surprisePickInput(day: day, at: date) }
         )
         return quests.evaluate(at: date, now: max(date, calendar.now), inputs: questInputs(at: date),
                                triggerRef: triggerRef)
@@ -34,6 +35,20 @@ extension GamificationService {
     public var questForcing: QuestForcing? {
         get { quests.forcing }
         set { quests.forcing = newValue }
+    }
+
+    /// «Несподівані завдання» — 0, 1 чи 2 на тиждень (SPEC-QUESTS §9.5). Вимкнено — сьогоднішнє невиконане
+    /// скасовується, і досягнення «Несподіванка» показує підпис гейта.
+    public func setSurpriseQuestsPerWeek(_ count: Int) {
+        profile.surpriseQuestsPerWeek = min(max(count, 0), 2)
+        profiles.save()
+        if count == 0 { quests.cancelSurprise(day: calendar.today) }
+    }
+
+    /// Несподівані від пікера (`QuestEngine.surprisesEnabled`): під `--uitest-*` вимкнено.
+    public var surprisesEnabled: Bool {
+        get { quests.surprisesEnabled }
+        set { quests.surprisesEnabled = newValue }
     }
 
     // MARK: - Дні
@@ -118,6 +133,25 @@ extension GamificationService {
         )
     }
 
+    /// Входи `SurprisePicker` (QUESTS-PLAN §3.4) — лише на сьогодні: несподіване планується в першу дію дня, а подія
+    /// з минулого дня (повернута порція) його не планує.
+    func surprisePickInput(day: DayKey, at date: Date) -> SurprisePickInput? {
+        guard day == calendar.today, calendar.dayKey(for: date) == day else { return nil }
+        let today = questDay(day)
+        let from = calendar.dayKey(offsetDays: -SurpriseRules.historyDays, from: day)
+        let history = store.quests(scope: .adhoc, periodKey: nil).compactMap { instance -> SurpriseRecord? in
+            guard let instanceDay = QuestEngine.day(of: instance), instanceDay >= from, instanceDay < day else { return nil }
+            return SurpriseRecord(day: instanceDay, key: instance.defKey, state: instance.state,
+                                  blockIndex: instance.blockIndex)
+        }
+        return SurprisePickInput(
+            day: day, week: calendar.weekKey(for: date), dayNumber: questDayNumber(day), seed: mysterySeed,
+            perWeek: profile.surpriseQuestsPerWeek, dayRhythm: profile.dayRhythmEnabled, schedule: today.schedule,
+            goalMl: today.goalMl, issueMinute: calendar.minuteOfDay(date), goalMetToday: today.goalMet,
+            history: history, signals: surpriseSignals(), quietMinutes: quietMinutes(day), rules: xp.rules
+        )
+    }
+
     // MARK: - Нагорода
 
     /// XP — з інстансу (зафіксований при видачі, §8), у архівних — з визначення. Буст і загальний множник —
@@ -136,6 +170,14 @@ extension GamificationService {
                     name: .weeklyQuestCompleted, value: 1, occurredAt: date, sourceRef: quest.id,
                     payload: ["key": quest.defKey]
                 ))
+            }
+            if definition.scope == .adhoc {
+                metrics.record(MetricEvent(
+                    name: .surpriseQuestCompleted, value: 1, occurredAt: date, sourceRef: quest.id,
+                    payload: ["key": quest.defKey]
+                ))
+                // ⚡ один на інстанс: «відкат → знову виконано» другого не дає, а виданий приз не відкликається (§6.5).
+                grantPrize(key: RewardCatalog.boostKey, source: .quest, ref: quest.id, at: date)
             }
         }
     }

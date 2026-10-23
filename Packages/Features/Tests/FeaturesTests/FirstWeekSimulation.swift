@@ -100,6 +100,8 @@ final class FirstWeekSimulation {
         /// Ключі щоденних, виданих за день, і найбільше рядків «Сьогодні» на головному за раз (SPEC-QUESTS §10).
         var dailyKeys: Set<String> = []
         var maxDailyRows = 0
+        /// Несподівані, видані за день (SPEC-QUESTS §6.1: не раніше 8-го дня людини).
+        var surprises: Set<String> = []
         var xp = 0
     }
 
@@ -463,6 +465,7 @@ final class FirstWeekSimulation {
         }
         lastQuestsDone.formUnion(done)
         days[index].dailyKeys.formUnion(services.gamification.questBoard().daily.map(\.key))
+        if let surprise = services.gamification.questBoard().surprise { days[index].surprises.insert(surprise.key) }
         days[index].maxDailyRows = max(days[index].maxDailyRows, model.questBlock().today?.rows.count ?? 0)
 
         let dots = currentDots()

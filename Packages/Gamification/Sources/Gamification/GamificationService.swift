@@ -38,6 +38,11 @@ public final class GamificationService: MetricsSubscriber {
     /// Нагадування справді приходять: головний вимикач, дозвіл і самі нагадування увімкнено. Ставить `AppServices`.
     /// Без цього не видається «Норма без нагадувань» (SPEC-QUESTS §3.1).
     public var remindersActive: () -> Bool = { false }
+    /// Сигнали прогалин для несподіваних (SPEC-QUESTS §6.2) — `Insights` до вчора включно. Ставить `AppServices`:
+    /// звідси `Insights` не видно. Кличеться раз на день, у першу дію.
+    public var surpriseSignals: () -> SurpriseSignals = { .none }
+    /// Увімкнені тихі періоди дня в хвилинах доби — несподіване в них не з'являється (§6.3). Ставить `AppServices`.
+    public var quietMinutes: (DayKey) -> [Range<Int>] = { _ in [] }
 
     /// Історія днів для правил досягнень — кеш із точковим оновленням (WAT-24).
     lazy var history = DayHistory(dayLogs: dayLogs, calendar: calendar, profile: { [unowned self] in self.profile })
@@ -185,7 +190,7 @@ public final class GamificationService: MetricsSubscriber {
                                      policy: revertPolicy)
         for quest in reopened {
             xp.revert(refId: quest.id, at: date)
-            // `quest.completed` і `quest.weeklyCompleted` — до відкату досягнень: інакше «Тижнева мета» й «Сотня
+            // `quest.completed`, `quest.weeklyCompleted` і `quest.surpriseCompleted` — до відкату досягнень: інакше «Тижнева мета» й «Сотня
             // завдань» трималися б на події завдання, якого вже немає (SPEC-QUESTS §7).
             metrics.revert(sourceRef: quest.id, at: date)
             // «Усе на сьогодні» трималось на цьому завданні.
@@ -342,11 +347,13 @@ public final class GamificationService: MetricsSubscriber {
     /// Гасить крапку «нове» на одному стосі — при відкритті його картки.
     public func markPrizesSeen(key: String) { markSeen { $0.defKey == key } }
 
-    /// Кладе приз в інвентар поза рівнями (демо-дані; у майбутньому — призи за завдання).
+    /// Кладе приз в інвентар поза рівнями: демо-дані й ⚡ за несподіване завдання. З `ref` — не вдруге: приз
+    /// за той самий інстанс завдання вже лежить в інвентарі (як подарунок за повернення).
     @discardableResult
-    public func grantPrize(key: String, source: RewardSource, at date: Date? = nil) -> RewardSnapshot? {
+    public func grantPrize(key: String, source: RewardSource, ref: UUID? = nil, at date: Date? = nil) -> RewardSnapshot? {
         guard RewardCatalog.definition(key) != nil else { return nil }
-        let item = RewardItem(defKey: key, source: source, acquiredAt: date ?? calendar.now)
+        if let ref, store.rewardItems().contains(where: { $0.acquiredByRef == ref }) { return nil }
+        let item = RewardItem(defKey: key, source: source, acquiredAt: date ?? calendar.now, acquiredByRef: ref)
         store.insertReward(item)
         store.save()
         return prizes(at: date).first { $0.id == item.id }
@@ -517,7 +524,7 @@ public final class GamificationService: MetricsSubscriber {
     /// після виконаного завдання він запускає сам. Підписка лише запустила б зайвий прохід, а з `refresh` —
     /// поставила б відкрите заднім числом у чергу тоста дії.
     private static let internalMetrics: Set<MetricKey> = [
-        .xpEarned, .levelReached, .achievementUnlocked, .questCompleted, .weeklyQuestCompleted,
+        .xpEarned, .levelReached, .achievementUnlocked, .questCompleted, .weeklyQuestCompleted, .surpriseQuestCompleted,
         .streakCurrent, .prizeActivated,
         .reminderResponded, .notificationDelivered, .notificationOpened, .notificationSnoozed
     ]

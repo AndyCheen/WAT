@@ -90,11 +90,13 @@ public enum AchievementSecrecy: Sendable, Equatable {
 public enum AchievementGate: Sendable, Equatable {
     case dayRhythm
     case notifications
+    case surpriseQuests
 
     public var caption: String {
         switch self {
         case .dayRhythm: return "Увімкни «Ритм дня» в налаштуваннях"
         case .notifications: return "Увімкни сповіщення"
+        case .surpriseQuests: return "Увімкни несподівані завдання"
         }
     }
 }
@@ -103,10 +105,13 @@ public enum AchievementGate: Sendable, Equatable {
 public struct AchievementGates: Equatable, Sendable {
     public var dayRhythm: Bool
     public var notifications: Bool
+    /// «Несподівані завдання» не вимкнено (SPEC-QUESTS §9.5).
+    public var surpriseQuests: Bool
 
-    public init(dayRhythm: Bool = true, notifications: Bool = true) {
+    public init(dayRhythm: Bool = true, notifications: Bool = true, surpriseQuests: Bool = true) {
         self.dayRhythm = dayRhythm
         self.notifications = notifications
+        self.surpriseQuests = surpriseQuests
     }
 
     public static let allOpen = AchievementGates()
@@ -116,6 +121,7 @@ public struct AchievementGates: Equatable, Sendable {
         case nil: return true
         case .dayRhythm?: return dayRhythm
         case .notifications?: return notifications
+        case .surpriseQuests?: return surpriseQuests
         }
     }
 }

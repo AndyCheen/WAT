@@ -6,6 +6,8 @@ import Foundation
 /// прийнятого чи вже показаного:
 /// - основне нагадування зсувається на +30 хв від сильнішого (якщо ще встигає до відсічки);
 /// - повторне скасовується;
+/// - несподіване завдання не зсувається ніколи: воно приходить рівно в мить появи, а в конфлікті живе
+///   лише в застосунку й віджеті (SPEC-QUESTS §6.6);
 /// - фіксовані типи (ранок, вечір, повернення) поступаються сильнішому, а показаному —
 ///   зсуваються; порятунок не скасовується ніколи;
 /// - звіт зсувається на +30 хв від будь-якого — і після відбою теж: денний звіт і так стоїть
@@ -40,7 +42,7 @@ struct ConflictResolver {
                 }
                 let canMove: Bool
                 switch current.item.priority {
-                case .reminderFollowUp: canMove = false
+                case .reminderFollowUp, .challenge: canMove = false
                 case .reminderPrimary, .rescue: canMove = true
                 default: canMove = strongerConflict == nil
                 }

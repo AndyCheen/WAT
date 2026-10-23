@@ -104,6 +104,11 @@ public enum WidgetTimeline {
                 for quest in snapshot.dailyQuests where !quest.isDone {
                     add(quest.expiresAt)
                 }
+                // Несподіване з'являється й зникає саме — без запуску застосунку.
+                if let surprise = snapshot.surprise, !surprise.isDone {
+                    add(surprise.visibleFrom)
+                    add(surprise.expiresAt)
+                }
             }
         }
 

@@ -622,6 +622,9 @@ public struct ProgressWidgetView: View {
         if content.day.questsAreCurrent {
             let quests = WidgetPresenter.quests(content.snapshot, at: content.day.date)
             VStack(alignment: .leading, spacing: 3) {
+                if let surprise = quests.surprise {
+                    SurpriseLine(surprise: surprise, now: content.day.date)
+                }
                 switch quests.today {
                 case .rows(let rows):
                     WidgetCaption(text: WidgetPresenter.questsTodayCaption)
@@ -679,6 +682,30 @@ private struct QuestNote: View {
             .font(WTFont.text(13, .heavy))
             .foregroundStyle(theme.textMuted)
             .padding(.vertical, 2)
+    }
+}
+
+/// Несподіване: ⚡, назва й живий відлік до кінця вікна (SPEC-QUESTS §9.3).
+private struct SurpriseLine: View {
+    @Environment(\.wtTheme) private var theme
+    let surprise: WidgetSnapshot.Surprise
+    let now: Date
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Text("⚡").font(.system(size: 13)).frame(width: 18, height: 18)
+            Text(surprise.title)
+                .font(WTFont.text(13, .black))
+                .foregroundStyle(theme.textPrimary)
+            Spacer(minLength: 2)
+            Text(timerInterval: now...max(surprise.expiresAt, now), countsDown: true)
+                .font(WTFont.number(13, .semibold))
+                .monospacedDigit()
+                .foregroundStyle(WTColor.orange)
+                .multilineTextAlignment(.trailing)
+                .frame(maxWidth: 52, alignment: .trailing)
+        }
+        .padding(.vertical, 2)
     }
 }
 

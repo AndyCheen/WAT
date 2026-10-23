@@ -23,6 +23,8 @@ final class CopyCatalogTests: XCTestCase {
             .replacingOccurrences(of: "{total}", with: ounces ? "170 унц." : "1,95 л")
             .replacingOccurrences(of: "{deadline}", with: ounces ? "12:00 пп" : "12:00")
             .replacingOccurrences(of: "{part}", with: "полудень")
+            .replacingOccurrences(of: "{weekday}", with: "Понеділок")
+            .replacingOccurrences(of: "{target}", with: ounces ? "170 унц." : "1,95 л")
             .replacingOccurrences(of: "{xp}", with: "20")
             .replacingOccurrences(of: "{goalDays}", with: "7")
             .replacingOccurrences(of: "{dayCount}", with: "7")

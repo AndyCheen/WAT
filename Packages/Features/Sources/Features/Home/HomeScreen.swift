@@ -2,10 +2,12 @@ import SwiftUI
 import Core
 import Persistence
 import DesignSystem
+import Gamification
 
 /// Макет 1a — головний екран.
 public struct HomeScreen: View {
     @Environment(\.wtTheme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var model: HomeViewModel
     private let services: AppServices
     private let onOpenSettings: () -> Void
@@ -248,7 +250,8 @@ public struct HomeScreen: View {
     // MARK: - Завдання
 
     /// Варіант A «Розділи» (SPEC-QUESTS §9.1). `TimelineView` лише будить екран щохвилини: рядок із минулим
-    /// дедлайном зникає й без дії, а час модель бере з `Clock`.
+    /// дедлайном зникає й без дії, а час модель бере з `Clock`. Поява й кінець несподіваного — теж на межі
+    /// хвилини (`assignedAt` і `expiresAt` цілі хвилини), тож окремого розкладу картці не треба.
     private var tasks: some View {
         TimelineView(.everyMinute) { _ in
             let block = model.questBlock()
@@ -269,6 +272,11 @@ public struct HomeScreen: View {
                     }
                     // Без нижнього відступу: підпис секції під ним і так має 14 — як у макеті, де відступи схлопуються.
 
+                    if let surprise = block.surprise {
+                        surpriseCard(surprise)
+                            .padding(.top, 10)
+                            .transition(WTSurpriseCard.appearance(reduceMotion: reduceMotion))
+                    }
                     if let today = block.today {
                         sectionLabel(QuestPresenter.todayLabel, id: "home.tasks.today")
                         section(today, emptyId: "home.tasks.allDailyDone")
@@ -281,8 +289,19 @@ public struct HomeScreen: View {
                     }
                 }
                 .padding(.bottom, 22)
+                .animation(WTAnimation.slideIn, value: block.surprise?.id)
             }
         }
+    }
+
+    private func surpriseCard(_ quest: QuestSnapshot) -> some View {
+        WTSurpriseCard(
+            kind: QuestPresenter.surpriseKind(quest), title: model.questTitle(quest), detail: model.surpriseDetail(quest),
+            reward: QuestPresenter.surpriseReward(xp: model.questXp(quest)), now: model.now, deadline: quest.deadline,
+            isDone: quest.isDone, accessibilityLabel: model.surpriseAccessibilityLabel(quest),
+            identifier: "quest.surprise", timerIdentifier: "quest.surprise.timer"
+        )
+        .wtCelebrationHold(model.isCelebrating(quest)) { model.finishQuestCelebration(quest.id) }
     }
 
     /// «СЬОГОДНІ», «ЦЬОГО ТИЖНЯ · ЩЕ 5 ДН.» — одним `Text`: ідентифікатор на `HStack` перекрив би дочірні.
