@@ -167,6 +167,8 @@ public enum WTColor {
 /// Радіуси, відступи й тіні з макетів (DESIGN-TOKENS.md §3).
 public enum WTRadius {
     public static let chip: CGFloat = 12
+    /// Чип «+N» XP у рядку завдання (SPEC-QUESTS §9.1).
+    public static let chipSmall: CGFloat = 8
     public static let control: CGFloat = 14
     public static let button: CGFloat = 18
     public static let primaryButton: CGFloat = 20
@@ -216,6 +218,10 @@ public enum WTAnimation {
     public static let press = Animation.spring(response: 0.22, dampingFraction: 0.7)
     /// поява й зникнення тоста
     public static let toast = Animation.spring(response: 0.38, dampingFraction: 0.82)
+    /// Скільки виконаний рядок завдання святкує, перш ніж згорнутися в «Виконані · N» (SPEC-QUESTS §9.2).
+    public static let celebrationHold: Duration = .milliseconds(1500)
+    /// Згортання рядка після свята — як `max-height .35s` у макеті Design/Quests.html.
+    public static let collapse = Animation.easeInOut(duration: 0.35)
 }
 
 private struct WTThemeKey: EnvironmentKey {

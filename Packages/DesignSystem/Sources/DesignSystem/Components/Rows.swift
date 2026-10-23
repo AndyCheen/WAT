@@ -1,39 +1,153 @@
 import SwiftUI
 
-/// Рядок завдання: кружок-галочка + назва + прогрес. Спільний для 1a і 3f.
+/// Рядок завдання (SPEC-QUESTS §9.1): кружок із міні-кільцем прогресу (виконане — ✓), назва, чип «+N» XP і прогрес
+/// праворуч. Без `fraction` кружок порожній, без `xp` — без чипа.
+///
+/// Свято виконаного (§9.2) — `isCelebrating`: ✓ «вистрибує», «+N XP» спливає й тане. Згортає рядок екран, коли
+/// мине `WTAnimation.celebrationHold` (`wtCelebrationHold`): що лишається у списку — вирішує модель, не рядок.
 public struct WTTaskRow: View {
     @Environment(\.wtTheme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let title: String
     private let progress: String
     private let isDone: Bool
+    private let fraction: Double?
+    private let xp: Int?
+    private let isCelebrating: Bool
+    private let accessibilityText: String?
 
-    public init(title: String, progress: String, isDone: Bool) {
+    public init(title: String, progress: String, isDone: Bool, fraction: Double? = nil, xp: Int? = nil,
+                isCelebrating: Bool = false, accessibilityLabel: String? = nil) {
         self.title = title
         self.progress = progress
         self.isDone = isDone
+        self.fraction = fraction
+        self.xp = xp
+        self.isCelebrating = isCelebrating
+        self.accessibilityText = accessibilityLabel
     }
 
     public var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                ZStack {
-                    Circle().fill(isDone ? theme.accent : theme.chip)
-                    if isDone { WTIcons.check(color: .white, size: 13) }
-                }
-                .frame(width: 26, height: 26)
+                badge
+                    .frame(width: Self.badgeSize, height: Self.badgeSize)
 
                 Text(title)
                     .font(WTFont.display(15, .semibold))
-                    .foregroundStyle(theme.textPrimary)
+                    // Виконане приглушене, але в мить свята — ще яскраве: рядок радіє, а не гасне.
+                    .foregroundStyle(isDone && !isCelebrating ? theme.textMuted : theme.textPrimary)
+                    .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
+
+                if let xp {
+                    Text("+\(xp)")
+                        .font(WTFont.text(11, .black))
+                        .foregroundStyle(theme.textButton)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(theme.chip, in: RoundedRectangle(cornerRadius: WTRadius.chipSmall, style: .continuous))
+                }
 
                 Text(progress)
                     .font(WTFont.text(12, .heavy))
                     .foregroundStyle(theme.textMuted)
+                    .lineLimit(1)
             }
             .padding(.vertical, 9)
+            .overlay(alignment: .topTrailing) { flyingXp }
 
             Rectangle().fill(theme.line).frame(height: 1)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityText ?? "\(title), \(progress)")
+    }
+
+    static let badgeSize: CGFloat = 26
+    static let ringWidth: CGFloat = 3.5
+
+    @ViewBuilder
+    private var badge: some View {
+        if isDone {
+            ZStack {
+                Circle().fill(theme.accent)
+                WTIcons.check(color: .white, size: 13)
+            }
+            // «Вистрибує» з крапки — лише коли рядок святкує, а не щоразу, як виконане показують.
+            .keyframeAnimator(initialValue: 1.0, trigger: isCelebrating) { content, scale in
+                content.scaleEffect(scale)
+            } keyframes: { _ in
+                if isCelebrating && !reduceMotion {
+                    LinearKeyframe(0.2, duration: 0.01)
+                    SpringKeyframe(1.0, duration: 0.45, spring: .bouncy)
+                } else {
+                    LinearKeyframe(1.0, duration: 0.01)
+                }
+            }
+        } else if let fraction {
+            ZStack {
+                Circle().stroke(theme.track, lineWidth: Self.ringWidth)
+                Circle()
+                    .trim(from: 0, to: max(0, min(1, fraction)))
+                    .stroke(theme.accent, style: StrokeStyle(lineWidth: Self.ringWidth, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+            }
+            .padding(Self.ringWidth / 2)
+            .animation(WTAnimation.fade, value: fraction)
+        } else {
+            Circle().fill(theme.chip)
+        }
+    }
+
+    /// «+N XP» живе в дереві завжди, прозорим: вставлений разом зі святом, він не побачив би зміни тригера й не
+    /// програвся б.
+    @ViewBuilder
+    private var flyingXp: some View {
+        if let xp {
+            Text("+\(xp) XP")
+                .font(WTFont.number(16, .semibold))
+                .foregroundStyle(theme.textButton)
+                .keyframeAnimator(initialValue: FlyingXp(), trigger: isCelebrating) { content, value in
+                    content.opacity(value.opacity).offset(y: value.offset)
+                } keyframes: { _ in
+                    KeyframeTrack(\.opacity) {
+                        if isCelebrating {
+                            LinearKeyframe(1, duration: 0.25)
+                            LinearKeyframe(1, duration: 0.35)
+                            LinearKeyframe(0, duration: 0.7)
+                        } else {
+                            LinearKeyframe(0, duration: 0.01)
+                        }
+                    }
+                    KeyframeTrack(\.offset) {
+                        if isCelebrating && !reduceMotion {
+                            LinearKeyframe(0, duration: 0.25)
+                            LinearKeyframe(-22, duration: 1.05)
+                        } else {
+                            LinearKeyframe(0, duration: 0.01)
+                        }
+                    }
+                }
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+    }
+
+    private struct FlyingXp {
+        var opacity: Double = 0
+        var offset: CGFloat = 8
+    }
+}
+
+public extension View {
+    /// Кінець свята рядка (SPEC-QUESTS §9.2): `onEnd` — через `WTAnimation.celebrationHold`, і модель згортає рядок
+    /// у «Виконані · N». Таймер — у в'ю: пішов екран — задача скасувалась, і рядок досвяткує, коли повернеться.
+    func wtCelebrationHold(_ isActive: Bool, onEnd: @escaping @MainActor () -> Void) -> some View {
+        task(id: isActive) {
+            guard isActive else { return }
+            try? await Task.sleep(for: WTAnimation.celebrationHold)
+            guard !Task.isCancelled else { return }
+            onEnd()
         }
     }
 }
@@ -341,3 +455,28 @@ public struct WTNewDot: View {
     }
 }
 
+
+// MARK: - Превʼю
+
+#Preview("Рядки завдань") {
+    VStack(spacing: 0) {
+        WTTaskRow(title: "Половина до 14:00", progress: "ще 500 мл", isDone: false, fraction: 0.5, xp: 25)
+        WTTaskRow(title: "Склянка після підйому", progress: "Готово", isDone: true, fraction: 1, xp: 15, isCelebrating: true)
+        WTTaskRow(title: "Норма 5 днів", progress: "2/5 дн.", isDone: false, fraction: 0.4, xp: 100)
+        WTTaskRow(title: "5 ранків зі склянкою", progress: "Готово", isDone: true, fraction: 1, xp: 75)
+    }
+    .padding(24)
+    .environment(\.wtTheme, .light)
+    .background(WTTheme.light.screen)
+}
+
+#Preview("Темна, найбільший шрифт") {
+    VStack(spacing: 0) {
+        WTTaskRow(title: "¾ норми до 6:30 пп", progress: "ще 1.05 л", isDone: false, fraction: 0.25, xp: 25)
+        WTTaskRow(title: "Половина норми 4 дні", progress: "1/4 дн.", isDone: false, fraction: 0.25, xp: 75)
+    }
+    .padding(24)
+    .environment(\.wtTheme, .dark)
+    .background(WTTheme.dark.screen)
+    .dynamicTypeSize(.xLarge)
+}

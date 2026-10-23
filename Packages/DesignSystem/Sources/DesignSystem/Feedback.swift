@@ -17,6 +17,9 @@ public enum WTFeedback: Equatable, Sendable {
     /// Відкрито досягнення — у мить появи вікна відкриття (SPEC-ACHIEVEMENTS §8.6). «Успіх», сильніший за
     /// закриту норму й відмінний від рівня: обидва вже `.success`, тож тут — повний важкий удар.
     case achievement
+    /// Дія виконала завдання (SPEC-QUESTS §9.2) — легкий успіх, тихіший за закриту норму: лише коли дія не дала
+    /// іншої вібрації.
+    case questDone
     /// Порцію знято.
     case remove
     /// Перемикач, вибір у сегментованому контролі.
@@ -31,6 +34,7 @@ public enum WTFeedback: Equatable, Sendable {
         case .goalReached: return .success
         case .levelUp: return .success
         case .achievement: return .impact(weight: .heavy, intensity: 1)
+        case .questDone: return .impact(flexibility: .soft, intensity: 0.8)
         case .remove: return .impact(flexibility: .rigid, intensity: 0.8)
         case .toggle: return .selection
         case .anticipation(let step):
