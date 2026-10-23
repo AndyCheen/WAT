@@ -59,6 +59,8 @@ public enum WidgetPresenter {
             case hidden
         }
 
+        /// Несподіване з живим таймером — першим рядком; тоді щоденних лише один.
+        public let surprise: WidgetSnapshot.Surprise?
         public let today: Today
         public let week: Week
     }
@@ -75,9 +77,10 @@ public enum WidgetPresenter {
         let daily = snapshot.dailyQuests.filter { $0.isVisible(at: date) }
         let expired = (snapshot.expiredDailyQuests ?? 0) + snapshot.dailyQuests.count - daily.count
         let open = daily.filter { !$0.isDone }
+        let surprise = snapshot.surprise.flatMap { $0.isOpen(at: date) ? $0 : nil }
         let today: Quests.Today
         if !open.isEmpty {
-            today = .rows(Array(open.prefix(dailyQuestRows)))
+            today = .rows(Array(open.prefix(surprise == nil ? dailyQuestRows : dailyQuestRows - 1)))
         } else if !daily.isEmpty, expired == 0 {
             today = .allDone
         } else {
@@ -92,7 +95,7 @@ public enum WidgetPresenter {
         } else {
             week = snapshot.weeklyStartsMonday == true ? .fromMonday : .hidden
         }
-        return Quests(today: today, week: week)
+        return Quests(surprise: surprise, today: today, week: week)
     }
 
     // MARK: - Сьогодні

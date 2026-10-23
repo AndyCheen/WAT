@@ -222,6 +222,8 @@ public enum WTAnimation {
     public static let celebrationHold: Duration = .milliseconds(1500)
     /// Згортання рядка після свята — як `max-height .35s` у макеті Design/Quests.html.
     public static let collapse = Animation.easeInOut(duration: 0.35)
+    /// Поява картки несподіваного — `slidein .45s cubic-bezier(.22,1.3,.36,1)`: легкий перехльост донизу.
+    public static let slideIn = Animation.spring(response: 0.45, dampingFraction: 0.72)
 }
 
 private struct WTThemeKey: EnvironmentKey {

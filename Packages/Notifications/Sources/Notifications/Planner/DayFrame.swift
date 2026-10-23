@@ -47,14 +47,8 @@ struct DayFrame {
             : at(max(wakeMinute, sleepMinute - rules.cutoffWithoutEveningMinutes))
 
         quiet = preferences.quietWindows
-            .filter { $0.applies(toWeekday: weekday) }
-            .flatMap { window -> [Range<Date>] in
-                // Період через північ (22:00–07:00) у межах доби — два шматки.
-                if window.fromMinutes < window.toMinutes {
-                    return [at(window.fromMinutes)..<at(window.toMinutes)]
-                }
-                return [at(0)..<at(window.toMinutes), at(window.fromMinutes)..<at(24 * 60)]
-            }
+            .flatMap { $0.minutes(onWeekday: weekday) }
+            .map { at($0.lowerBound)..<at($0.upperBound) }
             .filter { !$0.isEmpty }
         self.service = service
     }

@@ -102,6 +102,17 @@ public final class NotificationsSettingsModel {
         changed()
     }
 
+    // MARK: - Несподівані завдання (SPEC-QUESTS §9.5)
+
+    static let surpriseOptions = ["Вимк", "1", "2"]
+
+    /// Індекс сегмента — саме число на тиждень.
+    var surprisePerWeek: Int { min(max(profile.surpriseQuestsPerWeek, 0), Self.surpriseOptions.count - 1) }
+    func selectSurprisePerWeek(_ count: Int) {
+        services.gamification.setSurpriseQuestsPerWeek(count)
+        changed()
+    }
+
     // MARK: - Нагадування
 
     var reminderModeIndex: Int { settings.reminderMode == .pace ? 0 : 1 }

@@ -59,6 +59,7 @@ extension AppServices {
             lastComebackGiftAt: gamification.lastComebackGiftAt(),
             lastBounceBackDay: gamification.lastBounceBackDay(),
             quests: questHints(at: now),
+            surprise: surpriseSlot(at: now),
             bounceBackXp: rules.perBounceBack,
             dayPartXp: rules.perDayPartGoal,
             reports: reports,
@@ -103,6 +104,20 @@ extension AppServices {
             )
         }
         return hints
+    }
+
+    /// Несподіване, що ще з'явиться сьогодні (SPEC-QUESTS §6.6): сповіщення приходить рівно в мить появи. Ціль і
+    /// «ще скільки» двигун рахує й до появи — план припускає, що людина більше нічого не робить.
+    private func surpriseSlot(at now: Date) -> SurpriseSlot? {
+        guard let quest = gamification.questBoard(at: now).surprise, !quest.isDone,
+              let fireAt = quest.visibleFrom, fireAt > now, let deadline = quest.deadline,
+              let kind = SurpriseSlot.Kind(questKey: quest.key) else { return nil }
+        return SurpriseSlot(
+            kind: kind, fireAt: fireAt, deadline: deadline, targetMl: Int(quest.target),
+            leftMl: Int(max(0, quest.target - quest.progress)),
+            blockName: quest.blockIndex.map { QuestPresenter.blockName(index: $0, count: quest.blockCount ?? 3) },
+            weekdayIndex: quest.weekdayIndex
+        )
     }
 
     // MARK: - Відповіді (§6.4, §16.4)
@@ -161,12 +176,27 @@ extension AppServices {
         let portion = TypicalPortion.compute(makeNotificationContext().portionHistoryMl, glassMl: profile.glassMl)
         switch type {
         case .reminder, .checkpoint: router.open(.customAmount(ml: portion))
+        // Несподіване — на головний, до картки з таймером (SPEC-QUESTS §6.6).
+        case .challenge: router.open(.home)
         case .morning: router.open(.glass)
         case .rescue: router.open(.freezeCard)
         case .echo: router.open(.progress)
         // Звіт — за минулий тиждень: у демо-історії він повний (§11.3).
         case .report: router.open(.report([calendar.period(.week, containing: calendar.dayKey(offsetDays: -7, from: calendar.today))]))
         default: router.open(.home)
+        }
+    }
+}
+
+extension SurpriseSlot.Kind {
+    /// Ключ каталогу завдань → вид для тексту. Ключі не міняються (SPEC-QUESTS §3), тож зіставлення стабільне.
+    init?(questKey: String) {
+        switch questKey {
+        case "surprise.glassNow": self = .glassNow
+        case "surprise.closeBlock": self = .closeBlock
+        case "surprise.weekday": self = .weekday
+        case "surprise.flash": self = .flash
+        default: return nil
         }
     }
 }

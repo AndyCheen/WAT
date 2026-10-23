@@ -695,13 +695,21 @@ public final class HomeViewModel {
     }
 
     func questTitle(_ quest: QuestSnapshot) -> String { QuestPresenter.title(quest, unit: volumeUnit, format: timeFormat) }
+    func surpriseDetail(_ quest: QuestSnapshot) -> String {
+        QuestPresenter.surpriseDetail(quest, unit: volumeUnit, format: timeFormat)
+    }
+    func surpriseAccessibilityLabel(_ quest: QuestSnapshot) -> String {
+        QuestPresenter.surpriseAccessibilityLabel(quest, xp: questXp(quest), unit: volumeUnit, format: timeFormat)
+    }
+    /// Початок відліку картки — від `Clock`, як і решта часу екрана.
+    var now: Date { services.calendar.now }
     func questProgress(_ quest: QuestSnapshot) -> String { QuestPresenter.progressLabel(quest, unit: volumeUnit) }
     func questAccessibilityLabel(_ quest: QuestSnapshot) -> String {
         QuestPresenter.accessibilityLabel(quest, xp: questXp(quest), unit: volumeUnit, format: timeFormat)
     }
 
     private var doneQuestIds: Set<UUID> {
-        Set((questBoard.daily + questBoard.weekly).filter(\.isDone).map(\.id))
+        Set((questBoard.daily + questBoard.weekly + [questBoard.surprise].compactMap { $0 }).filter(\.isDone).map(\.id))
     }
 
     private func celebrateQuests(_ ids: Set<UUID>) {

@@ -136,6 +136,15 @@ public final class QuestEngine {
         store.save()
     }
 
+    /// «Несподівані завдання» вимкнули — сьогоднішнє, що ще не виконане, зникає (SPEC-QUESTS §9.5). Скасоване, а не
+    /// прострочене: людина його не ігнорувала.
+    func cancelSurprise(day: DayKey) {
+        let active = instances(periodKey: Self.surprisePeriodKey(day)).filter { $0.state == .active }
+        guard !active.isEmpty else { return }
+        for instance in active { instance.state = .cancelled }
+        store.save()
+    }
+
     /// Несподіване — свій період на день: у списку щоденних воно зіпсувало б «усі щоденні виконано» й «не вчорашнє».
     public static func surprisePeriodKey(_ day: DayKey) -> String { "adhoc:\(day.rawValue)" }
 
@@ -175,11 +184,14 @@ public final class QuestEngine {
         var changed = false
         for instance in instances(at: date) where instance.state == .active || instance.isDone {
             guard let definition = QuestCatalog.definition(instance.defKey) else { continue }
-            // Несподіване до появи не виконується — лише скасовується (§6.4): порції до появи не рахуються.
+            // Несподіване до появи не виконується — лише скасовується (§6.4). Прогрес пишеться й тоді: ціль і «ще
+            // скільки» потрібні тексту сповіщення, що прийде в мить появи.
             if definition.scope == .adhoc, instance.state == .active, now < instance.assignedAt {
                 if isCancelled(instance, inputs: inputs) {
                     instance.state = .cancelled
                     changed = true
+                } else {
+                    changed = apply(progress(instance, definition, at: date, inputs: inputs), to: instance) || changed
                 }
                 continue
             }

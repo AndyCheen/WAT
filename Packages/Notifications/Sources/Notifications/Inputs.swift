@@ -22,6 +22,16 @@ public struct QuietWindow: Sendable, Equatable {
     public func applies(toWeekday index: Int) -> Bool {
         weekdayMask & (1 << index) != 0
     }
+
+    /// Хвилини доби, які період закриває в цей день тижня. Період через північ (22:00–07:00) — два шматки в межах
+    /// доби. Одне правило для плану сповіщень і несподіваних завдань (SPEC-QUESTS §6.3).
+    public func minutes(onWeekday index: Int) -> [Range<Int>] {
+        guard applies(toWeekday: index) else { return [] }
+        let ranges = fromMinutes < toMinutes
+            ? [fromMinutes..<toMinutes]
+            : [0..<toMinutes, fromMinutes..<(24 * 60)]
+        return ranges.filter { !$0.isEmpty }
+    }
 }
 
 public enum ReminderCadence: Sendable, Equatable {

@@ -128,6 +128,20 @@ public final class AppServices {
             notifications.authorization == .authorized && profiles.profile().notificationsEnabled
                 && notifications.settings.remindersEnabled
         }
+        // Несподівані (SPEC-QUESTS §6.2–6.3): сигнали з `Insights` і тихі періоди — звідси, бо `Gamification` не бачить
+        // ні того, ні іншого. Без кешу: пікер кличе їх лише раз на день — у першу дію, коли видає щоденні.
+        let insights = self.insights
+        gamification.surpriseSignals = {
+            let yesterday = calendar.dayKey(offsetDays: -1, from: calendar.today)
+            return SurpriseSignals(
+                weakPartKey: insights.weakDayPart(days: calendar.recentDays(14, endingAt: yesterday))?.key,
+                weakWeekday: insights.weakWeekday(days: calendar.recentDays(ReportRules.weakWeekdayDays,
+                                                                            endingAt: yesterday))?.index
+            )
+        }
+        gamification.quietMinutes = { day in
+            notifications.preferences().quietWindows.flatMap { $0.minutes(onWeekday: day.weekdayIndex) }
+        }
     }
 
     /// Перший запуск: профіль, норма, пресети, підписка гейміфікації й сповіщень.

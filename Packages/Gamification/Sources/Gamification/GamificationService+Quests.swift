@@ -37,6 +37,14 @@ extension GamificationService {
         set { quests.forcing = newValue }
     }
 
+    /// «Несподівані завдання» — 0, 1 чи 2 на тиждень (SPEC-QUESTS §9.5). Вимкнено — сьогоднішнє невиконане
+    /// скасовується, і досягнення «Несподіванка» показує підпис гейта.
+    public func setSurpriseQuestsPerWeek(_ count: Int) {
+        profile.surpriseQuestsPerWeek = min(max(count, 0), 2)
+        profiles.save()
+        if count == 0 { quests.cancelSurprise(day: calendar.today) }
+    }
+
     /// Несподівані від пікера (`QuestEngine.surprisesEnabled`): під `--uitest-*` вимкнено.
     public var surprisesEnabled: Bool {
         get { quests.surprisesEnabled }

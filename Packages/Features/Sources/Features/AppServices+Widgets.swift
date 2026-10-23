@@ -171,6 +171,13 @@ extension AppServices {
             dailyQuests: quests.daily.map(quest),
             weeklyQuests: quests.weekly.map(quest),
             weeklyStartsMonday: quests.weeklyStartsMonday, expiredDailyQuests: quests.expiredDaily,
+            surprise: quests.surprise.flatMap { surprise in
+                guard let visibleFrom = surprise.visibleFrom, let expiresAt = surprise.deadline else { return nil }
+                return WidgetSnapshot.Surprise(
+                    title: QuestPresenter.title(surprise, unit: profile.volumeUnit, format: profile.timeFormat),
+                    visibleFrom: visibleFrom, expiresAt: expiresAt, isDone: surprise.isDone
+                )
+            },
             dayPartXp: Int(Double(gamification.xp.rules.perDayPartGoal) * gamification.xp.boostMultiplier(at: now)),
             reserve: reserve, lastAction: lastAction
         )

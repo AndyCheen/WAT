@@ -47,6 +47,7 @@ enum QuestPresenter {
             case .count(let noun): return count(quest.count ?? 0, noun)
             case .volume(let ml): return unit.label(ml)
             case .block: return blockName(index: quest.blockIndex ?? 0, count: quest.blockCount ?? 3)
+            case .weekday: return quest.weekdayIndex.map { CalendarService.weekdayNames[min(max($0, 0), 6)] } ?? ""
             }
         }.joined()
     }
@@ -73,6 +74,32 @@ enum QuestPresenter {
         case .perfectDays: word = Plural.uk(n, one: "ідеальний день", few: "ідеальні дні", many: "ідеальних днів")
         }
         return "\(n) \(word)"
+    }
+
+    // MARK: - Несподіване (§9.1)
+
+    static let surpriseDone = "Готово · ⚡ у призах"
+
+    /// Позначка виду над назвою — «Блискавка» окремо: це азарт, а не латка прогалини.
+    static func surpriseKind(_ quest: QuestSnapshot) -> String { quest.isFlash ? "БЛИСКАВКА" : "НЕСПОДІВАНЕ" }
+
+    /// «250 мл до 14:30 · ще 250 мл»; виконане — «Готово · ⚡ у призах».
+    static func surpriseDetail(_ quest: QuestSnapshot, unit: VolumeUnit = .milliliters,
+                               format: TimeFormat = .hours24) -> String {
+        if quest.isDone { return surpriseDone }
+        let deadline = quest.deadlineMinute.map(format.clock) ?? ""
+        return "\(unit.label(Int(quest.target))) до \(deadline) · \(progressLabel(quest, unit: unit))"
+    }
+
+    /// «+25 XP · ⚡» — XP з бустом і загальним множником, як у рядків.
+    static func surpriseReward(xp: Int) -> String { "+\(xp) XP · ⚡" }
+
+    /// VoiceOver картки: таймер читається окремо, тож тут — що зробити й що за це.
+    static func surpriseAccessibilityLabel(_ quest: QuestSnapshot, xp: Int, unit: VolumeUnit = .milliliters,
+                                           format: TimeFormat = .hours24) -> String {
+        let kind = quest.isFlash ? "Блискавка" : "Несподіване завдання"
+        return "\(kind): \(title(quest, unit: unit, format: format)), \(surpriseDetail(quest, unit: unit, format: format)), "
+            + "\(xp) XP і приз «Подвійний XP»"
     }
 
     /// Блок цілі — за місцем у дні, а не за `DayPart`: блок «ранок і полудень» людині — просто ранок.

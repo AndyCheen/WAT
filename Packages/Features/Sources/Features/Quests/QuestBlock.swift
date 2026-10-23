@@ -11,6 +11,8 @@ struct QuestBlock: Equatable {
         var empty: String?
     }
 
+    /// Несподіване над «СЬОГОДНІ» — з хвилини появи до кінця вікна; виконане — поки святкує чи розгорнуто «Виконані».
+    var surprise: QuestSnapshot?
     /// `nil` — секції «Сьогодні» немає: щоденних ще не видано або вони зникли за дедлайном, хоч одне не виконано.
     /// «Провалено» не кажемо, виконане лежить у «Виконані · N».
     var today: Section?
@@ -20,9 +22,9 @@ struct QuestBlock: Equatable {
     var completedCount: Int
 
     /// Без жодного рядка й без виконаних блоку немає зовсім, разом із заголовком.
-    var isEmpty: Bool { today == nil && week == nil && completedCount == 0 }
+    var isEmpty: Bool { surprise == nil && today == nil && week == nil && completedCount == 0 }
 
-    static let empty = QuestBlock(today: nil, week: nil, weekDaysLeft: nil, completedCount: 0)
+    static let empty = QuestBlock(surprise: nil, today: nil, week: nil, weekDaysLeft: nil, completedCount: 0)
 
     /// - Parameters:
     ///   - now: дошку зібрано в `reload()`, а дедлайн може минути, поки екран відкритий, — тож живі рядки
@@ -52,10 +54,15 @@ struct QuestBlock: Equatable {
             week = Section(rows: rows, empty: rows.isEmpty ? QuestPresenter.weekClosed : nil)
         }
 
+        // Несподіване до появи не видно, прострочене зникає без сліду (§6.4) — так само без дії, з `TimelineView`.
+        let surprise = board.surprise.flatMap { $0.isVisible(at: now) ? $0 : nil }
+
         return QuestBlock(
+            surprise: surprise.flatMap { visible($0) ? $0 : nil },
             today: today, week: week,
             weekDaysLeft: board.weekly.isEmpty ? nil : board.weekDaysLeft,
             completedCount: daily.filter(\.isDone).count + board.weekly.filter(\.isDone).count
+                + (surprise?.isDone == true ? 1 : 0)
         )
     }
 }
