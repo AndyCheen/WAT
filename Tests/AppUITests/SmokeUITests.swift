@@ -162,6 +162,37 @@ final class SmokeUITests: XCTestCase {
         XCTAssertFalse(app.buttons["home.tasks.toggleCompleted"].exists, "прострочене не стає «виконаним»")
     }
 
+    /// Несподіване (SPEC-QUESTS §9.1): картка з живим таймером над «Сьогодні»; порція закриває його — «Готово · ⚡ у
+    /// призах», а ⚡ справді лежить у «Призах». Повз пікер: `--quests surprise:…`, без нього під `--uitest-*` їх немає.
+    func testSurpriseCardCompletesAndGrantsBoost() {
+        let app = launch(["--uitest-empty", "--quests", "surprise:surprise.glassNow@13:30",
+                          "--uitest-now", "2026-10-01T13:35:00+03:00"])
+        XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
+
+        let card = app.descendants(matching: .any)["quest.surprise"]
+        XCTAssertTrue(card.waitForExistence(timeout: 5), "з'явилось о 13:30")
+        XCTAssertTrue(card.isHittable, "картку видно, а не лише є в дереві")
+        XCTAssertTrue(card.label.hasPrefix("Несподіване завдання: Склянка зараз"), card.label)
+        XCTAssertTrue(app.staticTexts["quest.surprise.timer"].exists, "живий відлік")
+
+        app.buttons["home.add.500"].tap()
+        // «Перша крапля» й «Несподіванка» — вікно на весь екран; картка святкує після нього й згортається.
+        let pages = dismissCelebrationIfPresent(app)
+        XCTAssertTrue(pages.contains { $0.contains("Несподіванка") }, "\(pages)")
+        XCTAssertTrue(card.waitForNonExistence(timeout: 5), "виконане — у «Виконані · N»")
+        let toggle = app.buttons["home.tasks.toggleCompleted"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        toggle.tap()
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        XCTAssertTrue(card.label.contains("Готово · ⚡ у призах"), card.label)
+
+        app.buttons["home.level"].tap()
+        let boost = app.buttons["progress.prizes.row.xp.double"]
+        XCTAssertTrue(app.staticTexts["РІВЕНЬ"].waitForExistence(timeout: 10))
+        for _ in 0..<6 where !(boost.exists && boost.isHittable) { app.swipeUp() }
+        XCTAssertTrue(boost.isHittable, "⚡ за несподіване — у призах")
+    }
+
     func testUndoRemovesIntakeAndRollsBackProgress() {
         let app = launch(["--uitest-empty"])
         let percent = app.staticTexts["home.percent"]
@@ -312,7 +343,7 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(tiles(app).firstMatch.exists)
     }
 
-    /// Плитки сітки 2e. Сітка лінива, а досягнень 101: шукати конкретну плитку без фільтра — гадати, чи вона
+    /// Плитки сітки 2e. Сітка лінива, а досягнень 102: шукати конкретну плитку без фільтра — гадати, чи вона
     /// вже на екрані.
     private func tiles(_ app: XCUIApplication, _ predicate: String = "TRUEPREDICATE") -> XCUIElementQuery {
         app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'achievements.tile.' AND (\(predicate))"))
@@ -410,7 +441,7 @@ final class SmokeUITests: XCTestCase {
         let app = launch(["--uitest-empty", "--notifications-auth", "notDetermined", "--start-screen", "achievements"])
         let counter = app.otherElements["achievements.counter"]
         XCTAssertTrue(counter.waitForExistence(timeout: 20))
-        XCTAssertEqual(counter.value as? String, "0 з 101 відкрито", "пасхалки невидимі й у лічильнику")
+        XCTAssertEqual(counter.value as? String, "0 з 102 відкрито", "пасхалки невидимі й у лічильнику")
 
         selectCategory(app, "stats")
         let tile = app.buttons["achievements.tile.stats.bullseye"]
@@ -496,7 +527,7 @@ final class SmokeUITests: XCTestCase {
 
         let counter = app.otherElements["achievements.counter"]
         XCTAssertTrue(counter.waitForExistence(timeout: 5))
-        XCTAssertEqual(counter.value as? String, "1 з 101 відкрито, пасхалок знайдено: 1",
+        XCTAssertEqual(counter.value as? String, "1 з 102 відкрито, пасхалок знайдено: 1",
                        "«Темна сторона» — у лічильнику, пасхалка — окремо")
         let tile = app.buttons["achievements.tile.egg.disco"]
         XCTAssertTrue(tile.waitForExistence(timeout: 5))

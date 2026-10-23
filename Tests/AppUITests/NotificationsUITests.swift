@@ -100,6 +100,17 @@ final class NotificationsUITests: XCTestCase {
         XCTAssertTrue(app.buttons["notifications.denied.action"].isHittable)
     }
 
+    /// Тап по несподіваному — головний з карткою (SPEC-QUESTS §6.6).
+    func testChallengeTapOpensHomeWithSurpriseCard() {
+        let app = launch(["--uitest-empty", "--quests", "surprise:surprise.flash@16:00",
+                          "--uitest-now", "2026-10-01T16:02:00+03:00", "--notification-tap", "challenge"])
+        XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
+        let card = app.descendants(matching: .any)["quest.surprise"]
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        XCTAssertTrue(card.isHittable)
+        XCTAssertTrue(card.label.hasPrefix("Несподіване завдання: Блискавка: 15 хвилин"), card.label)
+    }
+
     /// Тап по нагадуванню — головний зі шторкою «Інше» на типову порцію (§6.4).
     func testReminderTapOpensCustomAmountWithTypicalPortion() {
         let app = launch(["--uitest-empty", "--notification-tap", "reminder"])

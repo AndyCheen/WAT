@@ -97,8 +97,8 @@ enum QuestPresenter {
     /// VoiceOver картки: таймер читається окремо, тож тут — що зробити й що за це.
     static func surpriseAccessibilityLabel(_ quest: QuestSnapshot, xp: Int, unit: VolumeUnit = .milliliters,
                                            format: TimeFormat = .hours24) -> String {
-        let kind = quest.isFlash ? "Блискавка" : "Несподіване завдання"
-        return "\(kind): \(title(quest, unit: unit, format: format)), \(surpriseDetail(quest, unit: unit, format: format)), "
+        // Вид не називаємо окремо: «Блискавка» вже в назві Н4.
+        return "Несподіване завдання: \(title(quest, unit: unit, format: format)), \(surpriseDetail(quest, unit: unit, format: format)), "
             + "\(xp) XP і приз «Подвійний XP»"
     }
 
