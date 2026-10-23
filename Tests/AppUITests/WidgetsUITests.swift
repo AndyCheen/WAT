@@ -32,6 +32,20 @@ final class WidgetsUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Почни зі склянки"].exists)
     }
 
+    /// «Прогрес» (SPEC-QUESTS §9.3): права половина — невиконані щоденні й тижневе; веде на головний.
+    func testProgressWidgetShowsQuests() {
+        let app = launch(["--uitest-empty", "--start-screen", "widgets",
+                          "--quests", "daily:daily.wakeGlass,daily.glasses;weekly:weekly.goalDays=3"] + Self.noon)
+        XCTAssertTrue(app.staticTexts["widgetGallery.title.progress"].waitForExistence(timeout: 15))
+        let quests = app.descendants(matching: .any)["widget.progress.quests"]
+        XCTAssertTrue(quests.waitForExistence(timeout: 5))
+        XCTAssertTrue(quests.label.contains("5 склянок від 150 мл"), quests.label)
+        XCTAssertTrue(quests.label.contains("ЦЬОГО ТИЖНЯ"), quests.label)
+        XCTAssertTrue(quests.label.contains("Норма 3 дні"), quests.label)
+        XCTAssertFalse(quests.label.contains("Склянка після підйому"), "дедлайн о 09:00 — опівдні рядка немає")
+        XCTAssertTrue(app.descendants(matching: .any)["widget.progress.level"].exists, "ліва половина — окреме посилання")
+    }
+
     /// Тап по кнопці віджета: порція без відкриття шторок, на місці кнопок — «Скасувати»; скасування
     /// прибирає порцію й повертає кнопки.
     func testWidgetButtonAndUndo() {
