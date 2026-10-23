@@ -252,7 +252,7 @@ metrics.record(.init(name: .intakeAdded, value: 300, at: now, payload: ["source"
 | Кільце 242 pt | `ProgressRing` | `DayLog.countedMl / goal` | — |
 | Капсула частини доби | `WTDayPartPill` | `PaceCurve.dayPartProgress` за розкладом дня, порції сьогодні (WAT-40, SPEC-NOTIFICATIONS §26); у режимі «просто норма» — немає | — |
 | 4 кнопки | `QuickAddGrid` | `QuickAddPreset` | +200 / +500 / +1000 / шторка «Інше» |
-| Завдання на сьогодні | `TaskRow` × N | `QuestInstance(scope: .daily)` | — |
+| Завдання (варіант A «Розділи», WAT-64) | `WTTaskRow(fraction:xp:isCelebrating:)` у секціях «Сьогодні» / «Цього тижня · ще N дн.», «Виконані · N» | `GamificationService.questBoard()` → `QuestBlock` на хвилину (`TimelineView`), тексти — `QuestPresenter` (SPEC-QUESTS §9.1) | виконане дією святкує в рядку й згортається (§9.2), після вікна досягнення; тостів немає |
 | Історія | `HistoryTimelineRow` × N | `Intake` за день | тап → розкрити «Видалити» |
 | Шторка «Інше» | `WTSheet` | крок 50, чіпи 150/250/350/500; тап по числу — цифрова клавіатура, точний об'єм 50…2000 (WAT-50) | додати порцію |
 | Шторка календаря | `WTSheet` | `DayLog` місяця, `streak` | — |
@@ -267,9 +267,10 @@ metrics.record(.init(name: .intakeAdded, value: 300, at: now, payload: ["source"
 
 Донат рівня (тап → вікно «Шлях рівнів» на весь екран, WAT-44; крапка «нове», поки вибір чи 🎁 чекають)
 → блок «НАГОРОДА НА РІВНІ N» (або заклик «РІВЕНЬ N · ЧЕКАЄ НА ТЕБЕ»)
-→ «ЗАВДАННЯ» (сьогодні / цього тижня) → «ПРИЗИ» (стоси, дія — у картці) → «ДОСЯГНЕННЯ» —
+→ «ПРИЗИ» (стоси, дія — у картці) → «ДОСЯГНЕННЯ» —
 вітрина до 4×2 (лише відкриті й ті, що в процесі), тап по бейджу → картка деталей, «Всі» → **2e**.
-Дані: `LevelState`, `XPEntry`, `QuestInstance`, `RewardItem`, `AchievementProgress`, `RewardDefinition`.
+Завдань на 3f немає (WAT-35, закрито в WAT-64): вони лише на головному й у віджеті «Прогрес» (SPEC-QUESTS §1).
+Дані: `LevelState`, `XPEntry`, `RewardItem`, `AchievementProgress`, `RewardDefinition`.
 
 ### 7.3 Макет 2e — Досягнення
 

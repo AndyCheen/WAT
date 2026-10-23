@@ -97,6 +97,7 @@ public struct HomeScreen: View {
             case .added: return .add
             case .goalReached: return .goalReached
             case .levelUp: return .levelUp
+            case .questDone: return .questDone
             // Вікно відкриття вібрує саме, у мить появи: дві вібрації на одну дію — шум.
             case .celebration: return nil
             case .gift: return .achievement
@@ -246,34 +247,75 @@ public struct HomeScreen: View {
 
     // MARK: - Завдання
 
+    /// Варіант A «Розділи» (SPEC-QUESTS §9.1). `TimelineView` лише будить екран щохвилини: рядок із минулим
+    /// дедлайном зникає й без дії, а час модель бере з `Clock`.
     private var tasks: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                WTSectionLabel("ЗАВДАННЯ НА СЬОГОДНІ", size: 15)
-                Spacer(minLength: 8)
-                // Ховати нема чого, доки жодне завдання не виконане.
-                if model.completedQuestCount > 0 {
-                    WTSectionAction(
-                        model.showCompletedQuests ? "Сховати" : "Виконані · \(model.completedQuestCount)",
-                        action: { model.toggleCompletedQuests() }
-                    )
-                    .accessibilityIdentifier("home.tasks.toggleCompleted")
+        TimelineView(.everyMinute) { _ in
+            let block = model.questBlock()
+            if !block.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        WTSectionLabel(QuestPresenter.blockLabel, size: 15)
+                        Spacer(minLength: 8)
+                        // Ховати нема чого, доки жодне завдання не виконане.
+                        if block.completedCount > 0 {
+                            WTSectionAction(
+                                QuestPresenter.completedToggle(count: block.completedCount,
+                                                               showing: model.showCompletedQuests),
+                                action: { model.toggleCompletedQuests() }
+                            )
+                            .accessibilityIdentifier("home.tasks.toggleCompleted")
+                        }
+                    }
+                    // Без нижнього відступу: підпис секції під ним і так має 14 — як у макеті, де відступи схлопуються.
+
+                    if let today = block.today {
+                        sectionLabel(QuestPresenter.todayLabel, id: "home.tasks.today")
+                        section(today, emptyId: "home.tasks.allDailyDone")
+                    }
+                    if let week = block.week {
+                        sectionLabel(QuestPresenter.weekLabel, detail: block.weekDaysLeft.map(QuestPresenter.weekDaysLeft),
+                                     id: "home.tasks.week")
+                        section(week, emptyId: model.questBoard.weekly.isEmpty
+                                ? "home.tasks.weeklyStartsMonday" : "home.tasks.weekClosed")
+                    }
                 }
-            }
-            .padding(.bottom, 14)
-
-            ForEach(model.visibleQuests) { quest in
-                WTTaskRow(title: model.questTitle(quest), progress: model.questProgress(quest), isDone: quest.isDone)
-            }
-
-            if model.allQuestsDone && !model.showCompletedQuests {
-                Text("Усі завдання виконані 🎉")
-                    .font(WTFont.text(14, .bold))
-                    .foregroundStyle(theme.textMuted)
-                    .padding(.vertical, 8)
+                .padding(.bottom, 22)
             }
         }
-        .padding(.bottom, 22)
+    }
+
+    /// «СЬОГОДНІ», «ЦЬОГО ТИЖНЯ · ЩЕ 5 ДН.» — одним `Text`: ідентифікатор на `HStack` перекрив би дочірні.
+    private func sectionLabel(_ title: String, detail: String? = nil, id: String) -> some View {
+        (Text(title).foregroundStyle(theme.accent)
+            + Text(detail.map { " " + $0 } ?? "").foregroundStyle(theme.textMuted))
+            .font(WTFont.text(12, .heavy))
+            .tracking(0.3)
+            .padding(.top, 14)
+            .padding(.bottom, 4)
+            .accessibilityIdentifier(id)
+    }
+
+    @ViewBuilder
+    private func section(_ section: QuestBlock.Section, emptyId: String) -> some View {
+        ForEach(section.rows) { quest in
+            WTTaskRow(
+                title: model.questTitle(quest), progress: model.questProgress(quest), isDone: quest.isDone,
+                fraction: quest.fraction, xp: model.questXp(quest), isCelebrating: model.isCelebrating(quest),
+                accessibilityLabel: model.questAccessibilityLabel(quest)
+            )
+            .wtCelebrationHold(model.isCelebrating(quest)) { model.finishQuestCelebration(quest.id) }
+            .transition(.opacity)
+            .accessibilityIdentifier("quest.row.\(quest.key)")
+        }
+        if let empty = section.empty {
+            Text(empty)
+                .font(WTFont.text(14, .bold))
+                .foregroundStyle(theme.textMuted)
+                .padding(.vertical, 8)
+                .transition(.opacity)
+                .accessibilityIdentifier(emptyId)
+        }
     }
 
     // MARK: - Історія

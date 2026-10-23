@@ -15,17 +15,11 @@ public final class ProgressViewModel {
     public var epoch: Int { services.epoch }
 
     public private(set) var level: LevelProgress
-    public private(set) var dailyQuests: [QuestSnapshot] = []
-    public private(set) var weeklyQuests: [QuestSnapshot] = []
     /// Інвентар, картка й дія з призом — спільні з екраном «Призи».
     public let prizes: PrizeInventoryModel
     public private(set) var achievements: [AchievementSnapshot] = []
     /// Шлях рівнів: блок «НАГОРОДА НА РІВНІ N» і крапка на донаті, поки щось чекає (SPEC-PRIZES §16.6).
     public private(set) var road: LevelRoadSnapshot
-
-    /// Один прапорець на весь блок «ЗАВДАННЯ» — денні й тижневі ховаються разом,
-    /// два окремі перемикачі в одній секції читались би як помилка.
-    public private(set) var showCompletedQuests = false
 
     /// Вікно «Шлях рівнів» на весь екран (WAT-44). Модель створюється на кожне відкриття: знімок свіжий,
     /// а позиція рейки для повтору прогресу береться заново.
@@ -48,8 +42,6 @@ public final class ProgressViewModel {
 
     public func reload() {
         level = services.gamification.levelProgress()
-        dailyQuests = services.gamification.dailyQuests()
-        weeklyQuests = services.gamification.weeklyQuests()
         prizes.reload()
         achievements = services.gamification.achievementSnapshots()
         road = services.gamification.levelRoad()
@@ -70,30 +62,6 @@ public final class ProgressViewModel {
 
     /// Вибір чи таємний, що чекає дії, — найраніший: його ж вікно покаже по центру.
     public var pendingReward: LevelRoadNode? { road.pending.first }
-
-
-    // MARK: - Завдання
-
-    /// Перемикання лише через `withAnimation` — інакше рядки зникають ривком.
-    public func toggleCompletedQuests() {
-        withAnimation(WTAnimation.fade) { showCompletedQuests.toggle() }
-    }
-
-    public var visibleDailyQuests: [QuestSnapshot] {
-        showCompletedQuests ? dailyQuests : dailyQuests.active
-    }
-
-    public var visibleWeeklyQuests: [QuestSnapshot] {
-        showCompletedQuests ? weeklyQuests : weeklyQuests.active
-    }
-
-    public var completedQuestCount: Int { dailyQuests.completed.count + weeklyQuests.completed.count }
-    func questTitle(_ quest: QuestSnapshot) -> String {
-        QuestPresenter.title(quest, unit: services.profile.volumeUnit, format: services.profile.timeFormat)
-    }
-    func questProgress(_ quest: QuestSnapshot) -> String {
-        QuestPresenter.progressLabel(quest, unit: services.profile.volumeUnit)
-    }
 
     // MARK: - Анімовані переходи
 

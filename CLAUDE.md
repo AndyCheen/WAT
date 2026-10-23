@@ -19,8 +19,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 842 unit-тести 10 пакетів (+7 аудиту на вимогу), без симулятора — швидкий цикл
-make test-ui        # 66 e2e-сценаріїв (XCUITest) у симуляторі
+make test-packages  # 857 unit-тестів 10 пакетів (+7 аудиту на вимогу), без симулятора — швидкий цикл
+make test-ui        # 69 e2e-сценаріїв (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
 make clean
@@ -156,6 +156,16 @@ Features → Widgets → DesignSystem → Core
 `AppServices`). Тексти — не в знімку: `QuestSnapshot.title` — шаблон `QuestTitle`, рядок складає `QuestPresenter`
 (`Features/Quests`); дошка — `questBoard(at:)`. У тестах `GameEnv` типово **без завдань** (`QuestForcing()`): «Перша
 склянка» закривається першою ж порцією й міняла б XP кожного тесту; `quests: nil` — справжні пікери.
+**Блок на головному** (WAT-64, варіант A, SPEC-QUESTS §9.1–9.2) — лише там і у віджеті «Прогрес», на 3f завдань немає
+(WAT-35). Що видно — чиста `QuestBlock.make(board:now:celebrating:showCompleted:)`: «Сьогодні» / «Цього тижня · ще N дн.»,
+виконані — за «Виконані · N»; невиконане з минулим дедлайном зникає й без дії (`TimelineView` будить екран, час — `Clock`).
+«Усе на сьогодні 🎉» — лише коли нічого не прострочено (`QuestBoard.expiredDaily`), інакше секції немає зовсім. Свято —
+у рядку (`WTTaskRow(isCelebrating:)`), без тоста: `HomeViewModel.add` порівнює виконані до й після дії
+(`celebratingQuestIds`); відкрила дія вікно досягнення — рядки чекають у `pendingQuestIds` до `celebrationDidClose`
+і поки чекають — лишаються в списку. Згортання — `wtCelebrationHold` через `WTAnimation.celebrationHold`. Вібрація
+`questDone` — останньою в ланцюгу `pulse`, лише коли гучнішого немає. Чип XP — з бустом і загальним множником
+(`HomeViewModel.questXp`). Рядок — один елемент доступності з підписом `QuestPresenter.accessibilityLabel` і
+ідентифікатором `quest.row.<ключ>`.
 Подарунок за повернення й «Знову в ритмі» дії екран дізнається з черги `GamificationService.takeRecentUnlocks()`
 (`HydrationService` про гейміфікацію не знає). `HomeViewModel` чистить чергу **до** дії й читає
 **після** — інакше тост отримають розблокування зі старту чи повернутої порції. Досягнення з неї головний не показує —
@@ -245,6 +255,10 @@ Features → Widgets → DesignSystem → Core
   `WidgetPresenter` і `DayPartPresenter` (один для капсули головного й віджета). `kind` — `WidgetKind.identifier`,
   не міняти: поставлені віджети зникнуть. Кільце «Запасу» на екрані блокування — `Gauge`, не
   `ProgressView(timerInterval:)`: поза WidgetKit той — спінер.
+- **«Прогрес» (M)** (WAT-64, SPEC-QUESTS §9.3): ліва половина — `Link` на 3f, права — на головний. Права — лише
+  невиконані: до 2 щоденних і одне тижневе, стани — `WidgetPresenter.quests(_:at:)`. Знімок несе дедлайни
+  (`Quest.expiresAt`), `expiredDailyQuests` і `weeklyStartsMonday` (усі нові поля — опційні: старий знімок у App Group
+  декодується), таймлайн — запис на кожен дедлайн невиконаного щоденного.
 - **Тоновані віджети iOS 18** лишають від кольору лише прозорість: тема — `WTTheme.tinted` (`wtWidgetTheme()` за
   `widgetRenderingMode`), акцентним (`widgetAccentable`) робити лише тло, не текст поверх нього; галочки — `CheckBadge`.
   Тло віджета (`containerBackground`) у тонованому режимі прибирається — усе, що несе зміст (вода «Запасу»), малювати
@@ -418,7 +432,9 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
   `--uitest-now 2026-10-01T07:00:00+03:00` фіксує годинник для DEBUG-екрана «План сповіщень».
 - Завдання в e2e: `--quests daily:daily.wakeGlass,daily.glasses;weekly:weekly.goalDays=5` (лише DEBUG) видає саме ці
   завдання повз пікери — вибір пікера залежить від зерна профілю й дня. Без прапорця під `--uitest-*` — звичайний пікер:
-  на `--uitest-empty` це стартові «Перша склянка» й «Половина норми». Ставиться до `bootstrap()`.
+  на `--uitest-empty` це стартові «Перша склянка» й «Половина норми». Ставиться до `bootstrap()`. Рядок шукати за
+  `quest.row.<ключ>` (`descendants(matching: .any)`): назва — частина його підпису, окремим `staticText` її немає.
+  Підйом типово о 08:00 — дедлайн «Склянки після підйому» о 09:00.
 - Віджети в e2e: домашній екран у XCUITest нестабільний, тож в'юшки — у DEBUG-галереї `--start-screen widgets`
   (кнопки кличуть `AppServices.perform` напряму, ідентифікатори `widget.add.<мл>` / `widget.undo`), дії —
   `--widget-action add:250,undo`, переходи — `XCUIDevice.shared.system.open(watertracker://…)` (не `app.open`:

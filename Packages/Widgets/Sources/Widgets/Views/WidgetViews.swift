@@ -577,52 +577,82 @@ public struct ProgressWidgetView: View {
 
     public var body: some View {
         let snapshot = content.snapshot
+        // Дві половини — два переходи (SPEC-QUESTS §9.3): рівень і серія — у «Прогрес», завдання — на головний.
         HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
-                    LevelBadge(level: snapshot.level.level, size: 32)
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("Рівень \(snapshot.level.level)").font(WTFont.text(15, .black)).foregroundStyle(theme.textPrimary)
-                        Text(WidgetPresenter.xpLeft(snapshot.level)).font(WTFont.text(11, .bold)).foregroundStyle(theme.textMuted)
-                    }
-                }
-                WidgetBar(fraction: snapshot.level.fraction)
-                Spacer(minLength: 0)
-                if let streak = content.day.streak {
+            Link(destination: WidgetLink.progress.url) {
+                VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 8) {
-                        StreakBadge(count: streak, size: 20)
-                        Text(WidgetPresenter.streakWord(streak))
-                            .font(WTFont.text(12, .bold))
-                            .foregroundStyle(theme.textMuted)
+                        LevelBadge(level: snapshot.level.level, size: 32)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text("Рівень \(snapshot.level.level)").font(WTFont.text(15, .black)).foregroundStyle(theme.textPrimary)
+                            Text(WidgetPresenter.xpLeft(snapshot.level)).font(WTFont.text(11, .bold)).foregroundStyle(theme.textMuted)
+                        }
+                    }
+                    WidgetBar(fraction: snapshot.level.fraction)
+                    Spacer(minLength: 0)
+                    if let streak = content.day.streak {
+                        HStack(spacing: 8) {
+                            StreakBadge(count: streak, size: 20)
+                            Text(WidgetPresenter.streakWord(streak))
+                                .font(WTFont.text(12, .bold))
+                                .foregroundStyle(theme.textMuted)
+                        }
                     }
                 }
+                .frame(width: 124, alignment: .leading)
+                .frame(maxHeight: .infinity, alignment: .topLeading)
+                .contentShape(Rectangle())
             }
-            .frame(width: 124, alignment: .leading)
+            .accessibilityIdentifier("widget.progress.level")
             Rectangle().fill(theme.track).frame(width: 1)
-            VStack(alignment: .leading, spacing: 3) {
-                if content.day.questsAreCurrent {
-                    WidgetCaption(text: "Сьогодні")
-                    ForEach(Array(snapshot.dailyQuests.prefix(2).enumerated()), id: \.offset) { _, quest in
-                        QuestLine(quest: quest)
-                    }
-                    if let weekly = snapshot.weeklyQuests.first(where: { !$0.isDone }) ?? snapshot.weeklyQuests.first {
-                        WidgetCaption(text: "Цього тижня").padding(.top, 3)
-                        QuestLine(quest: weekly)
-                    }
-                } else {
-                    Spacer(minLength: 0)
-                    Text("Нові завдання — у застосунку")
-                        .font(WTFont.text(13, .bold))
-                        .foregroundStyle(theme.textMuted)
-                        .lineLimit(2)
-                    Spacer(minLength: 0)
-                }
+            Link(destination: WidgetLink.home.url) {
+                quests
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .contentShape(Rectangle())
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .accessibilityIdentifier("widget.progress.quests")
         }
         .lineLimit(1)
         .minimumScaleFactor(0.8)
         .wtWidgetContainer { theme.card }
+    }
+
+    @ViewBuilder
+    private var quests: some View {
+        if content.day.questsAreCurrent {
+            let quests = WidgetPresenter.quests(content.snapshot, at: content.day.date)
+            VStack(alignment: .leading, spacing: 3) {
+                switch quests.today {
+                case .rows(let rows):
+                    WidgetCaption(text: WidgetPresenter.questsTodayCaption)
+                    ForEach(Array(rows.enumerated()), id: \.offset) { _, quest in QuestLine(quest: quest) }
+                case .allDone:
+                    WidgetCaption(text: WidgetPresenter.questsTodayCaption)
+                    QuestNote(text: WidgetPresenter.questsAllDone)
+                case .hidden:
+                    EmptyView()
+                }
+                if quests.week != .hidden {
+                    WidgetCaption(text: WidgetPresenter.questsWeekCaption)
+                        .padding(.top, quests.today == .hidden ? 0 : 3)
+                    switch quests.week {
+                    case .row(let quest): QuestLine(quest: quest)
+                    case .closed: QuestNote(text: WidgetPresenter.questsWeekClosed)
+                    case .fromMonday: QuestNote(text: WidgetPresenter.questsFromMonday)
+                    case .hidden: EmptyView()
+                    }
+                }
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                Spacer(minLength: 0)
+                Text("Нові завдання — у застосунку")
+                    .font(WTFont.text(13, .bold))
+                    .foregroundStyle(theme.textMuted)
+                    .lineLimit(2)
+                Spacer(minLength: 0)
+            }
+        }
     }
 }
 
@@ -639,24 +669,34 @@ private struct LevelBadge: View {
     }
 }
 
+/// «✓ Усе на сьогодні», «З понеділка» — на місці рядка завдання.
+private struct QuestNote: View {
+    @Environment(\.wtTheme) private var theme
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(WTFont.text(13, .heavy))
+            .foregroundStyle(theme.textMuted)
+            .padding(.vertical, 2)
+    }
+}
+
+/// Невиконане завдання: виконаних у «Прогресі» немає — місце лише трьом рядкам.
 private struct QuestLine: View {
     @Environment(\.wtTheme) private var theme
     let quest: WidgetSnapshot.Quest
 
     var body: some View {
         HStack(spacing: 7) {
-            if quest.isDone {
-                CheckBadge(size: 18)
-            } else {
-                WidgetRing(fraction: quest.fraction, lineWidth: 3.5).frame(width: 18, height: 18)
-            }
+            WidgetRing(fraction: quest.fraction, lineWidth: 3.5).frame(width: 18, height: 18)
             Text(quest.title)
                 .font(WTFont.text(13, .bold))
-                .foregroundStyle(quest.isDone ? theme.textMuted : theme.textPrimary)
+                .foregroundStyle(theme.textPrimary)
             Spacer(minLength: 2)
             Text(quest.progressLabel)
                 .font(WTFont.text(11, .black))
-                .foregroundStyle(quest.isDone ? WTColor.successText : theme.textMuted)
+                .foregroundStyle(theme.textMuted)
         }
         .padding(.vertical, 2)
     }

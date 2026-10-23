@@ -101,34 +101,65 @@ final class SmokeUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Частіше"].exists, "нагадування перейшли на рівні інтервали")
     }
 
-    func testCompletedQuestsHideBehindToggle() {
-        // Завдання — повз пікер (`--quests`): вибір пікера залежить від зерна профілю й дня.
-        let app = launch(["--uitest-empty", "--quests", "daily:daily.glasses"])
+    // MARK: - Завдання (SPEC-QUESTS §9)
+
+    /// Рядок завдання — один елемент доступності з ідентифікатором `quest.row.<ключ>`.
+    private func questRow(_ app: XCUIApplication, _ key: String) -> XCUIElement {
+        app.descendants(matching: .any)["quest.row.\(key)"]
+    }
+
+    /// Порція закриває «Склянку після підйому»: рядок святкує й згортається в «Виконані · 1», а кнопка повертає
+    /// його на екран. Завдання — повз пікер (`--quests`): вибір пікера залежить від зерна профілю й дня.
+    func testCompletedQuestCelebratesAndHidesBehindToggle() {
+        let app = launch(["--uitest-empty", "--quests", "daily:daily.wakeGlass,daily.glasses",
+                          "--uitest-now", "2026-10-01T07:30:00+03:00"])
         XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
 
-        // Норма 2000 мл і склянка 250 — N = 5.
-        let questRow = app.staticTexts["5 склянок від 150 мл"]
+        // Підйом о 08:00 — дедлайн о 09:00; порція до підйому теж рахується.
+        let wake = questRow(app, "daily.wakeGlass")
         let toggle = app.buttons["home.tasks.toggleCompleted"]
-        XCTAssertTrue(questRow.exists, "невиконане завдання видно одразу")
+        XCTAssertTrue(wake.waitForExistence(timeout: 5), "невиконане завдання видно одразу")
+        XCTAssertEqual(wake.label, "Склянка після підйому, ще 250 мл, 15 XP")
+        XCTAssertTrue(questRow(app, "daily.glasses").exists)
+        XCTAssertTrue(app.staticTexts["home.tasks.today"].exists)
         XCTAssertFalse(toggle.exists, "ховати нема чого, доки нічого не виконано")
 
-        // 5 × 200 мл закривають завдання. Перша порція — вікно відкриття: закриваємо, інакше наступний тап у нього.
-        for _ in 0..<5 {
-            app.buttons["home.add.200"].tap()
-            dismissCelebrationIfPresent(app, timeout: 2)
-        }
-
-        XCTAssertFalse(questRow.exists, "виконане завдання зникає зі списку")
-        XCTAssertTrue(app.staticTexts["Усі завдання виконані 🎉"].exists)
+        app.buttons["home.add.500"].tap()
+        // «Перша крапля» — вікно на весь екран; рядок святкує після нього.
+        dismissCelebrationIfPresent(app)
+        XCTAssertTrue(wake.waitForNonExistence(timeout: 5), "свято в рядку — і рядок згортається")
+        XCTAssertTrue(questRow(app, "daily.glasses").exists, "невиконане лишається")
+        XCTAssertFalse(app.staticTexts["Усе на сьогодні 🎉"].exists, "виконано лише одне з двох")
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        XCTAssertEqual(toggle.label, "Виконані · 1")
 
         toggle.tap()
-        XCTAssertTrue(questRow.waitForExistence(timeout: 5), "кнопка повертає виконані завдання")
+        XCTAssertTrue(wake.waitForExistence(timeout: 5), "кнопка повертає виконані завдання")
         // Сам факт існування елемента нічого не доводить — рядок може бути за межею екрана.
-        XCTAssertTrue(questRow.isHittable, "рядок справді видно")
+        XCTAssertTrue(wake.isHittable, "рядок справді видно")
+        XCTAssertEqual(wake.label, "Склянка після підйому, виконано, 15 XP")
 
         toggle.tap()
-        XCTAssertFalse(questRow.exists, "повторне натискання ховає їх знову")
+        XCTAssertTrue(wake.waitForNonExistence(timeout: 5), "повторне натискання ховає їх знову")
+    }
+
+    /// Після дедлайну невиконане щоденне тихо зникає: обидва прострочені — секції «Сьогодні» немає зовсім,
+    /// без «провалено» й без «Усе на сьогодні».
+    func testOverdueDailyQuestsLeaveQuietly() {
+        let app = launch(["--uitest-empty", "--quests", "daily:daily.wakeGlass,daily.quarterBy;weekly:weekly.goalDays=3",
+                          "--uitest-now", "2026-10-01T11:30:00+03:00"])
+        XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
+
+        // Тижневе — щоб блок був на екрані і відсутність «Сьогодні» щось доводила.
+        let weekly = questRow(app, "weekly.goalDays")
+        XCTAssertTrue(weekly.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["home.tasks.week"].exists)
+        XCTAssertEqual(app.staticTexts["home.tasks.week"].label, "ЦЬОГО ТИЖНЯ · ЩЕ 4 ДН.", "четвер")
+        XCTAssertFalse(questRow(app, "daily.wakeGlass").exists, "дедлайн о 09:00")
+        XCTAssertFalse(questRow(app, "daily.quarterBy").exists, "дедлайн об 11:00")
+        XCTAssertFalse(app.staticTexts["home.tasks.today"].exists)
+        XCTAssertFalse(app.staticTexts["home.tasks.allDailyDone"].exists)
+        XCTAssertFalse(app.buttons["home.tasks.toggleCompleted"].exists, "прострочене не стає «виконаним»")
     }
 
     func testUndoRemovesIntakeAndRollsBackProgress() {
@@ -338,6 +369,16 @@ final class SmokeUITests: XCTestCase {
                 .firstMatch.waitForExistence(timeout: 5),
             "хрестик повертає «Всі»"
         )
+    }
+
+    /// Завдання — лише на головному (WAT-35, SPEC-QUESTS §1): на 3f блоку «ЗАВДАННЯ» немає.
+    func testProgressHasNoQuestsBlock() {
+        let app = launch(["--uitest-demo", "--start-screen", "progress"])
+        XCTAssertTrue(app.buttons["progress.level"].waitForExistence(timeout: 20))
+        XCTAssertFalse(app.staticTexts["ЗАВДАННЯ"].exists)
+        XCTAssertFalse(app.buttons["progress.tasks.toggleCompleted"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH 'quest.row.'")).firstMatch.exists)
     }
 
     func testBadgeOnProgressOpensTheDetailCard() {

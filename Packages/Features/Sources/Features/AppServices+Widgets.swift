@@ -137,10 +137,11 @@ extension AppServices {
             .sorted { $0.at < $1.at }
         let streak = gamification.streakSummary()
         let level = gamification.levelProgress()
+        // Прострочених у дошці вже немає; дедлайн решти — у знімку, щоб віджет прибрав рядок сам (SPEC-QUESTS §9.3).
         let quest = { (quest: QuestSnapshot) in
             WidgetSnapshot.Quest(title: QuestPresenter.title(quest, unit: profile.volumeUnit, format: profile.timeFormat),
                                  progressLabel: QuestPresenter.progressLabel(quest, unit: profile.volumeUnit),
-                                 fraction: quest.fraction, isDone: quest.isDone)
+                                 fraction: quest.fraction, isDone: quest.isDone, expiresAt: quest.deadline)
         }
         let quests = gamification.questBoard(at: now)
         let typical = plan.typicalPortionMl > 0 ? plan.typicalPortionMl : profile.glassMl
@@ -169,6 +170,7 @@ extension AppServices {
                                         xpForNextLevel: level.xpForNextLevel),
             dailyQuests: quests.daily.map(quest),
             weeklyQuests: quests.weekly.map(quest),
+            weeklyStartsMonday: quests.weeklyStartsMonday, expiredDailyQuests: quests.expiredDaily,
             dayPartXp: Int(Double(gamification.xp.rules.perDayPartGoal) * gamification.xp.boostMultiplier(at: now)),
             reserve: reserve, lastAction: lastAction
         )

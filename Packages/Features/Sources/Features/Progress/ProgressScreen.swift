@@ -44,9 +44,9 @@ public struct ProgressScreen: View {
                     }
                     .padding(.bottom, 20)
 
+                    // Завдань на 3f немає (WAT-35, SPEC-QUESTS §1): вони — лише на головному. 3f — довга гра.
                     levelBlock
                     nextRewardBlock
-                    tasksBlock
                     prizesBlock
                     achievementsBlock
                 }
@@ -138,51 +138,6 @@ public struct ProgressScreen: View {
             .accessibilityIdentifier("progress.nextReward")
         }
         .padding(.bottom, 22)
-    }
-
-    // MARK: - Завдання
-
-    private var tasksBlock: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                WTSectionLabel("ЗАВДАННЯ")
-                Spacer(minLength: 8)
-                // Ховати нема чого, доки жодне завдання не виконане.
-                if model.completedQuestCount > 0 {
-                    WTSectionAction(
-                        model.showCompletedQuests ? "Сховати" : "Виконані · \(model.completedQuestCount)",
-                        action: { model.toggleCompletedQuests() }
-                    )
-                    .accessibilityIdentifier("progress.tasks.toggleCompleted")
-                }
-            }
-            .padding(.bottom, 12)
-
-            WTSectionLabel("СЬОГОДНІ", size: 12, color: theme.accent)
-                .padding(.bottom, 8)
-            questRows(model.visibleDailyQuests)
-
-            WTSectionLabel("ЦЬОГО ТИЖНЯ", size: 12, color: theme.accent)
-                .padding(.top, 16)
-                .padding(.bottom, 8)
-            questRows(model.visibleWeeklyQuests)
-        }
-        .padding(.bottom, 22)
-    }
-
-    /// Порожній підсписок означає «все виконано» — інших причин не показати квест немає.
-    @ViewBuilder
-    private func questRows(_ quests: [QuestSnapshot]) -> some View {
-        if quests.isEmpty {
-            Text("Усі завдання виконані 🎉")
-                .font(WTFont.text(14, .bold))
-                .foregroundStyle(theme.textMuted)
-                .padding(.vertical, 8)
-        } else {
-            ForEach(quests) { quest in
-                WTTaskRow(title: model.questTitle(quest), progress: model.questProgress(quest), isDone: quest.isDone)
-            }
-        }
     }
 
     // MARK: - Призи

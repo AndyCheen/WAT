@@ -5,8 +5,40 @@ import Widgets
 
 /// Тексти завдань (SPEC-QUESTS §9.1) — чисті функції від знімка, системи об'єму й формату часу. Знімок несе
 /// шаблон назви й параметри, а не рядок: «Половина до 2:00 пп» і «5 склянок від 5 унц.» складаються тут.
-/// Вигляд рядків на головному — WAT-64 (QUESTS-PLAN §2.2).
+/// Що з цього видно на головному — `QuestBlock`.
 enum QuestPresenter {
+    static let blockLabel = "ЗАВДАННЯ"
+    static let todayLabel = "СЬОГОДНІ"
+    static let weekLabel = "ЦЬОГО ТИЖНЯ"
+    static let allDailyDone = "Усе на сьогодні 🎉"
+    static let weekClosed = "Тиждень закрито 🎉"
+    static let weeklyFromMonday = "Тижневі завдання — з понеділка"
+
+    /// «· ЩЕ 5 ДН.» — продовження підпису «ЦЬОГО ТИЖНЯ», приглушене. Разом із сьогоднішнім: у неділю — «ще 1 дн.».
+    static func weekDaysLeft(_ days: Int) -> String { "· ЩЕ \(days) ДН." }
+
+    /// «Виконані · 2» / «Сховати».
+    static func completedToggle(count: Int, showing: Bool) -> String { showing ? "Сховати" : "Виконані · \(count)" }
+
+    /// VoiceOver рядка: «Половина до 14:00, ще 500 мл, 25 XP». «2/4» вголос читалося б як дріб — тут «2 з 4».
+    static func accessibilityLabel(_ quest: QuestSnapshot, xp: Int, unit: VolumeUnit = .milliliters,
+                                   format: TimeFormat = .hours24) -> String {
+        let progress: String
+        if quest.isDone {
+            progress = "виконано"
+        } else {
+            let done = Int(min(quest.progress, quest.target))
+            let target = Int(quest.target)
+            switch quest.kind {
+            case .volume: progress = progressLabel(quest, unit: unit)
+            case .count: progress = "\(done) з \(target)"
+            // Після «з N» — родовий множини для будь-якого N ≥ 2: «з 4 днів», «з 5 днів».
+            case .days: progress = "\(done) з \(target) днів"
+            }
+        }
+        return "\(title(quest, unit: unit, format: format)), \(progress), \(xp) XP"
+    }
+
     static func title(_ quest: QuestSnapshot, unit: VolumeUnit = .milliliters, format: TimeFormat = .hours24) -> String {
         quest.title.parts.map { part -> String in
             switch part {

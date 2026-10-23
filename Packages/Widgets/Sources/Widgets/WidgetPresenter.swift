@@ -37,6 +37,64 @@ public enum WidgetPresenter {
     /// вгору до цілої, як `DayPartPresenter`.
     public static func left(_ ml: Int, unit: VolumeUnit = .milliliters) -> String { "ще \(roundedUp(ml, unit))" }
 
+    // MARK: - Завдання (віджет «Прогрес», SPEC-QUESTS §9.3)
+
+    /// Права половина «Прогресу»: до двох невиконаних щоденних і одне тижневе. Виконані тут не показуються —
+    /// місця три рядки, а підсумок дня й так на головному.
+    public struct Quests: Equatable, Sendable {
+        public enum Today: Equatable, Sendable {
+            case rows([WidgetSnapshot.Quest])
+            /// «✓ Усе на сьогодні».
+            case allDone
+            /// Щоденних немає або вони зникли за дедлайном — без рядка й без підпису, як на головному.
+            case hidden
+        }
+
+        public enum Week: Equatable, Sendable {
+            case row(WidgetSnapshot.Quest)
+            /// «✓ Тиждень закрито».
+            case closed
+            /// «З понеділка».
+            case fromMonday
+            case hidden
+        }
+
+        public let today: Today
+        public let week: Week
+    }
+
+    public static let questsTodayCaption = "Сьогодні"
+    public static let questsWeekCaption = "Цього тижня"
+    public static let questsAllDone = "✓ Усе на сьогодні"
+    public static let questsWeekClosed = "✓ Тиждень закрито"
+    public static let questsFromMonday = "З понеділка"
+    public static let dailyQuestRows = 2
+
+    /// Стан на хвилину запису: дедлайн міг минути вже після знімка.
+    public static func quests(_ snapshot: WidgetSnapshot, at date: Date) -> Quests {
+        let daily = snapshot.dailyQuests.filter { $0.isVisible(at: date) }
+        let expired = (snapshot.expiredDailyQuests ?? 0) + snapshot.dailyQuests.count - daily.count
+        let open = daily.filter { !$0.isDone }
+        let today: Quests.Today
+        if !open.isEmpty {
+            today = .rows(Array(open.prefix(dailyQuestRows)))
+        } else if !daily.isEmpty, expired == 0 {
+            today = .allDone
+        } else {
+            today = .hidden
+        }
+
+        let week: Quests.Week
+        if let weekly = snapshot.weeklyQuests.first(where: { !$0.isDone }) {
+            week = .row(weekly)
+        } else if !snapshot.weeklyQuests.isEmpty {
+            week = .closed
+        } else {
+            week = snapshot.weeklyStartsMonday == true ? .fromMonday : .hidden
+        }
+        return Quests(today: today, week: week)
+    }
+
     // MARK: - Сьогодні
 
     public static func todayFootnote(_ day: WidgetDay) -> String {
