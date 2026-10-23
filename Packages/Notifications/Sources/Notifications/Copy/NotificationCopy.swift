@@ -90,6 +90,19 @@ enum NotificationCopy {
         CopyVariant(id: 2, title: "🎯 Ще {left} до {deadline}", body: "Невеликий ривок — і {part} зараховано, +{xp} XP")
     ]
 
+    /// Несподіване завдання (SPEC-QUESTS §6.6) — по одному формулюванню на вид: вид і так щоразу інший, а сам
+    /// текст — дедлайн і ціль. Без крапки в кінці, як решта каталогу.
+    static let challengeGlassNow = CopyVariant(id: 0, title: "⚡ Несподіване завдання",
+                                               body: "Склянка до {deadline} — і приз «Подвійний XP» твій")
+    static let challengeCloseBlock = CopyVariant(id: 1, title: "⚡ Закрий {part} до {deadline}",
+                                                 body: "Ще {left} — і приз «Подвійний XP» твій")
+    static let challengeWeekday = CopyVariant(
+        id: 2, title: "⚡ {weekday} з нормою",
+        body: "Цей день тижня в тебе найслабший. Норма до {deadline} — і приз «Подвійний XP» твій"
+    )
+    static let challengeFlash = CopyVariant(id: 3, title: "⚡ Блискавка: 15 хвилин",
+                                            body: "{target} до {deadline} — встигнеш? Нагорода — приз «Подвійний XP»")
+
     /// Звіти (§11.2, §14.2) — одне формулювання: зміст і так щоразу інший, бо це числа
     /// (рішення від 05.10.2026). Тіло складає `ReportText`: частини додаються, лише коли є дані.
     static let reportDay = CopyVariant(id: 0, title: "Підсумок дня", body: "{report}")
@@ -118,6 +131,7 @@ enum NotificationCopy {
     static var all: [CopyVariant] {
         reminderPrimary + reminderFollowUp + morning + eveningClosable + eveningStreak + eveningSoothing
             + rescueEvening + rescueMorning + checkpoint + comebackFirst + [comebackLastWithGift, comebackLast]
+            + [challengeGlassNow, challengeCloseBlock, challengeWeekday, challengeFlash]
             + [reportDay, reportWeek, reportMonth, reportWeekMonth]
     }
 

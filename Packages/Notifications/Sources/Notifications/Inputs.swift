@@ -172,6 +172,46 @@ public struct QuestHints: Sendable, Equatable {
     }
 }
 
+/// Несподіване завдання сьогодні (SPEC-QUESTS §6.6) — лише ще не видиме: сповіщення приходить рівно в мить появи.
+/// Збирає `AppServices` з дошки завдань — пакет `Notifications` гейміфікацію не імпортує (§16.10).
+public struct SurpriseSlot: Sendable, Equatable {
+    public enum Kind: String, Sendable {
+        /// Н1 «Склянка зараз».
+        case glassNow
+        /// Н2 «Закрий {ранок} до {T}».
+        case closeBlock
+        /// Н3 «{Субота} з нормою».
+        case weekday
+        /// Н4 «Блискавка: 15 хвилин».
+        case flash
+    }
+
+    public var kind: Kind
+    /// Поява — `QuestInstance.assignedAt`.
+    public var fireAt: Date
+    /// Кінець вікна.
+    public var deadline: Date
+    /// Ціль у мл: склянка Н1, 150 мл Н4, ціль блоку Н2, норма Н3.
+    public var targetMl: Int
+    /// Скільки бракує на мить появи — план припускає, що людина більше нічого не робить.
+    public var leftMl: Int
+    /// Н2 — «ранок / день / вечір», як на головному.
+    public var blockName: String?
+    /// Н3 — 0 — понеділок.
+    public var weekdayIndex: Int?
+
+    public init(kind: Kind, fireAt: Date, deadline: Date, targetMl: Int, leftMl: Int, blockName: String? = nil,
+                weekdayIndex: Int? = nil) {
+        self.kind = kind
+        self.fireAt = fireAt
+        self.deadline = deadline
+        self.targetMl = targetMl
+        self.leftMl = leftMl
+        self.blockName = blockName
+        self.weekdayIndex = weekdayIndex
+    }
+}
+
 /// Числа звіту для тексту сповіщення (§11.2). Рахує `Insights`, приносить композиційний корінь:
 /// пакет `Notifications` його не імпортує (§16.10).
 public struct ReportDigest: Sendable, Equatable {
@@ -245,6 +285,8 @@ public struct NotificationContext: Sendable, Equatable {
     public var lastComebackGiftAt: Date?
     public var lastBounceBackDay: DayKey?
     public var quests: QuestHints
+    /// Несподіване, що ще з'явиться сьогодні (SPEC-QUESTS §6.6).
+    public var surprise: SurpriseSlot?
     /// Що дає «Знову в ритмі» (§12.5 Б) — для вставки «+25 XP».
     public var bounceBackXp: Int
     /// XP за ціль частини доби — для тексту чекпоінта (§9).
@@ -261,7 +303,7 @@ public struct NotificationContext: Sendable, Equatable {
         lastIntakeAt: Date? = nil, lastInteractionAt: Date? = nil, portionHistoryMl: [Int] = [],
         firstIntakeMinutes: [Int] = [], streak: StreakInput = StreakInput(), readyFreezes: Int = 0,
         boostExpiresAt: Date? = nil, lastComebackGiftAt: Date? = nil, lastBounceBackDay: DayKey? = nil,
-        quests: QuestHints = QuestHints(), bounceBackXp: Int = 25, dayPartXp: Int = 10, reports: [ReportDigest] = [],
+        quests: QuestHints = QuestHints(), surprise: SurpriseSlot? = nil, bounceBackXp: Int = 25, dayPartXp: Int = 10, reports: [ReportDigest] = [],
         bounceBackMinStreak: Int = 3,
         bounceBackCooldownDays: Int = 7, comebackCooldownDays: Int = 30
     ) {
@@ -281,6 +323,7 @@ public struct NotificationContext: Sendable, Equatable {
         self.lastComebackGiftAt = lastComebackGiftAt
         self.lastBounceBackDay = lastBounceBackDay
         self.quests = quests
+        self.surprise = surprise
         self.bounceBackXp = bounceBackXp
         self.dayPartXp = dayPartXp
         self.reports = reports

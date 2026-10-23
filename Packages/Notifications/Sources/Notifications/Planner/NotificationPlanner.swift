@@ -10,7 +10,7 @@ import Persistence
 /// заздалегідь, у момент доставки правильний.
 ///
 /// Порядок: горизонт → фіксовані типи (ранок, вечір, порятунок, повернення) → чекпоінти
-/// частин доби → ланцюги нагадувань (зливаються з чекпоінтами) → конфлікти (≥ 30 хв, пріоритети §13.3) → денний ліміт → бюджет 64 → тексти.
+/// частин доби й несподіване завдання → ланцюги нагадувань (зливаються з ними) → конфлікти (≥ 30 хв, пріоритети §13.3) → денний ліміт → бюджет 64 → тексти.
 public enum NotificationPlanner {
     public static func plan(
         context: NotificationContext,
@@ -63,6 +63,7 @@ enum CopyKind: Equatable {
     case rescueMorning(streak: Int)
     case comeback(number: Int, giftAvailable: Bool)
     case checkpoint(leftMl: Int, deadline: Date, part: DayPart, xp: Int)
+    case challenge(SurpriseSlot)
     case reportDay(ReportDigest, streak: Int)
     case reportWeek(ReportDigest)
     case reportMonth(ReportDigest)
@@ -115,10 +116,11 @@ struct PlanBuilder {
         for day in planningDays() {
             let fixed = fixedCandidates(for: day)
             let checkpoints = checkpoints(for: day)
-            let chain = reminderChain(for: day, checkpoints: checkpoints)
+            let challenge = challenge(for: day)
+            let chain = reminderChain(for: day, absorbers: checkpoints + challenge)
             let shown = journal.shown(on: day.day, before: now)
             let resolved = ConflictResolver(spacing: TimeInterval(rules.minSpacingMinutes * 60), frame: day.frame)
-                .resolve(fixed + checkpoints + chain + reports(for: day), shown: shown.map(\.fireAt))
+                .resolve(fixed + checkpoints + challenge + chain + reports(for: day), shown: shown.map(\.fireAt))
             // Тихі звіти в денний ліміт не рахуються (§13.1).
             accepted += DailyCap.apply(resolved, shownCount: shown.filter { $0.type != .report }.count, cap: rules.dailyCap)
         }
@@ -309,14 +311,33 @@ struct PlanBuilder {
         }
     }
 
-    /// Чекпоінт, що забирає собі основне нагадування: основне у вікні `[чекпоінт − 45, чекпоінт + 30]`
-    /// не надсилається, бо в чекпоінті конкретніший текст — дедлайн і об'єм (§9).
-    private func checkpoint(absorbing primary: Date, in checkpoints: [Candidate]) -> Candidate? {
-        checkpoints.first {
+    /// Чекпоінт чи несподіване, що забирає собі основне нагадування: основне у вікні `[−45, +30]` від нього
+    /// не надсилається, бо там конкретніший текст — дедлайн і об'єм (§9; SPEC-QUESTS §6.6: несподіване **замінює**
+    /// нагадування, а не додається до нього).
+    private func absorber(of primary: Date, in absorbers: [Candidate]) -> Candidate? {
+        absorbers.first {
             let at = $0.item.fireAt
             return primary >= at.addingTimeInterval(-TimeInterval(rules.checkpointMergeBeforeMinutes * 60))
                 && primary <= at.addingTimeInterval(TimeInterval(rules.checkpointMergeAfterMinutes * 60))
         }
+    }
+
+    // MARK: - Несподіване завдання (SPEC-QUESTS §6.6)
+
+    /// Приходить рівно в мить появи й не зсувається: завдання з'являється тоді ж на головному й у віджеті. Норму
+    /// закрито — сповіщення немає (і саме завдання вже скасоване). У тихий період пікер його не ставить, але
+    /// періоди могли змінитися після видачі — тоді лише в застосунку.
+    func challenge(for day: PlanningDay) -> [Candidate] {
+        guard day.rel == 0, let surprise = context.surprise, !isPaused(day), counted(on: day) < context.goalMl,
+              surprise.fireAt > earliest, service.dayKey(for: surprise.fireAt) == day.day,
+              day.frame.place(surprise.fireAt, limit: surprise.deadline) == surprise.fireAt else { return [] }
+        let slot = day.frame.clockSlot(surprise.fireAt)
+        let item = PlannedNotification(
+            id: PlannedNotification.identifier(.challenge, day: day.day, slot: slot), type: .challenge, slot: slot,
+            dayKey: day.day, fireAt: surprise.fireAt, isFloating: false, priority: .challenge, category: .reminder,
+            tapRoute: .home
+        )
+        return [Candidate(item: item, copy: .challenge(surprise), rel: day.rel)]
     }
 
     // MARK: - Звіти (§11)
@@ -384,9 +405,9 @@ struct PlanBuilder {
     /// або відкриття застосунку. Простими словами — нагадуємо, коли від останньої порції минуло
     /// стільки, що за темпом уже настав час наступної.
     ///
-    /// Основне, що збігається з чекпоінтом, зливається з ним: чекпоінт займає місце основного в
-    /// ланцюгу, повторне й наступний блок рахуються від чекпоінта (§9).
-    func reminderChain(for day: PlanningDay, checkpoints: [Candidate] = []) -> [Candidate] {
+    /// Основне, що збігається з чекпоінтом чи несподіваним, зливається з ним: той займає місце основного в
+    /// ланцюгу, повторне й наступний блок рахуються від нього (§9).
+    func reminderChain(for day: PlanningDay, absorbers: [Candidate] = []) -> [Candidate] {
         guard preferences.remindersEnabled, day.sinceAction <= 1, !isPaused(day) else { return [] }
         let frame = day.frame
         let drank = counted(on: day)
@@ -447,8 +468,8 @@ struct PlanBuilder {
             // Блок: основне → повторне (+30) → наступне основне (+120 від повторного).
             var blockStart = next
             if let placed = frame.place(next, limit: frame.cutoff),
-               let checkpoint = checkpoint(absorbing: placed, in: checkpoints) {
-                blockStart = checkpoint.item.fireAt
+               let absorber = absorber(of: placed, in: absorbers) {
+                blockStart = absorber.item.fireAt
             } else {
                 append(next, primary: true)
             }

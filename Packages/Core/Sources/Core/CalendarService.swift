@@ -109,6 +109,8 @@ public struct CalendarService: Sendable {
     public func isFuture(_ key: DayKey) -> Bool { key > today }
 
     public static let weekdayLabels = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"]
+    /// У називному — «Субота з нормою» (несподіване Н3): одна таблиця для головного, віджета й сповіщення.
+    public static let weekdayNames = ["Понеділок", "Вівторок", "Середа", "Четвер", "П'ятниця", "Субота", "Неділя"]
 
     public static let monthNames = [
         "Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень",

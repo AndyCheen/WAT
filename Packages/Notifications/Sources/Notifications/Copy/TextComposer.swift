@@ -50,6 +50,13 @@ struct TextComposer {
         case .rescueEvening: all = NotificationCopy.rescueEvening
         case .rescueMorning: all = NotificationCopy.rescueMorning
         case .checkpoint: all = NotificationCopy.checkpoint
+        case .challenge(let surprise):
+            switch surprise.kind {
+            case .glassNow: all = [NotificationCopy.challengeGlassNow]
+            case .closeBlock: all = [NotificationCopy.challengeCloseBlock]
+            case .weekday: all = [NotificationCopy.challengeWeekday]
+            case .flash: all = [NotificationCopy.challengeFlash]
+            }
         case .reportDay: all = [NotificationCopy.reportDay]
         case .reportWeek: all = [NotificationCopy.reportWeek]
         case .reportMonth: all = [NotificationCopy.reportMonth]
@@ -107,6 +114,14 @@ struct TextComposer {
             text = text.replacingOccurrences(of: "{deadline}", with: clockLabel(deadline))
             text = text.replacingOccurrences(of: "{part}", with: part.title.lowercased())
             text = text.replacingOccurrences(of: "{xp}", with: "\(xp)")
+        case .challenge(let surprise):
+            text = text.replacingOccurrences(of: "{deadline}", with: clockLabel(surprise.deadline))
+                .replacingOccurrences(of: "{left}", with: NotificationFormat.left(surprise.leftMl, unit))
+                .replacingOccurrences(of: "{target}", with: NotificationFormat.volume(surprise.targetMl, unit))
+                .replacingOccurrences(of: "{part}", with: surprise.blockName ?? "")
+                .replacingOccurrences(of: "{weekday}", with: surprise.weekdayIndex.map {
+                    CalendarService.weekdayNames[min(max($0, 0), 6)]
+                } ?? "")
         case .reportDay(let digest, let streak):
             text = text.replacingOccurrences(of: "{report}", with: ReportText.day(digest, streak: streak, unit: unit))
         case .reportWeek(let digest):
