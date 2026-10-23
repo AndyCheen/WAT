@@ -83,15 +83,19 @@ public struct QuestBoard: Equatable, Sendable {
     public var weeklyStartsMonday: Bool
     /// Днів до кінця тижня разом із сьогоднішнім — «ЦЬОГО ТИЖНЯ · ЩЕ 5 ДН.».
     public var weekDaysLeft: Int
+    /// Щоденні, що зникли за дедлайном невиконаними. Їх у `daily` немає, але без них «Усе на сьогодні 🎉»
+    /// показалося б і тоді, коли виконано лише одне з двох (§9.1: тоді секції «Сьогодні» немає зовсім).
+    public var expiredDaily: Int
     /// Несподіване — WAT-65; до нього завжди `nil`.
     public var surprise: QuestSnapshot?
 
     public init(daily: [QuestSnapshot] = [], weekly: [QuestSnapshot] = [], weeklyStartsMonday: Bool = false,
-                weekDaysLeft: Int = 7, surprise: QuestSnapshot? = nil) {
+                weekDaysLeft: Int = 7, expiredDaily: Int = 0, surprise: QuestSnapshot? = nil) {
         self.daily = daily
         self.weekly = weekly
         self.weeklyStartsMonday = weeklyStartsMonday
         self.weekDaysLeft = weekDaysLeft
+        self.expiredDaily = expiredDaily
         self.surprise = surprise
     }
 
@@ -100,8 +104,8 @@ public struct QuestBoard: Equatable, Sendable {
 
 /// Розріз списку квестів на активні й виконані.
 ///
-/// Живе тут, а не в екранах: приховування виконаних завдань потрібне і головному
-/// екрану, і «Прогресу», а два однакові `filter` розʼїжджаються при першій же зміні правила.
+/// Живе тут, а не в екранах: правило «виконане» одне для блоку головного, віджета й тестів, а однакові
+/// `filter` розʼїжджаються при першій же зміні правила.
 extension Collection where Element == QuestSnapshot {
     /// Ще не виконані — те, що показуємо за замовчуванням.
     public var active: [QuestSnapshot] { filter { !$0.isDone } }

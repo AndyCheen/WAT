@@ -30,9 +30,12 @@ final class QuestEngineTests: XCTestCase {
         XCTAssertEqual(wake.deadlineMinute, 9 * 60)
         XCTAssertEqual(wake.deadline, GameEnv.date(day: 18, hour: 9))
 
+        XCTAssertEqual(env.game.questBoard().expiredDaily, 0)
         env.clock.set(GameEnv.date(day: 18, hour: 9, minute: 30))
         XCTAssertEqual(env.game.dailyQuests().map(\.key), ["daily.glasses"], "дедлайн минув — рядка немає")
+        XCTAssertEqual(env.game.questBoard().expiredDaily, 1, "ще активне з минулим дедлайном — уже прострочене")
         env.game.refresh(at: env.clock.now)
+        XCTAssertEqual(env.game.questBoard().expiredDaily, 1, "і після позначки `.expired`")
         XCTAssertEqual(env.store.quests(scope: .daily, periodKey: "2026-07-18")
             .first { $0.defKey == "daily.wakeGlass" }?.state, .expired)
 
@@ -50,6 +53,7 @@ final class QuestEngineTests: XCTestCase {
         env.clock.set(GameEnv.date(day: 18, hour: 10))
         env.removeIntake(glass)
         XCTAssertTrue(env.game.dailyQuests().isEmpty)
+        XCTAssertEqual(env.game.questBoard().expiredDaily, 1, "«Усе на сьогодні» тут не про що")
         XCTAssertEqual(env.game.levelProgress().totalXp, 0, "XP за воду й за завдання відкочено")
     }
 

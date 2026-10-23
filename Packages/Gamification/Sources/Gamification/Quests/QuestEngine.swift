@@ -220,17 +220,23 @@ public final class QuestEngine {
         let weekKey = calendar.weekKey(for: date).rawValue
         let daysLeft = 7 - today.weekdayIndex
         let blockCount = day(today).blocks.count
+        let isVisible = { (instance: QuestInstance) in
+            instance.isDone || (instance.state == .active && (instance.expiresAt.map { $0 > date } ?? true))
+        }
         let visible = { (instances: [QuestInstance]) in
-            instances.filter { $0.isDone || ($0.state == .active && ($0.expiresAt.map { $0 > date } ?? true)) }
+            instances.filter(isVisible)
                 .compactMap { self.snapshot($0, blockCount: blockCount) }
                 .sorted { Self.order($0.key) < Self.order($1.key) }
         }
+        let daily = instances(periodKey: today.rawValue)
         let weekly = instances(periodKey: weekKey)
         return QuestBoard(
-            daily: visible(instances(periodKey: today.rawValue)),
+            daily: visible(daily),
             weekly: visible(weekly),
             weeklyStartsMonday: weekly.isEmpty && daysLeft < WeeklyQuestPicker.minDaysLeft,
-            weekDaysLeft: daysLeft
+            weekDaysLeft: daysLeft,
+            // Скасоване (`cancelled`) — не прострочене: його людина не бачила.
+            expiredDaily: daily.filter { !isVisible($0) && ($0.state == .expired || $0.state == .active) }.count
         )
     }
 
