@@ -133,7 +133,20 @@ public final class SettingsModel {
         services.profiles.save()
     }
 
+    /// Порядок сегментів «Тема» (WAT-66): не `ThemeMode.allCases` — там `.system` перший, бо типовий у профілі.
+    public static let themeModes: [ThemeMode] = [.light, .dark, .system]
+
+    public static func themeTitle(_ mode: ThemeMode) -> String {
+        switch mode {
+        case .light: return "Світла"
+        case .dark: return "Темна"
+        case .system: return "Системна"
+        }
+    }
+
     public func setThemeMode(_ mode: ThemeMode) {
+        // Сегмент, на відміну від перемикача, можна тапнути повторно — це не зміна теми, і «Дискотеку» не наближає.
+        guard mode != services.profile.themeMode else { return }
         services.profile.themeMode = mode
         services.profiles.save()
         services.record(.themeChanged)

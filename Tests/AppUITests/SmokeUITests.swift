@@ -506,15 +506,16 @@ final class SmokeUITests: XCTestCase {
     /// лічильником і рядок «Пасхалка! Тут їх більше» в картці. «Дискотека» — п'ять змін теми за хвилину.
     func testEasterEggIsFoundWithItsOwnWindow() {
         let app = launch(["--uitest-empty", "--notifications-auth", "notDetermined", "--start-screen", "settings"])
-        let theme = app.buttons["settings.theme"]
-        XCTAssertTrue(theme.waitForExistence(timeout: 20))
+        let light = app.buttons["settings.theme.0"], dark = app.buttons["settings.theme.1"]
+        XCTAssertTrue(dark.waitForExistence(timeout: 20))
         // Після картки «Одиниці» (WAT-58) рядок теми — нижче краю екрана: докручуємо один раз заздалегідь.
         app.swipeUp()
-        XCTAssertTrue(theme.isHittable)
+        XCTAssertTrue(dark.isHittable)
         // Перша зміна на темну — «Темна сторона»: вікно поверх налаштувань, закрити й перемикати далі.
-        theme.tap()
+        dark.tap()
         XCTAssertTrue(dismissCelebrationIfPresent(app).first?.contains("Темна сторона") ?? false)
-        for _ in 0..<4 { theme.tap() }
+        // Повторний тап по вибраному — не зміна (WAT-66), тож чергуємо: ще чотири зміни.
+        for index in 0..<4 { (index % 2 == 0 ? light : dark).tap() }
 
         let found = dismissCelebrationIfPresent(app, timeout: 5)
         XCTAssertTrue(found.first?.hasPrefix("Пасхалка: Дискотека") ?? false, "\(found)")
@@ -789,17 +790,29 @@ final class SmokeUITests: XCTestCase {
 
     // MARK: - Тема
 
-    func testDarkThemeToggle() {
+    /// Три варіанти (WAT-66): типова — «Системна», з темної до неї можна повернутись.
+    func testThemeChoice() {
         let app = launch(["--uitest-empty"])
         XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
 
         app.buttons["home.settings"].tap()
-        XCTAssertTrue(app.staticTexts["Темна тема"].waitForExistence(timeout: 5))
-        app.buttons["settings.theme"].tap()
+        let dark = app.buttons["settings.theme.1"], system = app.buttons["settings.theme.2"]
+        XCTAssertTrue(system.waitForExistence(timeout: 5))
+        XCTAssertTrue(system.isSelected, "типова — системна")
+        app.swipeUp()
+        dark.tap()
         // «Темна сторона» — вікном поверх налаштувань (WAT-60).
         dismissCelebrationIfPresent(app)
+        XCTAssertTrue(dark.isSelected)
+        XCTAssertFalse(system.isSelected)
         app.buttons["nav.back"].tap()
-
         XCTAssertTrue(app.staticTexts["home.percent"].exists, "екран лишається робочим у темній темі")
+
+        app.buttons["home.settings"].tap()
+        XCTAssertTrue(system.waitForExistence(timeout: 5))
+        app.swipeUp()
+        system.tap()
+        XCTAssertTrue(system.isSelected)
+        XCTAssertFalse(dark.isSelected)
     }
 }
