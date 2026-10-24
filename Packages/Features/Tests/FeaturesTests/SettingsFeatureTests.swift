@@ -1,6 +1,7 @@
 import XCTest
 import Core
 import Persistence
+import Metrics
 import Notifications
 @testable import Features
 
@@ -49,5 +50,20 @@ final class SettingsFeatureTests: XCTestCase {
         XCTAssertEqual(dark(), false)
         settings.setThemeMode(.dark)
         XCTAssertEqual(dark(), true)
+    }
+
+    /// Три сегменти (WAT-66): до «Системної» можна повернутись, а повторний тап по вибраному — не зміна теми.
+    func testSystemThemeIsReachableAndRepeatIsNotAChange() {
+        let settings = SettingsModel(services: services)
+        let changes = { self.services.metrics.events(.themeChanged).count }
+        XCTAssertEqual(services.profile.themeMode, .system, "типова — системна")
+        XCTAssertEqual(SettingsModel.themeModes.map(SettingsModel.themeTitle), ["Світла", "Темна", "Системна"])
+
+        settings.setThemeMode(.dark)
+        settings.setThemeMode(.dark)
+        XCTAssertEqual(changes(), 1)
+        settings.setThemeMode(.system)
+        XCTAssertEqual(services.profile.themeMode, .system)
+        XCTAssertEqual(changes(), 2)
     }
 }

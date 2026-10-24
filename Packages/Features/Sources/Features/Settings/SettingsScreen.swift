@@ -133,9 +133,14 @@ public struct SettingsScreen: View {
                 WTToggle(isOn: haptics).accessibilityIdentifier("settings.haptics")
             }
             WTDivider()
-            WTSettingRow("Темна тема") {
-                WTToggle(isOn: isDark).accessibilityIdentifier("settings.theme")
+            // Три варіанти (WAT-66): з перемикача «Темна тема» до системної вже не повернутись.
+            WTSegmentRow("Тема", options: SettingsModel.themeModes.map(SettingsModel.themeTitle),
+                         selection: SettingsModel.themeModes.firstIndex(of: themeMode) ?? 0,
+                         identifierPrefix: "settings.theme") { index in
+                themeMode = SettingsModel.themeModes[index]
+                model.setThemeMode(themeMode)
             }
+            .padding(.vertical, 10)
             WTDivider()
             // Контекстний вхід у «Знання» (SPEC-LEARN §3.2) — історія «Перші кроки».
             WTNavigationRow("Як користуватися", action: { onOpenLearn("app.start") })
@@ -167,11 +172,6 @@ public struct SettingsScreen: View {
     private var haptics: Binding<Bool> {
         Binding(get: { hapticsEnabled },
                 set: { hapticsEnabled = $0; model.setHaptics($0) })
-    }
-
-    private var isDark: Binding<Bool> {
-        Binding(get: { themeMode == .dark },
-                set: { themeMode = $0 ? .dark : .light; model.setThemeMode(themeMode) })
     }
 
     private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
