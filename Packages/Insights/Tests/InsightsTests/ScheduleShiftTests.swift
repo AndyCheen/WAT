@@ -157,6 +157,17 @@ final class ScheduleShiftTests: XCTestCase {
         XCTAssertNotNil(suggest(window(eightDays)))
     }
 
+    /// Сильний зсув (WAT-67): сова з першою склянкою об 11:00 — пропозиція вже з 5 днів; зсув на 90 хв — ні, чекаємо 8.
+    func testStrongShiftIsOfferedAfterFiveDays() throws {
+        let owl: [(first: Int, last: Int)?] = Array(repeating: nil, count: 9) + Array(repeating: (660, 1290), count: 5)
+        let early = try XCTUnwrap(suggest(window(owl)))
+        XCTAssertEqual(early.proposed.wakeMinutes, 660)
+        let mild: [(first: Int, last: Int)?] = Array(repeating: nil, count: 9) + Array(repeating: (570, 1250), count: 5)
+        XCTAssertNil(suggest(window(mild)), "зсув на 90 хв — лише з 8 днів")
+        let four: [(first: Int, last: Int)?] = Array(repeating: nil, count: 10) + Array(repeating: (660, 1290), count: 4)
+        XCTAssertNil(suggest(window(four)))
+    }
+
     /// Порція о 00:30 — ще вчорашній вечір, а не ранній підйом; день лише з нею — без доказів.
     func testPortionsBeforeFourAreLastNight() {
         let days = (0..<14).map { index in

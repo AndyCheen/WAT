@@ -792,6 +792,9 @@ public final class HomeViewModel {
     public var cappedNote: String? {
         guard day.isCapped else { return nil }
         let total = volumeUnit.format(day.totalMl) { "\(Volume.litersLabel($0, fractionDigits: 1)) л" }
+        // Понад півтори норми — тихе «досить» замість самої арифметики (WAT-67): аудит 60 днів — хто пив 3,9 л порціями
+        // по літру, не чув від застосунку жодного слова, а стеля зупиняла лише XP. Підпис, не тост: без зайвого шуму.
+        if day.totalMl * 2 > day.goalMl * 3 { return "Випито \(total) — норму закрито з запасом. Далі — за відчуттям" }
         return "Випито \(total) — зараховано 120 % норми"
     }
 }
