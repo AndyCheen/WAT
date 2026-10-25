@@ -75,6 +75,21 @@ final class ReportsTests: XCTestCase {
         XCTAssertEqual(report.thought, .improvement(percent: 18), "прогалини немає — далі покращення ≥ 10 %")
     }
 
+    // MARK: - Рік у «Обʼєм по днях» (ТЗ §7, WAT-67)
+
+    /// 12 стовпчиків до поточного місяця включно; значення — середнє за активний день, порожній місяць — 0.
+    func testYearChartAveragesActiveDaysPerMonth() {
+        drink("2026-09-10", 9, 0, 2000)
+        drink("2026-09-11", 9, 0, 1000)
+        drink("2026-10-01", 9, 0, 1500)
+        let chart = insights.volumeChart(mode: .months12)
+        XCTAssertEqual(chart.bars.count, 12)
+        XCTAssertEqual(chart.bars.map(\.key).suffix(2), ["2026-09", "2026-10"])
+        XCTAssertEqual(chart.bars.last?.label, "Жов")
+        XCTAssertEqual(chart.bars.map(\.ml).suffix(3), [0, 1500, 1500], "(2000 + 1000) / 2 днів у вересні")
+        XCTAssertEqual(chart.goalMl, 2000, "денна норма, а не місячна сума")
+    }
+
     // MARK: - День
 
     func testDayBlocksMatchGoalBlocks() {

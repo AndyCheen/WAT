@@ -192,7 +192,16 @@ public enum StatsPeriod: Int, CaseIterable, Sendable, Identifiable {
 public enum VolumeChartMode: Int, CaseIterable, Sendable, Identifiable {
     case days7 = 0
     case weeks8 = 1
+    /// 12 місяців (ТЗ §7 «рік», WAT-67): середнє за активний день місяця проти денної норми — місяці різної довжини
+    /// й неповний поточний місяць суми порівнювати не дали б.
+    case months12 = 2
 
     public var id: Int { rawValue }
-    public var title: String { self == .days7 ? "7 днів" : "8 тижнів" }
+    public var title: String {
+        switch self {
+        case .days7: return "7 днів"
+        case .weeks8: return "8 тижнів"
+        case .months12: return "Рік"
+        }
+    }
 }

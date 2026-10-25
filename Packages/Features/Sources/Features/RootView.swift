@@ -162,7 +162,7 @@ public struct RootView: View {
         case .prizes:
             PrizesScreen(services: services, onBack: { path.removeLast() }, onOpenLearn: { path.append(.learnStory($0)) })
         case .stats:
-            StatsScreen(services: services, onBack: { path.removeLast() })
+            StatsScreen(services: services, onBack: { path.removeLast() }, onOpenReport: { path.append(.report($0)) })
         case .prizeCard(let key):
             PrizesScreen(services: services, onBack: { path.removeLast() }, focusKey: key,
                          onOpenLearn: { path.append(.learnStory($0)) })

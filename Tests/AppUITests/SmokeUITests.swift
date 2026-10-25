@@ -557,6 +557,17 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Коли ти пʼєш"].waitForExistence(timeout: 5))
     }
 
+    /// Звіти — і без сповіщень (WAT-67): картка «Звіти» внизу 4a відкриває історію за минулий тиждень.
+    func testStatsOpensLastWeekReport() {
+        let app = launch(["--uitest-demo", "--start-screen", "stats"])
+        XCTAssertTrue(app.staticTexts["Норма води"].waitForExistence(timeout: 20))
+        let row = app.buttons["stats.report.week"]
+        for _ in 0..<10 where !(row.exists && row.isHittable) { app.swipeUp() }
+        XCTAssertTrue(row.isHittable, "картка «Звіти» на 4a")
+        row.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["report.headline"].waitForExistence(timeout: 5))
+    }
+
     // MARK: - Призи (SPEC-PRIZES §11, §15)
 
     /// Демо: учора пропущено після серії, у запасі ≥ 2 заморозки. Перша заморожує вчора,

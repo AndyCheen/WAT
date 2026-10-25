@@ -52,7 +52,24 @@ public final class InsightsService {
         switch mode {
         case .days7: return dailyVolumeChart(days: 7)
         case .weeks8: return weeklyVolumeChart(weeks: 8)
+        case .months12: return monthlyVolumeChart(months: 12)
         }
+    }
+
+    /// Короткі назви місяців для стовпчиків року.
+    static let monthLabels = ["Січ", "Лют", "Бер", "Кві", "Тра", "Чер", "Лип", "Сер", "Вер", "Жов", "Лис", "Гру"]
+
+    private func monthlyVolumeChart(months: Int) -> VolumeChartReport {
+        let goal = profiles.currentGoalMl(on: calendar.today)
+        let current = calendar.currentMonth
+        let bars = (0..<months).reversed().map { back -> VolumeBar in
+            let month = calendar.monthKey(offsetMonths: -back, from: current)
+            let active = dayLogs.dayLogs(in: month).filter { $0.totalMl > 0 }
+            let average = active.isEmpty ? 0 : active.reduce(0) { $0 + $1.totalMl } / active.count
+            return VolumeBar(label: Self.monthLabels[max(1, min(12, month.month)) - 1], ml: average, goalMl: goal,
+                             key: month.rawValue)
+        }
+        return VolumeChartReport(bars: bars, goalMl: goal, maxValue: max(bars.map(\.ml).max() ?? 0, goal))
     }
 
     private func dailyVolumeChart(days: Int) -> VolumeChartReport {

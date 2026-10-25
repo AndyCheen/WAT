@@ -10,10 +10,12 @@ public struct StatsScreen: View {
     @Environment(\.wtTheme) private var theme
     @State private var model: StatsViewModel
     private let onBack: () -> Void
+    private let onOpenReport: ([ReportPeriod]) -> Void
 
-    public init(services: AppServices, onBack: @escaping () -> Void) {
+    public init(services: AppServices, onBack: @escaping () -> Void, onOpenReport: @escaping ([ReportPeriod]) -> Void = { _ in }) {
         _model = State(initialValue: StatsViewModel(services: services))
         self.onBack = onBack
+        self.onOpenReport = onOpenReport
     }
 
     public var body: some View {
@@ -30,6 +32,7 @@ public struct StatsScreen: View {
                     periodSwitch
                     typicalDayCard
                     heatmapCard
+                    if !model.reportLinks.isEmpty { reportsCard }
                 }
                 .wtScreenTopPadding()
                 .padding(.horizontal, WTSpacing.screenSide)
@@ -106,6 +109,24 @@ public struct StatsScreen: View {
         }
     }
 
+    // MARK: - Звіти (WAT-67)
+
+    private var reportsCard: some View {
+        WTCard {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Звіти")
+                    .font(WTFont.display(16, .semibold))
+                    .foregroundStyle(theme.textPrimary)
+                    .padding(.bottom, 4)
+                ForEach(Array(model.reportLinks.enumerated()), id: \.element.id) { index, link in
+                    if index > 0 { WTDivider() }
+                    WTNavigationRow(link.title) { onOpenReport([link.period]) }
+                        .accessibilityIdentifier("stats.report.\(link.period.kind.rawValue)")
+                }
+            }
+        }
+    }
+
     // MARK: - Обʼєм по днях
 
     private var volumeCard: some View {
@@ -122,7 +143,7 @@ public struct StatsScreen: View {
                         selection: model.chartMode.rawValue,
                         onSelect: { model.chartMode = VolumeChartMode(rawValue: $0) ?? .days7 }
                     )
-                    .frame(width: 150)
+                    .frame(width: 200)
                 }
                 .padding(.bottom, 16)
 
