@@ -43,10 +43,12 @@ final class QuestConditionTests: XCTestCase {
         XCTAssertLessThanOrEqual(Double(half), day([]).curve.minute(reaching: 1000)!)
     }
 
-    /// Особистий дедлайн: медіана − 30, у межах [Z − 4 год, Z − 2 год], униз до 30; без медіани — Z − 3 год.
+    /// Особистий дедлайн (WAT-67): медіана, угору до 30 хв, у межах [Z − 4 год, Z − 2 год]; без медіани — Z − 3 год.
+    /// «До T» — строго раніше, тож медіана рівно на кроці дає наступний крок.
     func testPersonalGoalDeadline() {
         XCTAssertEqual(QuestRules.personalGoalMinute(median: nil, sleepMinutes: 22 * 60), 19 * 60)
-        XCTAssertEqual(QuestRules.personalGoalMinute(median: 19 * 60 + 10, sleepMinutes: 22 * 60), 18 * 60 + 30)
+        XCTAssertEqual(QuestRules.personalGoalMinute(median: 19 * 60 + 10, sleepMinutes: 22 * 60), 19 * 60 + 30)
+        XCTAssertEqual(QuestRules.personalGoalMinute(median: 19 * 60, sleepMinutes: 22 * 60), 19 * 60 + 30)
         XCTAssertEqual(QuestRules.personalGoalMinute(median: 15 * 60, sleepMinutes: 22 * 60), 18 * 60, "не раніше Z − 4 год")
         XCTAssertEqual(QuestRules.personalGoalMinute(median: 21 * 60 + 50, sleepMinutes: 22 * 60), 20 * 60, "не пізніше Z − 2 год")
     }

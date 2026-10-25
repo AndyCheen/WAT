@@ -51,12 +51,14 @@ public struct QuestSnapshot: Equatable, Identifiable, Sendable {
     public let visibleFrom: Date?
     /// Н3 — день тижня в назві, 0 — понеділок.
     public let weekdayIndex: Int?
+    /// Особиста ціль «Закрий блок» (WAT-67): назва тоді — «Вдень — 500 мл», а не «Закрий день».
+    public let targetMl: Int?
 
     public init(
         id: UUID, key: String, scope: QuestScope, slot: QuestSlot?, title: QuestTitle, kind: QuestKind,
         progress: Double, target: Double, isDone: Bool, difficulty: QuestDifficulty?, rewardXp: Int,
         deadline: Date? = nil, deadlineMinute: Int? = nil, count: Int? = nil, blockIndex: Int? = nil,
-        blockCount: Int? = nil, visibleFrom: Date? = nil, weekdayIndex: Int? = nil
+        blockCount: Int? = nil, visibleFrom: Date? = nil, weekdayIndex: Int? = nil, targetMl: Int? = nil
     ) {
         self.id = id
         self.key = key
@@ -76,6 +78,7 @@ public struct QuestSnapshot: Equatable, Identifiable, Sendable {
         self.blockCount = blockCount
         self.visibleFrom = visibleFrom
         self.weekdayIndex = weekdayIndex
+        self.targetMl = targetMl
     }
 
     public var fraction: Double { target > 0 ? min(1, progress / target) : 0 }

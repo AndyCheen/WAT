@@ -25,12 +25,15 @@ public struct WeeklyPickInput: Sendable {
     public var weakSpots: QuestWeakSpots
     /// Опора дедлайну Т8 (`nil` — менше 5 днів із нормою за 14).
     public var goalMedianMinute: Int?
+    /// Днів за 7 з умовою кожної «Звички» — від них N (WAT-67). Порожньо — N з каталогу.
+    public var habitBase: [String: Int]
     public var rules: XPRules
 
     public init(week: WeekKey, todayIndex: Int, isFirstWeek: Bool, seed: String, level: Int, dayRhythm: Bool,
                 goalDaysPerFullWeek: [Int] = [], lastWeek: [(key: String, isDone: Bool)] = [], goalDays14: Int = 0,
                 weekendGoalShare: Double? = nil, weekdayGoalShare: Double? = nil, halfByDays7: Int = 0,
-                weakSpots: QuestWeakSpots = .init(), goalMedianMinute: Int? = nil, rules: XPRules = .default) {
+                weakSpots: QuestWeakSpots = .init(), goalMedianMinute: Int? = nil, habitBase: [String: Int] = [:],
+                rules: XPRules = .default) {
         self.week = week
         self.todayIndex = todayIndex
         self.isFirstWeek = isFirstWeek
@@ -45,6 +48,7 @@ public struct WeeklyPickInput: Sendable {
         self.halfByDays7 = halfByDays7
         self.weakSpots = weakSpots
         self.goalMedianMinute = goalMedianMinute
+        self.habitBase = habitBase
         self.rules = rules
     }
 
@@ -109,11 +113,23 @@ public enum WeeklyQuestPicker {
         let candidates = QuestCatalog.definitions(.habit).compactMap { definition -> DailyQuestPicker.Candidate? in
             guard definition.requirements.allows(level: input.level, dayRhythm: input.dayRhythm, remindersActive: true),
                   !lastKeys.contains(definition.key),
-                  let pick = make(definition.key, count: min(definition.baseCount ?? spare, spare), input) else { return nil }
+                  let count = habitCount(definition, input, spare: spare),
+                  let pick = make(definition.key, count: count, input) else { return nil }
             return .init(pick: pick, weight: weight(definition.key, input))
         }
         return DailyQuestPicker.weighted(candidates, hash: "\(input.seed)|\(input.week.rawValue)|habit")
     }
+
+    /// N «Звички» (WAT-67): днів за минулий тиждень з цією умовою + 1, не більше N з каталогу й запасного дня. Хто
+    /// має 0 ідеальних днів за тиждень, «3 ідеальних дні» не отримує: аудит 60 днів — 0 з 9. `nil` — не видавати.
+    static func habitCount(_ definition: QuestDefinition, _ input: WeeklyPickInput, spare: Int) -> Int? {
+        let full = min(definition.baseCount ?? spare, spare)
+        guard definition.key != "weekly.weekend", let base = input.habitBase[definition.key] else { return full }
+        if case .daysCount(.allBlocks) = definition.condition, base == 0 { return nil }
+        return min(max(base + 1, habitMinCount), full)
+    }
+
+    static let habitMinCount = 2
 
     private static func weight(_ key: String, _ input: WeeklyPickInput) -> Int {
         switch key {

@@ -325,4 +325,17 @@ final class QuestFeatureTests: XCTestCase {
         model.selectSurprisePerWeek(1)
         XCTAssertEqual(model.surprisePerWeek, 1)
     }
+
+    /// Особиста ціль слабкого блоку (WAT-67): «Вдень — 500 мл» замість «Закрий день».
+    func testPersonalBlockTargetTitle() throws {
+        let definition = try XCTUnwrap(QuestCatalog.definition("daily.closeBlock"))
+        func snapshot(_ target: Int?) -> QuestSnapshot {
+            QuestSnapshot(id: UUID(), key: definition.key, scope: .daily, slot: .rhythm, title: definition.title,
+                          kind: .volume, progress: 0, target: Double(target ?? 744), isDone: false, difficulty: .medium,
+                          rewardXp: 25, blockIndex: 1, blockCount: 3, targetMl: target)
+        }
+        XCTAssertEqual(QuestPresenter.title(snapshot(500)), "Вдень — 500 мл")
+        XCTAssertEqual(QuestPresenter.title(snapshot(nil)), "Закрий день")
+        XCTAssertEqual(QuestPresenter.title(snapshot(400), unit: .usFluidOunces), "Вдень — 14 унц.")
+    }
 }

@@ -68,17 +68,21 @@ public struct QuestParams: Sendable, Equatable {
     public var goalMedianMinute: Int?
     public var blockIndex: Int?
     public var count: Int?
+    /// Особиста ціль «Закрий блок» (WAT-67) — не більша за межу зарахування блоку.
+    public var targetMl: Int?
     /// «Моя склянка» P.
     public var glassMl: Int
     public var unit: VolumeUnit
 
     public init(deadlineMinute: Int? = nil, startMinute: Int? = nil, goalMedianMinute: Int? = nil,
-                blockIndex: Int? = nil, count: Int? = nil, glassMl: Int = 250, unit: VolumeUnit = .milliliters) {
+                blockIndex: Int? = nil, count: Int? = nil, targetMl: Int? = nil, glassMl: Int = 250,
+                unit: VolumeUnit = .milliliters) {
         self.deadlineMinute = deadlineMinute
         self.startMinute = startMinute
         self.goalMedianMinute = goalMedianMinute
         self.blockIndex = blockIndex
         self.count = count
+        self.targetMl = targetMl
         self.glassMl = glassMl
         self.unit = unit
     }
@@ -112,8 +116,10 @@ public enum QuestRules {
     public static let glassMinMl = 150
     /// Час T у назвах і умовах — униз до 30 хв (§4.4).
     public static let deadlineStepMinutes = 30
-    /// Особистий дедлайн: медіана закриття мінус 30 хв, у межах [Z − 4 год, Z − 2 год]; без 5 днів із нормою —
-    /// Z − 3 год (§4.4).
+    /// Особистий дедлайн: медіана закриття, угору до 30 хв, у межах [Z − 4 год, Z − 2 год]; без 5 днів із нормою —
+    /// Z − 3 год (§4.4). До WAT-67 — медіана мінус 30 хв: у того, хто закриває норму стабільно, такий дедлайн не
+    /// вдавався жодного разу (0 з 12 за 60 днів), тож «на 30 хв раніше» тепер — сходинка щоденного завдання після
+    /// успіху (`QuestAdaptation`), а не стартова планка.
     public static let personalGoalLeadMinutes = 30
     public static let personalGoalWindow = (earliest: 240, latest: 120)
     public static let personalGoalFallback = 180
@@ -129,12 +135,13 @@ public enum QuestRules {
 
     static func floorToStep(_ minute: Int) -> Int { minute / deadlineStepMinutes * deadlineStepMinutes }
 
-    /// §4.4: від медіани хвилини закриття норми; `nil` — менше 5 днів із нормою.
+    /// §4.4: від медіани хвилини закриття норми; `nil` — менше 5 днів із нормою. «До T» — строго раніше, тож
+    /// медіана рівно на кроці дає наступний крок.
     public static func personalGoalMinute(median: Int?, sleepMinutes: Int) -> Int {
         guard let median else { return floorToStep(sleepMinutes - personalGoalFallback) }
-        let clamped = min(max(median - personalGoalLeadMinutes, sleepMinutes - personalGoalWindow.earliest),
-                          sleepMinutes - personalGoalWindow.latest)
-        return floorToStep(clamped)
+        let earliest = QuestAdaptation.ceilToStep(sleepMinutes - personalGoalWindow.earliest)
+        let latest = floorToStep(sleepMinutes - personalGoalWindow.latest)
+        return min(max(QuestAdaptation.ceilToStep(median + 1), earliest), latest)
     }
 }
 
@@ -184,7 +191,9 @@ extension DayCondition {
             let target = share >= 1 ? day.goalMl : QuestRules.shownMl(Double(day.goalMl) * share, unit: params.unit)
             return .volume(day.drunk(before: deadline), target)
         case .wakeGlass:
-            let target = QuestRules.shownMl(Double(min(params.glassMl, QuestRules.wakeGlassCapMl)), unit: params.unit)
+            // Особиста — звична порція того, хто п'є склянками менше за 250 мл (WAT-67).
+            let target = params.targetMl
+                ?? QuestRules.shownMl(Double(min(params.glassMl, QuestRules.wakeGlassCapMl)), unit: params.unit)
             return .volume(day.drunk(before: deadline), target)
         case .glasses(let minMl, _):
             let threshold = QuestRules.shownMl(Double(minMl), unit: params.unit)
@@ -192,7 +201,7 @@ extension DayCondition {
             return .count(done, params.count ?? 1)
         case .blockReached:
             guard let block = day.block(params.blockIndex) else { return .count(0, 1) }
-            return .volume(block.drunkMl(of: day.portions), block.reachedMl)
+            return .volume(block.drunkMl(of: day.portions), min(params.targetMl ?? .max, block.reachedMl))
         case .portionInEachBlock(let minMl):
             let threshold = QuestRules.shownMl(Double(minMl), unit: params.unit)
             let done = day.blocks.filter { block in

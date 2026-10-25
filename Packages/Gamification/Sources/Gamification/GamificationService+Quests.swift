@@ -112,8 +112,28 @@ extension GamificationService {
             yesterdayKeys: Set(keys(1)), recentKeys: (1...DailyQuestPicker.recentDays).flatMap(keys),
             goalMedianMinute: history.goalMedianMinute, weakSpots: history.weakSpots(today: today.schedule),
             weakBlock: profile.dayRhythmEnabled ? history.weakBlock(blockCount: today.blocks.count, seed: mysterySeed) : nil,
-            rules: xp.rules
+            baseline: history.baseline(glassMinMl: QuestRules.shownMl(Double(QuestRules.glassMinMl), unit: profile.volumeUnit)),
+            outcomes: questOutcomes(before: day), rules: xp.rules
         )
+    }
+
+    /// Результати щоденних за 14 днів до вчора (WAT-67): виконане — успіх; прострочене чи так і не оцінене до кінця
+    /// свого дня — ні; скасоване — не рахується.
+    func questOutcomes(before day: DayKey) -> [QuestOutcome] {
+        (1...QuestAdaptation.lookbackDays).flatMap { back -> [QuestOutcome] in
+            let past = calendar.dayKey(offsetDays: -back, from: day)
+            return store.quests(scope: .daily, periodKey: past.rawValue).compactMap { instance in
+                let succeeded: Bool
+                switch instance.state {
+                case .completed, .claimed: succeeded = true
+                case .expired, .active: succeeded = false
+                case .cancelled: return nil
+                }
+                return QuestOutcome(key: instance.defKey, day: past, succeeded: succeeded,
+                                    deadlineMinute: instance.deadlineMinute, count: instance.count,
+                                    targetMl: instance.targetMl)
+            }
+        }
     }
 
     func weeklyPickInput(day: DayKey) -> WeeklyPickInput {
@@ -129,8 +149,21 @@ extension GamificationService {
             lastWeek: store.quests(scope: .weekly, periodKey: lastWeek.rawValue).map { ($0.defKey, $0.isDone) },
             goalDays14: history.goalDays(14), weekendGoalShare: shares.weekend, weekdayGoalShare: shares.weekday,
             halfByDays7: history.halfByDays7, weakSpots: history.weakSpots(today: questDay(day).schedule),
-            goalMedianMinute: history.goalMedianMinute, rules: xp.rules
+            goalMedianMinute: history.goalMedianMinute,
+            habitBase: habitBase(history), rules: xp.rules
         )
+    }
+
+    /// Скільки днів за минулий тиждень людина вже виконувала умову кожної «Звички» — від цього N (WAT-67).
+    func habitBase(_ history: QuestHistory) -> [String: Int] {
+        let params = QuestParams(goalMedianMinute: history.goalMedianMinute, glassMl: profile.glassMl,
+                                 unit: profile.volumeUnit)
+        var base: [String: Int] = [:]
+        for definition in QuestCatalog.definitions(.habit) {
+            guard let condition = definition.condition.dayCondition else { continue }
+            base[definition.key] = history.days7(condition, params: params)
+        }
+        return base
     }
 
     /// Входи `SurprisePicker` (QUESTS-PLAN §3.4) — лише на сьогодні: несподіване планується в першу дію дня, а подія

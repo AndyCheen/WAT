@@ -48,6 +48,10 @@ enum QuestPresenter {
             case .volume(let ml): return unit.label(ml)
             case .block: return blockName(index: quest.blockIndex ?? 0, count: quest.blockCount ?? 3)
             case .weekday: return quest.weekdayIndex.map { CalendarService.weekdayNames[min(max($0, 0), 6)] } ?? ""
+            case .blockAim:
+                let index = quest.blockIndex ?? 0, count = quest.blockCount ?? 3
+                guard let target = quest.targetMl else { return "Закрий " + blockName(index: index, count: count) }
+                return blockAdverb(index: index, count: count) + " — " + unit.label(target)
             }
         }.joined()
     }
@@ -106,5 +110,14 @@ enum QuestPresenter {
     static func blockName(index: Int, count: Int) -> String {
         if index <= 0 { return count > 1 ? "ранок" : "день" }
         return index >= count - 1 ? "вечір" : "день"
+    }
+
+    /// «Зранку», «Вдень», «Увечері» — для особистої цілі блоку (WAT-67).
+    static func blockAdverb(index: Int, count: Int) -> String {
+        switch blockName(index: index, count: count) {
+        case "ранок": return "Зранку"
+        case "вечір": return "Увечері"
+        default: return "Вдень"
+        }
     }
 }

@@ -92,6 +92,8 @@ public struct QuestTitle: Sendable, Equatable {
         case block
         /// День тижня в називному — «Субота» (`QuestSnapshot.weekdayIndex`, Н3).
         case weekday
+        /// «Закрий день» або, з особистою ціллю, «Вдень — 500 мл» (`QuestSnapshot.targetMl`, WAT-67).
+        case blockAim
 
         public init(stringLiteral value: String) { self = .text(value) }
     }
@@ -195,11 +197,13 @@ public enum QuestCatalog {
               condition: .day(.wakeGlass(withinMinutes: 60)), difficulty: .fixed(.easy), minLeadMinutes: 20),
         .init(key: "daily.glasses", scope: .daily, slot: .rhythm,
               title: .init(.count(.glasses), " від ", .volume(QuestRules.glassMinMl)),
-              condition: .day(.glasses(minMl: QuestRules.glassMinMl, deadline: nil)), difficulty: .fixed(.easy)),
+              // N — від звичного (WAT-67), до потрібного для норми: 6 і більше склянок — уже не легке.
+              condition: .day(.glasses(minMl: QuestRules.glassMinMl, deadline: nil)),
+              difficulty: .byCount(medium: 6, hard: 8)),
         .init(key: "daily.glassesBy", scope: .daily, slot: .rhythm, title: .init(.count(.glasses), " до ", .time),
               condition: .day(.glasses(minMl: QuestRules.glassMinMl, deadline: .curveShare(0.5))),
               difficulty: .fixed(.medium), baseCount: 3),
-        .init(key: "daily.closeBlock", scope: .daily, slot: .rhythm, title: .init("Закрий ", .block),
+        .init(key: "daily.closeBlock", scope: .daily, slot: .rhythm, title: .init(.blockAim),
               condition: .day(.blockReached), difficulty: .fixed(.medium), requirements: rhythm),
         .init(key: "daily.everyBlock", scope: .daily, slot: .rhythm, title: .init("Вода в кожній частині"),
               condition: .day(.portionInEachBlock(minMl: QuestRules.glassMinMl)), difficulty: .fixed(.easy),
