@@ -55,9 +55,11 @@ public struct QuestBaseline: Sendable, Equatable {
 /// зазвичай п'є, а не абсолютна: незмінна планка, яку людина щоразу не бере, лише демотивує. Аудит 60 днів: «5
 /// склянок» у того, хто п'є 2–4 рази на день, — 0 з 17; «Норма до T» у того, хто закриває норму щодня, — 0 з 12.
 ///
-/// Сходинки: перший раз — особиста база (медіана за 14 днів, униз-угору до 30 хв); виконано — наступного разу на
-/// крок ближче до ідеалу кривої чи норми, не виконано — на крок легше. Провалено кілька разів поспіль на найлегшій
-/// сходинці — завдання відпочиває 14 днів.
+/// Сходинки «два вгору — один униз»: перший раз — особиста база (медіана за 14 днів, угору до 30 хв); виконано двічі
+/// поспіль на тій самій планці — на крок ближче до ідеалу кривої чи норми, не виконано — на крок легше, інакше планка
+/// тримається. Таке правило сходиться до ~70 % успіху: завдання кличе вперед, але здебільшого вдається. «Крок після
+/// кожного успіху» в симуляції 60 днів тримав людину біля 30 %: після вдалого дня одразу ставав недосяжним. Провалено
+/// кілька разів поспіль — завдання відпочиває 14 днів.
 public enum QuestAdaptation {
     /// Крок часу — той самий, що в назвах («до 14:00»).
     public static let stepMinutes = QuestRules.deadlineStepMinutes
@@ -67,12 +69,8 @@ public enum QuestAdaptation {
     public static let adaptiveFailStreak = 3
     public static let fixedFailStreak = 2
 
-    /// Останній результат ключа за 14 днів — від нього сходинка.
-    public static func last(_ key: String, in outcomes: [QuestOutcome], today: DayKey) -> QuestOutcome? {
-        recent(key, in: outcomes, today: today).first
-    }
-
-    static func recent(_ key: String, in outcomes: [QuestOutcome], today: DayKey) -> [QuestOutcome] {
+    /// Результати ключа за 14 днів, новіші спершу, — від них сходинка.
+    public static func recent(_ key: String, in outcomes: [QuestOutcome], today: DayKey) -> [QuestOutcome] {
         outcomes
             .filter { $0.key == key && $0.day < today && today.ordinal - $0.day.ordinal <= lookbackDays }
             .sorted { $0.day > $1.day }
@@ -89,19 +87,26 @@ public enum QuestAdaptation {
     /// - Parameters:
     ///   - aim: ідеал — хвилина кривої темпу чи особистого дедлайну норми. Раніше за нього не вимагаємо.
     ///   - base: коли людина зазвичай досягає цієї частки; `nil` — історії замало.
-    public static func deadline(aim: Int, base: Int?, latest: Int, last: QuestOutcome?) -> Int {
+    public static func deadline(aim: Int, base: Int?, latest: Int, history: [QuestOutcome]) -> Int {
         let upper = max(aim, latest)
         let start = min(max(aim, base.map(ceilToStep) ?? aim), upper)
-        guard let last, let previous = last.deadlineMinute else { return start }
-        let next = last.succeeded ? previous - stepMinutes : previous + stepMinutes
+        guard let previous = history.first?.deadlineMinute else { return start }
+        let next = previous - stepMinutes * direction(history, sameAs: { $0.deadlineMinute == previous })
         return min(max(next, aim), upper)
     }
 
-    /// N склянок чи днів: звичне + 1, далі — на крок за кожен успіх чи провал.
-    public static func count(base: Int?, fallback: Int, range: ClosedRange<Int>, last: QuestOutcome?) -> Int {
+    /// N склянок чи днів: звичне + 1, далі — сходинкою.
+    public static func count(base: Int?, fallback: Int, range: ClosedRange<Int>, history: [QuestOutcome]) -> Int {
         let start = base.map { $0 + 1 } ?? fallback
-        guard let last, let previous = last.count else { return clamp(start, range) }
-        return clamp(last.succeeded ? previous + 1 : previous - 1, range)
+        guard let previous = history.first?.count else { return clamp(start, range) }
+        return clamp(previous + direction(history, sameAs: { $0.count == previous }), range)
+    }
+
+    /// +1 — на крок важче (двічі поспіль виконано на тій самій планці), −1 — легше (останнє не виконано), 0 — тримати.
+    static func direction(_ history: [QuestOutcome], sameAs: (QuestOutcome) -> Bool) -> Int {
+        guard let last = history.first else { return 0 }
+        guard last.succeeded else { return -1 }
+        return history.count > 1 && history[1].succeeded && sameAs(history[1]) ? 1 : 0
     }
 
     /// Блок, у якому людина зазвичай п'є менше `personalBlockShare` цілі, стартує зі звичного плюс склянка; ближчий до
@@ -111,14 +116,14 @@ public enum QuestAdaptation {
     /// Особиста ціль «Закрий блок» — сходинка в пів склянки: виконано — вище, ні — нижче, але не нижче звичного
     /// (униз до 50 мл), тож завдання чергує «утримай» і «ще трохи». Угору до 50 мл; дійшла до межі зарахування —
     /// `nil`, повна ціль. Людина, що вже закриває блок у половині днів (медіана від 90 %), отримує повну ціль одразу.
-    public static func blockTarget(median: Double?, block: GoalBlock, glassMl: Int, last: QuestOutcome?) -> Int? {
+    public static func blockTarget(median: Double?, block: GoalBlock, glassMl: Int, history: [QuestOutcome]) -> Int? {
         guard let median, median < GoalBlock.reachShare else { return nil }
         let usual = Int((median * Double(block.targetMl)).rounded())
         let step = glassMl / 2
         var target = median < personalBlockShare ? usual + glassMl : usual + step
-        if let last {
+        if let last = history.first {
             let previous = last.targetMl ?? block.reachedMl
-            target = last.succeeded ? previous + step : previous - step
+            target = previous + step * direction(history, sameAs: { ($0.targetMl ?? block.reachedMl) == previous })
         }
         let rounded = Int((Double(max(target, usual / 50 * 50)) / 50).rounded(.up)) * 50
         return rounded < block.reachedMl ? rounded : nil

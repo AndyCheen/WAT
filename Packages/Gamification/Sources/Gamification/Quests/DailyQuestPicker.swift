@@ -234,7 +234,7 @@ public enum DailyQuestPicker {
         var params = QuestParams(goalMedianMinute: input.goalMedianMinute, glassMl: input.glassMl)
         let today = QuestDay(day: input.day, goalMl: input.goalMl, schedule: input.schedule, portions: [])
         // Сходинка — від того, як людина впоралась із цим завданням востаннє (WAT-67).
-        let last = QuestAdaptation.last(definition.key, in: input.outcomes, today: input.day)
+        let history = QuestAdaptation.recent(definition.key, in: input.outcomes, today: input.day)
         if case .wakeGlass? = condition {
             params.targetMl = QuestAdaptation.wakeGlassTarget(portionMl: input.baseline.portionMl, glassMl: input.glassMl)
         }
@@ -242,7 +242,7 @@ public enum DailyQuestPicker {
             params.blockIndex = input.weakBlock?.index ?? 0
             if let block = today.block(params.blockIndex) {
                 params.targetMl = QuestAdaptation.blockTarget(median: input.weakBlock?.median, block: block,
-                                                              glassMl: input.glassMl, last: last)
+                                                              glassMl: input.glassMl, history: history)
             }
         }
         switch condition {
@@ -250,10 +250,10 @@ public enum DailyQuestPicker {
             let need = Int((Double(input.goalMl) / Double(max(1, input.glassMl))).rounded(.up))
             let range = glassesMin...min(max(need, glassesMin), glassesMax)
             params.count = QuestAdaptation.count(base: input.baseline.glasses, fallback: min(range.upperBound, 5),
-                                                 range: range, last: last)
+                                                 range: range, history: history)
         case .glasses?:
             params.count = QuestAdaptation.count(base: input.baseline.glassesBeforeHalf, fallback: definition.baseCount ?? 3,
-                                                 range: glassesByRange, last: last)
+                                                 range: glassesByRange, history: history)
         default:
             break
         }
@@ -266,7 +266,7 @@ public enum DailyQuestPicker {
                 : ideal
             let base = input.baseline.shareMinutes[Int((share * 100).rounded())].map { $0 + 1 }
             deadline = QuestAdaptation.deadline(aim: aim, base: base,
-                                                latest: input.schedule.sleepMinutes - latestBeforeSleepMinutes, last: last)
+                                                latest: input.schedule.sleepMinutes - latestBeforeSleepMinutes, history: history)
         }
         let difficulty = definition.difficulty?.difficulty(count: params.count) ?? .easy
         return QuestPick(key: definition.key, difficulty: difficulty,

@@ -11,26 +11,40 @@ final class QuestAdaptationTests: XCTestCase {
 
     // MARK: - Сходинки
 
+    private func outcome(_ back: Int, _ succeeded: Bool, deadline: Int? = nil, count: Int? = nil,
+                         target: Int? = nil) -> QuestOutcome {
+        QuestOutcome(key: "k", day: day(back), succeeded: succeeded, deadlineMinute: deadline, count: count, targetMl: target)
+    }
+
+    /// «Два вгору — один униз»: на крок важче лише після двох успіхів поспіль на тій самій планці.
     func testDeadlineStartsFromPersonalBaseAndSteps() {
         // Ідеал кривої 13:00, людина зазвичай добирає о 14:20 — старт 14:30.
-        XCTAssertEqual(QuestAdaptation.deadline(aim: 780, base: 860, latest: 1260, last: nil), 870)
-        let success = QuestOutcome(key: "k", day: day(1), succeeded: true, deadlineMinute: 870)
-        XCTAssertEqual(QuestAdaptation.deadline(aim: 780, base: 860, latest: 1260, last: success), 840, "виконано — на крок раніше")
-        let fail = QuestOutcome(key: "k", day: day(1), succeeded: false, deadlineMinute: 870)
-        XCTAssertEqual(QuestAdaptation.deadline(aim: 780, base: 860, latest: 1260, last: fail), 900, "ні — на крок пізніше")
-        let atAim = QuestOutcome(key: "k", day: day(1), succeeded: true, deadlineMinute: 780)
-        XCTAssertEqual(QuestAdaptation.deadline(aim: 780, base: 860, latest: 1260, last: atAim), 780, "раніше за ідеал не вимагаємо")
-        XCTAssertEqual(QuestAdaptation.deadline(aim: 780, base: 700, latest: 1260, last: nil), 780, "хто випереджає криву — ідеал")
-        XCTAssertEqual(QuestAdaptation.deadline(aim: 780, base: 1300, latest: 1260, last: nil), 1260, "не пізніше години до відбою")
+        XCTAssertEqual(QuestAdaptation.deadline(aim: 780, base: 860, latest: 1260, history: []), 870)
+        XCTAssertEqual(QuestAdaptation.deadline(aim: 780, base: 860, latest: 1260, history: [outcome(1, true, deadline: 870)]),
+                       870, "один успіх — планка тримається")
+        XCTAssertEqual(QuestAdaptation.deadline(aim: 780, base: 860, latest: 1260,
+                                                history: [outcome(1, true, deadline: 870), outcome(3, true, deadline: 870)]),
+                       840, "двічі поспіль — на крок раніше")
+        XCTAssertEqual(QuestAdaptation.deadline(aim: 780, base: 860, latest: 1260,
+                                                history: [outcome(1, true, deadline: 840), outcome(3, true, deadline: 870)]),
+                       840, "успіх на новій планці — ще тримаємо")
+        XCTAssertEqual(QuestAdaptation.deadline(aim: 780, base: 860, latest: 1260, history: [outcome(1, false, deadline: 870)]),
+                       900, "ні — на крок пізніше")
+        XCTAssertEqual(QuestAdaptation.deadline(aim: 780, base: 860, latest: 1260,
+                                                history: [outcome(1, true, deadline: 780), outcome(2, true, deadline: 780)]),
+                       780, "раніше за ідеал не вимагаємо")
+        XCTAssertEqual(QuestAdaptation.deadline(aim: 780, base: 700, latest: 1260, history: []), 780, "хто випереджає криву — ідеал")
+        XCTAssertEqual(QuestAdaptation.deadline(aim: 780, base: 1300, latest: 1260, history: []), 1260, "не пізніше години до відбою")
     }
 
     func testCountStartsFromUsualPlusOne() {
-        XCTAssertEqual(QuestAdaptation.count(base: 2, fallback: 5, range: 3...8, last: nil), 3)
-        XCTAssertEqual(QuestAdaptation.count(base: nil, fallback: 5, range: 3...8, last: nil), 5)
-        let success = QuestOutcome(key: "k", day: day(2), succeeded: true, count: 4)
-        XCTAssertEqual(QuestAdaptation.count(base: 2, fallback: 5, range: 3...8, last: success), 5)
-        let fail = QuestOutcome(key: "k", day: day(2), succeeded: false, count: 3)
-        XCTAssertEqual(QuestAdaptation.count(base: 2, fallback: 5, range: 3...8, last: fail), 3, "не нижче за межу")
+        XCTAssertEqual(QuestAdaptation.count(base: 2, fallback: 5, range: 3...8, history: []), 3)
+        XCTAssertEqual(QuestAdaptation.count(base: nil, fallback: 5, range: 3...8, history: []), 5)
+        XCTAssertEqual(QuestAdaptation.count(base: 2, fallback: 5, range: 3...8,
+                                             history: [outcome(2, true, count: 4), outcome(4, true, count: 4)]), 5)
+        XCTAssertEqual(QuestAdaptation.count(base: 2, fallback: 5, range: 3...8, history: [outcome(2, true, count: 4)]), 4)
+        XCTAssertEqual(QuestAdaptation.count(base: 2, fallback: 5, range: 3...8, history: [outcome(2, false, count: 3)]), 3,
+                       "не нижче за межу")
     }
 
     func testPauseAfterRepeatedFailures() {
@@ -52,11 +66,18 @@ final class QuestAdaptationTests: XCTestCase {
             .first { $0.fromMinute == 720 })
         XCTAssertEqual(block.targetMl, 826)
         // Зазвичай 30 % — 248 мл; ціль — звичне + склянка, угору до 50.
-        XCTAssertEqual(QuestAdaptation.blockTarget(median: 0.3, block: block, glassMl: 250, last: nil), 500)
-        let success = QuestOutcome(key: "daily.closeBlock", day: day(1), succeeded: true, targetMl: 500)
-        XCTAssertEqual(QuestAdaptation.blockTarget(median: 0.3, block: block, glassMl: 250, last: success), 650)
-        XCTAssertNil(QuestAdaptation.blockTarget(median: 0.7, block: block, glassMl: 250, last: nil), "понад 60 % — повна ціль")
-        XCTAssertNil(QuestAdaptation.blockTarget(median: 0.55, block: block, glassMl: 250, last: success.withTarget(700)),
+        XCTAssertEqual(QuestAdaptation.blockTarget(median: 0.3, block: block, glassMl: 250, history: []), 500)
+        let twice = [outcome(1, true, target: 500), outcome(2, true, target: 500)]
+        XCTAssertEqual(QuestAdaptation.blockTarget(median: 0.3, block: block, glassMl: 250, history: twice), 650)
+        XCTAssertEqual(QuestAdaptation.blockTarget(median: 0.3, block: block, glassMl: 250, history: [outcome(1, false, target: 500)]),
+                       400, "не вдалось — на пів склянки нижче")
+        XCTAssertEqual(QuestAdaptation.blockTarget(median: 0.65, block: block, glassMl: 250, history: []), 700,
+                       "65 % — звичне 537 + пів склянки, угору до 50")
+        XCTAssertNil(QuestAdaptation.blockTarget(median: 0.7, block: block, glassMl: 250, history: []),
+                     "78 + пів склянки вже за межею зарахування — повна ціль")
+        XCTAssertNil(QuestAdaptation.blockTarget(median: 0.9, block: block, glassMl: 250, history: []), "від 90 % — повна ціль")
+        XCTAssertNil(QuestAdaptation.blockTarget(median: 0.55, block: block, glassMl: 250,
+                                                 history: [outcome(1, true, target: 700), outcome(2, true, target: 700)]),
                      "особиста ціль доросла до межі зарахування — далі повна")
     }
 
@@ -90,9 +111,9 @@ final class QuestAdaptationTests: XCTestCase {
         let baseline = QuestBaseline(shareMinutes: [100: 19 * 60 + 20])
         let pick = try resolve("daily.goalBy", input(baseline: baseline, goalMedian: 19 * 60 + 20))
         XCTAssertEqual(pick.deadlineMinute, 19 * 60 + 30)
-        let after = QuestOutcome(key: "daily.goalBy", day: day(1), succeeded: true, deadlineMinute: 19 * 60 + 30)
-        XCTAssertEqual(try resolve("daily.goalBy", input(baseline: baseline, outcomes: [after], goalMedian: 19 * 60 + 20))
-            .deadlineMinute, 19 * 60, "виконано — наступного разу на 30 хв раніше")
+        let after = (1...2).map { QuestOutcome(key: "daily.goalBy", day: day($0 * 2), succeeded: true, deadlineMinute: 19 * 60 + 30) }
+        XCTAssertEqual(try resolve("daily.goalBy", input(baseline: baseline, outcomes: after, goalMedian: 19 * 60 + 20))
+            .deadlineMinute, 19 * 60, "виконано двічі — наступного разу на 30 хв раніше")
     }
 
     /// Сова: половину норми зазвичай має о 16:40 — «Половина до 17:00», а не до 14:00 за кривою.
@@ -130,11 +151,5 @@ final class QuestAdaptationTests: XCTestCase {
                        "жодного разу — недосяжне")
         let failed = (2...3).map { QuestOutcome(key: "daily.everyBlock", day: day($0), succeeded: false) }
         XCTAssertFalse(keys(input(outcomes: failed)).contains("daily.everyBlock"), "двічі не вдалось — пауза")
-    }
-}
-
-private extension QuestOutcome {
-    func withTarget(_ ml: Int) -> QuestOutcome {
-        QuestOutcome(key: key, day: day, succeeded: succeeded, deadlineMinute: deadlineMinute, count: count, targetMl: ml)
     }
 }
