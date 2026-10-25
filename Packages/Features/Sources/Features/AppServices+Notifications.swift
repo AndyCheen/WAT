@@ -235,3 +235,21 @@ struct EchoContent: Equatable {
         return nil
     }
 }
+
+// MARK: - «Нагадувань забагато?» (WAT-67, SPEC-NOTIFICATIONS §32)
+
+extension AppServices {
+    /// Разове питання: головний вимикач увімкнено, а нагадування за тиждень майже не допомагали.
+    public var shouldOfferReminderHelp: Bool {
+        profile.notificationsEnabled && notifications.shouldOfferReminderHelp(at: calendar.now)
+    }
+
+    public func markReminderHelpOffered() {
+        notifications.markReminderHelpOffered(at: calendar.now)
+    }
+
+    public func answerReminderHelp(_ choice: NotificationService.ReminderHelpChoice) {
+        notifications.applyReminderHelp(choice)
+        touch()
+    }
+}

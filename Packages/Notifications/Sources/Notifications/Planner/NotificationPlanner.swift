@@ -431,9 +431,13 @@ struct PlanBuilder {
         let anchor = todayIntakes.max() ?? frame.wake
         let anchorMinute = frame.minute(of: anchor)
 
+        // Нагадування не допомагають (§32) — типова частота стає «Рідше», а повторних немає. Свідомо обрані «Частіше»
+        // й рівні інтервали не чіпаємо: це вибір людини.
+        let ignored = preferences.adaptiveReminders && journal.remindersIgnored(before: today, rules: rules)
         let first: Double
         switch preferences.cadence {
-        case .pace(let frequency):
+        case .pace(let chosen):
+            let frequency = ignored && chosen == .normal ? ReminderFrequency.rarer : chosen
             let pace = rules.pace(for: frequency)
             first = frame.curve.nextDueMinute(anchorMinute: anchorMinute, drunkMl: drank, portionMl: portion,
                                               k: pace.k, minGapMinutes: pace.minGapMinutes,
@@ -485,7 +489,7 @@ struct PlanBuilder {
             } else {
                 append(next, primary: true)
             }
-            if preferences.followUpEnabled { append(blockStart.addingTimeInterval(followUp), primary: false) }
+            if preferences.followUpEnabled, !ignored { append(blockStart.addingTimeInterval(followUp), primary: false) }
             next = blockStart.addingTimeInterval(followUp + backoff)
         }
         return chain

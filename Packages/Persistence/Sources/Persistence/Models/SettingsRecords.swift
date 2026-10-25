@@ -82,6 +82,11 @@ public final class NotificationSettings {
     public var reminderFrequencyRaw: Int = ReminderFrequency.normal.rawValue
     public var reminderIntervalMinutes: Int = 90
     public var followUpEnabled: Bool = true
+    /// Нагадування, які людина не помічає, самі рідшають (WAT-67, SPEC-NOTIFICATIONS §32). «Лишити як є» у разовому
+    /// питанні вимикає це: вибір людини важливіший.
+    public var adaptiveReminders: Bool = true
+    /// Коли показали разове питання «Нагадувань забагато?» — удруге не питаємо.
+    public var reminderHelpOfferedAt: Date?
 
     public var morningEnabled: Bool = true
     /// `nil` — «о підйомі».

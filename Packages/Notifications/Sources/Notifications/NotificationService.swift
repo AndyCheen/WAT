@@ -458,6 +458,48 @@ public final class NotificationService: MetricsSubscriber {
         ))
     }
 
+    // MARK: - «Нагадувань забагато?» (§32)
+
+    /// Відповідь на разове питання.
+    public enum ReminderHelpChoice: Sendable {
+        /// «Рідше й без повторних».
+        case rarer
+        /// «Лише чекпоінти й вечір» — нагадування за темпом вимкнено.
+        case checkpointsOnly
+        /// «Лишити як є» — і самі вони теж не рідшають.
+        case keep
+    }
+
+    /// Питати, лише коли нагадування за тиждень майже не допомагали, вони увімкнені й дозволені, а питання ще не
+    /// показували. Рідшають вони й без питання (`NotificationPlanner`), питання — щоб людина вирішила сама.
+    public func shouldOfferReminderHelp(at date: Date) -> Bool {
+        let settings = store.settings()
+        guard settings.reminderHelpOfferedAt == nil, settings.remindersEnabled, settings.adaptiveReminders,
+              authorization == .authorized else { return false }
+        return journal(around: date).remindersIgnored(before: calendar.dayKey(for: date), rules: rules)
+    }
+
+    /// Показ пишеться одразу: застосунок можуть закрити з відкритим вікном, як і «Графік дня».
+    public func markReminderHelpOffered(at date: Date) {
+        store.settings().reminderHelpOfferedAt = date
+        store.save()
+    }
+
+    public func applyReminderHelp(_ choice: ReminderHelpChoice) {
+        let settings = store.settings()
+        switch choice {
+        case .rarer:
+            settings.reminderMode = .pace
+            settings.reminderFrequency = .rarer
+            settings.followUpEnabled = false
+        case .checkpointsOnly:
+            settings.remindersEnabled = false
+        case .keep:
+            settings.adaptiveReminders = false
+        }
+        store.save()
+    }
+
     // MARK: - Категорії (§16.4)
 
     /// Назва дії «+250 мл» належить категорії, а не запиту — при зміні склянки категорії
