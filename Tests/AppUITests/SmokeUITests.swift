@@ -37,15 +37,15 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["500 мл"].exists, "порція зʼявилась в історії")
     }
 
-    /// Капсула частини доби (WAT-40): годинник стоїть на 11:25, тож обидві порції — о 11:25.
-    /// 550 з 689 мл до 12:00 — «ще 150 мл», 35 хв; порція 200 мл закриває частину одразу.
+    /// Капсула частини доби (WAT-40): годинник стоїть на 11:25, тож обидві порції — о 11:25. Межа зарахування — 621 мл
+    /// (90 % від 689, WAT-67): без порцій «ще 650», з 550 — «ще 100 мл», 35 хв; порція 200 мл закриває частину одразу.
     func testDayPartPillCountsDownAndCloses() {
         let app = launch(["--uitest-empty", "--uitest-now", "2026-10-01T11:25:00+03:00"])
         XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
 
         let pill = app.descendants(matching: .any)["home.dayPart"]
         XCTAssertTrue(pill.waitForExistence(timeout: 5), "частина доби триває — капсула є і без порцій")
-        XCTAssertEqual(pill.label, "До 12:00 бракує 700 мл, лишилось 35 хвилин")
+        XCTAssertEqual(pill.label, "До 12:00 бракує 650 мл, лишилось 35 хвилин")
 
         let confirm = app.buttons["custom.confirm"]
         app.buttons["home.add.custom"].tap()
@@ -61,7 +61,7 @@ final class SmokeUITests: XCTestCase {
         confirm.tap()
         XCTAssertTrue(confirm.waitForNonExistence(timeout: 5))
 
-        XCTAssertEqual(pill.label, "До 12:00 бракує 150 мл, лишилось 35 хвилин")
+        XCTAssertEqual(pill.label, "До 12:00 бракує 100 мл, лишилось 35 хвилин")
         XCTAssertTrue(pill.isHittable, "капсулу справді видно, а не лише в дереві")
 
         app.buttons["home.add.200"].tap()
@@ -760,7 +760,7 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["home.percent"].waitForExistence(timeout: 15))
         let pill = app.descendants(matching: .any)["home.dayPart"]
         XCTAssertTrue(pill.waitForExistence(timeout: 5))
-        XCTAssertEqual(pill.label, "До 12:00 бракує 700 мл, лишилось 35 хвилин")
+        XCTAssertEqual(pill.label, "До 12:00 бракує 650 мл, лишилось 35 хвилин")
 
         app.buttons["home.settings"].tap()
         let twelveHours = app.buttons["settings.units.time.1"]
@@ -776,7 +776,7 @@ final class SmokeUITests: XCTestCase {
         XCTAssertFalse(app.buttons["settings.units.mass.0"].isSelected)
         app.buttons["nav.back"].firstMatch.tap()
 
-        XCTAssertEqual(pill.label, "До 12:00 пп бракує 700 мл, лишилось 35 хвилин")
+        XCTAssertEqual(pill.label, "До 12:00 пп бракує 650 мл, лишилось 35 хвилин")
         app.buttons["home.add.200"].tap()
         dismissCelebrationIfPresent(app)
         XCTAssertTrue(app.staticTexts["11:25 дп"].waitForExistence(timeout: 5), "час порції в історії")
@@ -796,7 +796,7 @@ final class SmokeUITests: XCTestCase {
         twentyFour.tap()
         app.buttons["nav.back"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["11:25"].waitForExistence(timeout: 5))
-        XCTAssertEqual(pill.label, "До 12:00 бракує 500 мл, лишилось 35 хвилин")
+        XCTAssertEqual(pill.label, "До 12:00 бракує 450 мл, лишилось 35 хвилин", "621 − 200 = 421 — угору до 50")
     }
 
     // MARK: - Тема
