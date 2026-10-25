@@ -29,8 +29,8 @@ final class AchievementCatalogTests: XCTestCase {
         ])
 
         let byDifficulty = Dictionary(grouping: all, by: \.difficulty).mapValues(\.count)
-        XCTAssertEqual(byDifficulty, [.easy: 43, .medium: 45, .hard: 15, .legendary: 9],
-                       "§10.4: 43 легких — разом із «Несподіванкою»")
+        XCTAssertEqual(byDifficulty, [.easy: 42, .medium: 46, .hard: 15, .legendary: 9],
+                       "§10.4: 43 легких разом із «Несподіванкою»; «Ранок, день і вечір» — середнє з WAT-67")
     }
 
     /// Ключі наявних семи не змінюються — за ключем зберігається прогрес; назви й описи — за §7, п. 2.
@@ -60,7 +60,7 @@ final class AchievementCatalogTests: XCTestCase {
         let expected: [String: (title: String, target: Double, difficulty: AchievementDifficulty)] = [
             "volume.10l": ("Відро", 20_000, .easy),
             "rhythm.morning": ("Добрий ранок", 10, .medium),
-            "rhythm.allThree": ("Ранок, день і вечір", 3, .easy),
+            "rhythm.allThree": ("Ранок, день і вечір", 10, .medium),
             "rhythm.even90": ("Рівна крива", 7, .medium),
             "rhythm.responsive": ("Чуйність", 30, .medium),
             "rhythm.ahead": ("На крок попереду", 10, .medium),

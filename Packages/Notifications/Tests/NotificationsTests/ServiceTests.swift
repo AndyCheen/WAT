@@ -53,7 +53,7 @@ final class NotificationServiceTests: XCTestCase {
         await service.rescheduleNow()
         XCTAssertTrue(scheduledIds.contains("wt.morning.2026-10-01"))
         XCTAssertTrue(scheduledIds.contains("wt.reminder.2026-10-01.0937"))
-        XCTAssertEqual(center.categories.map(\.id), ["REMINDER", "GLASS"])
+        XCTAssertEqual(center.categories.map(\.id), ["REMINDER", "GLASS", "CLOSE"])
         XCTAssertEqual(center.categories.first?.actions.first?.title, "+250 мл")
         XCTAssertNotNil(store.log(identifier: "wt.reminder.2026-10-01.0937"), "журнал знає про заплановане")
     }

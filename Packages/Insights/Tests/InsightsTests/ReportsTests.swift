@@ -87,7 +87,8 @@ final class ReportsTests: XCTestCase {
         XCTAssertEqual(report.blocks.map(\.title), ["ранок і полудень", "день", "вечір"])
         XCTAssertEqual(report.blocks.map(\.targetMl), [689, 826, 485])
         XCTAssertEqual(report.blocks.compactMap(\.drunkMl), [720, 520, 460])
-        XCTAssertEqual(report.blocks.map(\.isReached), [true, false, false])
+        // Вечір 460 з 485 — понад 90 %, закрито (WAT-67); день 520 з 826 — ні.
+        XCTAssertEqual(report.blocks.map(\.isReached), [true, false, true])
         XCTAssertEqual(report.weakestBlock?.title, "день")
         XCTAssertEqual(report.portions.map(\.minute), [510, 600, 780, 1080])
         XCTAssertEqual(report.thought, .strongestPart(title: "ранок і полудень", percent: 104))

@@ -129,11 +129,14 @@ public enum AchievementCatalog {
     static let dayRhythm: [AchievementDefinition] = [
         .init(key: "rhythm.morning", title: "Добрий ранок", details: "10 днів із закритою ціллю ранку", emoji: "🌅",
               category: .dayRhythm, difficulty: .medium, rule: .history(.morningGoalDays), target: 10, gate: .dayRhythm),
-        .init(key: "rhythm.allThree", title: "Ранок, день і вечір", details: "3 дні, коли закрито всі три цілі",
-              emoji: "🌈", category: .dayRhythm, difficulty: .easy, rule: .history(.allBlocksDays), target: 3,
+        // Ціль блоку зараховується від 90 % (WAT-67), тож у того, хто п'є рівно, такі дні — звичайні: 3 дні давали
+        // досягнення вже в перший тиждень без жодної свідомої дії (бюджет WAT-60).
+        .init(key: "rhythm.allThree", title: "Ранок, день і вечір", details: "10 днів, коли закрито всі три цілі",
+              emoji: "🌈", category: .dayRhythm, difficulty: .medium, rule: .history(.allBlocksDays), target: 10,
               gate: .dayRhythm),
-        .init(key: "rhythm.week", title: "Тиждень у ритмі", details: "7 днів, коли закрито всі три цілі", emoji: "🎼",
-              category: .dayRhythm, difficulty: .medium, rule: .history(.allBlocksDays), target: 7, gate: .dayRhythm),
+        // Після «Ранок, день і вечір» на 10 днях 7 днів були б раніше за першу сходинку (WAT-67).
+        .init(key: "rhythm.week", title: "Два тижні в ритмі", details: "14 днів, коли закрито всі три цілі", emoji: "🎼",
+              category: .dayRhythm, difficulty: .medium, rule: .history(.allBlocksDays), target: 14, gate: .dayRhythm),
         .init(key: "rhythm.month", title: "Місяць у ритмі", details: "30 днів, коли закрито всі три цілі", emoji: "🎻",
               category: .dayRhythm, difficulty: .hard, rule: .history(.allBlocksDays), target: 30, gate: .dayRhythm),
         .init(key: "rhythm.wakeGlass", title: "Ранкова склянка",

@@ -479,7 +479,10 @@ public final class NotificationService: MetricsSubscriber {
                 NotificationActionSpec(id: NotificationActionID.snooze, title: "Нагадати за годину"),
                 NotificationActionSpec(id: NotificationActionID.pause, title: "Не сьогодні", destructive: true)
             ]),
-            NotificationCategorySpec(id: NotificationCategory.glass.rawValue, actions: [add])
+            NotificationCategorySpec(id: NotificationCategory.glass.rawValue, actions: [add]),
+            NotificationCategorySpec(id: NotificationCategory.close.rawValue, actions: [
+                NotificationActionSpec(id: NotificationActionID.addGlass, title: "Закрити норму")
+            ])
         ]
     }
 }

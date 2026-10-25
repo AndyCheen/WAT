@@ -192,7 +192,7 @@ extension DayCondition {
             return .count(done, params.count ?? 1)
         case .blockReached:
             guard let block = day.block(params.blockIndex) else { return .count(0, 1) }
-            return .volume(block.drunkMl(of: day.portions), block.targetMl)
+            return .volume(block.drunkMl(of: day.portions), block.reachedMl)
         case .portionInEachBlock(let minMl):
             let threshold = QuestRules.shownMl(Double(minMl), unit: params.unit)
             let done = day.blocks.filter { block in

@@ -140,15 +140,34 @@ final class GoalBlockTests: XCTestCase {
 
     private let day = PaceCurve(goalMl: 2000, wakeMinutes: 8 * 60, sleepMinutes: 22 * 60)
 
-    /// Критерій приймання WAT-40: 300 + 250 мл до 11:25 — до 12:00 бракує 139 мл, лишається 35 хв.
+    /// Критерій приймання WAT-40: 300 + 250 мл до 11:25, лишається 35 хв. Бракує до межі зарахування — 621 мл (90 % від
+    /// 689, WAT-67), тобто 71 мл, а не 139 до повної цілі.
     func testProgressBeforeNoonCheckpoint() throws {
         let portions = [TimedPortion(minute: 9 * 60 + 10, ml: 300), TimedPortion(minute: 10 * 60 + 40, ml: 250)]
         let progress = try XCTUnwrap(day.dayPartProgress(atMinute: 11 * 60 + 25, portions: portions))
         XCTAssertEqual(progress.block.toMinute, 12 * 60)
         XCTAssertEqual(progress.drunkMl, 550)
-        XCTAssertEqual(progress.leftMl, 139)
+        XCTAssertEqual(progress.leftMl, 71)
         XCTAssertEqual(progress.minutesLeft, 35)
         XCTAssertFalse(progress.isReached)
+    }
+
+    /// WAT-67: 8 × 250 мл рівно з 08:10 до 19:20 — у блок 12–17 лягає 750 мл з 826. До допуску денний блок такий
+    /// день не закривав ніколи, хоча норму закрито; тепер закриті всі три.
+    func testEvenEightGlassesCloseEveryBlock() {
+        let minutes = [490, 590, 680, 770, 870, 960, 1060, 1160]
+        let portions = minutes.map { TimedPortion(minute: $0, ml: 250) }
+        let blocks = day.goalBlocks()
+        XCTAssertEqual(blocks.map(\.targetMl), [689, 826, 485])
+        XCTAssertEqual(blocks.map { $0.drunkMl(of: portions) }, [750, 750, 500])
+        XCTAssertEqual(blocks.map(\.reachedMl), [621, 744, 437])
+        XCTAssertTrue(blocks.allSatisfy { $0.isReached(by: portions) })
+    }
+
+    func testReachThresholdIsExactOnRoundTargets() {
+        XCTAssertEqual(GoalBlock.reachedMl(target: 1000), 900, "без похибки двійкового дробу")
+        XCTAssertFalse(GoalBlock.isReached(drunkMl: 899, targetMl: 1000))
+        XCTAssertTrue(GoalBlock.isReached(drunkMl: 900, targetMl: 1000))
     }
 
     func testProgressReachedOnceTargetIsDrunk() throws {

@@ -173,7 +173,8 @@ final class AchievementRuleTests: XCTestCase {
 
     // MARK: - Ритм дня (§4.4)
 
-    /// Один ранок випадає випадково — потрібно 10, а «Ранок, день і вечір» — 3 дні (WAT-60).
+    /// Один ранок випадає випадково — потрібно 10 (WAT-60); «Ранок, день і вечір» — теж 10: з допуском блоку такі дні
+    /// в того, хто п'є рівно, звичайні (WAT-67).
     func testMorningGoalAndAllThreeBlocks() {
         let env = GameEnv()
         env.clock.set(GameEnv.date("2026-08-01", hour: 23))
@@ -184,8 +185,8 @@ final class AchievementRuleTests: XCTestCase {
         env.drink(1000, on: days[9], hour: 9)
         XCTAssertTrue(env.isUnlocked("rhythm.morning"))
 
-        for (index, day) in days.prefix(3).enumerated() {
-            XCTAssertFalse(env.isUnlocked("rhythm.allThree"), "\(index) з 3")
+        for (index, day) in days.enumerated() {
+            XCTAssertFalse(env.isUnlocked("rhythm.allThree"), "\(index) з 10")
             env.drink(1000, on: day, hour: 14)
             env.drink(1000, on: day, hour: 19)
         }

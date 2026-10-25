@@ -23,7 +23,7 @@ public struct WidgetDay: Equatable, Sendable {
         /// Скільки блок мав би мати за темпом на цю хвилину: ціль — для минулого, 0 — для майбутнього.
         public let paceMl: Int
 
-        public var isReached: Bool { drunkMl >= goal.targetMl }
+        public var isReached: Bool { GoalBlock.isReached(drunkMl: drunkMl, targetMl: goal.targetMl) }
         public var fraction: Double { goal.targetMl > 0 ? min(1, Double(drunkMl) / Double(goal.targetMl)) : 1 }
         public var paceFraction: Double { goal.targetMl > 0 ? min(1, Double(paceMl) / Double(goal.targetMl)) : 0 }
     }

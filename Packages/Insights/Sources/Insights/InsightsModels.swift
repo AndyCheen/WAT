@@ -19,7 +19,7 @@ public struct EvennessRow: Equatable, Identifiable, Sendable {
     public var label: String { parts[0].title }
     /// «08–12» / «8–12 пп» — як у віджеті «Ритм дня», у форматі людини (WAT-58).
     public func hoursLabel(_ format: TimeFormat = .hours24) -> String { format.hourRange(fromMinute, toMinute) }
-    public var isReached: Bool { targetMl > 0 && ml >= targetMl }
+    public var isReached: Bool { targetMl > 0 && GoalBlock.isReached(drunkMl: ml, targetMl: targetMl) }
 }
 
 /// Випите в частині доби — стовпчики «Деталей дня». Тут лишаються 5 частин: це розподіл, а не оцінка.
