@@ -59,16 +59,16 @@ final class AchievementCatalogTests: XCTestCase {
 
         let expected: [String: (title: String, target: Double, difficulty: AchievementDifficulty)] = [
             "volume.10l": ("Відро", 20_000, .easy),
-            "rhythm.morning": ("Добрий ранок", 10, .medium),
+            "rhythm.morning": ("Добрий ранок", 12, .medium),
             "rhythm.allThree": ("Ранок, день і вечір", 10, .medium),
-            "rhythm.even90": ("Рівна крива", 7, .medium),
+            "rhythm.even90": ("Рівна крива", 18, .medium),
             "rhythm.responsive": ("Чуйність", 30, .medium),
-            "rhythm.ahead": ("На крок попереду", 10, .medium),
+            "rhythm.ahead": ("На крок попереду", 20, .medium),
             "stats.bullseye": ("В яблучко", 3, .medium),
-            "stats.accuracy": ("Влучність", 10, .medium),
+            "stats.accuracy": ("Влучність", 25, .medium),
             "special.halfFull": ("Склянка наполовину повна", 5, .medium),
             "special.eightGlasses": ("Вісім на вісім", 8, .medium),
-            "quest.allDaily": ("Без хвостів", 10, .medium),
+            "quest.allDaily": ("Без хвостів", 15, .medium),
             "quest.first": ("Тижнева мета", 1, .easy)
         ]
         for (key, row) in expected {

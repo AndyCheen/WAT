@@ -116,10 +116,12 @@ public enum AchievementCatalog {
         .init(key: "weeks.stable13", title: "Стабільний квартал",
               details: "13 тижнів поспіль, у кожному 5+ днів із нормою", emoji: "🧱",
               category: .regularity, difficulty: .hard, rule: .history(.stableWeeksRun(minGoalDays: 5)), target: 13),
-        .init(key: "days.noZero", title: "Без нулів", details: "30 днів поспіль хоч з однією порцією", emoji: "✏️",
-              category: .regularity, difficulty: .medium, rule: .history(.activeDaysRun), target: 30),
-        .init(key: "days.neverTwice", title: "Ніколи двічі", details: "30 днів без двох пропусків поспіль", emoji: "🧷",
-              category: .regularity, difficulty: .medium, rule: .history(.neverTwiceRun), target: 30),
+        // Пороги розведено (WAT-67): «30 днів» у трьох досягнень і рівень 20 відкривались того самого дня — п'ять вікон
+        // за раз у того, хто п'є щодня. Свято кожного помітне, лише коли воно одне.
+        .init(key: "days.noZero", title: "Без нулів", details: "21 день поспіль хоч з однією порцією", emoji: "✏️",
+              category: .regularity, difficulty: .medium, rule: .history(.activeDaysRun), target: 21),
+        .init(key: "days.neverTwice", title: "Ніколи двічі", details: "45 днів без двох пропусків поспіль", emoji: "🧷",
+              category: .regularity, difficulty: .medium, rule: .history(.neverTwiceRun), target: 45),
         .init(key: "days.noDips", title: "Без провалів", details: "28 днів поспіль, кожен — від 80 % норми", emoji: "📉",
               category: .regularity, difficulty: .medium, rule: .history(.noDipsRun(percent: 80)), target: 28)
     ]
@@ -127,8 +129,9 @@ public enum AchievementCatalog {
     /// §4.4 🌅 Ритм дня — 10. Цілі — блоки `GoalBlock`, ті самі, що в капсулі, XP і «Рівномірності»;
     /// підйом і відбій — зі знімка дня.
     static let dayRhythm: [AchievementDefinition] = [
-        .init(key: "rhythm.morning", title: "Добрий ранок", details: "10 днів із закритою ціллю ранку", emoji: "🌅",
-              category: .dayRhythm, difficulty: .medium, rule: .history(.morningGoalDays), target: 10, gate: .dayRhythm),
+        // «10 днів» — ще п'ять досягнень і рівень 10 того самого дня (WAT-67): пороги розведено на 12, 15 і 20.
+        .init(key: "rhythm.morning", title: "Добрий ранок", details: "12 днів із закритою ціллю ранку", emoji: "🌅",
+              category: .dayRhythm, difficulty: .medium, rule: .history(.morningGoalDays), target: 12, gate: .dayRhythm),
         // Ціль блоку зараховується від 90 % (WAT-67), тож у того, хто п'є рівно, такі дні — звичайні: 3 дні давали
         // досягнення вже в перший тиждень без жодної свідомої дії (бюджет WAT-60).
         .init(key: "rhythm.allThree", title: "Ранок, день і вечір", details: "10 днів, коли закрито всі три цілі",
@@ -140,23 +143,24 @@ public enum AchievementCatalog {
         .init(key: "rhythm.month", title: "Місяць у ритмі", details: "30 днів, коли закрито всі три цілі", emoji: "🎻",
               category: .dayRhythm, difficulty: .hard, rule: .history(.allBlocksDays), target: 30, gate: .dayRhythm),
         .init(key: "rhythm.wakeGlass", title: "Ранкова склянка",
-              details: "10 днів: перша порція — за пів години після підйому", emoji: "🌄",
-              category: .dayRhythm, difficulty: .medium, rule: .history(.wakeGlassDays(withinMinutes: 30)), target: 10),
+              details: "15 днів: перша порція — за пів години після підйому", emoji: "🌄",
+              category: .dayRhythm, difficulty: .medium, rule: .history(.wakeGlassDays(withinMinutes: 30)), target: 15),
         // Вікно спаду перед сном (WAT-43): менше нічних пробуджень.
-        .init(key: "rhythm.quietEvening", title: "Тихий вечір", details: "10 днів: норма закрита за 2 год до відбою",
+        .init(key: "rhythm.quietEvening", title: "Тихий вечір", details: "25 днів: норма закрита за 2 год до відбою",
               emoji: "🌙", category: .dayRhythm, difficulty: .medium,
-              rule: .history(.quietEveningDays(minutesBeforeSleep: 120)), target: 10),
+              rule: .history(.quietEveningDays(minutesBeforeSleep: 120)), target: 25),
         // «Рівномірність за день» рахується й без «Ритму дня», тож від перемикача не залежить.
-        .init(key: "rhythm.even90", title: "Рівна крива", details: "7 днів із «Рівномірністю за день» від 90",
-              emoji: "〰️", category: .dayRhythm, difficulty: .medium, rule: .history(.evennessDays(min: 90)), target: 7),
+        // Тиждень 2 у того, хто п'є щодня рівно, приносив 14 досягнень (WAT-67) — пороги розведено на тижні 3–4.
+        .init(key: "rhythm.even90", title: "Рівна крива", details: "18 днів із «Рівномірністю за день» від 90",
+              emoji: "〰️", category: .dayRhythm, difficulty: .medium, rule: .history(.evennessDays(min: 90)), target: 18),
         .init(key: "rhythm.even97", title: "Ідеальна крива", details: "«Рівномірність за день» — 97 зі 100", emoji: "📐",
               category: .dayRhythm, difficulty: .hard, rule: .history(.bestEvenness), target: 97),
         .init(key: "rhythm.responsive", title: "Чуйність", details: "30 порцій за 15 хв після нагадування", emoji: "⏰",
               category: .dayRhythm, difficulty: .medium, rule: .count(.reminderQuick), target: 30, gate: .notifications),
         // Нагадування «відстаєш» не прийшло, бо весь день попереду кривої. Рахуються лише дні з увімкненими
         // нагадуваннями — інакше досягнення дісталося б задарма (подію пише `NotificationService`).
-        .init(key: "rhythm.ahead", title: "На крок попереду", details: "10 днів із нормою без жодного нагадування",
-              emoji: "🏃", category: .dayRhythm, difficulty: .medium, rule: .count(.dayGoalAhead), target: 10,
+        .init(key: "rhythm.ahead", title: "На крок попереду", details: "20 днів із нормою без жодного нагадування",
+              emoji: "🏃", category: .dayRhythm, difficulty: .medium, rule: .count(.dayGoalAhead), target: 20,
               gate: .notifications)
     ]
 
@@ -166,12 +170,12 @@ public enum AchievementCatalog {
               emoji: "🆙", category: .stats, difficulty: .medium, rule: .history(.recordBeaten(minStreak: 7)), target: 1),
         // Тоді ж «Типова доба» перестає казати «замало даних» — привід уперше на неї подивитись.
         .init(key: "stats.portrait", title: "Портрет дня",
-              details: "14 днів обліку — «Типова доба» вже показує твій ритм", emoji: "🧬",
-              category: .stats, difficulty: .medium, rule: .history(.activeDays), target: 14),
+              details: "21 день обліку — «Типова доба» вже показує твій ритм", emoji: "🧬",
+              category: .stats, difficulty: .medium, rule: .history(.activeDays), target: 21),
         // Єдине досягнення, що прямо заохочує не перебирати.
-        .init(key: "stats.accuracy", title: "Влучність", details: "10 днів, коли випито 100–105 % норми", emoji: "🏹",
+        .init(key: "stats.accuracy", title: "Влучність", details: "25 днів, коли випито 100–105 % норми", emoji: "🏹",
               category: .stats, difficulty: .medium, rule: .history(.accurateDays(fromPercent: 100, toPercent: 105)),
-              target: 10),
+              target: 25),
         .init(key: "stats.bullseye", title: "В яблучко", details: "3 дні рівно норма, до мілілітра", emoji: "🍎",
               category: .stats, difficulty: .medium, rule: .history(.exactGoalDays), target: 3,
               secrecy: .hint("Ні краплі зайвої")),
@@ -202,8 +206,8 @@ public enum AchievementCatalog {
         .init(key: "quest.firstSurprise", title: "Несподіванка", details: "Виконано перше несподіване завдання",
               emoji: "⏱️", category: .game, difficulty: .easy, rule: .count(.surpriseQuestCompleted), target: 1,
               gate: .surpriseQuests),
-        .init(key: "quest.allDaily", title: "Без хвостів", details: "10 днів, коли виконано всі щоденні завдання",
-              emoji: "✅", category: .game, difficulty: .medium, rule: .count(.questsAllDaily), target: 10),
+        .init(key: "quest.allDaily", title: "Без хвостів", details: "15 днів, коли виконано всі щоденні завдання",
+              emoji: "✅", category: .game, difficulty: .medium, rule: .count(.questsAllDaily), target: 15),
         .init(key: "quest.100", title: "Сотня завдань", details: "Виконано 100 завдань", emoji: "🗂️",
               category: .game, difficulty: .medium, rule: .count(.questCompleted), target: 100),
         .init(key: "boost.goal", title: "Подвійна гра", details: "Активний буст і закрита норма того ж дня",
