@@ -149,6 +149,10 @@ final class QuestAdaptationTests: XCTestCase {
                        "норма без нагадувань щодня — не виклик")
         XCTAssertFalse(keys(input(baseline: QuestBaseline(allBlocksDays14: 3, goalAheadDays7: 0))).contains("daily.goalNoReminders"),
                        "жодного разу — недосяжне")
+        XCTAssertFalse(keys(input(baseline: QuestBaseline(allBlocksDays14: 3, goalAheadDays7: 2))).contains("daily.everyBlock"),
+                       "ще жодного дня з водою в кожній частині — натомість особиста ціль слабкого блоку")
+        XCTAssertTrue(keys(input(baseline: QuestBaseline(allBlocksDays14: 3, everyBlockDays14: 1, goalAheadDays7: 2)))
+            .contains("daily.everyBlock"))
         let failed = (2...3).map { QuestOutcome(key: "daily.everyBlock", day: day($0), succeeded: false) }
         XCTAssertFalse(keys(input(outcomes: failed)).contains("daily.everyBlock"), "двічі не вдалось — пауза")
     }

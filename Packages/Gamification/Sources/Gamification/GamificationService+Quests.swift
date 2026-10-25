@@ -120,19 +120,18 @@ extension GamificationService {
     /// Результати щоденних за 14 днів до вчора (WAT-67): виконане — успіх; прострочене чи так і не оцінене до кінця
     /// свого дня — ні; скасоване — не рахується.
     func questOutcomes(before day: DayKey) -> [QuestOutcome] {
-        (1...QuestAdaptation.lookbackDays).flatMap { back -> [QuestOutcome] in
-            let past = calendar.dayKey(offsetDays: -back, from: day)
-            return store.quests(scope: .daily, periodKey: past.rawValue).compactMap { instance in
-                let succeeded: Bool
-                switch instance.state {
-                case .completed, .claimed: succeeded = true
-                case .expired, .active: succeeded = false
-                case .cancelled: return nil
-                }
-                return QuestOutcome(key: instance.defKey, day: past, succeeded: succeeded,
-                                    deadlineMinute: instance.deadlineMinute, count: instance.count,
-                                    targetMl: instance.targetMl)
+        let from = calendar.dayKey(offsetDays: -QuestAdaptation.lookbackDays, from: day)
+        return store.quests(scope: .daily, periodKey: nil).compactMap { instance in
+            let past = DayKey(rawValue: instance.periodKey)
+            guard past >= from, past < day else { return nil }
+            let succeeded: Bool
+            switch instance.state {
+            case .completed, .claimed: succeeded = true
+            case .expired, .active: succeeded = false
+            case .cancelled: return nil
             }
+            return QuestOutcome(key: instance.defKey, day: past, succeeded: succeeded,
+                                deadlineMinute: instance.deadlineMinute, count: instance.count, targetMl: instance.targetMl)
         }
     }
 
@@ -159,7 +158,7 @@ extension GamificationService {
         let params = QuestParams(goalMedianMinute: history.goalMedianMinute, glassMl: profile.glassMl,
                                  unit: profile.volumeUnit)
         var base: [String: Int] = [:]
-        for definition in QuestCatalog.definitions(.habit) {
+        for definition in QuestCatalog.definitions(.habit) + QuestCatalog.definitions(.steady).filter({ $0.key == "weekly.halfDays" }) {
             guard let condition = definition.condition.dayCondition else { continue }
             base[definition.key] = history.days7(condition, params: params)
         }

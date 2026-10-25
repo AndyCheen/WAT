@@ -30,22 +30,25 @@ public struct QuestBaseline: Sendable, Equatable {
     public var glassesBeforeHalf: Int?
     /// Медіана порції за 7 днів — «склянка» того, хто п'є склянками по 200 мл, а не по 250.
     public var portionMl: Int?
-    /// Днів за 14, коли закрито всі три блоки, і днів за 7, коли норму закрито раніше за будь-яке нагадування.
+    /// Днів за 14, коли закрито всі три блоки й коли порція була в кожному блоці; днів за 7, коли норму закрито раніше
+    /// за будь-яке нагадування.
     public var allBlocksDays14: Int
+    public var everyBlockDays14: Int
     public var goalAheadDays7: Int
 
     public init(shareMinutes: [Int: Int] = [:], glasses: Int? = nil, glassesBeforeHalf: Int? = nil, portionMl: Int? = nil,
-                allBlocksDays14: Int = 0, goalAheadDays7: Int = 0) {
+                allBlocksDays14: Int = 0, everyBlockDays14: Int = 0, goalAheadDays7: Int = 0) {
         self.shareMinutes = shareMinutes
         self.glasses = glasses
         self.glassesBeforeHalf = glassesBeforeHalf
         self.portionMl = portionMl
         self.allBlocksDays14 = allBlocksDays14
+        self.everyBlockDays14 = everyBlockDays14
         self.goalAheadDays7 = goalAheadDays7
     }
 
     /// Без історії — цілі як у каталозі, і ніщо не відсіюється.
-    public static let none = QuestBaseline(allBlocksDays14: 14, goalAheadDays7: 1)
+    public static let none = QuestBaseline(allBlocksDays14: 14, everyBlockDays14: 14, goalAheadDays7: 1)
 
     /// З кількох днів база — це вже звичка, а не випадок.
     public static let minDays = 3

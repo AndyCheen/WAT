@@ -92,7 +92,10 @@ public enum WeeklyQuestPicker {
 
     private static func steady(_ input: WeeklyPickInput, spare: Int) -> QuestPick? {
         if input.goalDays14 < steadyMinGoalDays14 {
-            return make("weekly.halfDays", count: spare, input)
+            // Від днів із половиною норми за минулий тиждень + 1 (WAT-67): хто згасає, «Половину норми 4 дні» не брав
+            // жодного разу (аудит: 0 з 5).
+            let base = input.habitBase["weekly.halfDays"]
+            return make("weekly.halfDays", count: base.map { min(max($0 + 1, habitMinCount), spare) } ?? spare, input)
         }
         let goalDays = goalDaysCount(input, spare: spare)
         // Т2: N(Т1) − 2, не більше 5 і запасного дня; менше 3 — не допущене.

@@ -121,17 +121,17 @@ public final class QuestEngine {
     /// Минулі періоди, що так і лишились активними, — прострочені (WAT-67). Невиконане без дедлайну чи без події
     /// після дедлайну інакше назавжди лишалось би `active`: на екрані його не видно, але сходинки адаптивних завдань
     /// й історія мусять бачити провал. Тижневі — лише завершені тижні.
+    ///
+    /// Один запит на день, а не по запиту на період: `PerformanceTests` міряють і цей шлях.
     private func expireStale(before day: DayKey) {
-        var changed = false
-        let pastDays = (1...QuestAdaptation.lookbackDays).map { calendar.dayKey(offsetDays: -$0, from: day) }
-        let periods = pastDays.flatMap { [$0.rawValue, Self.surprisePeriodKey($0)] }
-            + [7, 14].map { calendar.weekKey(for: calendar.date(from: calendar.dayKey(offsetDays: -$0, from: day))).rawValue }
         let currentWeek = calendar.weekKey(for: calendar.date(from: day)).rawValue
-        for period in Set(periods) where period != currentWeek {
-            for instance in instances(periodKey: period) where instance.state == .active {
-                instance.state = .expired
-                changed = true
-            }
+        var changed = false
+        for instance in store.quests(scope: nil, periodKey: nil) where instance.state == .active {
+            // Лише минуле: подія з минулого дня (повернута порція) не прострочує того, що після неї.
+            let isPast = Self.day(of: instance).map { $0 < day } ?? (instance.periodKey < currentWeek)
+            guard isPast else { continue }
+            instance.state = .expired
+            changed = true
         }
         if changed { store.save() }
     }

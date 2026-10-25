@@ -94,6 +94,9 @@ public struct QuestHistory: Sendable {
             shareMinutes: shares, glasses: median(glasses), glassesBeforeHalf: median(beforeHalf),
             portionMl: portions.count >= QuestBaseline.minDays ? WeeklyQuestPicker.median(portions) : nil,
             allBlocksDays14: recent.filter { day in day.blocks.allSatisfy { $0.isReached(by: day.portions) } }.count,
+            everyBlockDays14: recent.filter { day in
+                DayCondition.portionInEachBlock(minMl: glassMinMl).evaluate(on: day, params: QuestParams()).met
+            }.count,
             goalAheadDays7: window(7).compactMap { $0 }.filter(\.goalAhead).count
         )
     }

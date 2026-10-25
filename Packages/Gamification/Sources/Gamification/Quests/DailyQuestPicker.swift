@@ -139,6 +139,9 @@ public enum DailyQuestPicker {
     static let latestBeforeSleepMinutes = 60
     /// Д9 «Три частини з трьох» — лише тому, хто вже закривав усі три хоча б двічі за 14 днів (WAT-67): аудит — 0 з 14.
     static let allBlocksMinDays14 = 2
+    /// Д8 «Вода в кожній частині» — лише тому, хто так уже пив хоч раз за 14 днів: хто ввечері не п'є ніколи, отримує
+    /// натомість особисту ціль слабкого блоку («Увечері — 250 мл») — аудит: 0 з 6 у того, хто випиває все до 15:00.
+    static let everyBlockMinDays14 = 1
     /// Д4 «Норма без нагадувань» (складне) — лише тому, кому це вдається іноді: щодня — це вже не виклик, а 40 XP за
     /// звичайний день (аудит: 73 % успіху проти 38 % у «середньої» «Норми до T»); жодного разу — недосяжне.
     static let goalAheadDays7 = 1...3
@@ -219,6 +222,7 @@ public enum DailyQuestPicker {
               !fresh || !input.yesterdayKeys.contains(definition.key),
               condition != .blockReached || input.weakBlock != nil,
               condition != .allBlocks || input.baseline.allBlocksDays14 >= allBlocksMinDays14,
+              !condition.isEveryBlock || input.baseline.everyBlockDays14 >= everyBlockMinDays14,
               condition != .goalAhead || goalAheadDays7.contains(input.baseline.goalAheadDays7),
               !QuestAdaptation.isPaused(definition.key, outcomes: input.outcomes, today: input.day,
                                         adaptive: isAdaptive(condition)) else { return nil }
@@ -315,5 +319,12 @@ public enum DailyQuestPicker {
             roll -= candidate.weight
         }
         return candidates.last?.pick
+    }
+}
+
+private extension DayCondition {
+    var isEveryBlock: Bool {
+        if case .portionInEachBlock = self { return true }
+        return false
     }
 }
