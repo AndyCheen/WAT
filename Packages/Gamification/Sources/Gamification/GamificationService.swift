@@ -701,7 +701,7 @@ public final class GamificationService: MetricsSubscriber {
         )
     }
 
-    private func publishStreakMetric(at date: Date) {
+    func publishStreakMetric(at date: Date) {
         let value = streaks.summary().current
         guard value > 0 else { return }
         let day = calendar.dayKey(for: date).rawValue
