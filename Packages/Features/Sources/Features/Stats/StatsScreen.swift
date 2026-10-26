@@ -133,18 +133,16 @@ public struct StatsScreen: View {
         WTCard {
             let report = model.volumeChart
             VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Text("Обʼєм по днях")
-                        .font(WTFont.display(16, .semibold))
-                        .foregroundStyle(theme.textPrimary)
-                    Spacer()
-                    WTSegmentedTabs(
-                        titles: VolumeChartMode.allCases.map(\.title),
-                        selection: model.chartMode.rawValue,
-                        onSelect: { model.chartMode = VolumeChartMode(rawValue: $0) ?? .days7 }
-                    )
-                    .frame(width: 200)
-                }
+                // Три вкладки («Рік», WAT-67) поруч із заголовком переносили його на два рядки — перемикач під ним.
+                Text("Обʼєм по днях")
+                    .font(WTFont.display(16, .semibold))
+                    .foregroundStyle(theme.textPrimary)
+                    .padding(.bottom, 12)
+                WTSegmentedTabs(
+                    titles: VolumeChartMode.allCases.map(\.title),
+                    selection: model.chartMode.rawValue,
+                    onSelect: { model.chartMode = VolumeChartMode(rawValue: $0) ?? .days7 }
+                )
                 .padding(.bottom, 16)
 
                 WTBarChart(
