@@ -68,8 +68,10 @@ public final class AchievementEngine {
 
         // Колекції — останніми: вони бачать уже зняте в цьому проході.
         for definition in AchievementCatalog.evaluationOrder where inputs.gates.isOpen(definition.gate) {
+            // Відкрите з режиму розробника трималось не на умові — відкат порції його не знімає (WAT-68).
             guard let progress = store.achievementProgress(defKey: definition.key),
-                  let unlockedAt = progress.unlockedAt, unlockedAt >= since else { continue }
+                  let unlockedAt = progress.unlockedAt, unlockedAt >= since,
+                  progress.unlockedByRef != GamificationService.developerRef else { continue }
             let towardCore = Self.countsTowardCore(definition)
             // Колекція рахує відкрите без себе самої.
             let own = definition.rule.isCollection

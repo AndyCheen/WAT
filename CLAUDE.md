@@ -19,8 +19,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 924 unit-тести 10 пакетів (+19 аудиту на вимогу), без симулятора — швидкий цикл
-make test-ui        # 72 e2e-сценарії (XCUITest) у симуляторі
+make test-packages  # 966 unit-тестів 10 пакетів (+19 аудиту на вимогу), без симулятора — швидкий цикл
+make test-ui        # 74 e2e-сценарії (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
 make clean
@@ -365,6 +365,44 @@ Features → Widgets → DesignSystem → Core
   (`WTStoryStyle`), ілюстрації — `WTScene*` з «чорнилом» `WTLearnInk`. Прихованої верхньої панелі не має бути в дереві
   доступності — не лише прозорої (друге «Пропустити» ламало e2e).
 
+### Режим розробника (WAT-68)
+
+- «Налаштування» → «Режим розробника» — **лише DEBUG**: `#if DEBUG` на самому рядку, як «План сповіщень»; екрани й доменні
+  методи компілюються завжди — їх покривають тести. Сторінки — `AppRoute.developer(DeveloperPage)`,
+  `--start-screen developer[:day|achievements|quests]`.
+- Дії — `AppServices+Developer.swift`: тим самим шляхом, що й дія людини (порція — `HydrationService`, приз —
+  `GamificationService`), і кінчаються так само: `touch()`, `epoch`, вікно відкриття. Зміна минулого дня — ще й
+  `gamification.refresh`, як після демо-історії. Порція в минулий день відкриває досягнення з часом самої порції:
+  раніше за `celebrationsSince` — без вікна, як відкрите заднім числом.
+- Повз правила — `GamificationService+Developer.swift`: відкрити / закрити досягнення (і таємні, і пасхалки), видати /
+  виконати / скасувати завдання (параметри — як у пікера, без відбору), XP, будь-який рівень, зупинити буст, заморозка дня
+  без призу. Рівень — поправка журналу до порогу (`XPEngine.adjust`, униз — від'ємний запис `.debug`, а не відкат чужих
+  нарахувань); видані призи й досягнення лишаються, `highestCelebratedLevel` іде за рівнем — наступне справжнє підняття
+  святкується. Примусове позначене `GamificationService.developerRef` (`unlockedByRef` / `completedByRef`) — **відкат порції його
+  не знімає**. Прохід після дії йде з іншим ref: відкрите ним за умовою відкочується, як завжди. Скасоване виконане
+  завдання знімає й залежні досягнення («Тижнева мета»), як відкат.
+- Масові дії (демо-історія, серія днів) — кроками: крок — день в одному `SaveBatch` (`Persistence`: `save()` сховищ
+  відкладено до кінця кроку), між кроками — пауза на кадр і індикатор поверх сторінки. Пакет — **на крок, не на всю
+  історію**: незбережене перебирає кожна вибірка, і пакет на 60 днів ішов учетверо довше, ніж без пакета.
+  `FixtureSeeder.steps` — ті самі кроки й для старту e2e (підряд, без пауз).
+- Дні: норма одного дня — `HydrationService.setGoal(_:on:)` (ревізія на день і колишня норма на наступний — інакше нова
+  потекла б до сьогодні), заповнення — чиста `DayFill` (рівно по активних годинах, кратно 50 мл, ≥ 20 хв між порціями:
+  кілька в одну хвилину відкрили б пасхалки «серією»). Мить дня за хвилиною — `CalendarService.date(_:minute:)`, не
+  «північ + N хвилин»: у день переведення годинника те дає годину зсуву.
+- Годинник — `OffsetClock` (`Core`): у DEBUG застосунок збирає його поверх системного завжди, зсув — у `DeveloperSettings`
+  (`UserDefaults`, живе між запусками), зміна — як переведений системний час (`handleTimeChange`). e2e мають власне, щоразу
+  порожнє сховище налаштувань розробника; з `--uitest-now` — `FixedClock`, і зсуву немає.
+- Скидання — **на наступному запуску**: сервіси тримають живі об'єкти бази, стерти з-під них на ходу — падіння. Режим
+  розробника пише `DeveloperSettings.pendingReset` і закриває застосунок (`exit(0)`), `AppContainer` до сервісів кличе
+  `Database.erase(_:in:)`. «Прогрес» лишає `Database.settingsModels` і скидає стан гри в профілі, «усе» — порожнє сховище
+  й онбординг. Нова модель — у `progressModels` чи `settingsModels` (`DatabaseEraseTests` тримає повноту).
+- Сповіщення: зразок будь-якої ситуації (`NotificationSample`, 16 видів + відлуння) за 5 чи 30 с —
+  `NotificationPlanner.sample` складає той самий `PlannedNotification` (категорія дій, перехід, текст від `TextComposer`),
+  `NotificationService.scheduleSample` ставить його з ідентифікатором `debug.` — поза диффом плану й без приглушення при
+  відкритому застосунку. Композитор ставить нагадуванню `wt.reminder.…` — `sample` повертає `debug.` після нього.
+- Об'єм тут — завжди мілілітри (`DeveloperPresenter`): так він зберігається. Дата й час — системний `DatePicker`: свого
+  компонента точної хвилини в `DesignSystem` немає.
+
 ViewModel-и — `@MainActor @Observable`, кешують знімки в збережені властивості й
 перечитують їх у `reload()`. Весь доменний шар — `@MainActor`.
 
@@ -403,7 +441,7 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
 ### Час
 
 **Ніколи не викликати `Date()` напряму.** Єдине джерело — протокол `Clock`
-(`Core/Clock.swift`); у тестах `FixedClock`. Доба, `dayKey`, години й частини доби —
+(`Core/Clock.swift`); у тестах `FixedClock`, у DEBUG-застосунку — `OffsetClock` режиму розробника. Доба, `dayKey`, години й частини доби —
 через `CalendarService`. Інакше тести на серії та добові розрізи стають плаваючими.
 
 ### DesignSystem
@@ -457,8 +495,9 @@ ViewModel-и — `@MainActor @Observable`, кешують знімки в збе
   після дії), тож на кроках без вікна давай йому малий `timeout`.
 - Прапорці запуску (`App/Sources/WaterTrackerApp.swift`, `LaunchConfiguration`):
   `--uitest-empty` (чиста in-memory БД), `--uitest-demo` (демо-історія),
-  `--seed-demo`, `--start-screen progress|level-road|achievements|prizes|stats|settings|portion-buttons|notifications|notification-plan|report|schedule-suggestion|widgets|learn|onboarding`
-  (`learn:app.xp` — одразу історія, `learn:body.why:4` — з п'ятого слайда, вікторина;
+  `--seed-demo`, `--start-screen progress|level-road|achievements|prizes|stats|settings|portion-buttons|notifications|notification-plan|report|schedule-suggestion|widgets|learn|onboarding|developer`
+  (`developer:day|achievements|quests` — сторінка режиму розробника;
+  `learn:app.xp` — одразу історія, `learn:body.why:4` — з п'ятого слайда, вікторина;
   `onboarding` — перший запуск, `onboarding:revisit` — повторний прохід; `--onboarding-design scene|steps`, під
   `--uitest-*` типово «Сцена»; сам онбординг під `--uitest-*` не відкривається)
   (`report` — минулий тиждень; період явно — `report:day:2026-10-04`, `report:month:2026-09`;

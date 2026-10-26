@@ -105,6 +105,13 @@ public struct CalendarService: Sendable {
         return (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
     }
 
+    /// Мить дня за хвилиною від півночі — обернена до `minuteOfDay`. З годин і хвилин, а не «північ + N хвилин»: у день
+    /// переведення годинника друге дає годину зсуву (25.10.2026 «08:32» ставало 07:32).
+    public func date(_ key: DayKey, minute: Int) -> Date {
+        let midnight = date(from: key)
+        return calendar.date(bySettingHour: minute / 60, minute: minute % 60, second: 0, of: midnight) ?? midnight
+    }
+
     public func isToday(_ key: DayKey) -> Bool { key == today }
     public func isFuture(_ key: DayKey) -> Bool { key > today }
 

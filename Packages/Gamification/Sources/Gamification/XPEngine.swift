@@ -101,6 +101,29 @@ public final class XPEngine {
         return removed
     }
 
+    /// Поправка журналу до точного числа XP повз множники — лише режим розробника (WAT-68): будь-який рівень, і вгору, і
+    /// вниз. Вниз — від'ємним записом, а не відкатом чужих нарахувань: на їхніх ref тримаються відкати порцій і завдань.
+    /// Метрика `xp.earned` — лише для додатної поправки: шина рахує зароблене, а не поправки.
+    func adjust(toTotal target: Int, at date: Date) {
+        let delta = max(0, target) - store.levelState().totalXp
+        guard delta != 0 else { return }
+        let levelBefore = progress().level
+        let entry = XPEntry(amount: delta, reason: .debug, refId: UUID(), dayKey: calendar.dayKey(for: date).rawValue,
+                            createdAt: date)
+        store.insertXP(entry)
+        let after = LevelCalculator.progress(totalXp: store.levelState().totalXp + delta, curve: curve)
+        syncCache(after, at: date)
+        if delta > 0 {
+            metrics.record(MetricEvent(name: .xpEarned, value: Double(delta), occurredAt: date, sourceRef: entry.id))
+        }
+        if after.level > levelBefore {
+            metrics.record(MetricEvent(
+                name: .levelReached, value: Double(after.level), occurredAt: date,
+                sourceRef: DeterministicID.uuid(from: "level:\(after.level)")
+            ))
+        }
+    }
+
     /// Множник буста, що діє в момент `date`: ×2 «Подвійний», ×3 «Потрійний», без буста — 1.
     public func boostMultiplier(at date: Date) -> Double {
         if boostWindows == nil {

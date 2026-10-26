@@ -144,7 +144,13 @@ public final class QuestEngine {
         input.dailyBlockIndex = daily.first { $0.key == "daily.closeBlock" }?.blockIndex
         let pick = forcing?.surprise.map { forced in SurprisePicker.resolve(forced.key, start: forced.minute, input) }
             ?? SurprisePicker.pick(input)
-        guard let pick, let start = pick.startMinute, let end = pick.deadlineMinute else { return }
+        guard let pick else { return }
+        insertSurprise(pick, day: day)
+    }
+
+    private func insertSurprise(_ pick: QuestPick, day: DayKey) {
+        guard let start = pick.startMinute, let end = pick.deadlineMinute else { return }
+        let periodKey = Self.surprisePeriodKey(day)
         let instance = QuestInstance(
             defKey: pick.key, periodKey: periodKey, target: 1, assignedAt: moment(day, minute: start),
             expiresAt: moment(day, minute: end), rewardXp: pick.rewardXp, difficultyRaw: pick.difficulty.rawValue,
@@ -260,7 +266,9 @@ public final class QuestEngine {
     func revert(at date: Date, now: Date, inputs: QuestInputs, policy: RevertPolicy) -> [QuestInstance] {
         guard policy == .full else { return [] }
         var reopened: [QuestInstance] = []
-        for instance in instances(at: date) where instance.isDone {
+        // Виконане з режиму розробника трималось не на умові — відкат порції його не знімає.
+        for instance in instances(at: date)
+        where instance.isDone && instance.completedByRef != GamificationService.developerRef {
             guard let definition = QuestCatalog.definition(instance.defKey) else { continue }
             let result = progress(instance, definition, at: date, inputs: inputs)
             _ = apply(result, to: instance)
@@ -316,6 +324,26 @@ public final class QuestEngine {
         let to = min(calendar.dayKey(for: date), sunday)
         guard from <= to else { return [] }
         return (from.ordinal...to.ordinal).map { inputs.day(DayKey(ordinal: $0)) }
+    }
+
+    // MARK: - Режим розробника (WAT-68)
+
+    /// Завдання повз пікери й поверх уже виданих за період. Несподіване — одне на день: чинне спершу скасовується.
+    func developerIssue(_ pick: QuestPick, scope: QuestScope, day: DayKey, at date: Date) {
+        switch scope {
+        case .daily: insert(pick, periodKey: day.rawValue, day: day, at: date, expires: true)
+        case .weekly: insert(pick, periodKey: calendar.weekKey(for: date).rawValue, day: day, at: date, expires: false)
+        case .adhoc:
+            cancelSurprise(day: day)
+            insertSurprise(pick, day: day)
+        }
+    }
+
+    /// Усі інстанси дня, його тижня й несподіване дня — і скасовані, і прострочені: дошка їх ховає.
+    func developerInstances(at date: Date) -> [QuestInstance] { instances(at: date) }
+
+    func developerSnapshot(_ instance: QuestInstance, day: (DayKey) -> QuestDay) -> QuestSnapshot? {
+        snapshot(instance, blockCount: day(calendar.dayKey(for: instance.assignedAt)).blocks.count)
     }
 
     // MARK: - Знімок

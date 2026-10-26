@@ -458,6 +458,27 @@ public final class NotificationService: MetricsSubscriber {
         ))
     }
 
+    /// Зразок будь-якої ситуації за `seconds` — режим розробника (WAT-68). Текст, категорія дій і перехід — як у плані
+    /// (`NotificationPlanner.sample`), ідентифікатор `debug.` — поза диффом і не глушиться при відкритому застосунку
+    /// (`presentation(forIdentifier:)`): так видно банер, не згортаючи застосунок. Повертає заголовок — для підпису.
+    @discardableResult
+    public func scheduleSample(_ sample: NotificationSample, after seconds: TimeInterval = 5) async -> String {
+        let preferences = preferences()
+        registerCategoriesIfNeeded(preferences)
+        let now = calendar.now
+        let context = contextProvider?() ?? NotificationContext(now: now, timeZone: calendar.calendar.timeZone)
+        var item = NotificationPlanner.sample(sample, fireAt: now.addingTimeInterval(seconds), context: context,
+                                              preferences: preferences, journal: journal(around: now), rules: rules)
+        item.id += ".\(UUID().uuidString.prefix(6).lowercased())"
+        let plan = NotificationPlan(items: [item], generatedAt: now, typicalPortionMl: lastPlan.typicalPortionMl,
+                                    lastActionDay: lastPlan.lastActionDay, glassMl: preferences.glassMl)
+        let sound = SoundResolver.resolve(preferences.sound, bubbleAvailable: bubbleSoundAvailable)
+        for request in NotificationScheduler.requests(for: plan, sound: sound, calendar: calendar.calendar) {
+            await center.add(request)
+        }
+        return item.title
+    }
+
     // MARK: - «Нагадувань забагато?» (§32)
 
     /// Відповідь на разове питання.

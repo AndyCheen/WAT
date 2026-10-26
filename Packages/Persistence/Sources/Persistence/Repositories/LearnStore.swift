@@ -75,6 +75,6 @@ public final class LearnStore {
     }
 
     private func save() {
-        do { try context.save() } catch { AppLog.persistence.error("learn save: \(error)") }
+        context.saveLoggingErrors("learn save")
     }
 }

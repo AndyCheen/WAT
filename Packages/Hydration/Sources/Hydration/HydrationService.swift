@@ -183,6 +183,37 @@ public final class HydrationService {
         return .empty(dayKey: day, goalMl: goal)
     }
 
+    /// Норма одного дня, зокрема минулого, — лише режим розробника (WAT-68): серія, звіти й завдання на дні з іншою
+    /// нормою. Ревізія на сам день і, якщо наступний уже настав і власної ревізії не має, — ревізія з колишньою нормою
+    /// на наступний: інакше нова норма потекла б на всі дні до сьогодні. Норму закрито чи знято — так само подія
+    /// `day.goalMet` чи її відкат, як від порції.
+    @discardableResult
+    public func setGoal(_ ml: Int, on day: DayKey, at date: Date? = nil) -> DaySnapshot {
+        let now = date ?? calendar.now
+        let next = calendar.dayKey(offsetDays: 1, from: day)
+        if next <= calendar.dayKey(for: now),
+           !profiles.goalRevisions().contains(where: { $0.effectiveFromKey == next.rawValue }) {
+            profiles.setGoal(profiles.currentGoalMl(on: next), source: .manual, effectiveFrom: next, at: now)
+        }
+        profiles.setGoal(ml, source: .manual, effectiveFrom: day, at: now)
+
+        let goal = profiles.currentGoalMl(on: day)
+        guard let log = dayLogs.existingDayLog(for: day) else { return .empty(dayKey: day, goalMl: goal) }
+        let wasGoalMet = log.goalMet
+        log.goalMlSnapshot = goal
+        recompute(log)
+        dayLogs.save()
+        if log.goalMet != wasGoalMet {
+            if log.goalMet {
+                publishGoalMet(day: day, at: log.lastIntakeAt ?? now, pct: log.completionPct)
+            } else {
+                metrics.revert(sourceRef: Self.goalMetRef(day), at: now)
+            }
+            metrics.commit()
+        }
+        return Self.snapshot(from: log)
+    }
+
     // MARK: - Розклад дня
 
     /// Записує поточний підйом і відбій у запис сьогоднішнього дня — після зміни розкладу.

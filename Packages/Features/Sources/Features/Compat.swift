@@ -27,3 +27,16 @@ public extension View {
         #endif
     }
 }
+
+public extension View {
+    /// Поле ключа чи пошуку — без великої літери й автозаміни (режим розробника, WAT-68). Як і `keyboardType`,
+    /// `textInputAutocapitalization` є лише на iOS.
+    @ViewBuilder
+    func wtPlainTextInput() -> some View {
+        #if os(iOS)
+        self.textInputAutocapitalization(.never).autocorrectionDisabled()
+        #else
+        self.autocorrectionDisabled()
+        #endif
+    }
+}
