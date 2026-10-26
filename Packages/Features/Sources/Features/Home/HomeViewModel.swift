@@ -6,6 +6,7 @@ import Persistence
 import Hydration
 import Gamification
 import Insights
+import Notifications
 import DesignSystem
 import Widgets
 
@@ -20,6 +21,8 @@ public enum HomeSheet: Identifiable {
     case glass
     /// Вікно «Графік дня» на весь екран — пропозиція змінити підйом чи відбій (WAT-41, §27).
     case schedule
+    /// Вікно «Нагадувань забагато?» на весь екран — разове питання, коли нагадування не допомагають (WAT-67, §32).
+    case reminderHelp
     public var id: Int {
         switch self {
         case .custom: return 0
@@ -28,6 +31,7 @@ public enum HomeSheet: Identifiable {
         case .permission: return 4
         case .glass: return 5
         case .schedule: return 6
+        case .reminderHelp: return 7
         }
     }
 }
@@ -579,10 +583,23 @@ public final class HomeViewModel {
         scheduleCheckedActivation = activation
         guard isHomeOnTop, sheet == nil, toast == nil, achievementDetail == nil, !permissionOfferPending,
               services.celebration == nil, !services.hasPendingCelebrations,
-              services.router.pendingPath == nil, services.router.pendingHomeIntent == nil,
-              let offer = services.scheduleOffer() else { return }
-        services.markScheduleOfferShown(offer)
-        openSchedule(offer)
+              services.router.pendingPath == nil, services.router.pendingHomeIntent == nil else { return }
+        if let offer = services.scheduleOffer() {
+            services.markScheduleOfferShown(offer)
+            openSchedule(offer)
+        } else if services.shouldOfferReminderHelp {
+            // Те саме «чисте відкриття», що й для графіка, і не в одне відкриття з ним (WAT-67, §32).
+            services.markReminderHelpOffered()
+            present(.reminderHelp)
+        }
+    }
+
+    // MARK: - «Нагадувань забагато?» (WAT-67, §32)
+
+    public func answerReminderHelp(_ choice: NotificationService.ReminderHelpChoice) {
+        services.answerReminderHelp(choice)
+        dismissSheet()
+        if let message = ReminderHelpPresenter.toast(choice) { showToast(HomeToast(message: message)) }
     }
 
     func openSchedule(_ offer: ScheduleSuggestion) {
@@ -775,6 +792,9 @@ public final class HomeViewModel {
     public var cappedNote: String? {
         guard day.isCapped else { return nil }
         let total = volumeUnit.format(day.totalMl) { "\(Volume.litersLabel($0, fractionDigits: 1)) л" }
+        // Понад півтори норми — тихе «досить» замість самої арифметики (WAT-67): аудит 60 днів — хто пив 3,9 л порціями
+        // по літру, не чув від застосунку жодного слова, а стеля зупиняла лише XP. Підпис, не тост: без зайвого шуму.
+        if day.totalMl * 2 > day.goalMl * 3 { return "Випито \(total) — норму закрито з запасом. Далі — за відчуттям" }
         return "Випито \(total) — зараховано 120 % норми"
     }
 }

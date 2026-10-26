@@ -90,6 +90,9 @@ public final class QuestInstance {
     public var count: Int?
     /// День тижня для Н3: 0 — понеділок.
     public var weekdayIndex: Int?
+    /// Особиста ціль у мілілітрах — «Закрий блок» для того, хто в ньому зазвичай п'є менше 60 % (WAT-67): крок від
+    /// звичного, а не повна ціль, якої людина не бере. `nil` — ціль блоку.
+    public var targetMl: Int?
 
     public init(
         id: UUID = UUID(),
@@ -103,7 +106,8 @@ public final class QuestInstance {
         deadlineMinute: Int? = nil,
         blockIndex: Int? = nil,
         count: Int? = nil,
-        weekdayIndex: Int? = nil
+        weekdayIndex: Int? = nil,
+        targetMl: Int? = nil
     ) {
         self.id = id
         self.defKey = defKey
@@ -117,6 +121,7 @@ public final class QuestInstance {
         self.blockIndex = blockIndex
         self.count = count
         self.weekdayIndex = weekdayIndex
+        self.targetMl = targetMl
     }
 
     public var state: QuestState {

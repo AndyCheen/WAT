@@ -21,7 +21,7 @@ final class WidgetPresenterTests: XCTestCase {
         let part = WidgetPresenter.part(day(13, 25), xp: 10)
         XCTAssertEqual(part.kind, .pending)
         XCTAssertEqual(part.caption, "день")
-        XCTAssertEqual(part.value, "650")
+        XCTAssertEqual(part.value, "550", "544 до межі зарахування — вгору до 50")
         XCTAssertEqual(part.unit, "мл")
         XCTAssertEqual(part.headline, "ще до 17:00")
         XCTAssertEqual(part.footnote, "3 год 35 хв")

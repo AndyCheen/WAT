@@ -401,6 +401,10 @@ public struct HomeScreen: View {
             ScheduleScreen(model: model)
                 .zIndex(11)
                 .transition(.move(edge: .bottom))
+        } else if model.sheet == .reminderHelp {
+            ReminderHelpScreen(model: model)
+                .zIndex(11)
+                .transition(.move(edge: .bottom))
         } else if let sheet = model.sheet {
             Group {
                 switch sheet {
@@ -412,7 +416,7 @@ public struct HomeScreen: View {
                     WeekStatsSheet(model: model)
                 case .permission:
                     NotificationPermissionSheet(model: model)
-                case .glass, .schedule:
+                case .glass, .schedule, .reminderHelp:
                     EmptyView()
                 }
             }

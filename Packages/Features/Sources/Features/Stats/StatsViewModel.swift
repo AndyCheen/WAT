@@ -68,9 +68,35 @@ public final class StatsViewModel {
         return insights.dayDetail(for: selectedDay)
     }
 
+    /// Звіти-історії з 4a (WAT-67): раніше їх відкривало лише сповіщення — хто без дозволу чи змахнув, звіту не бачив.
+    /// Лише періоди з порціями: порожня історія нічого не розповість.
+    public struct ReportLink: Identifiable, Equatable {
+        public let title: String
+        public let period: ReportPeriod
+        public var id: String { period.encoded }
+    }
+
+    public var reportLinks: [ReportLink] {
+        _ = services.epoch
+        let calendar = services.calendar
+        let today = calendar.today
+        let candidates = [
+            ReportLink(title: "Вчора", period: .day(calendar.dayKey(offsetDays: -1, from: today))),
+            ReportLink(title: "Минулий тиждень", period: calendar.period(.week, containing: calendar.dayKey(offsetDays: -7, from: today))),
+            ReportLink(title: "Минулий місяць", period: .month(calendar.monthKey(offsetMonths: -1, from: calendar.currentMonth)))
+        ]
+        return candidates.filter { link in
+            let days = calendar.days(in: link.period)
+            guard let first = days.first, let last = days.last else { return false }
+            return services.dayLogs.dayLogs(from: first, to: last).contains { $0.totalMl > 0 }
+        }
+    }
+
     public var goalLabel: String {
-        let goal = chartMode == .days7 ? services.hydration.currentGoal() : services.hydration.currentGoal() * 7
-        return volumeUnit.format(goal) { "\(Volume.litersLabel($0, fractionDigits: 1)) л" }
+        let goal = chartMode == .weeks8 ? services.hydration.currentGoal() * 7 : services.hydration.currentGoal()
+        let label = volumeUnit.format(goal) { "\(Volume.litersLabel($0, fractionDigits: 1)) л" }
+        // Рік — середнє за активний день місяця, тож і ціль — денна.
+        return chartMode == .months12 ? label + " на день" : label
     }
 
     /// Система об'єму людини (WAT-46).

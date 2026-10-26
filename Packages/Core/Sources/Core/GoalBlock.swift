@@ -56,7 +56,27 @@ public struct GoalBlock: Sendable, Equatable {
     }
 
     public func isReached(by portions: [TimedPortion]) -> Bool {
-        drunkMl(of: portions) >= targetMl
+        Self.isReached(drunkMl: drunkMl(of: portions), targetMl: targetMl)
+    }
+
+    /// Скільки треба випити, щоб блок вважався закритим: ⌈90 % цілі⌉.
+    public var reachedMl: Int { Self.reachedMl(target: targetMl) }
+
+    /// Допуск цілі блоку (рішення від 25.10.2026, WAT-67). Ціль — частка кривої темпу, а люди п'ють порціями: хто
+    /// п'є 8 × 250 мл рівно з 08:00, у блок 12–17 (826 мл) вкладає три склянки — 750 — і за 60 днів симуляції не
+    /// закрив його жодного разу, хоча норму закривав щодня. Бракує менше за пів склянки — блок закрито. Одне
+    /// правило на чекпоінт, XP `dayPartGoal`, «✓» звіту, 4a й віджетів і завдання про блоки.
+    public static let reachPercent = 90
+    /// Та сама межа частками — для медіан звіту за тиждень і місяць.
+    public static var reachShare: Double { Double(reachPercent) / 100 }
+
+    /// Ціле множення, а не `0.9 * ціль`: двійковий дріб дав би 901 замість 900 на круглих цілях.
+    public static func reachedMl(target: Int) -> Int {
+        (max(0, target) * reachPercent + 99) / 100
+    }
+
+    public static func isReached(drunkMl: Int, targetMl: Int) -> Bool {
+        drunkMl >= reachedMl(target: targetMl)
     }
 
     /// «ранок і полудень», «день» — для підписів у звіті.
@@ -104,9 +124,9 @@ public struct DayPartProgress: Sendable, Equatable {
     public let drunkMl: Int
     public let minutesLeft: Int
 
-    /// Скільки бракує до цілі — точно, без округлення: як показати, вирішує екран.
-    public var leftMl: Int { max(0, block.targetMl - drunkMl) }
-    public var isReached: Bool { drunkMl >= block.targetMl }
+    /// Скільки бракує, щоб закрити блок (`GoalBlock.reachedMl`), — точно, без округлення: як показати, вирішує екран.
+    public var leftMl: Int { max(0, block.reachedMl - drunkMl) }
+    public var isReached: Bool { GoalBlock.isReached(drunkMl: drunkMl, targetMl: block.targetMl) }
     public var fraction: Double { block.targetMl > 0 ? min(1, Double(drunkMl) / Double(block.targetMl)) : 1 }
 }
 

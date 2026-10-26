@@ -46,6 +46,11 @@ final class WeeklyQuestPickerTests: XCTestCase {
         XCTAssertEqual(picks.first?.key, "weekly.halfDays")
         XCTAssertEqual(picks.first?.count, 5)
         XCTAssertEqual(picks.first?.difficulty, .easy)
+
+        // Від днів із половиною норми за минулий тиждень + 1 (WAT-67).
+        var adaptive = input(today: 1, goalDays14: 5)
+        adaptive.habitBase = ["weekly.halfDays": 1]
+        XCTAssertEqual(WeeklyQuestPicker.pick(adaptive).first?.count, 2)
     }
 
     /// Т2 — N(Т1) − 2; менше 3 — не допущене.

@@ -79,9 +79,13 @@ public struct WTBarChart: View {
 
             HStack(spacing: 6) {
                 ForEach(bars) { bar in
+                    // 12 місяців («Рік», WAT-67) не вміщають «Лис» у вузький стовпчик — підпис стискається, а не
+                    // переноситься на два рядки.
                     Text(bar.label)
                         .font(WTFont.text(12, .heavy))
                         .foregroundStyle(theme.textMuted)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
                         .frame(maxWidth: .infinity)
                 }
             }

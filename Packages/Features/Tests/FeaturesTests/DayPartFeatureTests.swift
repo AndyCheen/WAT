@@ -46,11 +46,12 @@ final class DayPartFeatureTests: XCTestCase {
         guard case let .pending(fraction, title, xp, timeLeft) = line.content else {
             return XCTFail("очікувалась незакрита частина, а не \(line.content)")
         }
-        XCTAssertEqual(title, "До 12:00 — ще 150 мл")
+        // До межі зарахування 621 мл (90 % від 689, WAT-67) бракує 71 — угору до 50.
+        XCTAssertEqual(title, "До 12:00 — ще 100 мл")
         XCTAssertEqual(xp, "+10 XP")
         XCTAssertEqual(timeLeft, "35 хв")
         XCTAssertEqual(fraction, 550.0 / 689, accuracy: 1e-9)
-        XCTAssertEqual(line.accessibilityLabel, "До 12:00 бракує 150 мл, лишилось 35 хвилин")
+        XCTAssertEqual(line.accessibilityLabel, "До 12:00 бракує 100 мл, лишилось 35 хвилин")
     }
 
     /// Порція, що закриває частину, одразу дає ✓; видалення її — повертає «ще N мл».
@@ -71,7 +72,7 @@ final class DayPartFeatureTests: XCTestCase {
         guard case let .pending(_, title, _, timeLeft) = try XCTUnwrap(model.dayPartLine()).content else {
             return XCTFail("о 12:00 почалась нова частина")
         }
-        XCTAssertEqual(title, "До 17:00 — ще 850 мл")
+        XCTAssertEqual(title, "До 17:00 — ще 750 мл", "744 — межа зарахування денного блоку")
         XCTAssertEqual(timeLeft, "5 год")
 
         clock.set(Self.date(11, 45))
@@ -98,7 +99,7 @@ final class DayPartFeatureTests: XCTestCase {
         guard case let .pending(_, title, _, timeLeft) = try XCTUnwrap(model.dayPartLine()).content else {
             return XCTFail("вечір без порцій — незакритий")
         }
-        XCTAssertEqual(title, "До 22:00 — ще 500 мл")
+        XCTAssertEqual(title, "До 22:00 — ще 450 мл", "437 — межа зарахування вечора")
         XCTAssertEqual(timeLeft, "30 хв")
     }
 
@@ -119,7 +120,7 @@ final class DayPartFeatureTests: XCTestCase {
         guard case let .pending(_, title, _, _) = try XCTUnwrap(model.dayPartLine()).content else {
             return XCTFail("частина до 12:00 не закрита")
         }
-        XCTAssertEqual(title, "До 12:00 — ще 400 мл")
+        XCTAssertEqual(title, "До 12:00 — ще 350 мл")
     }
 
     // MARK: - Тексти

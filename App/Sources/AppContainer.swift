@@ -17,16 +17,31 @@ import Widgets
 enum AppContainer {
     static let launch = LaunchConfiguration.current
 
+    /// Чому сховище не відкрилося — тоді замість головного `WaterTrackerApp` показує `StoreFailureScreen`.
+    /// Раніше помилку тихо підміняла база в пам'яті: людина бачила онбординг і порожню історію, а записане до
+    /// перезапуску зникало (WAT-67).
+    private(set) static var storeError: Error?
+
     static let services: AppServices = {
-        let container: ModelContainer
-        do {
-            container = try Database.makeContainer(inMemory: launch.isInMemory)
-        } catch {
-            container = Database.makeInMemoryContainer()
-        }
         let clock: Clock = launch.fixedNow.map { FixedClock(now: $0) } ?? SystemClock()
-        // e2e не бачать системних запитів: центр у пам'яті з дозволом, заданим прапорцем.
-        let center: NotificationCenterProtocol = launch.isUITest
+        let container: ModelContainer
+        if launch.isInMemory {
+            container = Database.makeInMemoryContainer()
+        } else {
+            do {
+                // Перше відкриття новою схемою — спершу копія файлів: міграція їх переписує (WAT-67).
+                Database.backupIfSchemaChanged(now: clock.now)
+                container = try Database.makeContainer()
+            } catch {
+                AppLog.persistence.error("store: \(error)")
+                storeError = error
+                container = Database.makeInMemoryContainer()
+            }
+        }
+        // Без свого сховища — нічого назовні: системні сповіщення й знімок віджетів лишаються від останнього
+        // вдалого запуску. e2e не бачать системних запитів: центр у пам'яті з дозволом, заданим прапорцем.
+        let isolated = launch.isUITest || storeError != nil
+        let center: NotificationCenterProtocol = isolated
             ? InMemoryNotificationCenter(status: launch.notificationAuthorization)
             : SystemNotificationCenter()
         let services = AppServices(
@@ -34,9 +49,9 @@ enum AppContainer {
             bubbleSoundAvailable: Bundle.main.url(forResource: "drop", withExtension: "caf") != nil,
             xpRules: xpRules,
             // e2e — база в пам'яті: справжній знімок віджетів у App Group вона не переписує.
-            widgetStore: launch.isUITest ? WidgetSnapshotStore(url: nil) : .shared,
-            widgetReloader: WidgetCenterReloader(),
-            widgetPicker: launch.isUITest ? nil : .shared
+            widgetStore: isolated ? WidgetSnapshotStore(url: nil) : .shared,
+            widgetReloader: isolated ? nil : WidgetCenterReloader(),
+            widgetPicker: isolated ? nil : .shared
         )
         // До `bootstrap()`: завдання видаються першою ж подією дня — стартовим перерахунком.
         services.gamification.questForcing = launch.quests
@@ -68,7 +83,7 @@ enum AppContainer {
     /// Онбординг на старті: прапорець e2e або перший запуск без жодної порції (SPEC-ONBOARDING §8). Під `--uitest-*` —
     /// лише за прапорцем, інакше він перекрив би всі наявні сценарії.
     static let onboardingOnLaunch: OnboardingMode? = launch.onboarding
-        ?? (!launch.isUITest && services.shouldOpenOnboarding ? .firstRun : nil)
+        ?? (!launch.isUITest && storeError == nil && services.shouldOpenOnboarding ? .firstRun : nil)
 
     /// Дочекатися хвоста дії з віджета (відлуння, перепланування) у фоні. Інтент повертається раніше — заради
     /// швидкої цифри на віджеті (`AppServices.perform`), а після повернення iOS може приспати застосунок:

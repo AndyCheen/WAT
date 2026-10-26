@@ -10,6 +10,10 @@ public struct ScheduleShiftRules: Sendable, Equatable {
     /// Днів із порціями у вікні. Заодно виключає перший тиждень користування: 8 активних днів
     /// до сьогодні неможливі раніше ніж на 9-й день.
     public var minActiveDays = 8
+    /// Сильний зсув (WAT-67) — пропозиція вже з 5 днів: сова з першою склянкою об 11:00 при підйомі о 08:00 тиждень
+    /// отримувала ранкове о 08:00 й чекпоінт об 11:15, поки спала. Межа — підйом чи відбій зсуваються щонайменше на 2 год.
+    public var minActiveDaysStrongShift = 5
+    public var strongShiftMinutes = 120
     /// Вихідних у 14 днях лише 4 — судити про них можна з трьох.
     public var minWeekendDays = 3
     /// На скільки звичка має відходити від графіка, щоб це був зсув.
@@ -102,7 +106,14 @@ public enum ScheduleShift {
         let active = days
             .map { ScheduleDay(isWeekend: $0.isWeekend, intakeMinutes: $0.intakeMinutes.filter { $0 >= DaySchedule.earliestWakeMinutes }) }
             .filter { !$0.intakeMinutes.isEmpty }
-        guard active.count >= rules.minActiveDays else { return nil }
+        guard active.count >= min(rules.minActiveDays, rules.minActiveDaysStrongShift) else { return nil }
+        if active.count < rules.minActiveDays {
+            var strict = rules
+            strict.minActiveDays = rules.minActiveDaysStrongShift
+            guard let early = suggest(days: days, current: week, rules: strict),
+                  early.shiftMinutes >= rules.strongShiftMinutes else { return nil }
+            return early
+        }
 
         let weekdaySchedule = week.weekday
         let weekendSchedule = week.schedule(isWeekend: true)

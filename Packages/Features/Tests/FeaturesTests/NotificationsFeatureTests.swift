@@ -59,6 +59,27 @@ final class NotificationsFeatureTests: XCTestCase {
         XCTAssertTrue(services.notifications.isIntakeResponded(id))
     }
 
+    /// «Закрити норму» (WAT-67): вечірній підсумок, коли бракує більше за склянку, додає весь залишок — і норму закрито.
+    func testEveningCloseActionAddsTheRemainder() async {
+        for hour in [9, 11, 13, 15, 17] {
+            clock.set(Self.date(hour))
+            _ = services.hydration.addIntake(amountMl: 330)
+        }
+        clock.set(Self.date(18, 30))
+        services.touch()
+        await services.notifications.rescheduleNow()
+        let evening = services.notifications.lastPlan.items.first { $0.type == .evening && $0.dayKey == services.calendar.today }
+        XCTAssertEqual(evening?.category, .close, "бракує 350 — більше за склянку")
+        XCTAssertEqual(evening?.actionMl, 350)
+
+        let request = center.scheduled.first { $0.identifier == evening?.id }
+        clock.set(Self.date(20, 2))
+        await services.handleNotificationResponse(NotificationResponseInfo(
+            identifier: evening?.id ?? "", action: .addGlass, userInfo: request?.userInfo ?? [:]))
+        XCTAssertEqual(services.hydration.todaySnapshot().totalMl, 2000)
+        XCTAssertTrue(services.hydration.todaySnapshot().totalMl >= services.hydration.todaySnapshot().goalMl)
+    }
+
     /// Відкрите порцією з дії досягнення приходить сповіщенням, бо застосунку на екрані немає.
     func testEchoForUnlockOutsideTheApp() async {
         await respond(.addGlass, to: firstReminder)

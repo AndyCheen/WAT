@@ -15,9 +15,12 @@ public struct QuestPick: Sendable, Equatable {
     public var startMinute: Int?
     /// Н3 — день тижня, 0 — понеділок.
     public var weekdayIndex: Int?
+    /// Особиста ціль «Закрий блок» (WAT-67).
+    public var targetMl: Int?
 
     public init(key: String, difficulty: QuestDifficulty, rewardXp: Int, deadlineMinute: Int? = nil,
-                blockIndex: Int? = nil, count: Int? = nil, startMinute: Int? = nil, weekdayIndex: Int? = nil) {
+                blockIndex: Int? = nil, count: Int? = nil, startMinute: Int? = nil, weekdayIndex: Int? = nil,
+                targetMl: Int? = nil) {
         self.key = key
         self.difficulty = difficulty
         self.rewardXp = rewardXp
@@ -26,6 +29,7 @@ public struct QuestPick: Sendable, Equatable {
         self.count = count
         self.startMinute = startMinute
         self.weekdayIndex = weekdayIndex
+        self.targetMl = targetMl
     }
 }
 
@@ -78,13 +82,17 @@ public struct DailyPickInput: Sendable {
     public var goalMedianMinute: Int?
     public var weakSpots: QuestWeakSpots
     public var weakBlock: WeakBlock?
+    /// Як людина зазвичай п'є — від цього цілі адаптивних завдань (WAT-67).
+    public var baseline: QuestBaseline
+    /// Результати щоденних за 14 днів до вчора — сходинки й пауза (WAT-67).
+    public var outcomes: [QuestOutcome]
     public var rules: XPRules
 
     public init(day: DayKey, dayNumber: Int, seed: String, level: Int, dayRhythm: Bool, remindersActive: Bool,
                 schedule: DaySchedule, goalMl: Int, glassMl: Int, issueMinute: Int, goalMetYesterday: Bool = true,
                 goalDays7: Int = 0, yesterdayKeys: Set<String> = [], recentKeys: [String] = [],
                 goalMedianMinute: Int? = nil, weakSpots: QuestWeakSpots = .init(), weakBlock: WeakBlock? = nil,
-                rules: XPRules = .default) {
+                baseline: QuestBaseline = .none, outcomes: [QuestOutcome] = [], rules: XPRules = .default) {
         self.day = day
         self.dayNumber = dayNumber
         self.seed = seed
@@ -102,6 +110,8 @@ public struct DailyPickInput: Sendable {
         self.goalMedianMinute = goalMedianMinute
         self.weakSpots = weakSpots
         self.weakBlock = weakBlock
+        self.baseline = baseline
+        self.outcomes = outcomes
         self.rules = rules
     }
 }
@@ -119,8 +129,22 @@ public enum DailyQuestPicker {
     public static let recentDays = 6
     /// День 1 пізніше за Z − 4 год — лише «Перша склянка» (§3.3).
     static let lateFirstDayMinutes = 240
-    /// Д6: N = G / P у межах 3…5.
-    static let glassesRange = 3...5
+    /// Д6: N — від звичного + 1 (WAT-67), не менше 3 і не більше потрібного для норми G / P, але й не понад 8.
+    static let glassesMin = 3
+    static let glassesMax = 8
+    /// Д10: «N склянок до T½» — від звичного + 1, сходинкою в межах 1…4: хто до обіду п'є одну склянку, після
+    /// невдачі з двома отримує «утримай» з однією, а не ту саму недосяжну планку.
+    static let glassesByRange = 1...4
+    /// «До T» адаптивного завдання — не пізніше ніж за годину до відбою.
+    static let latestBeforeSleepMinutes = 60
+    /// Д9 «Три частини з трьох» — лише тому, хто вже закривав усі три хоча б двічі за 14 днів (WAT-67): аудит — 0 з 14.
+    static let allBlocksMinDays14 = 2
+    /// Д8 «Вода в кожній частині» — лише тому, хто так уже пив хоч раз за 14 днів: хто ввечері не п'є ніколи, отримує
+    /// натомість особисту ціль слабкого блоку («Увечері — 250 мл») — аудит: 0 з 6 у того, хто випиває все до 15:00.
+    static let everyBlockMinDays14 = 1
+    /// Д4 «Норма без нагадувань» (складне) — лише тому, кому це вдається іноді: щодня — це вже не виклик, а 40 XP за
+    /// звичайний день (аудит: 73 % успіху проти 38 % у «середньої» «Норми до T»); жодного разу — недосяжне.
+    static let goalAheadDays7 = 1...3
     /// Д7 ×2, коли медіана блоку нижча.
     static let weakBlockMedian = 0.7
 
@@ -196,7 +220,12 @@ public enum DailyQuestPicker {
               definition.requirements.allows(level: input.level, dayRhythm: input.dayRhythm,
                                              remindersActive: input.remindersActive),
               !fresh || !input.yesterdayKeys.contains(definition.key),
-              condition != .blockReached || input.weakBlock != nil else { return nil }
+              condition != .blockReached || input.weakBlock != nil,
+              condition != .allBlocks || input.baseline.allBlocksDays14 >= allBlocksMinDays14,
+              !condition.isEveryBlock || input.baseline.everyBlockDays14 >= everyBlockMinDays14,
+              condition != .goalAhead || goalAheadDays7.contains(input.baseline.goalAheadDays7),
+              !QuestAdaptation.isPaused(definition.key, outcomes: input.outcomes, today: input.day,
+                                        adaptive: isAdaptive(condition)) else { return nil }
         let pick = resolve(definition, input)
         if let deadline = pick.deadlineMinute, deadline - input.issueMinute < definition.minLeadMinutes { return nil }
         return Candidate(pick: pick, weight: weight(definition.key, input))
@@ -207,21 +236,55 @@ public enum DailyQuestPicker {
     static func resolve(_ definition: QuestDefinition, _ input: DailyPickInput) -> QuestPick {
         let condition = definition.condition.dayCondition
         var params = QuestParams(goalMedianMinute: input.goalMedianMinute, glassMl: input.glassMl)
-        if condition == .blockReached { params.blockIndex = input.weakBlock?.index ?? 0 }
+        let today = QuestDay(day: input.day, goalMl: input.goalMl, schedule: input.schedule, portions: [])
+        // Сходинка — від того, як людина впоралась із цим завданням востаннє (WAT-67).
+        let history = QuestAdaptation.recent(definition.key, in: input.outcomes, today: input.day)
+        if case .wakeGlass? = condition {
+            params.targetMl = QuestAdaptation.wakeGlassTarget(portionMl: input.baseline.portionMl, glassMl: input.glassMl)
+        }
+        if condition == .blockReached {
+            params.blockIndex = input.weakBlock?.index ?? 0
+            if let block = today.block(params.blockIndex) {
+                params.targetMl = QuestAdaptation.blockTarget(median: input.weakBlock?.median, block: block,
+                                                              glassMl: input.glassMl, history: history)
+            }
+        }
         switch condition {
         case .glasses(_, nil)?:
-            params.count = min(max(input.goalMl / max(1, input.glassMl), glassesRange.lowerBound), glassesRange.upperBound)
+            let need = Int((Double(input.goalMl) / Double(max(1, input.glassMl))).rounded(.up))
+            let range = glassesMin...min(max(need, glassesMin), glassesMax)
+            params.count = QuestAdaptation.count(base: input.baseline.glasses, fallback: min(range.upperBound, 5),
+                                                 range: range, history: history)
         case .glasses?:
-            params.count = definition.baseCount
+            params.count = QuestAdaptation.count(base: input.baseline.glassesBeforeHalf, fallback: definition.baseCount ?? 3,
+                                                 range: glassesByRange, history: history)
         default:
             break
         }
-        let today = QuestDay(day: input.day, goalMl: input.goalMl, schedule: input.schedule, portions: [])
+        var deadline = condition?.deadline(on: today, params: params)
+        if case .shareBy(let share, let rule)? = condition, let ideal = deadline {
+            // Ідеал — крива темпу; для «Норми до T» — на крок раніше за особистий дедлайн (§4.4), але не раніше Z − 4 год.
+            let aim = rule == .personalGoal
+                ? max(QuestAdaptation.ceilToStep(input.schedule.sleepMinutes - QuestRules.personalGoalWindow.earliest),
+                      ideal - QuestRules.personalGoalLeadMinutes)
+                : ideal
+            let base = input.baseline.shareMinutes[Int((share * 100).rounded())].map { $0 + 1 }
+            deadline = QuestAdaptation.deadline(aim: aim, base: base,
+                                                latest: input.schedule.sleepMinutes - latestBeforeSleepMinutes, history: history)
+        }
         let difficulty = definition.difficulty?.difficulty(count: params.count) ?? .easy
         return QuestPick(key: definition.key, difficulty: difficulty,
                          rewardXp: input.rules.questXp(scope: .daily, difficulty: difficulty),
-                         deadlineMinute: condition?.deadline(on: today, params: params),
-                         blockIndex: params.blockIndex, count: params.count)
+                         deadlineMinute: deadline, blockIndex: params.blockIndex, count: params.count,
+                         targetMl: params.targetMl)
+    }
+
+    /// Адаптивні — ті, де ціль підлаштовується (час, N, особиста ціль блоку): їм пауза — після третього провалу.
+    static func isAdaptive(_ condition: DayCondition) -> Bool {
+        switch condition {
+        case .shareBy, .glasses, .blockReached, .wakeGlass: return true
+        default: return false
+        }
     }
 
     private static func weight(_ key: String, _ input: DailyPickInput) -> Int {
@@ -256,5 +319,12 @@ public enum DailyQuestPicker {
             roll -= candidate.weight
         }
         return candidates.last?.pick
+    }
+}
+
+private extension DayCondition {
+    var isEveryBlock: Bool {
+        if case .portionInEachBlock = self { return true }
+        return false
     }
 }

@@ -37,7 +37,7 @@ final class CheckpointTests: XCTestCase {
         XCTAssertEqual(checkpoint?.category, .reminder, "ті самі дії, що в нагадування (§16.4)")
         XCTAssertEqual(checkpoint?.tapRoute, .customAmount(ml: 250))
         let text = (checkpoint?.title ?? "") + " " + (checkpoint?.body ?? "")
-        XCTAssertTrue(text.contains("450 мл"), "бракує 439 — округлено вгору до 50: \(text)")
+        XCTAssertTrue(text.contains("400 мл"), "до межі 621 (90 % від 689, WAT-67) бракує 371 — вгору до 50: \(text)")
         XCTAssertTrue(text.contains("12:00"), text)
     }
 

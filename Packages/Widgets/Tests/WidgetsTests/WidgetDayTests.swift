@@ -11,7 +11,8 @@ final class WidgetDayTests: XCTestCase {
         XCTAssertEqual(day.blocks.map(\.drunkMl), [800, 200, 0])
         XCTAssertEqual(day.blocks.map(\.position), [.past, .current, .future])
         XCTAssertEqual(day.part?.block.toMinute, 17 * 60)
-        XCTAssertEqual(day.part?.leftMl, 626)
+        // До межі зарахування 744 мл (90 % від 826, WAT-67).
+        XCTAssertEqual(day.part?.leftMl, 544)
         XCTAssertEqual(day.phase, .active)
         XCTAssertEqual(day.percent, 50)
         XCTAssertFalse(day.isProjected)

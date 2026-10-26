@@ -70,8 +70,11 @@ public enum NotificationPriority: Int, Comparable, Sendable {
 public enum NotificationCategory: String, Sendable, CaseIterable {
     /// «+склянка», «Інший об'єм», «Нагадати за годину», «Не сьогодні».
     case reminder = "REMINDER"
-    /// Лише «+склянка» — ранкова склянка, «можна закрити», ранковий порятунок, повернення.
+    /// Лише «+склянка» — ранкова склянка, «можна закрити» на одну склянку, ранковий порятунок, повернення.
     case glass = "GLASS"
+    /// «Закрити норму» — вечірній підсумок, коли бракує більше за склянку: дія додає весь залишок
+    /// (`PlannedNotification.actionMl`), а не склянку. Назви дій у категорії статичні, тож об'єм — у тексті.
+    case close = "CLOSE"
 }
 
 /// Наскільки сповіщення перериває (§11.1): тихий звіт за день — `.passive`, без звуку й без
@@ -111,11 +114,13 @@ public struct PlannedNotification: Sendable, Equatable, Identifiable {
     public var interruption: NotificationInterruption
     /// Без звуку незалежно від вибору в налаштуваннях — звіти (§11.1).
     public var isSilent: Bool
+    /// Скільки додає дія сповіщення, якщо не «моя склянка»: залишок норми у «Закрити норму» (WAT-67).
+    public var actionMl: Int?
 
     public init(id: String, type: NotificationType, slot: String, dayKey: DayKey, fireAt: Date,
                 isFloating: Bool, priority: NotificationPriority, category: NotificationCategory?,
                 title: String = "", body: String = "", variant: Int = 0, tapRoute: NotificationTapRoute,
-                interruption: NotificationInterruption = .active, isSilent: Bool = false) {
+                interruption: NotificationInterruption = .active, isSilent: Bool = false, actionMl: Int? = nil) {
         self.id = id
         self.type = type
         self.slot = slot
@@ -130,6 +135,7 @@ public struct PlannedNotification: Sendable, Equatable, Identifiable {
         self.tapRoute = tapRoute
         self.interruption = interruption
         self.isSilent = isSilent
+        self.actionMl = actionMl
     }
 
     public static func identifier(_ type: NotificationType, day: DayKey, slot: String) -> String {

@@ -55,6 +55,8 @@ public struct NotificationPreferences: Sendable, Equatable {
     public var remindersEnabled = true
     public var cadence = ReminderCadence.pace(.normal)
     public var followUpEnabled = true
+    /// Нагадування, на які людина не відповідає, рідшають самі (§32).
+    public var adaptiveReminders = true
     public var morningEnabled = true
     /// Чекпоінти частин доби (§9, етап B).
     public var checkpointsEnabled = true
@@ -124,6 +126,7 @@ extension NotificationPreferences {
             ? .pace(settings.reminderFrequency)
             : .interval(minutes: settings.reminderIntervalMinutes)
         followUpEnabled = settings.followUpEnabled
+        adaptiveReminders = settings.adaptiveReminders
         morningEnabled = settings.morningEnabled
         morningMinutes = settings.morningCustomMinutes
         eveningEnabled = settings.eveningEnabled
@@ -403,6 +406,32 @@ public struct NotificationJournal: Sendable, Equatable {
     /// Остання відповідь на сповіщення — теж дія користувача (§13.5).
     var lastResponse: Date? {
         entries.filter { $0.response != .none }.compactMap(\.respondedAt).max()
+    }
+
+    /// Частка справжніх відповідей на нагадування й чекпоінти за `rules.fatigueWindowDays` днів до `day` (сам день не
+    /// входить: план дня не змінюється від його ж порцій). Справжня — дія чи тап, «Нагадати за годину» або порція за
+    /// `quickResponseMinutes`. `nil` — доставлених замало, щоб судити (§32).
+    public func reminderResponseShare(before day: DayKey, rules: NotificationRules = .default) -> Double? {
+        let from = day.ordinal - rules.fatigueWindowDays
+        let delivered = entries.filter {
+            ($0.type == .reminder || $0.type == .checkpoint) && $0.status == .delivered
+                && $0.dayKey < day && $0.dayKey.ordinal >= from
+        }
+        guard delivered.count >= rules.fatigueMinDelivered else { return nil }
+        let quick = TimeInterval(rules.quickResponseMinutes * 60)
+        let answered = delivered.filter { entry in
+            switch entry.response {
+            case .open, .snooze, .pause: return true
+            case .intake: return (entry.respondedAt.map { $0.timeIntervalSince(entry.fireAt) } ?? .infinity) <= quick
+            case .none: return false
+            }
+        }
+        return Double(answered.count) / Double(delivered.count)
+    }
+
+    /// Нагадування людині не допомагають — пишемо рідше й без повторних (§32).
+    public func remindersIgnored(before day: DayKey, rules: NotificationRules = .default) -> Bool {
+        reminderResponseShare(before: day, rules: rules).map { $0 < rules.fatigueMaxResponseShare } ?? false
     }
 
     /// Варіанти тексту типу, використані останніми, — новіші спершу.

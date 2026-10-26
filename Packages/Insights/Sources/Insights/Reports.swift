@@ -37,7 +37,8 @@ public struct ReportBlock: Equatable, Sendable {
 
     public var deadlinePart: DayPart { parts[parts.count - 1] }
     public var key: String { deadlinePart.key }
-    public var isReached: Bool { ratio >= 1 }
+    /// Допуск — той самий, що в `GoalBlock` (WAT-67).
+    public var isReached: Bool { ratio >= GoalBlock.reachShare }
 }
 
 /// Кілька днів поспіль із закритою нормою.

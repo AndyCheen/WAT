@@ -72,6 +72,40 @@ public struct QuestHistory: Sendable {
         return WeakBlock(index: index, median: medians[index])
     }
 
+    /// База адаптивних цілей (WAT-67): коли людина зазвичай досягає 25 / 50 / 75 / 100 % норми (14 днів), скільки
+    /// склянок п'є за день і до половини кривої (7 днів), як часто закриває блоки й норму раніше за нагадування.
+    public func baseline(glassMinMl: Int = QuestRules.glassMinMl) -> QuestBaseline {
+        let recent = window(14).compactMap { $0 }.filter(\.isActive)
+        var shares: [Int: Int] = [:]
+        for percent in [25, 50, 75, 100] {
+            let minutes = recent.compactMap { $0.minute(reaching: percent) }
+            if minutes.count >= QuestBaseline.minDays { shares[percent] = WeeklyQuestPicker.median(minutes) }
+        }
+        let week = window(7).compactMap { $0 }.filter(\.isActive)
+        let glasses = week.map { day in day.portions.filter { $0.ml >= glassMinMl }.count }
+        let beforeHalf = week.compactMap { day -> Int? in
+            guard let half = day.curve.minute(reaching: Double(day.goalMl) * 0.5) else { return nil }
+            let deadline = QuestRules.floorToStep(Int(half))
+            return day.portions.filter { $0.ml >= glassMinMl && $0.minute < deadline }.count
+        }
+        let median = { (values: [Int]) in values.count >= QuestBaseline.minDays ? WeeklyQuestPicker.median(values) : nil }
+        let portions = week.flatMap { $0.portions.map(\.ml) }
+        return QuestBaseline(
+            shareMinutes: shares, glasses: median(glasses), glassesBeforeHalf: median(beforeHalf),
+            portionMl: portions.count >= QuestBaseline.minDays ? WeeklyQuestPicker.median(portions) : nil,
+            allBlocksDays14: recent.filter { day in day.blocks.allSatisfy { $0.isReached(by: day.portions) } }.count,
+            everyBlockDays14: recent.filter { day in
+                DayCondition.portionInEachBlock(minMl: glassMinMl).evaluate(on: day, params: QuestParams()).met
+            }.count,
+            goalAheadDays7: window(7).compactMap { $0 }.filter(\.goalAhead).count
+        )
+    }
+
+    /// Днів за 7 з умовою — база тижневих «Звичок» (WAT-67).
+    public func days7(_ condition: DayCondition, params: QuestParams) -> Int {
+        window(7).compactMap { $0 }.filter { condition.evaluate(on: $0, params: params).met }.count
+    }
+
     /// Днів за 7, коли вдавалось Д2 — половина норми до T½ свого дня.
     public var halfByDays7: Int {
         let condition = DayCondition.shareBy(0.5, .curveShare(0.5))

@@ -55,6 +55,17 @@ public struct QuestDay: Sendable, Equatable {
         return nil
     }
 
+    /// Хвилина порції, що добрала `percent` % норми; `nil` — за день не добрано (база адаптивних цілей, WAT-67).
+    public func minute(reaching percent: Int) -> Int? {
+        let needed = (goalMl * percent + 99) / 100
+        var running = 0
+        for portion in portions {
+            running += portion.ml
+            if running >= needed { return portion.minute }
+        }
+        return nil
+    }
+
     /// Випито до T — строго раніше (ТЗ §7), як у блоків цілей. Порції до підйому теж тут.
     public func drunk(before minute: Int) -> Int {
         portions.reduce(0) { $1.minute < minute ? $0 + $1.ml : $0 }

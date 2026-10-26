@@ -15,30 +15,39 @@ struct WaterTrackerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView(services: services, initialRoute: AppContainer.launch.startRoute, onboarding: AppContainer.onboardingOnLaunch)
-                // Тап по віджету (SPEC-WIDGETS §9.4).
-                .onOpenURL { url in
-                    if let link = WidgetLink(url: url) { services.open(link) }
-                }
-                // Північ і переведення годинника, поки застосунок на екрані.
-                .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
-                    NSTimeZone.resetSystemTimeZone()
-                    services.handleTimeChange()
-                }
-                // Системний пояс кешується процесом — без скидання `TimeZone.current`
-                // віддавав би старий пояс до перезапуску (SPEC-NOTIFICATIONS §16.6).
-                .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange)) { _ in
-                    NSTimeZone.resetSystemTimeZone()
-                    services.handleTimeChange()
-                }
+            if let error = AppContainer.storeError {
+                StoreFailureScreen(details: String(describing: error))
+            } else {
+                root
+            }
         }
         .onChange(of: scenePhase) { _, phase in
+            guard AppContainer.storeError == nil else { return }
             switch phase {
             case .active: services.handleBecameActive()
             case .background: enterBackground()
             default: break
             }
         }
+    }
+
+    private var root: some View {
+        RootView(services: services, initialRoute: AppContainer.launch.startRoute, onboarding: AppContainer.onboardingOnLaunch)
+            // Тап по віджету (SPEC-WIDGETS §9.4).
+            .onOpenURL { url in
+                if let link = WidgetLink(url: url) { services.open(link) }
+            }
+            // Північ і переведення годинника, поки застосунок на екрані.
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+                NSTimeZone.resetSystemTimeZone()
+                services.handleTimeChange()
+            }
+            // Системний пояс кешується процесом — без скидання `TimeZone.current`
+            // віддавав би старий пояс до перезапуску (SPEC-NOTIFICATIONS §16.6).
+            .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange)) { _ in
+                NSTimeZone.resetSystemTimeZone()
+                services.handleTimeChange()
+            }
     }
 
     /// План має бути актуальним до того, як iOS призупинить застосунок: відкладене

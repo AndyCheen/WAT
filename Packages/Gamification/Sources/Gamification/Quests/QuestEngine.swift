@@ -99,6 +99,7 @@ public final class QuestEngine {
     func ensureInstances(day: DayKey, at date: Date, daily: () -> DailyPickInput, weekly: () -> WeeklyPickInput,
                          surprise: () -> SurprisePickInput? = { nil }) {
         let dayKey = day.rawValue
+        if checkedPeriods.insert("stale|\(dayKey)").inserted { expireStale(before: day) }
         if checkedPeriods.insert("day|\(dayKey)").inserted, instances(periodKey: dayKey).isEmpty {
             let input = daily()
             let picks = forcing.map { forced in
@@ -115,6 +116,24 @@ public final class QuestEngine {
             } ?? WeeklyQuestPicker.pick(input)
             for pick in picks { insert(pick, periodKey: weekKey, day: day, at: date, expires: false) }
         }
+    }
+
+    /// Минулі періоди, що так і лишились активними, — прострочені (WAT-67). Невиконане без дедлайну чи без події
+    /// після дедлайну інакше назавжди лишалось би `active`: на екрані його не видно, але сходинки адаптивних завдань
+    /// й історія мусять бачити провал. Тижневі — лише завершені тижні.
+    ///
+    /// Один запит на день, а не по запиту на період: `PerformanceTests` міряють і цей шлях.
+    private func expireStale(before day: DayKey) {
+        let currentWeek = calendar.weekKey(for: calendar.date(from: day)).rawValue
+        var changed = false
+        for instance in store.quests(scope: nil, periodKey: nil) where instance.state == .active {
+            // Лише минуле: подія з минулого дня (повернута порція) не прострочує того, що після неї.
+            let isPast = Self.day(of: instance).map { $0 < day } ?? (instance.periodKey < currentWeek)
+            guard isPast else { continue }
+            instance.state = .expired
+            changed = true
+        }
+        if changed { store.save() }
     }
 
     private func issueSurprise(day: DayKey, at date: Date, daily: [QuestPick], input: () -> SurprisePickInput?) {
@@ -165,7 +184,7 @@ public final class QuestEngine {
         let instance = QuestInstance(
             defKey: pick.key, periodKey: periodKey, target: 1, assignedAt: date, expiresAt: expiresAt,
             rewardXp: pick.rewardXp, difficultyRaw: pick.difficulty.rawValue, deadlineMinute: pick.deadlineMinute,
-            blockIndex: pick.blockIndex, count: pick.count
+            blockIndex: pick.blockIndex, count: pick.count, targetMl: pick.targetMl
         )
         store.insertQuest(instance)
         periodCache[periodKey, default: []].append(instance)
@@ -282,7 +301,8 @@ public final class QuestEngine {
             deadlineMinute: isWeekly ? nil : instance.deadlineMinute,
             startMinute: definition.scope == .adhoc ? calendar.minuteOfDay(instance.assignedAt) : nil,
             goalMedianMinute: isWeekly ? instance.deadlineMinute : nil,
-            blockIndex: instance.blockIndex, count: instance.count, glassMl: inputs.glassMl, unit: inputs.unit
+            blockIndex: instance.blockIndex, count: instance.count, targetMl: instance.targetMl,
+            glassMl: inputs.glassMl, unit: inputs.unit
         )
         return definition.condition.evaluate(days: days(of: instance, isWeekly: isWeekly, at: date, inputs: inputs),
                                              params: params)
@@ -347,7 +367,7 @@ public final class QuestEngine {
             count: instance.count, blockIndex: instance.blockIndex,
             blockCount: instance.blockIndex == nil ? nil : blockCount,
             visibleFrom: definition.scope == .adhoc ? instance.assignedAt : nil,
-            weekdayIndex: instance.weekdayIndex
+            weekdayIndex: instance.weekdayIndex, targetMl: instance.targetMl
         )
     }
 

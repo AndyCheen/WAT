@@ -70,8 +70,35 @@ final class FixedTypesTests: XCTestCase {
         let item = evening(countedMl: 1700)
         XCTAssertEqual(item?.slot, "closable")
         XCTAssertEqual(item.map { Fixture.clock($0.fireAt) }, "20:00")
-        XCTAssertEqual(item?.category, .glass, "дія «+склянка» лише в ситуації 2")
         XCTAssertTrue(item?.body.contains("300 мл") == true, item?.body ?? "")
+        // Бракує більше за склянку — дія закриває норму цілком (WAT-67), а не «+250».
+        XCTAssertEqual(item?.category, .close)
+        XCTAssertEqual(item?.actionMl, 300)
+    }
+
+    func testSituation2WithinOneGlassKeepsGlassAction() {
+        let item = evening(countedMl: 1800)
+        XCTAssertEqual(item?.category, .glass, "склянки досить, щоб закрити")
+        XCTAssertNil(item?.actionMl)
+    }
+
+    /// Залишок — так, як його називає текст: угору до 50 мл, а в унціях — до цілої унції; не більше за стелю вечора.
+    func testClosingActionAmountMatchesText() {
+        var context = Fixture.context(at: Fixture.date(16), countedMl: 1460, intakes: [Fixture.date(15)])
+        context.portionHistoryMl = [500, 500, 500]
+        let item = plan(context).items.first { $0.type == .evening }
+        XCTAssertEqual(item?.actionMl, 550, "540 → 550")
+
+        let request = NotificationScheduler.requests(for: plan(context), sound: .none, calendar: .kyiv)
+            .first { $0.identifier == item?.id }
+        XCTAssertEqual(request?.userInfo[UserInfoKey.glassMl], "550", "дія «Закрити норму» додає саме стільки")
+        XCTAssertEqual(request?.categoryId, NotificationCategory.close.rawValue)
+    }
+
+    @MainActor
+    func testCloseCategoryIsRegistered() {
+        let close = NotificationService.categories(glassMl: 250).first { $0.id == NotificationCategory.close.rawValue }
+        XCTAssertEqual(close?.actions.map(\.id), [NotificationActionID.addGlass])
     }
 
     func testSituation2MentionsStreakWhenYesterdayCounted() {

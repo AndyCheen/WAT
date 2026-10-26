@@ -212,6 +212,12 @@ struct PlanBuilder {
         return Candidate(item: item, copy: .morning, rel: day.rel)
     }
 
+    /// Залишок норми так, як його називає текст: угору до 50 мл чи до цілої унції, у межах стелі вечора.
+    func closingAmount(_ missing: Int, unit: VolumeUnit) -> Int {
+        let shown = unit.isMetric ? Int((Double(missing) / 50).rounded(.up)) * 50 : unit.milliliters(units: unit.unitsRoundedUp(missing))
+        return min(shown, rules.eveningCapMl)
+    }
+
     /// Вечірній підсумок — ситуації §8 згори вниз. Ситуація 3 — порятунок серії (тип 7).
     func evening(_ day: PlanningDay) -> Candidate? {
         let frame = day.frame
@@ -227,9 +233,14 @@ struct PlanBuilder {
         if Double(missing) <= closable {                                                     // 2
             guard preferences.eveningEnabled, !paused else { return nil }
             let streak = projection.continuingStreak(on: day.rel)
+            // Бракує більше за склянку — дія закриває норму цілком (рішення від 25.10.2026, WAT-67). «+250» тут
+            // лишав людину, що відповідає на кожне сповіщення, на склянку позаду: нагадування приходить, коли вона
+            // вже на порцію відстала, і після 20:00 їх немає — у симуляції 60 днів норма лише 3 дні з 60.
+            let closing = missing > preferences.glassMl ? closingAmount(missing, unit: preferences.volumeUnit) : nil
             let item = PlannedNotification(
                 id: eveningId, type: .evening, slot: streak == nil ? "closable" : "closableStreak",
-                dayKey: day.day, fireAt: at, isFloating: true, priority: .evening, category: .glass, tapRoute: .home
+                dayKey: day.day, fireAt: at, isFloating: true, priority: .evening,
+                category: closing == nil ? .glass : .close, tapRoute: .home, actionMl: closing
             )
             return Candidate(item: item, copy: .eveningClosable(leftMl: missing, streak: streak), rel: day.rel)
         }
@@ -291,7 +302,8 @@ struct PlanBuilder {
             guard let at = frame.place(nominal, limit: min(deadline, frame.cutoff)), at > earliest else { return nil }
 
             let drunk = block.drunkMl(of: portions)
-            let left = block.targetMl - drunk
+            // До межі зарахування, а не до повної цілі: «✓» блоку ставиться від 90 % (WAT-67).
+            let left = block.reachedMl - drunk
             // 1. Відставання всередині частини ≥ ½P: хто п'є рівномірно, закриє її сам.
             // 2. Бракує 50 мл … 2·P: недосяжний чекпоінт лише фіксує невдачу, а загальне
             //    відставання й так веде нагадування.
@@ -419,9 +431,13 @@ struct PlanBuilder {
         let anchor = todayIntakes.max() ?? frame.wake
         let anchorMinute = frame.minute(of: anchor)
 
+        // Нагадування не допомагають (§32) — типова частота стає «Рідше», а повторних немає. Свідомо обрані «Частіше»
+        // й рівні інтервали не чіпаємо: це вибір людини.
+        let ignored = preferences.adaptiveReminders && journal.remindersIgnored(before: today, rules: rules)
         let first: Double
         switch preferences.cadence {
-        case .pace(let frequency):
+        case .pace(let chosen):
+            let frequency = ignored && chosen == .normal ? ReminderFrequency.rarer : chosen
             let pace = rules.pace(for: frequency)
             first = frame.curve.nextDueMinute(anchorMinute: anchorMinute, drunkMl: drank, portionMl: portion,
                                               k: pace.k, minGapMinutes: pace.minGapMinutes,
@@ -473,7 +489,7 @@ struct PlanBuilder {
             } else {
                 append(next, primary: true)
             }
-            if preferences.followUpEnabled { append(blockStart.addingTimeInterval(followUp), primary: false) }
+            if preferences.followUpEnabled, !ignored { append(blockStart.addingTimeInterval(followUp), primary: false) }
             next = blockStart.addingTimeInterval(followUp + backoff)
         }
         return chain

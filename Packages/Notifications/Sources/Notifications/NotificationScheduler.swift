@@ -23,7 +23,7 @@ public enum NotificationScheduler {
                 UserInfoKey.slot: item.slot,
                 UserInfoKey.day: item.dayKey.rawValue,
                 UserInfoKey.route: item.tapRoute.encoded,
-                UserInfoKey.glassMl: String(plan.glassMl),
+                UserInfoKey.glassMl: String(item.actionMl ?? plan.glassMl),
                 UserInfoKey.portionMl: String(plan.typicalPortionMl)
             ]
             let itemSound = item.isSilent ? NotificationSoundSpec.none : sound

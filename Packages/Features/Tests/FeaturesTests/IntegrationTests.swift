@@ -147,7 +147,11 @@ final class IntegrationTests: XCTestCase {
 
         for _ in 0..<2 { model.add(500) }
         XCTAssertEqual(model.day.completionPct, 120)
-        XCTAssertNotNil(model.cappedNote, "понад 120 % — пояснюємо, чому відсоток стоїть")
+        XCTAssertEqual(model.cappedNote, "Випито 3.0 л — зараховано 120 % норми", "понад 120 % — пояснюємо, чому відсоток стоїть")
+
+        // Понад півтори норми — м'яке «досить» (WAT-67).
+        model.add(500)
+        XCTAssertEqual(model.cappedNote, "Випито 3.5 л — норму закрито з запасом. Далі — за відчуттям")
     }
 
     func testClosingDailyGoalBuildsStreakAndInsights() {
