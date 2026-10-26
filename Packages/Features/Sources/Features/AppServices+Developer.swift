@@ -3,6 +3,7 @@ import Core
 import Persistence
 import Hydration
 import Gamification
+import Notifications
 
 /// День у режимі розробника: показники запису дня й порції.
 public struct DeveloperDay: Equatable {
@@ -152,6 +153,32 @@ extension AppServices {
     public func developerStopBoost() {
         gamification.developerStopBoost()
         finishDeveloperAction()
+    }
+
+    // MARK: - Сповіщення
+
+    /// Справжнє сповіщення-зразок за `seconds` (`NotificationService.scheduleSample`). `nil` — без дозволу iOS сповіщення
+    /// не прийде, і планувати нічого.
+    @discardableResult
+    public func developerSendNotification(_ sample: NotificationSample, after seconds: TimeInterval) async -> String? {
+        await notifications.refreshAuthorization()
+        guard notifications.authorization == .authorized else { return nil }
+        return await notifications.scheduleSample(sample, after: seconds)
+    }
+
+    /// Відлуння — одразу, як після порції поза застосунком (§12.1): про останнє відкрите досягнення, а без нього — про
+    /// «Першу краплю».
+    @discardableResult
+    public func developerSendEcho() async -> String? {
+        await notifications.refreshAuthorization()
+        guard notifications.authorization == .authorized else { return nil }
+        let unlocked = gamification.achievementSnapshots().filter(\.isUnlocked)
+            .max { ($0.unlockedAt ?? .distantPast) < ($1.unlockedAt ?? .distantPast) }
+        let text = EchoText.achievement(unlocked?.title ?? "Перша крапля")
+        await notifications.sendEcho(title: text.title, body: text.body,
+                                     route: unlocked.map { .achievement(key: $0.key) } ?? .progress,
+                                     intakeId: UUID(), at: calendar.now)
+        return text.title
     }
 
     // MARK: - Годинник

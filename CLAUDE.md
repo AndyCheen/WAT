@@ -19,7 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make project        # xcodegen generate
 make build          # збірка в симулятор (пінить -derivedDataPath DerivedData)
-make test-packages  # 961 unit-тест 10 пакетів (+19 аудиту на вимогу), без симулятора — швидкий цикл
+make test-packages  # 966 unit-тестів 10 пакетів (+19 аудиту на вимогу), без симулятора — швидкий цикл
 make test-ui        # 74 e2e-сценарії (XCUITest) у симуляторі
 make test           # обидва набори
 make install        # build + встановити й запустити в booted-симуляторі
@@ -396,6 +396,10 @@ Features → Widgets → DesignSystem → Core
   розробника пише `DeveloperSettings.pendingReset` і закриває застосунок (`exit(0)`), `AppContainer` до сервісів кличе
   `Database.erase(_:in:)`. «Прогрес» лишає `Database.settingsModels` і скидає стан гри в профілі, «усе» — порожнє сховище
   й онбординг. Нова модель — у `progressModels` чи `settingsModels` (`DatabaseEraseTests` тримає повноту).
+- Сповіщення: зразок будь-якої ситуації (`NotificationSample`, 16 видів + відлуння) за 5 чи 30 с —
+  `NotificationPlanner.sample` складає той самий `PlannedNotification` (категорія дій, перехід, текст від `TextComposer`),
+  `NotificationService.scheduleSample` ставить його з ідентифікатором `debug.` — поза диффом плану й без приглушення при
+  відкритому застосунку. Композитор ставить нагадуванню `wt.reminder.…` — `sample` повертає `debug.` після нього.
 - Об'єм тут — завжди мілілітри (`DeveloperPresenter`): так він зберігається. Дата й час — системний `DatePicker`: свого
   компонента точної хвилини в `DesignSystem` немає.
 

@@ -4,6 +4,7 @@ import Core
 import Persistence
 import Hydration
 import Gamification
+import Notifications
 @testable import Features
 
 /// Режим розробника (WAT-68) на рівні `AppServices`: дії з днями, годинник, скидання, тексти.
@@ -114,6 +115,36 @@ final class DeveloperFeatureTests: XCTestCase {
         services.developerSetLevel(3)
         XCTAssertEqual(services.profile.highestCelebratedLevel, 3,
                        "униз — і відсвятковане теж: справжнє підняття на 4 отримає тост")
+    }
+
+    // MARK: - Сповіщення
+
+    func testSampleNotificationLandsInTheCenter() async {
+        let center = InMemoryNotificationCenter(status: .authorized)
+        let local = AppServices(container: Database.makeInMemoryContainer(),
+                                clock: FixedClock(now: Self.date(day: 26, hour: 14)), notificationCenter: center)
+        local.bootstrap()
+
+        let title = await local.developerSendNotification(.rescueEvening, after: 5)
+
+        let request = center.scheduled.first { $0.identifier.hasPrefix("debug.rescue.") }
+        XCTAssertNotNil(request, "\(center.scheduled.map(\.identifier))")
+        XCTAssertEqual(request?.title, title)
+        XCTAssertEqual(request?.userInfo[UserInfoKey.route], NotificationTapRoute.freezeCard.encoded)
+        let echo = await local.developerSendEcho()
+        XCTAssertNotNil(echo)
+        XCTAssertTrue(center.scheduled.contains { $0.identifier.hasPrefix("wt.echo.") })
+    }
+
+    func testSampleNeedsPermission() async {
+        let center = InMemoryNotificationCenter(status: .denied)
+        let local = AppServices(container: Database.makeInMemoryContainer(),
+                                clock: FixedClock(now: Self.date(day: 26, hour: 14)), notificationCenter: center)
+        local.bootstrap()
+
+        let sent = await local.developerSendNotification(.reminder, after: 5)
+        XCTAssertNil(sent)
+        XCTAssertFalse(center.scheduled.contains { $0.identifier.hasPrefix("debug.") })
     }
 
     // MARK: - Годинник

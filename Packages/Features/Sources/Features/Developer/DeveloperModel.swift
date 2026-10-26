@@ -4,6 +4,7 @@ import Core
 import Persistence
 import Hydration
 import Gamification
+import Notifications
 
 /// Сторінки режиму розробника — одна навігаційна гілка в `AppRoute`.
 public enum DeveloperPage: Hashable, Sendable {
@@ -151,6 +152,29 @@ final class DeveloperModel {
     func stopBoost() {
         services.developerStopBoost()
         reload()
+    }
+
+    // MARK: - Сповіщення
+
+    var notificationDelay = DeveloperPresenter.notificationDelays[0]
+    /// Що щойно заплановано — чи чому ні.
+    private(set) var notificationNotice: String?
+
+    func sendNotification(_ sample: NotificationSample) {
+        let delay = notificationDelay
+        Task {
+            let title = await services.developerSendNotification(sample, after: TimeInterval(delay))
+            notificationNotice = title.map { DeveloperPresenter.notificationSent($0, seconds: delay) }
+                ?? DeveloperPresenter.notificationDenied
+        }
+    }
+
+    func sendEcho() {
+        Task {
+            let title = await services.developerSendEcho()
+            notificationNotice = title.map { DeveloperPresenter.notificationSent($0, seconds: 0) }
+                ?? DeveloperPresenter.notificationDenied
+        }
     }
 
     func showSchedule(_ demo: ScheduleSuggestionDemo) { services.showScheduleSuggestion(demo) }

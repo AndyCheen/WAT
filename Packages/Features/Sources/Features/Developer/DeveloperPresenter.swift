@@ -2,6 +2,7 @@ import Foundation
 import Core
 import Persistence
 import Gamification
+import Notifications
 
 /// Тексти режиму розробника (WAT-68). Об'єм — завжди в мілілітрах, хоч яка система в профілі: так він зберігається, і
 /// розробник бачить те саме число, що в базі й тестах.
@@ -91,6 +92,24 @@ enum DeveloperPresenter {
         (.wakeEarly, "Ранній підйом"), (.wakeLate, "Пізній підйом"), (.sleepLate, "Пізній відбій"),
         (.sleepEarly, "Ранній відбій"), (.both, "Підйом і відбій"), (.weekend, "Вихідні"), (.weekdays, "Будні")
     ]
+
+    static let notificationSamples: [(NotificationSample, String)] = [
+        (.reminder, "Нагадування"), (.reminderFollowUp, "Повторне"), (.checkpoint, "Чекпоінт"),
+        (.challenge, "Несподіване"), (.morning, "Ранкова склянка"), (.eveningClosable, "Вечір: майже ціль"),
+        (.eveningStreak, "Вечір: серія"), (.eveningClose, "Закрити норму"), (.eveningSoothing, "Вечір: без норми"),
+        (.rescueMorning, "Порятунок зранку"), (.rescueEvening, "Порятунок увечері"), (.comebackFirst, "Повернення"),
+        (.comebackLast, "Повернення: пауза"), (.reportDay, "Звіт дня"), (.reportWeek, "Звіт тижня"),
+        (.reportMonth, "Звіт місяця")
+    ]
+
+    /// Через скільки прийде зразок: 5 с — побачити банер у застосунку, 30 с — встигнути заблокувати телефон.
+    static let notificationDelays = [5, 30]
+
+    static func notificationSent(_ title: String, seconds: Int) -> String {
+        seconds == 0 ? "«\(title)» — уже" : "«\(title)» — за \(seconds) с"
+    }
+
+    static let notificationDenied = "Немає дозволу на сповіщення — увімкни його в Параметрах iOS"
 
     static let notificationTaps: [(NotificationType, String)] = [
         (.reminder, "Нагадування"), (.morning, "Ранкова склянка"), (.evening, "Вечірній підсумок"),

@@ -2,6 +2,7 @@ import SwiftUI
 import Core
 import Persistence
 import Gamification
+import Notifications
 import DesignSystem
 
 /// «Режим розробника» (WAT-68) — з «Налаштувань», лише в DEBUG-збірці. Дані для тестування: годинник, дні, гра,
@@ -29,6 +30,7 @@ public struct DeveloperScreen: View {
             clock
             days
             game
+            notifications
             windows
             reset
         }
@@ -138,6 +140,25 @@ public struct DeveloperScreen: View {
             ])
             DeveloperNote("Рівень ставиться на поріг (плюс XP досягнення рівня, якщо воно відкрилось); униз видані "
                           + "призи й досягнення лишаються. «+50 XP» — з бустом і множником, як справжній XP.")
+        }
+    }
+
+    private var notifications: some View {
+        DeveloperSection(title: "СПОВІЩЕННЯ") {
+            DeveloperNote("Справжнє сповіщення з текстом і діями, як із плану. Банер видно й у відкритому застосунку; "
+                          + "за 30 с — встигнеш заблокувати телефон.")
+            DeveloperChips(chips: DeveloperPresenter.notificationDelays.map { seconds in
+                .init(id: "developer.notify.delay.\(seconds)", title: "За \(seconds) с",
+                      isSelected: model.notificationDelay == seconds) { model.notificationDelay = seconds }
+            })
+            WTDivider()
+            DeveloperChips(chips: DeveloperPresenter.notificationSamples.map { sample, title in
+                .init(id: "developer.notify.\(sample.rawValue)", title: title) { model.sendNotification(sample) }
+            } + [.init(id: "developer.notify.echo", title: "Відлуння (одразу)") { model.sendEcho() }])
+            if let notice = model.notificationNotice {
+                DeveloperNote(notice)
+                    .accessibilityIdentifier("developer.notify.notice")
+            }
         }
     }
 
