@@ -23,7 +23,7 @@ enum AppContainer {
     private(set) static var storeError: Error?
 
     static let services: AppServices = {
-        let clock: Clock = launch.fixedNow.map { FixedClock(now: $0) } ?? SystemClock()
+        let clock = makeClock()
         let container: ModelContainer
         if launch.isInMemory {
             container = Database.makeInMemoryContainer()
@@ -32,6 +32,8 @@ enum AppContainer {
                 // Перше відкриття новою схемою — спершу копія файлів: міграція їх переписує (WAT-67).
                 Database.backupIfSchemaChanged(now: clock.now)
                 container = try Database.makeContainer()
+                // «Скинути» з режиму розробника — до сервісів: вони тримають живі об'єкти бази (WAT-68).
+                DeveloperSettings.applyPendingReset(to: container)
             } catch {
                 AppLog.persistence.error("store: \(error)")
                 storeError = error
@@ -79,6 +81,21 @@ enum AppContainer {
         }
         return services
     }()
+
+    /// Годинник: фіксований для e2e (`--uitest-now`), у DEBUG — зі зсувом режиму розробника (WAT-68), інакше системний.
+    /// e2e зсуву з ручної перевірки не бачать: його сховище в них своє й щоразу порожнє.
+    private static func makeClock() -> Clock {
+        if let now = launch.fixedNow { return FixedClock(now: now) }
+        #if DEBUG
+        if launch.isUITest, let volatile = UserDefaults(suiteName: "wt.uitest.developer") {
+            volatile.removePersistentDomain(forName: "wt.uitest.developer")
+            DeveloperSettings.defaults = volatile
+        }
+        return OffsetClock(offset: DeveloperSettings.clockOffset)
+        #else
+        return SystemClock()
+        #endif
+    }
 
     /// Онбординг на старті: прапорець e2e або перший запуск без жодної порції (SPEC-ONBOARDING §8). Під `--uitest-*` —
     /// лише за прапорцем, інакше він перекрив би всі наявні сценарії.

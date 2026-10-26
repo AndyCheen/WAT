@@ -16,6 +16,7 @@ public struct SettingsScreen: View {
     private let onOpenLearn: (String) -> Void
     private let onOpenPortionButtons: () -> Void
     private let onOpenOnboarding: () -> Void
+    private let onOpenDeveloper: () -> Void
     @State private var onboardingDesign = OnboardingDesign.current
 
     public init(
@@ -26,9 +27,11 @@ public struct SettingsScreen: View {
         onOpenNotifications: @escaping () -> Void,
         onOpenPortionButtons: @escaping () -> Void,
         onOpenLearn: @escaping (String) -> Void = { _ in },
-        onOpenOnboarding: @escaping () -> Void = {}
+        onOpenOnboarding: @escaping () -> Void = {},
+        onOpenDeveloper: @escaping () -> Void = {}
     ) {
         self.onOpenOnboarding = onOpenOnboarding
+        self.onOpenDeveloper = onOpenDeveloper
         _model = State(initialValue: SettingsModel(services: services))
         _themeMode = themeMode
         _hapticsEnabled = hapticsEnabled
@@ -50,6 +53,9 @@ public struct SettingsScreen: View {
                     rhythm
                     app
                     temporary
+                    #if DEBUG
+                    developer
+                    #endif
                 }
                 .wtScreenTopPadding()
                 .padding(.horizontal, WTSpacing.screenSide)
@@ -158,6 +164,14 @@ public struct SettingsScreen: View {
                 OnboardingDesign.current = onboardingDesign
             }
             .padding(.vertical, 8)
+        }
+    }
+
+    /// Режим розробника (WAT-68) — лише в DEBUG-збірці: дані для тестування повз правила гри.
+    private var developer: some View {
+        section("РОЗРОБНИК") {
+            WTNavigationRow("Режим розробника", value: "DEBUG", action: onOpenDeveloper)
+                .accessibilityIdentifier("settings.developer")
         }
     }
 

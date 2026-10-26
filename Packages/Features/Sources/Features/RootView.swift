@@ -29,6 +29,8 @@ public enum AppRoute: Hashable {
     case learn
     /// Одна історія — з бібліотеки чи контекстного входу; `slide` — `--start-screen learn:<id>:<слайд>`.
     case learnStory(String, slide: Int? = nil)
+    /// DEBUG: «Режим розробника» з «Налаштувань» і його сторінки (WAT-68).
+    case developer(DeveloperPage)
 
     /// Бібліотека й історії — щоб кнопка «Що з цим робити» прибирала їх зі стека (`RootView.navigate`).
     var isLearn: Bool {
@@ -141,7 +143,7 @@ public struct RootView: View {
         case .notifications?: return .notifications
         case .report?: return .report
         case .learn?, .learnStory?: return .learn
-        case .notificationPlan?, .widgetGallery?: return nil
+        case .notificationPlan?, .widgetGallery?, .developer?: return nil
         }
     }
 
@@ -175,7 +177,8 @@ public struct RootView: View {
                 onOpenNotifications: { path.append(.notifications) },
                 onOpenPortionButtons: { path.append(.portionButtons) },
                 onOpenLearn: { path.append(.learnStory($0)) },
-                onOpenOnboarding: { openOnboarding(.revisit) }
+                onOpenOnboarding: { openOnboarding(.revisit) },
+                onOpenDeveloper: { path.append(.developer(.hub)) }
             )
         case .portionButtons:
             PortionButtonsScreen(services: services, onBack: { path.removeLast() })
@@ -196,6 +199,23 @@ public struct RootView: View {
         case let .learnStory(id, slide):
             LearnStoryScreen(services: services, storyId: id, startSlide: slide, onClose: { path.removeLast() },
                              onNavigate: navigate)
+        case .developer(let page):
+            developer(page)
+        }
+    }
+
+    @ViewBuilder
+    private func developer(_ page: DeveloperPage) -> some View {
+        switch page {
+        case .hub:
+            DeveloperScreen(services: services, onBack: { path.removeLast() }, onOpen: { path.append($0) },
+                            onOpenOnboarding: { openOnboarding(.firstRun) })
+        case .day:
+            DeveloperDayScreen(services: services, onBack: { path.removeLast() })
+        case .achievements:
+            DeveloperAchievementsScreen(services: services, onBack: { path.removeLast() })
+        case .quests:
+            DeveloperQuestsScreen(services: services, onBack: { path.removeLast() })
         }
     }
 

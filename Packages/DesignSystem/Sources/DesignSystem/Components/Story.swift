@@ -860,11 +860,15 @@ public struct WTStoryBadges: View {
     }
 }
 
-/// Рядки, що переносяться по ширині, — по центру.
+/// Рядки, що переносяться по ширині, — по центру або від лівого краю (чипи дій у картці).
 public struct WTFlowLayout: Layout {
     private let spacing: CGFloat
+    private let isLeading: Bool
 
-    public init(spacing: CGFloat) { self.spacing = spacing }
+    public init(spacing: CGFloat, alignment: HorizontalAlignment = .center) {
+        self.spacing = spacing
+        self.isLeading = alignment == .leading
+    }
 
     public func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let rows = arrange(width: proposal.width ?? .infinity, subviews: subviews)
@@ -875,7 +879,7 @@ public struct WTFlowLayout: Layout {
     public func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         var y = bounds.minY
         for row in arrange(width: bounds.width, subviews: subviews) {
-            var x = bounds.midX - row.width / 2
+            var x = isLeading ? bounds.minX : bounds.midX - row.width / 2
             for index in row.indices {
                 let size = subviews[index].sizeThatFits(.unspecified)
                 subviews[index].place(at: CGPoint(x: x, y: y + (row.height - size.height) / 2), proposal: .unspecified)

@@ -70,8 +70,9 @@ struct WaterTrackerApp: App {
 struct LaunchConfiguration {
     let isInMemory: Bool
     let seedsDemoData: Bool
-    /// `--start-screen progress|level-road|achievements|prizes|stats|settings|portion-buttons|notifications|notification-plan|report|schedule-suggestion|widgets|learn` —
+    /// `--start-screen progress|level-road|achievements|prizes|stats|settings|portion-buttons|notifications|notification-plan|report|schedule-suggestion|widgets|learn|developer` —
     /// відкрити екран одразу. Використовується для дизайн-QA та e2e без ручної навігації.
+    /// `developer` — режим розробника (WAT-68); сторінка — `developer:day|achievements|quests`.
     /// `learn` — бібліотека «Знань»; історія — `learn:app.xp`, з потрібного слайда — `learn:app.xp:3`.
     /// `report` — звіт за минулий тиждень; конкретний період — `report:day:2026-10-04`,
     /// `report:month:2026-09` (кілька — через кому, як у злитому сповіщенні).
@@ -128,6 +129,10 @@ struct LaunchConfiguration {
         case "notification-plan": route = .notificationPlan
         case "widgets": route = .widgetGallery
         case "learn": route = .learn
+        case "developer": route = .developer(.hub)
+        case "developer:day": route = .developer(.day)
+        case "developer:achievements": route = .developer(.achievements)
+        case "developer:quests": route = .developer(.quests)
         case let screen? where screen.hasPrefix("learn:"):
             let parts = screen.split(separator: ":").map(String.init)
             route = .learnStory(parts[1], slide: parts.count > 2 ? Int(parts[2]) : nil)
