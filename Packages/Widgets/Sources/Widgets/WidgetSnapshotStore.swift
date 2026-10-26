@@ -8,7 +8,10 @@ import WidgetKit
 /// Атомарний запис — віджет ніколи не прочитає половину файла. Знімок крихітний (~2 КБ), тож
 /// кешувати його в пам'яті розширення нема сенсу: кожен таймлайн читає свіжий.
 public struct WidgetSnapshotStore: Sendable {
-    public static let appGroup = "group.com.watertracker.app"
+    /// Група — з Info.plist (`WTAppGroup`, задає `APP_GROUP_ID` у project.yml, WAT-69): ідентифікатор глобальний в
+    /// Apple й залежить від команди підпису, тож живе поруч із нею, а не в коді. Запасний — для SPM-тестів без Info.plist.
+    public static let appGroup = Bundle.main.object(forInfoDictionaryKey: "WTAppGroup") as? String
+        ?? "group.com.watertracker.app"
     static let fileName = "widget-snapshot.json"
 
     public let url: URL?

@@ -28,6 +28,10 @@ make clean
 
 Симулятор перевизначається: `make build SIMULATOR="iPhone 17 Pro"`.
 
+Підпис — лише в `project.yml` (`DEVELOPMENT_TEAM`, `APP_BUNDLE_ID`, `APP_GROUP_ID`, WAT-69): вибране в інтерфейсі Xcode
+`make project` скидає. Ідентифікатори глобальні в Apple; змінений ідентифікатор для iOS — інший застосунок, і дані на
+телефоні не перейдуть. Групу код бере з Info.plist (`WTAppGroup`), не з рядка.
+
 Один пакет / один тест:
 
 ```bash
@@ -261,7 +265,7 @@ Features → Widgets → DesignSystem → Core
 - **Пише лише застосунок.** Розширення `WaterTrackerWidgets` лінкує тільки пакет `Widgets` і SwiftData не відкриває:
   два процеси в одному сховищі — застарілі дані й розбіжні кеші метрик. Застосунок наприкінці кожного проходу
   перепланування (`NotificationService.onRescheduled`) пише `WidgetSnapshot` у App Group
-  (`group.com.watertracker.app/widget-snapshot.json`, `AppServices+Widgets.swift`); той самий зміст таймлайнів не
+  (`<APP_GROUP_ID>/widget-snapshot.json`, `AppServices+Widgets.swift`); той самий зміст таймлайнів не
   перезавантажує. Нову добу без запуску застосунку віджет проєктує сам (`WidgetDay.resolve`).
 - **Кнопки йдуть у процес застосунку** (`App/Shared/Intents`, у двох цілях) через `ForegroundContinuableIntent`,
   недоступний у розширенні (`@available(iOSApplicationExtension, unavailable)`), — **не `LiveActivityIntent`**: той
