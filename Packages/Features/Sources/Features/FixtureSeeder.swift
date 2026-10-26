@@ -14,10 +14,26 @@ public enum FixtureSeeder {
         (8, 15, 250), (10, 40, 500), (12, 5, 200), (14, 20, 300)
     ]
 
+    /// Пакет збережень — на крок, а не на всю історію: незбережене бачить кожна вибірка, і з тисячами записів у пакеті
+    /// заповнення йшло вчетверо довше, ніж без пакета взагалі (25 с проти 6 с на 60 днях).
     public static func seed(into services: AppServices, days: Int = 60) {
+        for step in steps(into: services, days: days) {
+            SaveBatch.run(services.container.mainContext, step)
+        }
+    }
+
+    /// Демо-історія кроками: підготовка, по кроку на день, сьогодні з підсумком. Старт e2e проходить їх підряд, режим
+    /// розробника — з кадром між ними (`AppServices.developerSeedDemo`): 60 днів — це кілька секунд роботи, і одним
+    /// шматком вони виглядали як завислий застосунок.
+    static func steps(into services: AppServices, days: Int) -> [() -> Void] {
+        [{ prepare(services, days: days) }]
+            + stride(from: days, through: 1, by: -1).map { offset in { seedDay(offset, services) } }
+            + [{ finish(services) }]
+    }
+
+    private static func prepare(_ services: AppServices, days: Int) {
         let calendar = services.calendar
         let today = calendar.today
-
         services.profiles.setGoal(
             2000, source: .seed,
             effectiveFrom: calendar.dayKey(offsetDays: -days - 1, from: today),
@@ -26,38 +42,41 @@ public enum FixtureSeeder {
         // Зерно таємних призів — мить створення профілю. Від неї залежить «Щаслива зірка» (WAT-24), тож демо
         // ставить профіль на початок історії: однакові дати — однаковий вміст 🎁 і той самий XP.
         services.profile.createdAt = calendar.date(from: calendar.dayKey(offsetDays: -days - 1, from: today))
+    }
 
-        // Історія: у кожен день кілька порцій за псевдовипадковим, але стабільним патерном.
-        for offset in stride(from: days, through: 1, by: -1) {
-            let dayKey = calendar.dayKey(offsetDays: -offset, from: today)
-            let date = calendar.date(from: dayKey)
-            let seed = stableHash(dayKey.rawValue)
+    /// Один день історії: у кожен — кілька порцій за псевдовипадковим, але стабільним патерном.
+    private static func seedDay(_ offset: Int, _ services: AppServices) {
+        let calendar = services.calendar
+        let dayKey = calendar.dayKey(offsetDays: -offset, from: calendar.today)
+        let seed = stableHash(dayKey.rawValue)
 
-            // Учора пропущено, а позавчора норму закрито — сценарій «заморозити вчора»
-            // (SPEC-PRIZES §11): e2e перевіряє обидва тексти кнопки заморозки.
-            if offset == 1 { continue }
+        // Учора пропущено, а позавчора норму закрито — сценарій «заморозити вчора»
+        // (SPEC-PRIZES §11): e2e перевіряє обидва тексти кнопки заморозки.
+        if offset == 1 { return }
 
-            // Кожен 9-й день пропускаємо — щоб серії й календар мали розриви.
-            if seed % 9 == 0, offset != 2 { continue }
+        // Кожен 9-й день пропускаємо — щоб серії й календар мали розриви.
+        if seed % 9 == 0, offset != 2 { return }
 
-            // Пропуск і патерн беремо з різних половин хешу: спільне джерело остач
-            // корелює (9 і 6 мають дільник 3) і перекошує частку днів із закритою нормою.
-            let pattern = offset == 2
-                ? patterns[0]
-                : patterns[Int((seed >> 32) % UInt64(patterns.count))]
-            for entry in pattern {
-                var components = DateComponents()
-                components.year = dayKey.year
-                components.month = dayKey.month
-                components.day = dayKey.day
-                components.hour = entry.hour
-                components.minute = entry.minute
-                guard let stamp = calendar.calendar.date(from: components) else { continue }
-                services.hydration.addIntake(amountMl: entry.ml, source: .seed, at: stamp)
-            }
-            _ = date
+        // Пропуск і патерн беремо з різних половин хешу: спільне джерело остач
+        // корелює (9 і 6 мають дільник 3) і перекошує частку днів із закритою нормою.
+        let pattern = offset == 2
+            ? patterns[0]
+            : patterns[Int((seed >> 32) % UInt64(patterns.count))]
+        for entry in pattern {
+            var components = DateComponents()
+            components.year = dayKey.year
+            components.month = dayKey.month
+            components.day = dayKey.day
+            components.hour = entry.hour
+            components.minute = entry.minute
+            guard let stamp = calendar.calendar.date(from: components) else { continue }
+            services.hydration.addIntake(amountMl: entry.ml, source: .seed, at: stamp)
         }
+    }
 
+    /// Сьогодні як у макеті 1a, перерахунок і стан, у якому демо зручно тестувати.
+    private static func finish(_ services: AppServices) {
+        let calendar = services.calendar
         for entry in todayIntakes {
             var components = calendar.calendar.dateComponents([.year, .month, .day], from: calendar.now)
             components.hour = entry.hour

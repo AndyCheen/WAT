@@ -113,11 +113,22 @@ extension GamificationService {
         return gained
     }
 
-    /// Рівно до порогу наступного рівня — з поправкою на буст і загальний множник, що діють на будь-який XP.
-    public func developerLevelUp(at date: Date? = nil) {
+    /// Будь-який рівень від 1 — на його порозі чи з `xpIntoLevel` усередині. Униз видане не забирається: приз рівня не
+    /// відкликається (SPEC-PRIZES §3.4), а досягнення рівнів знімає лише «Закрити»; знову вгору — призи вдруге не
+    /// видаються (ref рівня той самий).
+    public func developerSetLevel(_ level: Int, xpIntoLevel: Int = 0, at date: Date? = nil) {
         let now = date ?? calendar.now
-        let multiplier = xp.boostMultiplier(at: now) * xp.rules.xpMultiplier
-        developerAwardXp(Int((Double(xp.progress().xpLeft) / multiplier).rounded(.up)), at: now)
+        let target = LevelCalculator.totalXpRequired(forLevel: max(1, level), curve: xp.curve) + max(0, xpIntoLevel)
+        xp.adjust(toTotal: target, at: now)
+        evaluateAchievements(at: now, triggerRef: nil, announce: true)
+        grantLevelRewards(at: now)
+        metrics.commit()
+    }
+
+    /// За `xpLeft` до наступного рівня — підняти рівень однією порцією й побачити тост чи рядок у вікні відкриття.
+    public func developerAlmostNextLevel(xpLeft: Int = 10, at date: Date? = nil) {
+        let progress = xp.progress()
+        developerSetLevel(progress.level, xpIntoLevel: max(0, progress.xpForNextLevel - xpLeft), at: date)
     }
 
     // MARK: - Призи й серія

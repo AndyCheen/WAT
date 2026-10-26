@@ -109,12 +109,40 @@ final class DeveloperModeTests: XCTestCase {
 
     // MARK: - XP, призи, серія
 
-    func testLevelUpReachesExactlyTheNextLevel() {
+    func testSetLevelLandsOnItsThresholdBothWays() {
         let env = GameEnv()
-        env.game.developerLevelUp()
-        XCTAssertEqual(env.game.levelProgress().level, 2)
-        env.game.developerLevelUp()
+        env.game.developerSetLevel(6)
+        XCTAssertEqual(env.game.levelProgress().level, 6)
+        XCTAssertEqual(env.game.levelProgress().xpIntoLevel, 0)
+        let prizes = env.game.prizes().count
+        XCTAssertGreaterThan(prizes, 0, "рівні 2…6 видали свої призи")
+
+        env.game.developerSetLevel(3)
         XCTAssertEqual(env.game.levelProgress().level, 3)
+        XCTAssertEqual(env.game.levelProgress().xpIntoLevel, 0)
+        XCTAssertEqual(env.game.prizes().count, prizes, "униз видане лишається")
+
+        env.game.developerSetLevel(6)
+        XCTAssertEqual(env.game.prizes().count, prizes, "знову вгору — призи вдруге не видаються")
+    }
+
+    func testAlmostNextLevelLeavesTenXp() {
+        let env = GameEnv()
+        env.game.developerSetLevel(4)
+        env.game.developerAlmostNextLevel()
+        XCTAssertEqual(env.game.levelProgress().level, 4)
+        XCTAssertEqual(env.game.levelProgress().xpLeft, 10)
+
+        env.game.developerAwardXp(10)
+        XCTAssertEqual(env.game.levelProgress().level, 5, "рівень піднімає звичайний XP")
+    }
+
+    func testLevelOneIsTheFloor() {
+        let env = GameEnv()
+        env.game.developerSetLevel(3)
+        env.game.developerSetLevel(0)
+        XCTAssertEqual(env.game.levelProgress().level, 1)
+        XCTAssertEqual(env.game.levelProgress().totalXp, 0)
     }
 
     func testStopBoostExpiresItNow() throws {

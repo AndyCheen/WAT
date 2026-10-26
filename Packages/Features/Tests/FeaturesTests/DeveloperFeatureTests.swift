@@ -65,9 +65,30 @@ final class DeveloperFeatureTests: XCTestCase {
         XCTAssertTrue(services.developerDay(day(20)).intakes.isEmpty)
     }
 
-    func testClosedDaysBuildTheStreak() {
-        services.developerCloseDays(5)
+    func testClosedDaysBuildTheStreak() async {
+        var reported: [Double] = []
+        await services.developerCloseDays(5) { reported.append($0) }
+
         XCTAssertEqual(services.gamification.streakSummary().current, 5)
+        XCTAssertEqual(reported.count, 5, "поступ — після кожного дня")
+        XCTAssertEqual(reported.last, 1)
+    }
+
+    func testStepwiseDemoMatchesTheSeederAtOnce() async {
+        let reference = AppServices(container: Database.makeInMemoryContainer(),
+                                    clock: FixedClock(now: Self.date(day: 26, hour: 14)))
+        reference.bootstrap()
+        // Дозвіл сповіщень приходить асинхронно, а від нього — «На крок попереду»: паузи покрокового заповнення дають
+        // йому прийти, тож обидва прогони — з уже відомим дозволом.
+        await reference.notifications.refreshAuthorization()
+        await services.notifications.refreshAuthorization()
+        FixtureSeeder.seed(into: reference)
+
+        await services.developerSeedDemo()
+
+        XCTAssertEqual(services.gamification.levelProgress(), reference.gamification.levelProgress(),
+                       "кроками — те саме, що одним пакетом на старті e2e")
+        XCTAssertEqual(services.gamification.streakSummary(), reference.gamification.streakSummary())
     }
 
     func testPastDayGoalReopensTheDay() {
@@ -83,6 +104,16 @@ final class DeveloperFeatureTests: XCTestCase {
     func testUnlockShowsCelebrationWindow() {
         services.developerUnlock(achievement: "big.gulp")
         XCTAssertEqual(services.celebration?.keys, ["big.gulp"])
+    }
+
+    func testSetLevelMovesCelebratedLevelWithIt() {
+        services.developerSetLevel(8)
+        XCTAssertEqual(services.gamification.levelProgress().level, 8)
+        XCTAssertEqual(services.profile.highestCelebratedLevel, 8, "рівень з режиму розробника не святкується")
+
+        services.developerSetLevel(3)
+        XCTAssertEqual(services.profile.highestCelebratedLevel, 3,
+                       "униз — і відсвятковане теж: справжнє підняття на 4 отримає тост")
     }
 
     // MARK: - Годинник

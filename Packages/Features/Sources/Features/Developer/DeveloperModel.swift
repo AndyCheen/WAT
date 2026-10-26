@@ -28,6 +28,14 @@ final class DeveloperModel {
     private(set) var nowLabel = ""
     private(set) var clockOffsetLabel: String?
 
+    /// Масова дія, що йде зараз, — індикатор поверх сторінки замість завислого екрана.
+    private(set) var busy: Busy?
+
+    struct Busy: Equatable {
+        let title: String
+        var fraction: Double
+    }
+
     var achievementFilter: AchievementFilter = .locked
     var search = ""
 
@@ -89,13 +97,26 @@ final class DeveloperModel {
     }
 
     func closeDays(_ count: Int) {
-        services.developerCloseDays(count)
-        reload()
+        runBusy("Закриваю \(ReportFormat.daysWord(count, withNumber: true))") { [services] progress in
+            await services.developerCloseDays(count, progress: progress)
+        }
     }
 
     func seedDemo() {
-        services.developerSeedDemo()
-        reload()
+        runBusy("Демо-історія за 60 днів") { [services] progress in
+            await services.developerSeedDemo(progress: progress)
+        }
+    }
+
+    /// Друга масова дія поверх першої не починається: індикатор закриває сторінку, але тап міг прийти раніше.
+    private func runBusy(_ title: String, _ work: @escaping (_ progress: @escaping (Double) -> Void) async -> Void) {
+        guard busy == nil else { return }
+        busy = Busy(title: title, fraction: 0)
+        Task {
+            await work { [weak self] fraction in self?.busy?.fraction = fraction }
+            busy = nil
+            reload()
+        }
     }
 
     func grantPrize(_ key: String) {
@@ -108,10 +129,24 @@ final class DeveloperModel {
         reload()
     }
 
-    func levelUp() {
-        services.developerLevelUp()
+    /// Крок рівня — на одиницю, а не до порогу: «−» з середини рівня веде на поріг попереднього, як і «+» — наступного.
+    func stepLevel(up: Bool) {
+        services.developerSetLevel(max(1, level.level + (up ? 1 : -1)))
         reload()
     }
+
+    func setLevel(_ value: Int) {
+        services.developerSetLevel(value)
+        reload()
+    }
+
+    func almostNextLevel() {
+        services.developerAlmostNextLevel()
+        reload()
+    }
+
+    /// Рівні, на які варто стрибати: перші призи, перший вибір і 🎁, межа «приз через рівень» (`LevelRoadCatalog`).
+    static let levelPresets = [1, 2, 5, 10, 11, 20, 30]
 
     func stopBoost() {
         services.developerStopBoost()

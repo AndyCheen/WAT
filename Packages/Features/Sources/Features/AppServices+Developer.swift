@@ -40,7 +40,7 @@ extension AppServices {
 
     /// Порції дня заново — `percent` від норми дня, рівно по активних годинах (`DayFill`). 0 — очистити день.
     public func developerFill(day: DayKey, percent: Int) {
-        refill(day, percent: percent)
+        SaveBatch.run(container.mainContext) { refill(day, percent: percent) }
         finishDeveloperAction(changedPast: day != calendar.today)
     }
 
@@ -55,18 +55,30 @@ extension AppServices {
     }
 
     /// Серія: `count` днів до сьогодні з закритою нормою. Уже закриті не чіпаються.
-    public func developerCloseDays(_ count: Int) {
-        for offset in stride(from: count, through: 1, by: -1) {
-            let day = calendar.dayKey(offsetDays: -offset, from: calendar.today)
-            if !hydration.snapshot(for: day).goalMet { refill(day, percent: 100) }
-        }
+    public func developerCloseDays(_ count: Int, progress: (Double) -> Void = { _ in }) async {
+        let today = calendar.today
+        let days = stride(from: count, through: 1, by: -1).map { calendar.dayKey(offsetDays: -$0, from: today) }
+        await runSteps(days.map { day in
+            { [unowned self] in if !hydration.snapshot(for: day).goalMet { refill(day, percent: 100) } }
+        }, progress: progress)
         finishDeveloperAction(changedPast: true)
     }
 
     /// Демо-історія 60 днів (`FixtureSeeder`) — та сама, що в `--seed-demo`.
-    public func developerSeedDemo() {
-        FixtureSeeder.seed(into: self)
+    public func developerSeedDemo(progress: (Double) -> Void = { _ in }) async {
+        await runSteps(FixtureSeeder.steps(into: self, days: 60), progress: progress)
         epoch &+= 1
+    }
+
+    /// Масова дія кроками: крок — один пакет збережень (`SaveBatch`), між кроками — кадр. Одним шматком 60 днів
+    /// трималися б на головному потоці кілька секунд, і застосунок виглядав завислим.
+    private func runSteps(_ steps: [() -> Void], progress: (Double) -> Void) async {
+        for (index, step) in steps.enumerated() {
+            SaveBatch.run(container.mainContext, step)
+            progress(Double(index + 1) / Double(steps.count))
+            // Саме пауза, а не `Task.yield()`: кадр малюється між проходами циклу подій, а не між задачами актора.
+            try? await Task.sleep(for: .milliseconds(10))
+        }
     }
 
     private func refill(_ day: DayKey, percent: Int) {
@@ -118,9 +130,23 @@ extension AppServices {
         finishDeveloperAction()
     }
 
-    public func developerLevelUp() {
-        gamification.developerLevelUp()
+    /// Рівень з режиму розробника не святкується, а відсвятковане — від нього: наступне справжнє підняття, хоч би й на
+    /// вже бачений рівень, отримає тост чи рядок у вікні.
+    public func developerSetLevel(_ level: Int) {
+        gamification.developerSetLevel(level)
+        settleCelebratedLevel()
         finishDeveloperAction()
+    }
+
+    public func developerAlmostNextLevel() {
+        gamification.developerAlmostNextLevel()
+        settleCelebratedLevel()
+        finishDeveloperAction()
+    }
+
+    private func settleCelebratedLevel() {
+        profile.highestCelebratedLevel = gamification.levelProgress().level
+        profiles.save()
     }
 
     public func developerStopBoost() {

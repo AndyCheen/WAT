@@ -123,6 +123,6 @@ public final class MetricStore: MetricStoreProtocol {
     }
 
     public func save() {
-        do { try context.save() } catch { AppLog.persistence.error("save: \(error)") }
+        context.saveLoggingErrors()
     }
 }

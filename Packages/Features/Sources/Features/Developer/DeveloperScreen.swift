@@ -7,6 +7,7 @@ import DesignSystem
 /// «Режим розробника» (WAT-68) — з «Налаштувань», лише в DEBUG-збірці. Дані для тестування: годинник, дні, гра,
 /// вікна, скидання. Тексти — `DeveloperPresenter`, дії — `AppServices+Developer`.
 public struct DeveloperScreen: View {
+    @Environment(\.wtTheme) private var theme
     @State private var model: DeveloperModel
     @State private var pendingReset: EraseScope?
     private let onBack: () -> Void
@@ -31,6 +32,8 @@ public struct DeveloperScreen: View {
             windows
             reset
         }
+        .overlay { busyOverlay }
+        .animation(WTAnimation.fade, value: model.busy == nil)
         .onAppear { model.reload() }
         // Вікно відкриття, нова доба, зсув годинника.
         .onChange(of: model.epoch) { model.reload() }
@@ -92,6 +95,7 @@ public struct DeveloperScreen: View {
             WTDivider()
             WTNavigationRow("Демо-історія", value: "60 днів") { model.seedDemo() }
                 .accessibilityIdentifier("developer.seedDemo")
+            DeveloperNote("Додається поверх наявних порцій — для чистого вигляду спершу «Скинути прогрес».")
         }
     }
 
@@ -118,12 +122,22 @@ public struct DeveloperScreen: View {
                 }
             }
             WTDivider()
-            WTSettingRow("Досвід", subtitle: model.levelLabel) { EmptyView() }
-            DeveloperChips(chips: [
+            WTSettingRow("Рівень", subtitle: "\(model.level.xpIntoLevel) / \(model.level.xpForNextLevel) XP") {
+                WTValueStepper("\(model.level.level)", identifier: "developer.level.stepper",
+                               onDecrement: { model.stepLevel(up: false) },
+                               onIncrement: { model.stepLevel(up: true) })
+            }
+            DeveloperChips(chips: DeveloperModel.levelPresets.map { value in
+                .init(id: "developer.level.\(value)", title: "\(value)", isSelected: model.level.level == value) {
+                    model.setLevel(value)
+                }
+            } + [
+                .init(id: "developer.level.almost", title: "За 10 XP до наступного") { model.almostNextLevel() },
                 .init(id: "developer.xp.50", title: "+50 XP") { model.awardXp(50) },
-                .init(id: "developer.xp.500", title: "+500 XP") { model.awardXp(500) },
-                .init(id: "developer.xp.level", title: "+1 рівень") { model.levelUp() }
+                .init(id: "developer.xp.500", title: "+500 XP") { model.awardXp(500) }
             ])
+            DeveloperNote("Рівень ставиться на поріг (плюс XP досягнення рівня, якщо воно відкрилось); униз видані "
+                          + "призи й досягнення лишаються. «+50 XP» — з бустом і множником, як справжній XP.")
         }
     }
 
@@ -162,6 +176,30 @@ public struct DeveloperScreen: View {
                 .accessibilityIdentifier("developer.reset.everything")
             DeveloperNote("Прогрес — порції, XP, досягнення, завдання, призи; профіль і налаштування лишаються. "
                           + "Усе — як нова установка, з онбордингом. Застосунок закриється — відкрий його знову.")
+        }
+    }
+
+    /// Масова дія: сторінка під індикатором не реагує, і «назад» посеред заповнення не кине його напівдорозі.
+    @ViewBuilder
+    private var busyOverlay: some View {
+        if let busy = model.busy {
+            ZStack {
+                theme.screen.opacity(0.9).ignoresSafeArea()
+                WTCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(busy.title)
+                            .font(WTFont.text(17, .bold))
+                            .foregroundStyle(theme.textPrimary)
+                        WTProgressBar(fraction: busy.fraction)
+                        Text("\(Int((busy.fraction * 100).rounded())) %")
+                            .font(WTFont.number(15, .semibold))
+                            .foregroundStyle(theme.textMuted)
+                            .accessibilityIdentifier("developer.busy")
+                    }
+                }
+                .padding(.horizontal, WTSpacing.screenSide)
+            }
+            .transition(.opacity)
         }
     }
 
