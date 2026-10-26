@@ -15,6 +15,27 @@ public struct SystemClock: Clock {
     public var timeZone: TimeZone { .current }
 }
 
+/// Годинник зі зсувом — «машина часу» режиму розробника (WAT-68): час іде, як іде, але від іншої миті. Зсув
+/// міняється на ходу, тож сервіси, що вже тримають цей годинник, бачать новий час з наступного читання.
+public final class OffsetClock: Clock, @unchecked Sendable {
+    private let base: Clock
+    private let lock = NSLock()
+    private var _offset: TimeInterval
+
+    public init(base: Clock = SystemClock(), offset: TimeInterval = 0) {
+        self.base = base
+        self._offset = offset
+    }
+
+    public var offset: TimeInterval {
+        get { lock.lock(); defer { lock.unlock() }; return _offset }
+        set { lock.lock(); defer { lock.unlock() }; _offset = newValue }
+    }
+
+    public var now: Date { base.now.addingTimeInterval(offset) }
+    public var timeZone: TimeZone { base.timeZone }
+}
+
 /// Фіксований час — для unit-тестів і UI-фікстур.
 public final class FixedClock: Clock, @unchecked Sendable {
     private let lock = NSLock()

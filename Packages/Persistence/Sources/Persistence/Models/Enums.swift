@@ -45,6 +45,8 @@ public enum XPReason: Int, Codable, Sendable {
     case intake = 0, questCompleted, achievementUnlocked, dailyGoal, dayPartGoal, prize, streakBonus, levelBonus
     /// «Знову в ритмі» — норма наступного дня після пропуску, що обірвав серію (SPEC-NOTIFICATIONS §12.5 Б).
     case bounceBack
+    /// Нараховано з режиму розробника (WAT-68) — повз правила, щоб перевірити рівні й шлях рівнів.
+    case debug
 }
 
 public enum QuestScope: Int, Codable, CaseIterable, Sendable {
